@@ -2,195 +2,156 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import _ from 'lodash';
-import TextField from '@mui/material/TextField';
 import FormControl from '@mui/material/FormControl';
 import FormControlLabel from '@mui/material/FormControlLabel';
+import FormLabel from '@mui/material/FormLabel';
+import RadioGroup from '@mui/material/RadioGroup';
+import Radio from '@mui/material/Radio';
 import Checkbox from '@mui/material/Checkbox';
-import Button from '@mui/material/Button';
 import { signIn } from 'next-auth/react';
 import FormHelperText from '@mui/material/FormHelperText';
 import { Alert } from '@mui/material';
 import signinErrors from './signinErrors';
+import AppButton from '@/components/Shared/AppButton';
+import FormInputField from '@/components/Shared/FormInputField';
+
+
+const schema = z
+  .object({
+    first_name: z.string().nonempty('First Name is required'),
+    last_name: z.string().nonempty('Last Name is required'),
+    email: z.string().email('Enter a valid email').nonempty('Email is required'),
+    password: z.string().min(8, 'Password must be at least 8 characters long'),
+    // passwordConfirm: z.string().nonempty('Password confirmation is required'),
+    phone: z.string().min(10, 'Enter a valid phone number'),
+    dob: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'DOB must be in YYYY-MM-DD format'),
+    gender: z.enum(['male', 'female', 'other'], { message: 'Gender is required' }),
+    acceptTermsConditions: z.boolean().refine((val) => val === true, 'You must accept terms and conditions'),
+  })
+  // .refine((data) => data.password === data.passwordConfirm, {
+  //   message: 'Passwords must match',
+  //   path: ['passwordConfirm'],
+  // });
 
 /**
- * Form Validation Schema
+ * Default Values for the form
  */
-const schema = z
-	.object({
-		displayName: z.string().nonempty('You must enter your name'),
-		email: z.string().email('You must enter a valid email').nonempty('You must enter an email'),
-		password: z
-			.string()
-			.nonempty('Please enter your password.')
-			.min(8, 'Password is too short - should be 8 chars minimum.'),
-		passwordConfirm: z.string().nonempty('Password confirmation is required'),
-		acceptTermsConditions: z.boolean().refine((val) => val === true, 'The terms and conditions must be accepted.')
-	})
-	.refine((data) => data.password === data.passwordConfirm, {
-		message: 'Passwords must match',
-		path: ['passwordConfirm']
-	});
-
 const defaultValues = {
-	displayName: '',
-	email: '',
-	password: '',
-	passwordConfirm: '',
-	acceptTermsConditions: false
+  first_name: '',
+  last_name: '',
+  email: '',
+  password: '',
+  phone: '',
+  dob: '',
+  gender: '',
+  acceptTermsConditions: false,
 };
 
 export type FormType = {
-	displayName: string;
-	password: string;
-	email: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  password: string;
+  phone: string;
+  dob: string;
+  gender: string;
 };
 
 function AuthJsCredentialsSignUpForm() {
-	const { control, formState, handleSubmit, setError } = useForm({
-		mode: 'onChange',
-		defaultValues,
-		resolver: zodResolver(schema)
-	});
+  const { control, formState, handleSubmit, setError } = useForm({
+    mode: 'onChange',
+    defaultValues,
+    resolver: zodResolver(schema),
+  });
 
-	const { isValid, dirtyFields, errors } = formState;
+  const { isValid, dirtyFields, errors } = formState;
 
-	async function onSubmit(formData: FormType) {
-		const { displayName, email, password } = formData;
-		const result = await signIn('credentials', {
-			displayName,
-			email,
-			password,
-			formType: 'signup',
-			redirect: false
-		});
+  async function onSubmit(formData: FormType) {
+    console.log('Submitting Form:', formData); // Log form data before submission
 
-		if (result?.error) {
-			setError('root', { type: 'manual', message: signinErrors[result.error] });
-			return false;
-		}
+    const { first_name, last_name, email, password, phone, dob, gender } = formData;
 
-		return true;
-	}
+    const result = await signIn('credentials', {
+      first_name,
+      last_name,
+      email,
+      password,
+      phone,
+      dob,
+      gender,
+      formType: 'signup',
+      redirect: false,
+    });
 
-	return (
-		<form
-			name="registerForm"
-			noValidate
-			className="mt-8 flex w-full flex-col justify-center"
-			onSubmit={handleSubmit(onSubmit)}
-		>
-			{errors?.root?.message && (
-				<Alert
-					className="mb-8"
-					severity="error"
-					sx={(theme) => ({
-						backgroundColor: theme.palette.error.light,
-						color: theme.palette.error.dark
-					})}
-				>
-					{errors?.root?.message}
-				</Alert>
-			)}
-			<Controller
-				name="displayName"
-				control={control}
-				render={({ field }) => (
-					<TextField
-						{...field}
-						className="mb-6"
-						label="Display name"
-						autoFocus
-						type="name"
-						error={!!errors.displayName}
-						helperText={errors?.displayName?.message}
-						variant="outlined"
-						required
-						fullWidth
-					/>
-				)}
-			/>
-			<Controller
-				name="email"
-				control={control}
-				render={({ field }) => (
-					<TextField
-						{...field}
-						className="mb-6"
-						label="Email"
-						type="email"
-						error={!!errors.email}
-						helperText={errors?.email?.message}
-						variant="outlined"
-						required
-						fullWidth
-					/>
-				)}
-			/>
-			<Controller
-				name="password"
-				control={control}
-				render={({ field }) => (
-					<TextField
-						{...field}
-						className="mb-6"
-						label="Password"
-						type="password"
-						error={!!errors.password}
-						helperText={errors?.password?.message}
-						variant="outlined"
-						required
-						fullWidth
-					/>
-				)}
-			/>
-			<Controller
-				name="passwordConfirm"
-				control={control}
-				render={({ field }) => (
-					<TextField
-						{...field}
-						className="mb-6"
-						label="Password (Confirm)"
-						type="password"
-						error={!!errors.passwordConfirm}
-						helperText={errors?.passwordConfirm?.message}
-						variant="outlined"
-						required
-						fullWidth
-					/>
-				)}
-			/>
-			<Controller
-				name="acceptTermsConditions"
-				control={control}
-				render={({ field }) => (
-					<FormControl error={!!errors.acceptTermsConditions}>
-						<FormControlLabel
-							label="I agree with Terms and Privacy Policy"
-							control={
-								<Checkbox
-									size="small"
-									{...field}
-								/>
-							}
-						/>
-						<FormHelperText>{errors?.acceptTermsConditions?.message}</FormHelperText>
-					</FormControl>
-				)}
-			/>
-			<Button
-				variant="contained"
-				color="secondary"
-				className="mt-6 w-full"
-				aria-label="Register"
-				disabled={_.isEmpty(dirtyFields) || !isValid}
-				type="submit"
-				size="large"
-			>
-				Create your free account
-			</Button>
-		</form>
-	);
+    if (result?.error) {
+      setError('root', { type: 'manual', message: signinErrors[result.error] });
+      return false;
+    }
+
+    return true;
+  }
+
+  return (
+    <form
+      name="registerForm"
+      noValidate
+      className="mt-8 flex w-full flex-col justify-center"
+      onSubmit={handleSubmit(onSubmit)}
+    >
+      {errors?.root?.message && (
+        <Alert className="mb-8" severity="error">
+          {errors?.root?.message}
+        </Alert>
+      )}
+
+      <FormInputField name="first_name" control={control} label="First Name" type="text" required />
+      <FormInputField name="last_name" control={control} label="Last Name" type="text" required />
+      <FormInputField name="email" control={control} label="Email" type="email" required />
+      <FormInputField name="password" control={control} label="Password" type="password" required />
+      <FormInputField name="phone" control={control} label="Phone" type="text" required />
+      <FormInputField name="dob" control={control} label="DOB (YYYY-MM-DD)" type="text" required />
+      <FormControl component="fieldset" margin="normal">
+        <FormLabel component="legend">Gender</FormLabel>
+        <Controller
+          name="gender"
+          control={control}
+          render={({ field }) => (
+            <RadioGroup {...field} row>
+              <FormControlLabel value="male" control={<Radio />} label="Male" />
+              <FormControlLabel value="female" control={<Radio />} label="Female" />
+              <FormControlLabel value="other" control={<Radio />} label="Other" />
+            </RadioGroup>
+          )}
+        />
+        {errors.gender && <FormHelperText error>{errors.gender.message}</FormHelperText>}
+      </FormControl>
+
+      {/* Terms & Conditions Checkbox */}
+      <FormControlLabel
+        control={
+          <Controller
+            name="acceptTermsConditions"
+            control={control}
+            render={({ field }) => <Checkbox {...field} checked={field.value} />}
+          />
+        }
+        label="I accept the terms and conditions"
+      />
+      {errors.acceptTermsConditions && <FormHelperText error>{errors.acceptTermsConditions.message}</FormHelperText>}
+
+      {/* Submit Button */}
+      <AppButton
+        label="Create your free account"
+        type="submit"
+        color="secondary"
+        fullWidth
+        size="large"
+        aria-label="Register"
+        disabled={_.isEmpty(dirtyFields) || !isValid} // Ensure form validation works before enabling
+        className="mt-4 w-full"
+      />
+    </form>
+  );
 }
 
 export default AuthJsCredentialsSignUpForm;

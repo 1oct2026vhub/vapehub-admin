@@ -69,18 +69,18 @@ function Layout3(props: Layout3Props) {
 						/>
 					)}
 
-					<div className="sticky top-0 z-99">
+					{/* <div className="sticky top-0 z-99">
 						<Configurator />
-					</div>
+					</div> */}
 
 					<div className="relative z-10 flex min-h-0 flex-auto flex-col">
 						<FuseDialog />
 						{children}
 					</div>
 
-					{config.footer.display && (
+					{/* {config.footer.display && (
 						<FooterLayout3 className={config.footer.style === 'fixed' ? 'sticky bottom-0' : ''} />
-					)}
+					)} */}
 				</main>
 			</div>
 

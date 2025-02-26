@@ -10,7 +10,10 @@ import Logo from '../../../../components/Logo';
 import GoToDocBox from '@/components/theme-layouts/components/GoToDocBox';
 
 const Root = styled('div')(({ theme }) => ({
-	backgroundColor: theme.palette.background.default,
+	// backgroundColor: theme.palette.background.default, 
+	// backgroundColor:'#2E9970',
+		background: 'linear-gradient(to bottom, #2E9970, #005434)', // Linear gradient
+
 	color: theme.palette.text.primary,
 	'& ::-webkit-scrollbar-thumb': {
 		boxShadow: `inset 0 0 0 20px ${'rgba(255, 255, 255, 0.24)'}`,
@@ -59,10 +62,8 @@ function NavbarStyle2Content(props: NavbarStyle2ContentProps) {
 			>
 				<Navigation layout="vertical" />
 			</StyledContent>
-
-			<GoToDocBox className="mx-3 my-4" />
-
-			<Divider />
+			
+			<Divider sx={{ bgcolor: '#2E9970' }}/>
 
 			<div className="p-1 md:p-2.5 w-full">
 				<UserMenu className="w-full" />

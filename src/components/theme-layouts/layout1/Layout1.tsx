@@ -60,18 +60,18 @@ function Layout1(props: Layout1Props) {
 						<ToolbarLayout1 className={config.toolbar.style === 'fixed' ? 'sticky top-0' : ''} />
 					)}
 
-					<div className="sticky top-0 z-99">
+					{/* <div className="sticky top-0 z-99">
 						<Configurator />
-					</div>
+					</div> */}
 
 					<div className="relative z-10 flex min-h-0 flex-auto flex-col">
 						<FuseDialog />
 						{children}
 					</div>
 
-					{config.footer.display && (
+					{/* {config.footer.display && (
 						<FooterLayout1 className={config.footer.style === 'fixed' ? 'sticky bottom-0' : ''} />
-					)}
+					)} */}
 				</main>
 
 				{config.navbar.display && config.navbar.position === 'right' && <NavbarWrapperLayout1 />}

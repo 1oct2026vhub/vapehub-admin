@@ -171,7 +171,7 @@ function UserMenu(props: UserMenuProps) {
 							</ListItemIcon>
 							<ListItemText primary="My Profile" />
 						</MenuItem>
-						<MenuItem
+						{/* <MenuItem
 							component={Link}
 							to="/apps/mailbox"
 							onClick={userMenuClose}
@@ -181,7 +181,7 @@ function UserMenu(props: UserMenuProps) {
 								<FuseSvgIcon>heroicons-outline:envelope</FuseSvgIcon>
 							</ListItemIcon>
 							<ListItemText primary="Inbox" />
-						</MenuItem>
+						</MenuItem> */}
 						<MenuItem
 							onClick={() => {
 								signOut();

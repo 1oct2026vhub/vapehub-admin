@@ -8,7 +8,7 @@ import './i18n';
 
 const Root = styled(FusePageSimple)(({ theme }) => ({
 	'& .FusePageSimple-header': {
-		backgroundColor: theme.palette.background.paper,
+		backgroundColor:"white",
 		borderBottomWidth: 1,
 		borderStyle: 'solid',
 		borderColor: theme.palette.divider

@@ -3,19 +3,16 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useEffect } from 'react';
 import { z } from 'zod';
 import _ from 'lodash';
-import TextField from '@mui/material/TextField';
 import FormControl from '@mui/material/FormControl';
 import FormControlLabel from '@mui/material/FormControlLabel';
 import Checkbox from '@mui/material/Checkbox';
 import Link from '@fuse/core/Link';
-import Button from '@mui/material/Button';
 import { signIn } from 'next-auth/react';
 import { Alert } from '@mui/material';
 import signinErrors from './signinErrors';
+import AppButton from '@/components/Shared/AppButton';
+import FormInputField from '@/components/Shared/FormInputField';
 
-/**
- * Form Validation Schema
- */
 const schema = z.object({
 	email: z.string().email('You must enter a valid email').nonempty('You must enter an email'),
 	password: z
@@ -93,40 +90,21 @@ function AuthJsCredentialsSignInForm() {
 					{errors?.root?.message}
 				</Alert>
 			)}
-			<Controller
+
+			<FormInputField
 				name="email"
 				control={control}
-				render={({ field }) => (
-					<TextField
-						{...field}
-						className="mb-6"
-						label="Email"
-						autoFocus
-						type="email"
-						error={!!errors.email}
-						helperText={errors?.email?.message}
-						variant="outlined"
-						required
-						fullWidth
-					/>
-				)}
+				label="Email"
+				type="email"
+				autoFocus
+				required
 			/>
-			<Controller
+			<FormInputField
 				name="password"
 				control={control}
-				render={({ field }) => (
-					<TextField
-						{...field}
-						className="mb-6"
-						label="Password"
-						type="password"
-						error={!!errors.password}
-						helperText={errors?.password?.message}
-						variant="outlined"
-						required
-						fullWidth
-					/>
-				)}
+				label="Password"
+				type="password"
+				required
 			/>
 			<div className="flex flex-col items-center justify-center sm:flex-row sm:justify-between">
 				<Controller
@@ -154,19 +132,21 @@ function AuthJsCredentialsSignInForm() {
 					Forgot password?
 				</Link>
 			</div>
-			<Button
-				variant="contained"
-				color="secondary"
-				className="mt-4 w-full"
-				aria-label="Sign in"
-				disabled={_.isEmpty(dirtyFields) || !isValid}
+
+			<AppButton
+				label="Sign in"
 				type="submit"
+				color="secondary"
+				fullWidth
 				size="large"
-			>
-				Sign in
-			</Button>
+				disabled={_.isEmpty(dirtyFields) || !isValid}
+				className="mt-4 w-full"
+			/>
 		</form>
 	);
 }
 
 export default AuthJsCredentialsSignInForm;
+
+
+

@@ -6,7 +6,7 @@ function Layout({ children }) {
 		<AuthGuardRedirect auth={['admin']}>
 			<MainLayout>{children}</MainLayout>
 		</AuthGuardRedirect>
-	);
+	); 
 }
 
 export default Layout;

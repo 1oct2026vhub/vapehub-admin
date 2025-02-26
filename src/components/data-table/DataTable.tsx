@@ -213,3 +213,70 @@ function DataTable<TData>(props: MaterialReactTableProps<TData>) {
 }
 
 export default DataTable;
+
+
+// import { MaterialReactTable, useMaterialReactTable, MaterialReactTableProps, MRT_Icons } from 'material-react-table';
+// import _ from 'lodash';
+// import { useMemo } from 'react';
+// import FuseSvgIcon from '@fuse/core/FuseSvgIcon';
+// import { Theme } from '@mui/material/styles/createTheme';
+// import DataTableTopToolbar from './DataTableTopToolbar';
+
+// // Define custom icons
+// const tableIcons: Partial<MRT_Icons> = {
+//   ArrowDownwardIcon: (props) => <FuseSvgIcon size={20} {...props}>heroicons-outline:arrow-down-circle</FuseSvgIcon>,
+//   ClearAllIcon: () => <FuseSvgIcon size={20}>heroicons-outline:adjustments-horizontal</FuseSvgIcon>,
+//   FilterListIcon: (props) => <FuseSvgIcon size={16} {...props}>heroicons-outline:funnel</FuseSvgIcon>,
+//   SearchIcon: (props) => <FuseSvgIcon color="action" size={20} {...props}>heroicons-outline:magnifying-glass</FuseSvgIcon>,
+//   VisibilityOffIcon: () => <FuseSvgIcon size={20}>heroicons-outline:eye-slash</FuseSvgIcon>,
+// };
+
+// // Generic DataTable component
+// function DataTable<TData>(props: MaterialReactTableProps<TData>) {
+//   const { columns, data, ...rest } = props;
+
+//   const defaults = useMemo(() => _.defaults(rest, {
+//     initialState: {
+//       density: 'spacious',
+//       showColumnFilters: false,
+//       showGlobalFilter: true,
+//       columnPinning: {
+//         left: ['mrt-row-expand', 'mrt-row-select'],
+//         right: ['mrt-row-actions'],
+//       },
+//       pagination: { pageSize: 15 },
+//     },
+//     enableColumnOrdering: true,
+//     enableRowSelection: true,
+//     muiTablePaperProps: { elevation: 0, square: true, className: 'flex flex-col flex-auto h-full' },
+//     muiTableContainerProps: { className: 'flex-auto' },
+//     enableStickyHeader: true,
+//     muiPaginationProps: {
+//       color: 'secondary',
+//       rowsPerPageOptions: [10, 20, 30],
+//       shape: 'rounded',
+//       variant: 'outlined',
+//       showRowsPerPage: false,
+//     },
+//     muiSearchTextFieldProps: { placeholder: 'Search', sx: { minWidth: '300px' }, variant: 'outlined', size: 'small' },
+//     muiFilterTextFieldProps: {
+//       variant: 'outlined',
+//       size: 'small',
+//       sx: { '& .MuiInputBase-root': { padding: '0px 8px', height: '32px!important' } },
+//     },
+//     mrtTheme: (theme: Theme) => ({
+//       baseBackgroundColor: theme.palette.background.paper,
+//       pinnedRowBackgroundColor: theme.palette.background.paper,
+//     }),
+//     renderTopToolbar: (_props) => <DataTableTopToolbar {..._props} />,
+//     icons: tableIcons,
+//   } as Partial<MaterialReactTableProps<TData>>), [rest]);
+
+//   const tableOptions = useMemo(() => ({ columns, data, ...defaults, ...rest }), [columns, data, defaults, rest]);
+
+//   const tableInstance = useMaterialReactTable<TData>(tableOptions);
+
+//   return <MaterialReactTable table={tableInstance} />;
+// }
+
+// export default DataTable;
