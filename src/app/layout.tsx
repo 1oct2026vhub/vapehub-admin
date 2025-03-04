@@ -5,6 +5,7 @@ import { SessionProvider } from 'next-auth/react';
 import { auth } from '@auth/authJs';
 import generateMetadata from '../utils/generateMetadata';
 import App from './App';
+import { SnackbarProvider } from '@/contexts/SnackbarContext';
 
 // eslint-disable-next-line react-refresh/only-export-components
 export const metadata = await generateMetadata({
@@ -75,7 +76,9 @@ export default async function RootLayout({
 					basePath="/auth"
 					session={session}
 				>
+					<SnackbarProvider>
 					<App>{children}</App>
+					</SnackbarProvider>
 				</SessionProvider>
 			</body>
 		</html>
