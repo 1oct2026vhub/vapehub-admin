@@ -18,7 +18,7 @@ function SignInPage() {
 						Sign in
 					</Typography>
 
-					<div className="mt-0.5 flex items-baseline font-medium">
+					{/* <div className="mt-0.5 flex items-baseline font-medium">
 						<Typography>Don't have an account?</Typography>
 						<Link
 							className="ml-1"
@@ -26,7 +26,7 @@ function SignInPage() {
 						>
 							Sign up
 						</Link>
-					</div>
+					</div> */}
 
 					<AuthJsForm formType="signin" />
 				</CardContent>

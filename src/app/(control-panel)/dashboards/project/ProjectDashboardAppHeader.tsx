@@ -10,11 +10,15 @@ import { darken } from '@mui/material/styles';
 import PageBreadcrumb from 'src/components/PageBreadcrumb';
 import useUser from '@auth/useUser';
 import { useGetProjectDashboardProjectsQuery } from './ProjectDashboardApi';
+import { getAuthToken } from "@/utils/auth";
 
 /**
  * The ProjectDashboardAppHeader page.
  */
 function ProjectDashboardAppHeader() {
+	const token = getAuthToken();
+	console.log("token",token);
+	
 	const { data: projects } = useGetProjectDashboardProjectsQuery();
 
 	const { data: user, isGuest } = useUser();

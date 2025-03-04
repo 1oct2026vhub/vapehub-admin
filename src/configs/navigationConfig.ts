@@ -60,7 +60,7 @@ const navigationConfig: FuseNavItemType[] = [
 		title: 'Customers',
 		type: 'item',
 		icon: 'heroicons-outline:users', // Clipboard List Icon for Orders
-		url: ''
+		url: '/apps/customer'
 	},
 	{
 		id: 'order',
@@ -69,21 +69,21 @@ const navigationConfig: FuseNavItemType[] = [
 		icon: 'heroicons-outline:shopping-cart', // Clipboard List Icon for Orders
 		url: ''
 	},
-	{
-		id: 'apps.forgotPassword',
-		title: 'Authentication',
-		type: 'collapse',
-		icon: 'heroicons-outline:lock-closed',
-		children: [
-			{
-				id: 'forgotPassword',
-				title: 'Forgot Password',
-				type: 'item',
-				url: '/pages/authentication/forgot-password',
-				end: true
-			}
-		]
-	}
+	// {
+	// 	id: 'apps.forgotPassword',
+	// 	title: 'Authentication',
+	// 	type: 'collapse',
+	// 	icon: 'heroicons-outline:lock-closed',
+	// 	children: [
+	// 		{
+	// 			id: 'forgotPassword',
+	// 			title: 'Forgot Password',
+	// 			type: 'item',
+	// 			url: '/pages/authentication/forgot-password',
+	// 			end: true
+	// 		}
+	// 	]
+	// }
 ];
 
 export default navigationConfig;
