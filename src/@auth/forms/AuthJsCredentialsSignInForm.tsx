@@ -1,75 +1,74 @@
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useEffect } from 'react';
+import { useState } from 'react';
 import { z } from 'zod';
 import _ from 'lodash';
 import FormControl from '@mui/material/FormControl';
 import FormControlLabel from '@mui/material/FormControlLabel';
 import Checkbox from '@mui/material/Checkbox';
 import Link from '@fuse/core/Link';
-import { signIn } from 'next-auth/react';
 import { Alert } from '@mui/material';
 import signinErrors from './signinErrors';
 import AppButton from '@/components/Shared/AppButton';
 import FormInputField from '@/components/Shared/FormInputField';
+import { usePost } from '@/hooks/useFetch';
+import { login } from '@/services/apiService';
+import { storeAuthToken } from '@/utils/auth';
+import { useRouter } from "next/navigation";
 
+
+/**
+ * Validation Schema
+ */
 const schema = z.object({
 	email: z.string().email('You must enter a valid email').nonempty('You must enter an email'),
-	password: z
-		.string()
-		.min(4, 'Password is too short - must be at least 4 chars.')
-		.nonempty('Please enter your password.')
+	password: z.string().min(4, 'Password must be at least 4 characters long').nonempty('Please enter your password.'),
 });
-
-type FormType = {
-	email: string;
-	password: string;
-	remember?: boolean;
-};
 
 const defaultValues = {
 	email: '',
 	password: '',
-	remember: true
+	remember: true,
 };
 
 function AuthJsCredentialsSignInForm() {
-	const { control, formState, handleSubmit, setValue, setError } = useForm<FormType>({
+	const { control, formState, handleSubmit, setValue, setError } = useForm({
 		mode: 'onChange',
 		defaultValues,
-		resolver: zodResolver(schema)
+		resolver: zodResolver(schema),
 	});
 
 	const { isValid, dirtyFields, errors } = formState;
 
-	useEffect(() => {
-		setValue('email', 'admin@fusetheme.com', {
-			shouldDirty: true,
-			shouldValidate: true
-		});
-		setValue('password', '5;4+0IOx:\\Dy', {
-			shouldDirty: true,
-			shouldValidate: true
-		});
-	}, [setValue]);
+	// Use the custom POST hook for login
+	const { trigger: triggerLogin, isMutating } = usePost('login', login);
+	const [data, setData] = useState('')
+	const router = useRouter(); // Initialize router
 
-	async function onSubmit(formData: FormType) {
+
+	async function onSubmit(formData) {
 		const { email, password } = formData;
 
-		const result = await signIn('credentials', {
-			email,
-			password,
-			formType: 'signin',
-			redirect: false
-		});
-
-		if (result?.error) {
-			setError('root', { type: 'manual', message: signinErrors[result.error] });
+		try {
+			const result = await triggerLogin({ email, password, resendVerificationEmail: false });
+			setData(result?.data?.accessToken)
+			if (result?.error) {
+				setError('root', { type: 'manual', message: signinErrors[result.error] });
+				return false;
+			}
+			console.log("result", result);
+			// Store encrypted token in cookies
+			storeAuthToken(result?.data?.accessToken);
+			router.push("/dashboards/project"); 
+			return true;
+		} catch (error) {
+			setError('root', { type: 'manual', message: 'Login failed. Please try again.' });
 			return false;
 		}
-
-		return true;
 	}
+
+	console.log("data", data);
+
 
 	return (
 		<form
@@ -79,67 +78,34 @@ function AuthJsCredentialsSignInForm() {
 			onSubmit={handleSubmit(onSubmit)}
 		>
 			{errors?.root?.message && (
-				<Alert
-					className="mb-8"
-					severity="error"
-					sx={(theme) => ({
-						backgroundColor: theme.palette.error.light,
-						color: theme.palette.error.dark
-					})}
-				>
-					{errors?.root?.message}
+				<Alert className="mb-8" severity="error">
+					{errors.root.message}
 				</Alert>
 			)}
 
-			<FormInputField
-				name="email"
-				control={control}
-				label="Email"
-				type="email"
-				autoFocus
-				required
-			/>
-			<FormInputField
-				name="password"
-				control={control}
-				label="Password"
-				type="password"
-				required
-			/>
+			<FormInputField name="email" control={control} label="Email" type="email" autoFocus required />
+			<FormInputField name="password" control={control} label="Password" type="password" required />
+
 			<div className="flex flex-col items-center justify-center sm:flex-row sm:justify-between">
 				<Controller
 					name="remember"
 					control={control}
 					render={({ field }) => (
 						<FormControl>
-							<FormControlLabel
-								label="Remember me"
-								control={
-									<Checkbox
-										size="small"
-										{...field}
-									/>
-								}
-							/>
+							<FormControlLabel label="Remember me" control={<Checkbox size="small" {...field} />} />
 						</FormControl>
 					)}
 				/>
 
-				<Link
-					className="text-md font-medium"
-					to="/#"
-				>
-					Forgot password?
-				</Link>
+				<Link className="text-md font-medium" to="/forgot-password">Forgot password?</Link>
 			</div>
-
 			<AppButton
-				label="Sign in"
+				label={isMutating ? "Signing in..." : "Sign in"}
 				type="submit"
 				color="secondary"
 				fullWidth
 				size="large"
-				disabled={_.isEmpty(dirtyFields) || !isValid}
+				disabled={_.isEmpty(dirtyFields) || !isValid || isMutating}
 				className="mt-4 w-full"
 			/>
 		</form>
@@ -147,6 +113,5 @@ function AuthJsCredentialsSignInForm() {
 }
 
 export default AuthJsCredentialsSignInForm;
-
 
 
