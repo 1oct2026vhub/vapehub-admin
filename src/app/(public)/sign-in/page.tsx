@@ -6,7 +6,8 @@ import SignInPage from './SignInPage';
 
 function Page() {
 	return (
-		<AuthGuardRedirect auth={authRoles.onlyGuest}>
+		// <AuthGuardRedirect auth={authRoles.onlyGuest}>
+		<AuthGuardRedirect>
 			<SignInPage />
 		</AuthGuardRedirect>
 	);
