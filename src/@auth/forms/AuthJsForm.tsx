@@ -3,8 +3,11 @@ import { useSearchParams } from 'next/navigation';
 import AuthJsCredentialsSignInForm from './AuthJsCredentialsSignInForm';
 import AuthJsCredentialsSignUpForm from './AuthJsCredentialsSignUpForm';
 import signinErrors from './signinErrors';
+import ForgotPasswordForm from './ForgotPasswordForm';
+import EmailVerifyConfirmationForm from './EmailVerifyConfirmationForm';
+import ResetPasswordForm from './ResetPasswordForm';
 
-type AuthJsFormProps = { formType: 'signin' | 'signup' };
+type AuthJsFormProps = { formType: 'signin' | 'signup' | 'forgot' | 'reset' | 'verify'};
 
 function AuthJsForm(props: AuthJsFormProps) {
 	const { formType = 'signin' } = props;
@@ -31,6 +34,9 @@ function AuthJsForm(props: AuthJsFormProps) {
 			)}
 			{formType === 'signin' && <AuthJsCredentialsSignInForm />}
 			{formType === 'signup' && <AuthJsCredentialsSignUpForm />}
+			{formType === 'forgot' && <ForgotPasswordForm />}
+			{formType === 'reset' && <ResetPasswordForm/>}
+			{formType === 'verify' && <EmailVerifyConfirmationForm />}
 		</div>
 	);
 }
