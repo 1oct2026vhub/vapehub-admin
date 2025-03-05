@@ -198,16 +198,6 @@ function DataTable<TData extends { id: number }>(
 		[rest]
 	);
 
-	// const tableOptions = useMemo(
-	// 	() => ({
-	// 		columns,
-	// 		data,
-	// 		...defaults,
-	// 		...rest
-	// 	}),
-	// 	[columns, data, defaults, rest]
-	// );
-
 	const tableOptions = useMemo(
 		() => ({
 		  columns,

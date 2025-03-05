@@ -85,7 +85,7 @@ function CreateUserForm() {
         return false;
       }
       showSnackbar('User created successfully. Please check your email for verification !', 'success'); 
-
+      router.push('/apps/users'); // Redirect after update
       return true;
     } catch (error) {
       console.log(error);
@@ -170,7 +170,7 @@ function CreateUserForm() {
       <AppButton
         label="Create"
         type="submit"
-        color="secondary"
+        // color="secondary"
         fullWidth
         size="large"
         aria-label="Register"

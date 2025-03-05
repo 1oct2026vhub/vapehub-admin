@@ -18,7 +18,7 @@ export const deleter = (url) => axiosInstance.delete(url).then((res) => res.data
 // Auth actions
 export const login = (credentials) => poster('/api/admin/auth/login', credentials);
 export const createUser = (credentials) => poster('/api/admin/user', credentials);
-export const verifyEmail = (token) => fetcher('/api/admin/auth/verify-email', { token });
+export const verifyEmail = (token) => fetcher('/api/admin/auth/verify-email', token );
 export const forgotPassword = (credentials) => poster('/api/admin/auth/forgot-password', credentials);
 export const resetPassword = (credentials) => poster('/api/admin/auth/reset-password', credentials);
 
@@ -27,7 +27,7 @@ export const resetPassword = (credentials) => poster('/api/admin/auth/reset-pass
 export const listUser = (params = {}) => fetcher('/api/admin/user', params);
 export const updateUser = (id, userData) => updater(`/api/admin/user/${id}`, userData);
 export const deleteUser = (id) => deleter(`/api/admin/user/${id}`);
-// export const restoreUser = (id) => updater(`/api/admin/user/{id}/restore`);
+export const restoreUser = (id) => updater(`/api/admin/user/${id}/restore`,{});
 
 // Customer actions
 export const listCustomer = (params = {}) => fetcher('/api/admin/customer', params);
@@ -35,3 +35,7 @@ export const customerDetails = (id) => fetcher(`/api/admin/customer/${id}`);
 export const deleteCustomer = (id) => deleter(`/api/admin/customer/${id}`);
 export const blockCustomer = (id) => updater(`/api/admin/customer/${id}/block`,{});
 export const unBlockCustomer = (id) => updater(`/api/admin/customer/${id}/unblock`,{});
+
+
+// List admin roles
+export const listRole = (params = {}) => fetcher('/api/admin/user/roles', params);

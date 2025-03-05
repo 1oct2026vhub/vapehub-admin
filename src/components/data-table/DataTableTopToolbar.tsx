@@ -97,15 +97,15 @@ function DataTableTopToolbar<TData extends MRT_RowData>({ table }: MRT_TopToolba
 
 					{enableToolbarInternalActions ? (
 						<Box className="flex items-center space-x-2">
-							{enableGlobalFilter && positionGlobalFilter === 'right' && (
+							{/* {enableGlobalFilter && positionGlobalFilter === 'right' && (
 								<MRT_GlobalFilterTextField
 									{...globalFilterProps}
 									sx={{
 										'& .MuiOutlinedInput-root': { height: 32, minHeight: 32, paddingX: 1 }
 									}}
 								/>
-							)}
-							<MRT_ToolbarInternalButtons table={table} />
+							)} */}
+							{/* <MRT_ToolbarInternalButtons table={table} /> */}
 						</Box>
 					) : (
 						enableGlobalFilter &&

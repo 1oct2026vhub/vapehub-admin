@@ -1,65 +1,28 @@
-// import React from 'react';
-// import Button from '@mui/material/Button';
-
-// type AppButtonProps = {
-// //   label: string;
-// label: React.ReactNode; // Allow JSX instead of just string
-//   onClick?: () => void;
-//   type?: 'button' | 'submit' | 'reset';
-//   variant?: 'text' | 'outlined' | 'contained';
-//   color?: 'primary' | 'secondary' | 'success' | 'error' | 'info' | 'warning';
-//   disabled?: boolean;
-//   fullWidth?: boolean;
-//   size?: 'small' | 'medium' | 'large';
-//   className?: string;
-// };
-
-// const AppButton: React.FC<AppButtonProps> = ({
-//   label,
-//   onClick,
-//   type = 'button',
-//   variant = 'contained',
-//   color = 'primary',
-//   disabled = false,
-//   fullWidth = false,
-//   size = 'medium',
-//   className = '',
-// }) => {
-//   return (
-//     <Button
-//       onClick={onClick}
-//       type={type}
-//       variant={variant}
-//       color={color}
-//       disabled={disabled}
-//       fullWidth={fullWidth}
-//       size={size}
-//       className={className}
-//     >
-//       {label}
-//     </Button>
-//   );
-// };
-
-// export default AppButton;
-
-
 import React, { ElementType } from 'react';
 import Button from '@mui/material/Button';
+import { styled } from '@mui/material/styles';
 
 type AppButtonProps = {
-  label: React.ReactNode; // Allow JSX instead of just string
-  component?: ElementType; // Allow passing custom components like NavLinkAdapter
-  to?: string; // For routing if using custom component
+  label: React.ReactNode;
+  component?: ElementType; // Allow custom components like NavLinkAdapter
+  to?: string; // Only used when component supports it
   onClick?: () => void;
   type?: 'button' | 'submit' | 'reset';
   variant?: 'text' | 'outlined' | 'contained';
-  color?: 'primary' | 'secondary' | 'success' | 'error' | 'info' | 'warning';
   disabled?: boolean;
   fullWidth?: boolean;
   size?: 'small' | 'medium' | 'large';
   className?: string;
 };
+
+// Styled MUI Button with Linear Gradient
+const GradientButton = styled(Button)({
+  background: 'linear-gradient(to bottom, #2E9970, #005434)',
+  color: '#fff',
+  '&:hover': {
+    background: 'linear-gradient(to bottom, #247C5C, #003F29)',
+  },
+});
 
 const AppButton: React.FC<AppButtonProps> = ({
   label,
@@ -68,28 +31,22 @@ const AppButton: React.FC<AppButtonProps> = ({
   onClick,
   type = 'button',
   variant = 'contained',
-  color = 'primary',
   disabled = false,
   fullWidth = false,
   size = 'medium',
   className = '',
 }) => {
-  return (
-    <Button
-      component={component} // Allow custom component like NavLinkAdapter
-      to={to} // Pass the "to" prop for routing
-      onClick={onClick}
-      type={type}
-      variant={variant}
-      color={color}
-      disabled={disabled}
-      fullWidth={fullWidth}
-      size={size}
-      className={className}
-    >
-      {label}
-    </Button>
-  );
+  // Conditionally add "to" only when using a routing component
+  const buttonProps: any = { onClick, type, variant, disabled, fullWidth, size, className };
+
+  if (component) {
+    buttonProps.component = component;
+    if (to) {
+      buttonProps.to = to;
+    }
+  }
+
+  return <GradientButton {...buttonProps}>{label}</GradientButton>;
 };
 
 export default AppButton;

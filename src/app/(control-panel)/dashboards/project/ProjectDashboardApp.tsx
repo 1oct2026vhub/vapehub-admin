@@ -9,8 +9,6 @@ import FuseTabs from 'src/components/tabs/FuseTabs';
 import FuseTab from 'src/components/tabs/FuseTab';
 import ProjectDashboardAppHeader from './ProjectDashboardAppHeader';
 import HomeTab from './tabs/home/HomeTab';
-import TeamTab from './tabs/team/TeamTab';
-import BudgetTab from './tabs/budget/BudgetTab';
 import { useGetProjectDashboardWidgetsQuery } from './ProjectDashboardApi';
 import OverdueWidget from './tabs/home/widgets/OverdueWidget';
 
@@ -38,11 +36,12 @@ function ProjectDashboardApp() {
 	}
 
 	return (
-		<Root
-			header={<ProjectDashboardAppHeader />}
-			content={
+		// <Root
+		// 	header={<ProjectDashboardAppHeader />}
+		// 	content={
 				<div className="w-full pt-4 sm:pt-6">
-					<div className="w-full px-6 md:px-8">
+					<ProjectDashboardAppHeader />
+					<div className="w-full">
 					<HomeTab />
 					{/* <HomeTab />
 						<FuseTabs
@@ -68,8 +67,8 @@ function ProjectDashboardApp() {
 					{tabValue === 'budget' && <BudgetTab />}
 					{tabValue === 'team' && <TeamTab />} */}
 				</div>
-			}
-		/>
+		// 	}
+		// />
 	);
 }
 

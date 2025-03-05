@@ -112,10 +112,15 @@
     "typescript-eslint": "8.17.0",
     "typescript-plugin-css-modules": "5.1.0"
   },
+  "optionalDependencies": {
+    "@tailwindcss/oxide-linux-x64-gnu": "^4.0.9",
+    "lightningcss-linux-x64-gnu": "^1.29.1"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start",
+    "export":"next export",
+    "start": "next start -p 3024",
     "lint": "eslint ./src --config ./eslint.config.mjs",
     "lint:fix": "eslint --fix ./src --config ./eslint.config.mjs",
     "postinstall": "node src/utils/node-scripts/fuse-react-message.js",

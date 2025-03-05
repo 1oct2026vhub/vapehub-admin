@@ -31,12 +31,12 @@ function SignInPage() {
 					<AuthJsForm formType="signin" />
 				</CardContent>
 			</Paper>
-
-			<Box
+				  {/* background: 'linear-gradient(to bottom, #2E9970, #005434)', */}
+				  <Box
 				className="relative hidden h-full flex-auto items-center justify-center overflow-hidden p-16 md:flex lg:px-28"
-				sx={{ backgroundColor: 'primary.dark', color: 'primary.contrastText' }}
+				sx={{ background: 'linear-gradient(to bottom, #2E9970, #005434)' }}
 			>
-				<svg
+				{/* <svg
 					className="pointer-events-none absolute inset-0"
 					viewBox="0 0 960 540"
 					width="100%"
@@ -95,7 +95,7 @@ function SignInPage() {
 						height="192"
 						fill="url(#837c3e70-6c3a-44e6-8854-cc48c737b659)"
 					/>
-				</Box>
+				</Box> */}
 
 				<div className="relative z-10 w-full max-w-4xl">
 					<div className="text-7xl font-bold leading-none text-gray-100 text-center">

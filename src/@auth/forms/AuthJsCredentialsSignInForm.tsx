@@ -56,7 +56,6 @@ function AuthJsCredentialsSignInForm() {
 				setError('root', { type: 'manual', message: signinErrors[result.error] });
 				return false;
 			}
-			console.log("result", result);
 			// Store encrypted token in cookies
 			storeAuthToken(result?.data?.accessToken);
 			router.push("/dashboards/project"); 
@@ -66,10 +65,6 @@ function AuthJsCredentialsSignInForm() {
 			return false;
 		}
 	}
-
-	console.log("data", data);
-
-
 	return (
 		<form
 			name="loginForm"
@@ -96,13 +91,12 @@ function AuthJsCredentialsSignInForm() {
 						</FormControl>
 					)}
 				/>
-
-				<Link className="text-md font-medium" to="/forgot-password">Forgot password?</Link>
+				<Link className="text-md font-medium text-[#2E9970]" to="/forgot-password">Forgot password?</Link>
 			</div>
 			<AppButton
 				label={isMutating ? "Signing in..." : "Sign in"}
 				type="submit"
-				color="secondary"
+				// color="secondary"
 				fullWidth
 				size="large"
 				disabled={_.isEmpty(dirtyFields) || !isValid || isMutating}

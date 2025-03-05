@@ -10,7 +10,7 @@ import ErrorBoundary from '@fuse/utils/ErrorBoundary';
 import AppContext from 'src/contexts/AppContext';
 
 import { FuseSettingsProvider } from '@fuse/core/FuseSettings/FuseSettingsProvider';
-import { I18nProvider } from '@i18n/I18nProvider';
+// import { I18nProvider } from '@i18n/I18nProvider';
 import store from '../store/store';
 import MainThemeProvider from '../contexts/MainThemeProvider';
 
@@ -36,7 +36,7 @@ function App(props: AppProps) {
 					{/* Redux Store Provider */}
 					<Provider store={store}>
 						<FuseSettingsProvider>
-							<I18nProvider>
+							{/* <I18nProvider> */}
 								{/* Theme Provider */}
 								<MainThemeProvider>
 									{/* Notistack Notification Provider */}
@@ -53,7 +53,7 @@ function App(props: AppProps) {
 										{children}
 									</SnackbarProvider>
 								</MainThemeProvider>
-							</I18nProvider>
+							{/* </I18nProvider> */}
 						</FuseSettingsProvider>
 					</Provider>
 				</LocalizationProvider>
