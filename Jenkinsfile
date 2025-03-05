@@ -3,6 +3,8 @@ def branchName = env.BRANCH_NAME
 pipeline {
     agent any
 
+    tools {nodejs "NodeV22"}
+
     parameters {
         string(name: 'dev_server', defaultValue: '43.204.197.145', description: 'Ateam Development Server')
         string(name: 'production_server', defaultValue: '', description: 'Production Server')
@@ -49,7 +51,7 @@ pipeline {
                         // SSH into the server and run commands
                         sh "ssh ubuntu@${server} \"cd /var/www/vapehub/admin/ && git pull\""
                         sh "ssh ubuntu@${server} \"cd /var/www/vapehub/admin/ && source ~/.nvm/nvm.sh && npm install && npm run build\""
-                        // sh "ssh ubuntu@${server} \"source ~/.nvm/nvm.sh && export PM2_HOME=/etc/pm2daemon && pm2 restart 'VapeHub Admin' \"" 
+                        sh "ssh ubuntu@${server} \"source ~/.nvm/nvm.sh && export PM2_HOME=/etc/pm2daemon && pm2 restart 'VapeHub Admin' \"" 
                     }
 }
             }

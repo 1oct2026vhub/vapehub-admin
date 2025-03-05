@@ -112,9 +112,14 @@
     "typescript-eslint": "8.17.0",
     "typescript-plugin-css-modules": "5.1.0"
   },
+  "optionalDependencies": {
+    "@tailwindcss/oxide-linux-x64-gnu": "^4.0.9",
+    "lightningcss-linux-x64-gnu": "^1.29.1"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "export":"next export",
     "start": "next start",
     "lint": "eslint ./src --config ./eslint.config.mjs",
     "lint:fix": "eslint --fix ./src --config ./eslint.config.mjs",
