@@ -11,7 +11,7 @@ const CustomerDetailPage = () => {
 //   if (!user) return <p>No user data found.</p>;
 
   return (
-  <div className='container'>
+  <div className='p-4'>
   <CustomerDetailTable  />
   </div>
 )};
