@@ -60,7 +60,7 @@ pipeline {
                                 cacheValidityDecidingFile: "package-lock.json"
                             )
                         ]) {
-                            sh "ssh ubuntu@${server} \"cd /var/www/vapehub/admin/ && source ~/.nvm/nvm.sh && nvm use 22.14.0 && npm install"
+                            sh "ssh ubuntu@${server} \"cd /var/www/vapehub/admin/ && source ~/.nvm/nvm.sh && nvm use 22.14.0 && npm install\""
                         }
 
                         cache(caches: [
@@ -71,7 +71,7 @@ pipeline {
                             )
                         ]) {
                             // aka `next build`
-                            sh "ssh ubuntu@${server} \"cd /var/www/vapehub/admin/ && source ~/.nvm/nvm.sh && nvm use 22.14.0 && npm run build"
+                            sh "ssh ubuntu@${server} \"cd /var/www/vapehub/admin/ && source ~/.nvm/nvm.sh && nvm use 22.14.0 && npm run build\""
                         }
                         // sh "ssh ubuntu@${server} \"cd /var/www/vapehub/admin/ && source ~/.nvm/nvm.sh && npm install && npm run build\""
                         sh "ssh ubuntu@${server} \"source ~/.nvm/nvm.sh && export PM2_HOME=/etc/pm2daemon && pm2 restart 'VapeHub Admin' \"" 
