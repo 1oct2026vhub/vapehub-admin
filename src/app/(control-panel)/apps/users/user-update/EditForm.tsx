@@ -183,7 +183,7 @@ const EditForm = ({ user }: { user: FormType }) => {
       <AppButton
         label="Update User"
         type="submit"
-        color="secondary"
+        // color="secondary"
         fullWidth
         size="large"
         aria-label="Update"

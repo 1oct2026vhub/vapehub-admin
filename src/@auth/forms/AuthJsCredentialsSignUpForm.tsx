@@ -159,7 +159,7 @@ function AuthJsCredentialsSignUpForm() {
       <AppButton
         label="Create your free account"
         type="submit"
-        color="secondary"
+        // color="secondary"
         fullWidth
         size="large"
         aria-label="Register"
