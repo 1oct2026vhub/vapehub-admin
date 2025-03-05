@@ -23,29 +23,6 @@ pipeline {
            }            
         }
 
-        stage('Install Dependencies') {
-            steps {
-                // Install npm dependencies
-                sh 'npm install'
-            }
-        }
-
-
-        stage('Build'){
-            steps{
-                sh 'npm run build'
-                sh 'npm run export'
-            }
-        }
-        
-        stage('Archive Build') {
-            steps {
-                // Archive the build files
-                archiveArtifacts artifacts: 'dist/**', fingerprint: true 
-            }
-        }
-
-
         stage('Deploy') {
             steps {                
                 script {
@@ -72,10 +49,9 @@ pipeline {
                     // Use SSH credentials with sshagent
                     sshagent([sshCredentials]) {
                         // SSH into the server and run commands
-                        sh "scp -r dist/* ubuntu@${server}:/var/www/vapehub/admin"
-                        // sh "ssh ubuntu@${server} \"cd /var/www/vapehub/admin/ && git pull\""
-                        // sh "ssh ubuntu@${server} \"cd /var/www/vapehub/admin/ && source ~/.nvm/nvm.sh && npm install && npm run build\""
-                        // sh "ssh ubuntu@${server} \"source ~/.nvm/nvm.sh && export PM2_HOME=/etc/pm2daemon && pm2 restart 'VapeHub Admin' \"" 
+                        sh "ssh ubuntu@${server} \"cd /var/www/vapehub/admin/ && git pull\""
+                        sh "ssh ubuntu@${server} \"cd /var/www/vapehub/admin/ && source ~/.nvm/nvm.sh && npm install && npm run build\""
+                        sh "ssh ubuntu@${server} \"source ~/.nvm/nvm.sh && export PM2_HOME=/etc/pm2daemon && pm2 restart 'VapeHub Admin' \"" 
                     }
 }
             }
