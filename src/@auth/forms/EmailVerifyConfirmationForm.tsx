@@ -7,21 +7,33 @@ import CircularProgress from "@mui/material/CircularProgress";
 import Alert from "@mui/material/Alert";
 import { verifyEmail } from "@/services/apiService";
 import { useFetch } from "@/hooks/useFetch";
+import { useSnackbar } from "@/contexts/SnackbarContext";
+import { useEffect } from "react";
 
 function EmailVerifyConfirmationForm() {
-  const searchParams = useSearchParams();
-  const token = searchParams.get("token"); // ✅ Correct way to get token
+	const searchParams = useSearchParams();
+	const token = searchParams.get("token");
+	const { showSnackbar } = useSnackbar(); //Use Snackbar
 
-  const { data, error, isLoading } = useFetch(
-    token ? ["verifyEmail", { token }] : null, 
-    verifyEmail, 
-    { token }
-  );
 
-  console.log("token",token);
-  
-  return (
-   		<div className="flex min-w-0 flex-auto flex-col items-center sm:justify-center">
+	const { data, error, isLoading } = useFetch(
+		token ? ["verifyEmail", { token }] : null,
+		verifyEmail,
+		{ token }
+	);
+	// Trigger snackbar only once when data.success is true
+	useEffect(() => {
+		if (data?.success) {
+			showSnackbar(data?.message);
+		}
+		else {
+			showSnackbar('Invalid link or link expired');
+		}
+	}, [data]);
+
+
+	return (
+		<div className="flex min-w-0 flex-auto flex-col items-center sm:justify-center">
 			<Paper className="min-h-full w-full rounded-none px-4 py-8 sm:min-h-auto sm:w-auto sm:rounded-xl sm:p-12 sm:shadow-sm">
 				<div className="mx-auto w-full max-w-80 sm:mx-0 sm:w-80">
 					<img
@@ -44,16 +56,16 @@ function EmailVerifyConfirmationForm() {
 					>
 						<span>Return to</span>
 						<Link
-							className="text-primary-500 ml-1 hover:underline"
-							to="/sign-in"
+							className="text-[#2E9970] ml-1 hover:underline"
+							to="/dashboards/project"
 						>
-							sign in
+							Dashboard
 						</Link>
 					</Typography>
 				</div>
 			</Paper>
 		</div>
-  );
+	);
 }
 
 export default EmailVerifyConfirmationForm;
