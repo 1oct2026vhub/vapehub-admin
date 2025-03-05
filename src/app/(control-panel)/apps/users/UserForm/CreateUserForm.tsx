@@ -17,6 +17,7 @@ import { usePost } from '@/hooks/useFetch';
 import { createUser } from '@/services/apiService';
 import { useSnackbar } from '@/contexts/SnackbarContext';
 import Header from './Header';
+import { useRoles } from '@/hooks/roleFetch';
 
 
 const schema = z.object({
@@ -33,11 +34,11 @@ const schema = z.object({
       const today = new Date();
       return today.getFullYear() - birthDate.getFullYear() >= 18;
     }, 'You must be at least 18 years old.'),
-    roleId: z.preprocess(
-      (val) => Number(val),
-      z.union([z.literal(1), z.literal(2)])
-    ),
-      gender: z.enum(['male', 'female', 'other'], { message: 'Gender is required' }),
+  roleId: z.preprocess(
+    (val) => Number(val),
+    z.union([z.literal(1), z.literal(2)])
+  ),
+  gender: z.enum(['male', 'female', 'other'], { message: 'Gender is required' }),
 });
 
 const defaultValues = {
@@ -65,6 +66,7 @@ export type FormType = {
 function CreateUserForm() {
   const router = useRouter();
   const { showSnackbar } = useSnackbar(); //Use Snackbar
+  const { roles } = useRoles();
 
   const { control, formState, handleSubmit, setError } = useForm({
     mode: 'onChange',
@@ -84,57 +86,57 @@ function CreateUserForm() {
         setError('root', { type: 'manual', message: response.message });
         return false;
       }
-      showSnackbar('User created successfully. Please check your email for verification !', 'success'); 
+      showSnackbar('User created successfully. Please check your email for verification !', 'success');
       router.push('/apps/users'); // Redirect after update
       return true;
     } catch (error) {
       console.log(error);
 
-    const errorData = error?.response?.data?.error;
+      const errorData = error?.response?.data?.error;
 
-    if (errorData) {
-      if (errorData.email) {
-        setError('email', { type: 'manual', message: errorData.email });
-      }
-      if (errorData.phone) {
-        setError('phone', { type: 'manual', message: errorData.phone });
-      }
-      // if (errorData.otherField) {
-      //   setError('otherField', { type: 'manual', message: errorData.otherField });
-      // }
-     else {
-      setError('root', { type: 'manual', message: 'An unexpected error occurred' });
-    }
+      if (errorData) {
+        if (errorData.email) {
+          setError('email', { type: 'manual', message: errorData.email });
+        }
+        if (errorData.phone) {
+          setError('phone', { type: 'manual', message: errorData.phone });
+        }
+        // if (errorData.otherField) {
+        //   setError('otherField', { type: 'manual', message: errorData.otherField });
+        // }
+        else {
+          setError('root', { type: 'manual', message: 'An unexpected error occurred' });
+        }
 
-    return false;
-  }
+        return false;
+      }
     }
   }
 
   return (
     <div className='md:px-64 p-4'>
-      <Header/>
-    <form
-      name="registerForm"
-      noValidate
-      className="flex w-full flex-col justify-center"
-      onSubmit={handleSubmit(onSubmit)}
-    >
-      {errors?.root?.message && (
-        <Alert className="mb-8" severity="error">
-          {errors?.root?.message}
-        </Alert>
-      )}
+      <Header />
+      <form
+        name="registerForm"
+        noValidate
+        className="flex w-full flex-col justify-center"
+        onSubmit={handleSubmit(onSubmit)}
+      >
+        {errors?.root?.message && (
+          <Alert className="mb-8" severity="error">
+            {errors?.root?.message}
+          </Alert>
+        )}
 
-      <FormInputField name="first_name" control={control} label="First Name" type="text" required />
-      <FormInputField name="last_name" control={control} label="Last Name" type="text" required />
-      <FormInputField name="email" control={control} label="Email" type="email" required />
-      <FormInputField name="password" control={control} label="Password" type="password" required />
-      <FormInputField name="phone" control={control} label="Phone" type="text" required />
-      <FormInputField name="dob" control={control} label="DOB (YYYY-MM-DD)" type="text" required />
+        <FormInputField name="first_name" control={control} label="First Name" type="text" required />
+        <FormInputField name="last_name" control={control} label="Last Name" type="text" required />
+        <FormInputField name="email" control={control} label="Email" type="email" required />
+        <FormInputField name="password" control={control} label="Password" type="password" required />
+        <FormInputField name="phone" control={control} label="Phone" type="text" required />
+        <FormInputField name="dob" control={control} label="DOB (YYYY-MM-DD)" type="text" required />
 
-      {/* Role Selection Dropdown */}
-      <FormControl fullWidth margin="normal">
+        {/* Role Selection Dropdown */}
+        {/* <FormControl fullWidth margin="normal">
         <InputLabel id="role-select-label">Role</InputLabel>
         <Controller
           name="roleId"
@@ -147,37 +149,57 @@ function CreateUserForm() {
           )}
         />
         {errors.roleId && <FormHelperText error>{errors.roleId.message}</FormHelperText>}
-      </FormControl>
+      </FormControl> */}
 
-      {/* Gender Selection */}
-      <FormControl component="fieldset" margin="normal">
-        <FormLabel component="legend">Gender</FormLabel>
-        <Controller
-          name="gender"
-          control={control}
-          render={({ field }) => (
-            <RadioGroup {...field} row>
-              <FormControlLabel value="male" control={<Radio />} label="Male" />
-              <FormControlLabel value="female" control={<Radio />} label="Female" />
-              <FormControlLabel value="other" control={<Radio />} label="Other" />
-            </RadioGroup>
-          )}
+        <FormControl fullWidth margin="normal">
+          <InputLabel id="role-select-label">Role</InputLabel>
+          <Controller
+            name="roleId"
+            control={control}
+            render={({ field }) => (
+              <Select {...field} labelId="role-select-label" label="Role">
+                <MenuItem value="">Select Role</MenuItem> {/* Default option */}
+                {roles?.map((role) => (
+                  <MenuItem key={role.id} value={role.id}>
+                    {role.role}
+                  </MenuItem>
+                ))}
+              </Select>
+            )}
+          />
+          {errors.roleId && <FormHelperText error>{errors.roleId.message}</FormHelperText>}
+        </FormControl>
+
+
+        {/* Gender Selection */}
+        <FormControl component="fieldset" margin="normal">
+          <FormLabel component="legend">Gender</FormLabel>
+          <Controller
+            name="gender"
+            control={control}
+            render={({ field }) => (
+              <RadioGroup {...field} row>
+                <FormControlLabel value="male" control={<Radio />} label="Male" />
+                <FormControlLabel value="female" control={<Radio />} label="Female" />
+                <FormControlLabel value="other" control={<Radio />} label="Other" />
+              </RadioGroup>
+            )}
+          />
+          {errors.gender && <FormHelperText error>{errors.gender.message}</FormHelperText>}
+        </FormControl>
+
+        {/* Submit Button */}
+        <AppButton
+          label="Create"
+          type="submit"
+          // color="secondary"
+          fullWidth
+          size="large"
+          aria-label="Register"
+          disabled={_.isEmpty(dirtyFields) || !isValid || isMutating}
+          className="mt-4 w-full"
         />
-        {errors.gender && <FormHelperText error>{errors.gender.message}</FormHelperText>}
-      </FormControl>
-
-      {/* Submit Button */}
-      <AppButton
-        label="Create"
-        type="submit"
-        // color="secondary"
-        fullWidth
-        size="large"
-        aria-label="Register"
-        disabled={_.isEmpty(dirtyFields) || !isValid || isMutating}
-        className="mt-4 w-full"
-      />
-    </form>
+      </form>
     </div>
   );
 }

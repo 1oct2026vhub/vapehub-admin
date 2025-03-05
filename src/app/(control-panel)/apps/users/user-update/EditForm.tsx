@@ -46,7 +46,7 @@ export type FormType = {
 const EditForm = ({ user }: { user: FormType }) => {
   const router = useRouter();
   const { showSnackbar } = useSnackbar();
-
+  
   // Form handling
   const { control, formState, handleSubmit, setError, reset } = useForm<FormType>({
     mode: 'onChange',
@@ -54,6 +54,7 @@ const EditForm = ({ user }: { user: FormType }) => {
   });
 
   const { isValid, dirtyFields, errors } = formState;
+  
 
   // Prefill form when user data is available
   useEffect(() => {
@@ -102,45 +103,28 @@ const EditForm = ({ user }: { user: FormType }) => {
 
   return (
     <div className='md:px-64 p-4'>
-      <Header/>
-    <form
-      name="editUserForm"
-      noValidate
-      className="flex w-full flex-col justify-center"
-      onSubmit={handleSubmit(onSubmit)}
-    >
-      {errors?.root?.message && (
-        <Alert className="mb-8" severity="error">
-          {errors?.root?.message}
-        </Alert>
-      )}
-
-      <FormInputField name="first_name" control={control} label="First Name" type="text" required />
-      <FormInputField name="last_name" control={control} label="Last Name" type="text" required />
-      <FormInputField name="email" control={control} label="Email" type="email" required />
-      <FormInputField name="phone" control={control} label="Phone" type="text" required />
-      <FormInputField name="dob" control={control} label="DOB (YYYY-MM-DD)" type="text" required />
-
-      {/* <Controller
-        name="roleId"
-        control={control}
-        render={({ field }) => (
-          <FormControl fullWidth>
-            <InputLabel id="role-select-label">Role</InputLabel>
-            <Select
-              {...field}
-              labelId="role-select-label"
-              label="Role"
-              value={field.value} 
-            >
-              <MenuItem value={1}>Admin</MenuItem>
-              <MenuItem value={2}>User</MenuItem>
-            </Select>
-          </FormControl>
+      <Header />
+      <form
+        name="editUserForm"
+        noValidate
+        className="flex w-full flex-col justify-center"
+        onSubmit={handleSubmit(onSubmit)}
+      >
+        {errors?.root?.message && (
+          <Alert className="mb-8" severity="error">
+            {errors?.root?.message}
+          </Alert>
         )}
-      /> */}
 
-      <Controller
+        <FormInputField name="first_name" control={control} label="First Name" type="text" required />
+        <FormInputField name="last_name" control={control} label="Last Name" type="text" required />
+        <FormInputField name="email" control={control} label="Email" type="email" required />
+        <FormInputField name="phone" control={control} label="Phone" type="text" required />
+        <FormInputField name="dob" control={control} label="DOB (YYYY-MM-DD)" type="text" required />
+
+
+
+        <Controller
         name="roleId"
         control={control}
         // defaultValue={2} // Ensures default value is set
@@ -153,44 +137,44 @@ const EditForm = ({ user }: { user: FormType }) => {
               label="Role"
               value={field.value || user?.roleId} // Fallback in case defaultValue is not applied
             >
-              <MenuItem value={1}>Admin</MenuItem>
-              <MenuItem value={2}>User</MenuItem>
+              <MenuItem value={1}>Super Admin</MenuItem>
+              <MenuItem value={2}>Customer</MenuItem>
             </Select>
           </FormControl>
         )}
       />
 
 
-      {/* Gender Selection */}
-      <FormControl component="fieldset" margin="normal">
-        <FormLabel component="legend">Gender</FormLabel>
-        <Controller
-          name="gender"
-          control={control}
-          render={({ field }) => (
-            <RadioGroup {...field} row value={field.value ?? ''}>
-              <FormControlLabel value="male" control={<Radio />} label="Male" />
-              <FormControlLabel value="female" control={<Radio />} label="Female" />
-              <FormControlLabel value="other" control={<Radio />} label="Other" />
-            </RadioGroup>
-          )}
+        {/* Gender Selection */}
+        <FormControl component="fieldset" margin="normal">
+          <FormLabel component="legend">Gender</FormLabel>
+          <Controller
+            name="gender"
+            control={control}
+            render={({ field }) => (
+              <RadioGroup {...field} row value={field.value ?? ''}>
+                <FormControlLabel value="male" control={<Radio />} label="Male" />
+                <FormControlLabel value="female" control={<Radio />} label="Female" />
+                <FormControlLabel value="other" control={<Radio />} label="Other" />
+              </RadioGroup>
+            )}
+          />
+          {errors.gender && <FormHelperText error>{errors.gender.message}</FormHelperText>}
+        </FormControl>
+
+
+        {/* Submit Button */}
+        <AppButton
+          label="Update User"
+          type="submit"
+          // color="secondary"
+          fullWidth
+          size="large"
+          aria-label="Update"
+          // disabled={_.isEmpty(dirtyFields) || !isValid}
+          className="mt-4 w-full"
         />
-        {errors.gender && <FormHelperText error>{errors.gender.message}</FormHelperText>}
-      </FormControl>
-
-
-      {/* Submit Button */}
-      <AppButton
-        label="Update User"
-        type="submit"
-        // color="secondary"
-        fullWidth
-        size="large"
-        aria-label="Update"
-        // disabled={_.isEmpty(dirtyFields) || !isValid}
-        className="mt-4 w-full"
-      />
-    </form>
+      </form>
     </div>
   );
 };
