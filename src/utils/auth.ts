@@ -24,8 +24,7 @@
 
 import { setCookie, getCookie, deleteCookie } from "cookies-next";
 import CryptoJS from "crypto-js";
-import { useRouter } from "next/navigation";
-
+import { redirect } from "next/navigation"; // Use redirect for App Router
 
 // Secret key for encryption (store this securely, e.g., in .env)
 const SECRET_KEY = process.env.NEXT_PUBLIC_CRYPTO_SECRET || "default_secret_key";
@@ -77,7 +76,7 @@ export const getAuthToken = (): string | null => {
 /**
  * Removes the auth token (for logout)
  */
-export const logoutUser = (router: ReturnType<typeof useRouter>) => {
+export const logoutUser = () => {
   deleteCookie("auth_token", { path: "/" });
-  router.replace("/sign-in"); // Redirect to sign-in page without refresh
+  redirect("/sign-in"); // Redirect in App Router
 };

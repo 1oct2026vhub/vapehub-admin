@@ -9,7 +9,7 @@ type AuthGuardProps = {
 	children: React.ReactNode;
 };
 
-const ignoredPaths = ['/', '/callback', '/sign-in', '/sign-out', '/logout', '/404', '/sign-up','/forgot-password','/email-verify']; // Include sign-up if needed
+const ignoredPaths = ['/', '/callback', '/sign-in', '/sign-out', '/logout', '/404', '/sign-up','/forgot-password','/email-verify','/reset-password']; // Include sign-up if needed
 
 function AuthGuardRedirect({ children }: AuthGuardProps) {
 	const router = useRouter();
@@ -22,7 +22,7 @@ function AuthGuardRedirect({ children }: AuthGuardProps) {
 		// Allow public pages without authentication
 		if (ignoredPaths.includes(pathname)) {
 			// Redirect logged-in users away from sign-in and sign-up
-			if (token && ['/sign-in', '/sign-up','/email-verify'].includes(pathname)) {
+			if (token && ['/sign-in', '/sign-up','/email-verify','/reset-password'].includes(pathname)) {
 				router.replace('/dashboards/project'); // Change this to your dashboard route
 			}
 			setIsAuthenticated(true);
