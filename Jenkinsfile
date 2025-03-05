@@ -30,7 +30,7 @@ pipeline {
                     def server
                     def sshCredentials
 
-                    if (branchName == 'develop') {
+                    if (branchName == 'staging') {
                         // Use deployment parameters
                         server = params.dev_server
                         sshCredentials = 'c18d359d-10fe-41d7-a495-3b84451d1043'
@@ -50,7 +50,30 @@ pipeline {
                     sshagent([sshCredentials]) {
                         // SSH into the server and run commands
                         sh "ssh ubuntu@${server} \"cd /var/www/vapehub/admin/ && git pull\""
-                        sh "ssh ubuntu@${server} \"cd /var/www/vapehub/admin/ && source ~/.nvm/nvm.sh && npm install && npm run build\""
+                        // Writes lock-file to cache based on the GIT_COMMIT hash
+                        writeFile file: "next-lock.cache", text: "$GIT_COMMIT"
+
+                        cache(caches: [
+                            arbitraryFileCache(
+                                path: "node_modules",
+                                includes: "**/*",
+                                cacheValidityDecidingFile: "package-lock.json"
+                            )
+                        ]) {
+                            sh "ssh ubuntu@${server} \"cd /var/www/vapehub/admin/ && source ~/.nvm/nvm.sh && nvm use 22.14.0 && npm install\""
+                        }
+
+                        cache(caches: [
+                            arbitraryFileCache(
+                                path: ".next/cache",
+                                includes: "**/*",
+                                cacheValidityDecidingFile: "next-lock.cache"
+                            )
+                        ]) {
+                            // aka `next build`
+                            sh "ssh ubuntu@${server} \"cd /var/www/vapehub/admin/ && source ~/.nvm/nvm.sh && nvm use 22.14.0 && npm run build\""
+                        }
+                        // sh "ssh ubuntu@${server} \"cd /var/www/vapehub/admin/ && source ~/.nvm/nvm.sh && npm install && npm run build\""
                         sh "ssh ubuntu@${server} \"source ~/.nvm/nvm.sh && export PM2_HOME=/etc/pm2daemon && pm2 restart 'VapeHub Admin' \"" 
                     }
 }
@@ -63,7 +86,7 @@ pipeline {
                 subject: "Jenkins Build ${currentBuild.result}",
                 body: """<p>The Jenkins build for ${env.JOB_NAME} has finished.</p>
                         <p>Build result: ${currentBuild.result}</p>""",
-                to: "unnikrishnan@ateamsoftsolutions.com",
+                to: "mahesh@ateamsoftsolutions.com, geethu.e@ateamsoftsolutions.com",
                 attachLog: true,
                 compressLog: true,
                 replyTo: 'noreply@example.com'
