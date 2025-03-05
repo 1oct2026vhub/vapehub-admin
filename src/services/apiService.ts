@@ -35,3 +35,7 @@ export const customerDetails = (id) => fetcher(`/api/admin/customer/${id}`);
 export const deleteCustomer = (id) => deleter(`/api/admin/customer/${id}`);
 export const blockCustomer = (id) => updater(`/api/admin/customer/${id}/block`,{});
 export const unBlockCustomer = (id) => updater(`/api/admin/customer/${id}/unblock`,{});
+
+
+// List admin roles
+export const listRole = (params = {}) => fetcher('/api/admin/user/roles', params);
