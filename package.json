@@ -120,7 +120,7 @@
     "dev": "next dev",
     "build": "next build",
     "export":"next export",
-    "start": "next start",
+    "start": "next start -p 3024",
     "lint": "eslint ./src --config ./eslint.config.mjs",
     "lint:fix": "eslint --fix ./src --config ./eslint.config.mjs",
     "postinstall": "node src/utils/node-scripts/fuse-react-message.js",
