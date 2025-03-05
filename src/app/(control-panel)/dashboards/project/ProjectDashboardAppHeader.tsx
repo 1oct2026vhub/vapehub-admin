@@ -65,7 +65,7 @@ function ProjectDashboardAppHeader() {
 						{user?.displayName?.[0]}
 					</Avatar>
 					<div className="flex flex-col min-w-0 mx-4">
-						<PageBreadcrumb />
+						{/* <PageBreadcrumb /> */}
 						<Typography className="text-2xl md:text-5xl font-semibold tracking-tight leading-7 md:leading-[1.375] truncate">
 							{isGuest ? 'Hi Guest!' : `Welcome back, ${user?.displayName || user?.email}!`}
 						</Typography>

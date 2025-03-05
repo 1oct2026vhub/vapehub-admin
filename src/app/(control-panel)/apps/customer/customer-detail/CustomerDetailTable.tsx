@@ -1,6 +1,6 @@
 "use client";
 import { useParams } from "next/navigation";
-import { Paper } from "@mui/material";
+import { Paper, Typography } from "@mui/material";
 import { type MRT_ColumnDef } from "material-react-table";
 import DataTable from "@/components/data-table/DataTable";
 import { customerDetails } from "@/services/apiService";
@@ -45,8 +45,11 @@ export default function CustomerDetailsPage() {
   ];
 
   return (
-    <Paper className="flex flex-col flex-auto shadow-1 rounded-lg overflow-hidden w-full h-full p-4" elevation={1}>
-      <DataTable data={[data.data]} columns={columns} />
-    </Paper>
+    <div className="mt-10">
+      <Typography className="text-4xl font-extrabold leading-none tracking-tight mb-4">Customer</Typography>
+      <Paper className="flex flex-col flex-auto shadow-1 rounded-lg overflow-hidden w-full h-full p-4" elevation={1}>
+        <DataTable data={[data.data]} columns={columns} />
+      </Paper>
+    </div>
   );
 }

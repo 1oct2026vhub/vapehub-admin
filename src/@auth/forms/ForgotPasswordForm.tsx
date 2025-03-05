@@ -97,16 +97,15 @@ function ForgotPasswordForm() {
 						<AppButton
 							label={isMutating ? 'Sending...' : 'Send reset link'}
 							type="submit"
-							color="secondary"
+							// color="secondary"
 							fullWidth
 							size="large"
 							disabled={_.isEmpty(dirtyFields) || !isValid || isMutating}
 							className="mt-1 w-full"
 						/>
-
 						<Typography className="mt-8 text-md font-medium" color="text.secondary">
 							<span>Return to</span>
-							<Link className="ml-1" to="/sign-in">
+							<Link className="ml-1 text-[#2E9970]" to="/sign-in">
 								sign in
 							</Link>
 						</Typography>

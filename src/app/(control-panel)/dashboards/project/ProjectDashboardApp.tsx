@@ -38,11 +38,12 @@ function ProjectDashboardApp() {
 	}
 
 	return (
-		<Root
-			header={<ProjectDashboardAppHeader />}
-			content={
+		// <Root
+		// 	header={<ProjectDashboardAppHeader />}
+		// 	content={
 				<div className="w-full pt-4 sm:pt-6">
-					<div className="w-full px-6 md:px-8">
+					<ProjectDashboardAppHeader />
+					<div className="w-full">
 					<HomeTab />
 					{/* <HomeTab />
 						<FuseTabs
@@ -68,8 +69,8 @@ function ProjectDashboardApp() {
 					{tabValue === 'budget' && <BudgetTab />}
 					{tabValue === 'team' && <TeamTab />} */}
 				</div>
-			}
-		/>
+		// 	}
+		// />
 	);
 }
 
