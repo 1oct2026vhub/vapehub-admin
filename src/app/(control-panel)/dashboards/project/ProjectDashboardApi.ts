@@ -1,15 +1,7 @@
 import { createSelector, WithSlice } from '@reduxjs/toolkit';
 import { apiService as api } from 'src/store/apiService';
-import BudgetWidgetType from '../finance/widgets/types/BudgetWidgetType';
-import BudgetDistributionDataType from './tabs/budget/widgets/types/BudgetDistributionDataType';
-import ExpensesDataType from './tabs/budget/widgets/types/ExpensesDataType';
-import BudgetDetailsDataType from './tabs/budget/widgets/types/BudgetDetailsDataType';
 import WidgetDataType from './tabs/home/widgets/types/WidgetDataType';
 import GithubIssuesDataType from './tabs/home/widgets/types/GithubIssuesDataType';
-import ScheduleDataType from './tabs/home/widgets/types/ScheduleDataType';
-import TaskDistributionDataType from './tabs/home/widgets/types/TaskDistributionDataType';
-import TeamMemberType from './tabs/team/widgets/types/TeamMemberType';
-
 export const addTagTypes = ['project_dashboard_widgets', 'project_dashboard_projects'] as const;
 const ProjectDashboardApi = api
 	.enhanceEndpoints({
@@ -37,15 +29,8 @@ const ProjectDashboardApi = api
 export default ProjectDashboardApi;
 
 export type ProjectDashboardWidgetType =
-	| BudgetWidgetType
-	| BudgetDetailsDataType
-	| BudgetDistributionDataType
-	| ExpensesDataType
 	| WidgetDataType
 	| GithubIssuesDataType
-	| ScheduleDataType
-	| TaskDistributionDataType
-	| TeamMemberType[];
 
 export type GetProjectDashboardWidgetsApiResponse = Record<string, ProjectDashboardWidgetType>;
 

@@ -9,8 +9,6 @@ import FuseTabs from 'src/components/tabs/FuseTabs';
 import FuseTab from 'src/components/tabs/FuseTab';
 import ProjectDashboardAppHeader from './ProjectDashboardAppHeader';
 import HomeTab from './tabs/home/HomeTab';
-import TeamTab from './tabs/team/TeamTab';
-import BudgetTab from './tabs/budget/BudgetTab';
 import { useGetProjectDashboardWidgetsQuery } from './ProjectDashboardApi';
 import OverdueWidget from './tabs/home/widgets/OverdueWidget';
 

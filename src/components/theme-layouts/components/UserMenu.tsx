@@ -39,8 +39,13 @@ function UserMenu({ className, popoverProps, arrowIcon = 'heroicons-outline:chev
 
   const router = useRouter();
 
+  // const handleLogout = () => {
+  //   logoutUser(router); 
+  // };
+
   const handleLogout = () => {
-    logoutUser(router); 
+    logoutUser(); // Remove 'router' argument
+    router.push("/sign-in"); // Correct way to navigate
   };
 
   return (
