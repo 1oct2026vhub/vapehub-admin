@@ -29,6 +29,7 @@ import { mutate } from "swr";
 import { useRouter } from "next/navigation";
 import FuseSvgIcon from "../FuseSvgIcon";
 import AppButton from "@/components/Shared/AppButton";
+import { useRoles } from "@/hooks/roleFetch";
 
 export type UserType = {
   id: number;
@@ -53,6 +54,9 @@ const UserTable = () => {
   const [selectedUser, setSelectedUser] = useState<UserType | null>(null);
   const [openDrawer, setOpenDrawer] = useState(false); // Mobile Drawer state
 
+  // Fetch roles at the top level of the component
+  const { roles } = useRoles();
+
   // Debounce search input
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -73,6 +77,7 @@ const UserTable = () => {
 
   const { data, error, isLoading } = useFetch(["userList", queryParams], listUser, queryParams);
   const [users, setUsers] = useState<UserType[]>(data?.data?.users || []);
+  const deletedUser = users?.find(user => user.deletedAt !== null);
 
   useEffect(() => {
     if (data?.data?.users) {
@@ -128,14 +133,9 @@ const UserTable = () => {
     phone: user.phone,
     gender: user.gender,
     dob: user.dob ? new Date(user.dob).toISOString().split("T")[0] : "",
-    deletedAt:user.deletedAt
+    deletedAt: user.deletedAt
   }));
 
-  // console.log("userddddd",users?.deletedAt);
-  const deletedUser = users?.find(user => user.deletedAt !== null);
-
-  console.log("deletedUser",deletedUser);
-  
 
   return (
     <>
@@ -166,10 +166,18 @@ const UserTable = () => {
 
           {/* Filters for larger screens */}
           <div className="hidden md:flex gap-2">
-            <Select value={roleId} onChange={(e) => setRoleId(e.target.value as number | "all")} size="small">
+            {/* <Select value={roleId} onChange={(e) => setRoleId(e.target.value as number | "all")} size="small">
               <MenuItem value="all">All Roles</MenuItem>
               <MenuItem value={1}>Admin</MenuItem>
               <MenuItem value={2}>User</MenuItem>
+            </Select> */}
+            <Select value={roleId} onChange={(e) => setRoleId(e.target.value as number | "all")} size="small">
+              <MenuItem value="all">All Roles</MenuItem>
+              {roles?.map((role) => (
+                <MenuItem key={role.id} value={role.id}>
+                  {role.role}
+                </MenuItem>
+              ))}
             </Select>
             <Select
               value={deleted === null ? "all" : deleted ? "deleted" : "active"}
@@ -198,7 +206,7 @@ const UserTable = () => {
             </MenuItem>,
             <MenuItem key="delete" onClick={() => { handleDeleteClick(row.original); closeMenu(); }}>
               <ListItemIcon><FuseSvgIcon>heroicons-outline:trash</FuseSvgIcon></ListItemIcon>
-              {deletedUser? 'Restore' : 'Delete'}
+              {deletedUser ? 'Restore' : 'Delete'}
             </MenuItem>,
           ]}
         />
@@ -213,10 +221,18 @@ const UserTable = () => {
             <TextField label="Search" value={search} onChange={(e) => setSearch(e.target.value)} fullWidth size="small" />
           </ListItem>
           <ListItem>
-            <Select value={roleId} onChange={(e) => setRoleId(e.target.value as number | "all")} fullWidth size="small">
+            {/* <Select value={roleId} onChange={(e) => setRoleId(e.target.value as number | "all")} fullWidth size="small">
               <MenuItem value="all">All Roles</MenuItem>
               <MenuItem value={1}>Admin</MenuItem>
               <MenuItem value={2}>User</MenuItem>
+            </Select> */}
+            <Select value={roleId} onChange={(e) => setRoleId(e.target.value as number | "all")} size="small">
+              <MenuItem value="all">All Roles</MenuItem>
+              {roles?.map((role) => (
+                <MenuItem key={role.id} value={role.id}>
+                  {role.role}
+                </MenuItem>
+              ))}
             </Select>
           </ListItem>
           <ListItem>
@@ -236,12 +252,12 @@ const UserTable = () => {
         <DialogTitle>Confirm Delete</DialogTitle>
         <DialogContent>
           <Typography>
-            Are you sure you want to {deletedUser? 'Restore' : 'Delete'} <strong>{selectedUser?.first_name} {selectedUser?.last_name}</strong>?
+            Are you sure you want to {deletedUser ? 'Restore' : 'Delete'} <strong>{selectedUser?.first_name} {selectedUser?.last_name}</strong>?
           </Typography>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setOpenDialog(false)} className="text-[#247C5C]">Cancel</Button>
-          <AppButton className="w-14" label={deletedUser? 'Restore' : 'Delete'} type="button" fullWidth size="large" onClick={handleConfirmDelete} />
+          <AppButton className="w-14" label={deletedUser ? 'Restore' : 'Delete'} type="button" fullWidth size="large" onClick={handleConfirmDelete} />
         </DialogActions>
       </Dialog>
     </>

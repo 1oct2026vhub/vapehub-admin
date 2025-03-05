@@ -35,7 +35,13 @@ export const customerDetails = (id) => fetcher(`/api/admin/customer/${id}`);
 export const deleteCustomer = (id) => deleter(`/api/admin/customer/${id}`);
 export const blockCustomer = (id) => updater(`/api/admin/customer/${id}/block`,{});
 export const unBlockCustomer = (id) => updater(`/api/admin/customer/${id}/unblock`,{});
+export const restoreCustomer = (id) => updater(`/api/admin/customer/${id}/restore`,{});
 
 
 // List admin roles
-export const listRole = (params = {}) => fetcher('/api/admin/user/roles', params);
+// export const listRole = (params = {}) => fetcher('/api/admin/user/roles', params);
+
+export const listRole = async (params = {}) => {
+    const response = await fetcher('/api/admin/user/roles', params);
+    return response?.data || response; // Ensure correct data format
+  };

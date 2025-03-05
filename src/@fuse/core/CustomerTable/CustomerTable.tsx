@@ -24,7 +24,7 @@ import {
   ListItem,
 } from "@mui/material";
 import FuseSvgIcon from "@fuse/core/FuseSvgIcon";
-import { listCustomer, deleteCustomer, blockCustomer, unBlockCustomer } from "@/services/apiService";
+import { listCustomer, deleteCustomer, blockCustomer, unBlockCustomer, restoreCustomer } from "@/services/apiService";
 import { useFetch } from "@/hooks/useFetch";
 import { mutate } from "swr";
 import { useRouter } from "next/navigation";
@@ -39,6 +39,7 @@ export type UserType = {
   gender: string | null;
   dob: string | null;
   blocked: boolean;
+  deletedAt: string | null;
 };
 
 const CustomerTable = () => {
@@ -51,7 +52,7 @@ const CustomerTable = () => {
 
   // State for confirmation dialog
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [dialogType, setDialogType] = useState<"delete" | "block" | null>(null);
+  const [dialogType, setDialogType] = useState<"delete" | "restore" | "block" | null>(null);
   const [selectedUser, setSelectedUser] = useState<UserType | null>(null);
   const [openDrawer, setOpenDrawer] = useState(false); // Mobile filter drawer state
 
@@ -78,6 +79,7 @@ const CustomerTable = () => {
     setSelectedUser(user);
     setDialogOpen(true);
   };
+  const deletedCustomer = customers?.find(user => user.deletedAt !== null);
 
   const handleConfirmAction = async () => {
     if (!selectedUser) return;
@@ -85,7 +87,9 @@ const CustomerTable = () => {
     try {
       if (dialogType === "delete") {
         setCustomers((prev) => prev.filter((user) => user.id !== selectedUser.id));
-        await deleteCustomer(selectedUser.id);
+        // await deleteCustomer(selectedUser.id);
+        await (deletedCustomer ? restoreCustomer(selectedUser.id) : deleteCustomer(selectedUser.id));
+
       } else if (dialogType === "block") {
         setCustomers((prev) =>
           prev.map((user) =>
@@ -99,11 +103,6 @@ const CustomerTable = () => {
       console.error("Action error:", error);
     }
   };
-
-  const handleEdit = (user: UserType) => {
-    router.push(`/apps/customer/edit/${user.id}`);
-  };
-
   const columns = useMemo<MRT_ColumnDef<UserType>[]>(() => [
     { accessorKey: "first_name", header: "First Name" },
     { accessorKey: "last_name", header: "Last Name" },
@@ -123,7 +122,7 @@ const CustomerTable = () => {
   if (isLoading) return <FuseLoading />;
   if (error) return <p>Failed to load customers</p>;
 
-    const customerData: UserType[] = customers?.map((user: any) => ({
+  const customerData: UserType[] = customers?.map((user: any) => ({
     id: user.id,
     first_name: user.first_name,
     last_name: user.last_name,
@@ -132,10 +131,10 @@ const CustomerTable = () => {
     gender: user.gender,
     dob: user.dob ? new Date(user.dob).toISOString().split("T")[0] : "",
     blocked: user.blocked,
+    deletedAt: user.deletedAt
   }));
-  // const deletedUser = customers?.find(customers => user.deletedAt !== null);
 
-console.log("customers",customers);
+  console.log("customers", customers);
 
   return (
     <>
@@ -177,34 +176,74 @@ console.log("customers",customers);
           </div>
         </div>
         <DataTable
-          data={customerData}
-          columns={columns}
-          renderRowActionMenuItems={({ closeMenu, row }) => [
-            <MenuItem key="view-details" onClick={() => { router.push(`/apps/customer/customer-detail/${row.original.id}`); closeMenu(); }}>
-               <ListItemIcon><FuseSvgIcon>heroicons-outline:arrow-top-right-on-square</FuseSvgIcon></ListItemIcon>
-               View Details
-             </MenuItem>,
-            <MenuItem key="delete" onClick={() => { openDialog("delete", row.original); closeMenu(); }}>
-              <ListItemIcon><FuseSvgIcon>heroicons-outline:trash</FuseSvgIcon></ListItemIcon>
-              Delete
-            </MenuItem>,
-            <MenuItem key="block-unblock" onClick={() => { openDialog("block", row.original); closeMenu(); }}>
-              <ListItemIcon>
-                <FuseSvgIcon>{row.original.blocked ? "heroicons-outline:lock-open" : "heroicons-outline:lock-closed"}</FuseSvgIcon>
-              </ListItemIcon>
-              {row.original.blocked ? "Unblock" : "Block"}
-            </MenuItem>
-          ]}
-        />
-      </Paper>
+  data={customerData}
+  columns={columns}
+  renderRowActionMenuItems={({ closeMenu, row }) => {
+    const isDeleted = row.original.deletedAt !== null; // Avoid using `deletedCustomer` which depends on state
 
-      {/* Mobile Filter Drawer */}
-      <Drawer anchor="left" open={openDrawer} onClose={() => setOpenDrawer(false)}>
+    return [
+      !isDeleted && (
+        <MenuItem
+          key="view-details"
+          onClick={() => {
+            router.push(`/apps/customer/customer-detail/${row.original.id}`);
+            closeMenu();
+          }}
+        >
+          <ListItemIcon>
+            <FuseSvgIcon>heroicons-outline:arrow-top-right-on-square</FuseSvgIcon>
+          </ListItemIcon>
+          View Details
+        </MenuItem>
+      ),
+      <MenuItem
+        key="delete"
+        onClick={() => {
+          openDialog("delete", row.original);
+          closeMenu();
+        }}
+      >
+        <ListItemIcon>
+          <FuseSvgIcon>
+            {isDeleted ? "heroicons-outline:arrow-path" : "heroicons-outline:trash"}
+          </FuseSvgIcon>
+        </ListItemIcon>
+        {isDeleted ? "Restore" : "Delete"}
+      </MenuItem>,
+      !isDeleted && (
+        <MenuItem
+          key="block-unblock"
+          onClick={() => {
+            openDialog("block", row.original);
+            closeMenu();
+          }}
+        >
+          <ListItemIcon>
+            <FuseSvgIcon>
+              {row.original.blocked ? "heroicons-outline:lock-open" : "heroicons-outline:lock-closed"}
+            </FuseSvgIcon>
+          </ListItemIcon>
+          {row.original.blocked ? "Unblock" : "Block"}
+        </MenuItem>
+      ),
+    ].filter(Boolean); // Removes `null` values
+  }}
+/>
+
+    </Paper >
+
+      {/* Mobile Filter Drawer */ }
+      < Drawer anchor = "left" open = { openDrawer } onClose = {() => setOpenDrawer(false)}>
         <List>
           <ListItem>
-            <Select value={order} onChange={(e) => setOrder(e.target.value as "ASC" | "DESC")} size="small">
+            {/* <Select value={order} onChange={(e) => setOrder(e.target.value as "ASC" | "DESC")} size="small">
               <MenuItem value="DESC">Descending</MenuItem>
               <MenuItem value="ASC">Ascending</MenuItem>
+            </Select> */}
+             <Select value={deleted === null ? "all" : deleted ? "deleted" : "active"} onChange={(e) => setDeleted(e.target.value === "all" ? null : e.target.value === "deleted")} size="small">
+              <MenuItem value="all">All</MenuItem>
+              <MenuItem value="active">Active</MenuItem>
+              <MenuItem value="deleted">Deleted</MenuItem>
             </Select>
           </ListItem>
           <ListItem>
@@ -214,23 +253,30 @@ console.log("customers",customers);
             </Select>
           </ListItem>
         </List>
-      </Drawer>
+      </Drawer >
 
-      {/* Confirmation Dialog */}
-      <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)}>
+  {/* Confirmation Dialog */ }
+  < Dialog open = { dialogOpen } onClose = {() => setDialogOpen(false)}>
         <DialogTitle>Confirm Action</DialogTitle>
         <DialogContent>
           <DialogContentText>
             {dialogType === "delete"
-              ? `Are you sure you want to delete ${selectedUser?.first_name} ${selectedUser?.last_name}?`
+              ? `Are you sure you want to ${deletedCustomer ? 'Restore' : 'Delete'} ${selectedUser?.first_name} ${selectedUser?.last_name}?`
               : `Are you sure you want to ${selectedUser?.blocked ? "unblock" : "block"} this customer?`}
           </DialogContentText>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setDialogOpen(false)}>Cancel</Button>
-          <AppButton label={dialogType === "delete" ? "Delete" : selectedUser?.blocked ? "Unblock" : "Block"} onClick={handleConfirmAction} />
+          <AppButton label={
+            dialogType === "delete"
+              ? selectedUser?.deletedAt ? "Restore" : "Delete"
+              : selectedUser?.blocked
+                ? "Unblock"
+                : "Block"
+          }
+            onClick={handleConfirmAction} />
         </DialogActions>
-      </Dialog>
+      </Dialog >
     </>
   );
 };
