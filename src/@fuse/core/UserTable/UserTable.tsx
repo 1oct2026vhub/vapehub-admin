@@ -200,12 +200,17 @@ const UserTable = () => {
           data={userData}
           columns={columns}
           renderRowActionMenuItems={({ closeMenu, row }) => [
-            <MenuItem key="edit" onClick={() => { handleEdit(row.original); closeMenu(); }}>
-              <ListItemIcon><FuseSvgIcon>heroicons-outline:pencil-square</FuseSvgIcon></ListItemIcon>
-              Edit
-            </MenuItem>,
+            <>
+              {!deletedUser &&
+                <MenuItem key="edit" onClick={() => { handleEdit(row.original); closeMenu(); }}>
+                  <ListItemIcon><FuseSvgIcon>heroicons-outline:pencil-square</FuseSvgIcon></ListItemIcon>
+                  Edit
+                </MenuItem>
+              }
+            </>
+            ,
             <MenuItem key="delete" onClick={() => { handleDeleteClick(row.original); closeMenu(); }}>
-              <ListItemIcon><FuseSvgIcon>heroicons-outline:trash</FuseSvgIcon></ListItemIcon>
+              <ListItemIcon><FuseSvgIcon>{deletedUser ? "heroicons-outline:arrow-path" : "heroicons-outline:trash"}</FuseSvgIcon></ListItemIcon>
               {deletedUser ? 'Restore' : 'Delete'}
             </MenuItem>,
           ]}
