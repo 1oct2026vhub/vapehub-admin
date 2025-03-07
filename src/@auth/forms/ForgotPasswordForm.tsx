@@ -1,7 +1,6 @@
 'use client';
 
-import { Controller, useForm } from 'react-hook-form';
-import Button from '@mui/material/Button';
+import {  useForm } from 'react-hook-form';
 import Typography from '@mui/material/Typography';
 import _ from 'lodash';
 import Paper from '@mui/material/Paper';
@@ -53,13 +52,10 @@ function ForgotPasswordForm() {
 				setError('root', { type: 'manual', message: response.error });
 				return;
 			}
-			// Show success message and reset form
 			showSnackbar('Reset link sent! Please check your email.')
-			// setSuccessMessage('Reset link sent! Please check your email.');
 			reset(defaultValues);
 		} catch (error) {
 			showSnackbar(error)
-			// setError('root', { type: 'manual', message: 'Failed to send reset link. Please try again.' });
 		}
 	}
 
@@ -108,7 +104,7 @@ function ForgotPasswordForm() {
 							className="mt-1 w-full"
 						/>
 						<Typography className="mt-8 text-md font-medium" color="text.secondary">
-							<span>Return to</span>
+							<span>Back to</span>
 							<Link className="ml-1 text-[#2E9970]" to="/sign-in">
 								Sign_in
 							</Link>
