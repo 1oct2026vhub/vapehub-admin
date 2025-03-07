@@ -97,7 +97,7 @@ function UserMenu({ className, popoverProps, arrowIcon = 'heroicons-outline:chev
         onClose={userMenuClose}
         anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
         transformOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-        classes={{ paper: 'py-2 min-w-64' }}
+        classes={{ paper: 'py-2 min-w-64 bg-[#E8E8E8] text-black' }}
         {...popoverProps}
       >
         {mockUser.isGuest ? (
@@ -118,13 +118,13 @@ function UserMenu({ className, popoverProps, arrowIcon = 'heroicons-outline:chev
         ) : (
           <>
             <MenuItem component={Link} to="/apps/profile" onClick={userMenuClose} role="button">
-              <ListItemIcon className="min-w-9">
+              <ListItemIcon className="min-w-9 text-black">
                 <FuseSvgIcon>heroicons-outline:user-circle</FuseSvgIcon>
               </ListItemIcon>
               <ListItemText primary="My Profile" />
             </MenuItem>
             <MenuItem onClick={handleLogout}>
-              <ListItemIcon className="min-w-9">
+              <ListItemIcon className="min-w-9 text-black">
                 <FuseSvgIcon>heroicons-outline:arrow-right-on-rectangle</FuseSvgIcon>
               </ListItemIcon>
               <ListItemText primary="Sign out" />

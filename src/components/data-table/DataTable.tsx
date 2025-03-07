@@ -84,9 +84,9 @@ function DataTable<TData extends { id: number }>(
 						left: ['mrt-row-expand', 'mrt-row-select'],
 						right: ['mrt-row-actions']
 					},
-					pagination: {
-						pageSize: 10
-					},
+					// pagination: {
+					// 	pageSize: 10
+					// },
 					enableFullScreenToggle: false
 				},
 				enableFullScreenToggle: false,
@@ -110,7 +110,7 @@ function DataTable<TData extends { id: number }>(
 				},
 				enableStickyHeader: true,
 				// enableStickyFooter: true,
-				paginationDisplayMode: 'pages',
+				paginationDisplayMode: 'none',
 				positionToolbarAlertBanner: 'top',
 				muiPaginationProps: {
 					color: 'secondary',
