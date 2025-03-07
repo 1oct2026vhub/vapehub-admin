@@ -22,6 +22,9 @@ import {
   List,
   ListItem,
   ListItemText,
+  Pagination,
+  PaginationItem,
+  Chip,
 } from "@mui/material";
 import { listUser, deleteUser, restoreUser } from "@/services/apiService";
 import { useFetch } from "@/hooks/useFetch";
@@ -30,6 +33,7 @@ import { useRouter } from "next/navigation";
 import FuseSvgIcon from "../FuseSvgIcon";
 import AppButton from "@/components/Shared/AppButton";
 import { useRoles } from "@/hooks/roleFetch";
+import { useSnackbar } from "@/contexts/SnackbarContext";
 
 export type UserType = {
   id: number;
@@ -39,6 +43,7 @@ export type UserType = {
   phone: number;
   gender: string | null;
   dob: string | null;
+  role: string | null;
   roleId: number | null;
   deletedAt: string | null;
 };
@@ -53,6 +58,9 @@ const UserTable = () => {
   const [openDialog, setOpenDialog] = useState(false);
   const [selectedUser, setSelectedUser] = useState<UserType | null>(null);
   const [openDrawer, setOpenDrawer] = useState(false); // Mobile Drawer state
+  const [page, setPage] = useState(1);
+  const [limit] = useState(10); // Number of records per page
+  const { showSnackbar } = useSnackbar();
 
   // Fetch roles at the top level of the component
   const { roles } = useRoles();
@@ -69,13 +77,18 @@ const UserTable = () => {
     () => ({
       search: debouncedSearch,
       order,
+      page,
+      limit,
       ...(deleted !== null && { deleted }),
       ...(roleId !== "all" && { roleId }),
     }),
-    [debouncedSearch, order, deleted, roleId]
+    [debouncedSearch, order, deleted, roleId, page, limit]
   );
 
   const { data, error, isLoading } = useFetch(["userList", queryParams], listUser, queryParams);
+  // const users = data?.data?.users || [];
+  const totalRecords = data?.data?.total || 0;  // Get total users from API
+  const totalPages = Math.ceil(totalRecords / limit);  // Total pages
   const [users, setUsers] = useState<UserType[]>(data?.data?.users || []);
   const deletedUser = users?.find(user => user.deletedAt !== null);
 
@@ -90,34 +103,84 @@ const UserTable = () => {
     setOpenDialog(true);
   };
 
+
   const handleConfirmDelete = async () => {
     if (!selectedUser) return;
     setOpenDialog(false);
     setUsers((prev) => prev.filter((user) => user.id !== selectedUser.id));
 
     try {
-      // await deleteUser(selectedUser.id);
       await (deletedUser ? restoreUser(selectedUser.id) : deleteUser(selectedUser.id));
+
+      // Show Snackbar for success message
+      showSnackbar(
+        deletedUser ? "User restored successfully!" : "User deleted successfully!",
+        "success"
+      );
 
       mutate(["userList", queryParams]);
     } catch (error) {
       console.error("Delete error:", error);
+
+      // Show Snackbar for error
+      showSnackbar("An error occurred while processing the request.", "error");
     }
   };
 
+  // const handleEdit = (user: UserType) => {
+  //   const userData = encodeURIComponent(JSON.stringify(user));
+  //   router.push(`/apps/users/user-update/${user.id}?userData=${userData}`);
+  // };
   const handleEdit = (user: UserType) => {
-    const userData = encodeURIComponent(JSON.stringify(user));
-    router.push(`/apps/users/user-update/${user.id}?userData=${userData}`);
+    router.push(
+      `/apps/users/user-update/${user.id}?userData=${encodeURIComponent(
+        JSON.stringify({
+          id: user.id,
+          first_name: user.first_name,
+          last_name: user.last_name,
+          role: user.role,
+          roleId: user.roleId,
+          phone: user.phone,
+          gender: user.gender?.toLowerCase(), // Convert gender to lowercase
+          dob: user.dob,
+        })
+      )}`
+    );
   };
+  
 
   const columns = useMemo<MRT_ColumnDef<UserType>[]>(() => [
+    { accessorKey: "id", header: "Id" },
     { accessorKey: "first_name", header: "First Name" },
     { accessorKey: "last_name", header: "Last Name" },
     { accessorKey: "email", header: "Email" },
     { accessorKey: "role", header: "Role" },
     { accessorKey: "phone", header: "Contact" },
     { accessorKey: "gender", header: "Gender" },
+    // {
+    //   accessorKey: "gender",
+    //   header: "Gender",
+    //   cell: ({ row }) => {
+    //     const gender = row.original.gender;
+    //     return gender ? gender.charAt(0).toUpperCase() + gender.slice(1) : "N/A";
+    //   },
+    // },
     { accessorKey: "dob", header: "Date of Birth" },
+    {
+      accessorKey: "status",
+      header: "Status",
+      Cell: ({ row }) => {
+        const { deletedAt } = row.original;
+        let label = "Active";
+        let color = "success";
+
+        if (deletedAt) {
+          label = "Inactive"; // User is deleted
+          color = "warning";
+        }
+        return <Chip label={label} color={row.original.deletedAt ? "warning" : "success"} />;
+      },
+    },
   ], []);
 
   if (isLoading) return <FuseLoading />;
@@ -131,7 +194,8 @@ const UserTable = () => {
     role: user.roles?.role || "N/A",
     roleId: user.roles?.id || "N/A",
     phone: user.phone,
-    gender: user.gender,
+    // gender: user.gender,
+    gender: user.gender ? user.gender.charAt(0).toUpperCase() + user.gender.slice(1) : "N/A",
     dob: user.dob ? new Date(user.dob).toISOString().split("T")[0] : "",
     deletedAt: user.deletedAt
   }));
@@ -166,11 +230,6 @@ const UserTable = () => {
 
           {/* Filters for larger screens */}
           <div className="hidden md:flex gap-2">
-            {/* <Select value={roleId} onChange={(e) => setRoleId(e.target.value as number | "all")} size="small">
-              <MenuItem value="all">All Roles</MenuItem>
-              <MenuItem value={1}>Admin</MenuItem>
-              <MenuItem value={2}>User</MenuItem>
-            </Select> */}
             <Select value={roleId} onChange={(e) => setRoleId(e.target.value as number | "all")} size="small">
               <MenuItem value="all">All Roles</MenuItem>
               {roles?.map((role) => (
@@ -186,7 +245,7 @@ const UserTable = () => {
             >
               <MenuItem value="all">All Users</MenuItem>
               <MenuItem value="active">Active</MenuItem>
-              <MenuItem value="deleted">Deleted</MenuItem>
+              <MenuItem value="deleted">In Active</MenuItem>
             </Select>
             <Select value={order} onChange={(e) => setOrder(e.target.value as "ASC" | "DESC")} size="small">
               <MenuItem value="DESC">Descending</MenuItem>
@@ -200,16 +259,38 @@ const UserTable = () => {
           data={userData}
           columns={columns}
           renderRowActionMenuItems={({ closeMenu, row }) => [
-            <MenuItem key="edit" onClick={() => { handleEdit(row.original); closeMenu(); }}>
-              <ListItemIcon><FuseSvgIcon>heroicons-outline:pencil-square</FuseSvgIcon></ListItemIcon>
-              Edit
-            </MenuItem>,
+            <>
+              {!deletedUser &&
+                <MenuItem key="edit" onClick={() => { handleEdit(row.original); closeMenu(); }}>
+                  <ListItemIcon><FuseSvgIcon>heroicons-outline:pencil-square</FuseSvgIcon></ListItemIcon>
+                  Edit
+                </MenuItem>
+              }
+            </>
+            ,
             <MenuItem key="delete" onClick={() => { handleDeleteClick(row.original); closeMenu(); }}>
-              <ListItemIcon><FuseSvgIcon>heroicons-outline:trash</FuseSvgIcon></ListItemIcon>
+              <ListItemIcon><FuseSvgIcon>{deletedUser ? "heroicons-outline:arrow-path" : "heroicons-outline:trash"}</FuseSvgIcon></ListItemIcon>
               {deletedUser ? 'Restore' : 'Delete'}
             </MenuItem>,
           ]}
         />
+        {/* Pagination Component */}
+        <div className="flex justify-center mb-6">
+          <Pagination
+            count={totalPages} // Placeholder value, replace with actual page count
+            page={page} // Placeholder value, replace with actual current page
+            onChange={(event, value) => setPage(value)} // Update page state on click
+            shape="rounded"
+            color="primary"
+            renderItem={(item) => (
+              <PaginationItem
+                {...item}
+                className="text-gray-600 hover:text-[#2E9970]"
+              />
+            )}
+          />
+        </div>
+
       </Paper>
       {/* Mobile Drawer for Filters */}
       <Drawer anchor="left" open={openDrawer} onClose={() => setOpenDrawer(false)}>
@@ -221,11 +302,6 @@ const UserTable = () => {
             <TextField label="Search" value={search} onChange={(e) => setSearch(e.target.value)} fullWidth size="small" />
           </ListItem>
           <ListItem>
-            {/* <Select value={roleId} onChange={(e) => setRoleId(e.target.value as number | "all")} fullWidth size="small">
-              <MenuItem value="all">All Roles</MenuItem>
-              <MenuItem value={1}>Admin</MenuItem>
-              <MenuItem value={2}>User</MenuItem>
-            </Select> */}
             <Select value={roleId} onChange={(e) => setRoleId(e.target.value as number | "all")} size="small">
               <MenuItem value="all">All Roles</MenuItem>
               {roles?.map((role) => (
@@ -252,7 +328,7 @@ const UserTable = () => {
         <DialogTitle>Confirm Delete</DialogTitle>
         <DialogContent>
           <Typography>
-            Are you sure you want to {deletedUser ? 'Restore' : 'Delete'} <strong>{selectedUser?.first_name} {selectedUser?.last_name}</strong>?
+            Are you sure you want to {deletedUser ? 'Restore' : 'Delete'} <strong>{selectedUser?.first_name ? selectedUser?.first_name : ""} {selectedUser?.last_name ? selectedUser?.last_name : ""}</strong>?
           </Typography>
         </DialogContent>
         <DialogActions>

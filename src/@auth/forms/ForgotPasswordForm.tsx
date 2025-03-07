@@ -1,7 +1,6 @@
 'use client';
 
-import { Controller, useForm } from 'react-hook-form';
-import Button from '@mui/material/Button';
+import {  useForm } from 'react-hook-form';
 import Typography from '@mui/material/Typography';
 import _ from 'lodash';
 import Paper from '@mui/material/Paper';
@@ -17,7 +16,10 @@ import { useState } from 'react';
 import { useSnackbar } from '@/contexts/SnackbarContext';
 
 const schema = z.object({
-	email: z.string().email('You must enter a valid email').nonempty('You must enter an email'),
+	email: z
+	  .string()
+	  .min(1, 'Email is required') // Ensures the field is required
+	  .email('Invalid email format'), // Validates email format
 });
 
 const defaultValues = {
@@ -29,7 +31,7 @@ const defaultValues = {
  */
 function ForgotPasswordForm() {
 	const [successMessage, setSuccessMessage] = useState('');
-	const { showSnackbar } = useSnackbar(); // ✅ Use Snackbar
+	const { showSnackbar } = useSnackbar(); 
 	
 	const { control, formState, handleSubmit, reset, setError } = useForm({
 		mode: 'onChange',
@@ -50,12 +52,10 @@ function ForgotPasswordForm() {
 				setError('root', { type: 'manual', message: response.error });
 				return;
 			}
-			// Show success message and reset form
 			showSnackbar('Reset link sent! Please check your email.')
-			setSuccessMessage('Reset link sent! Please check your email.');
 			reset(defaultValues);
 		} catch (error) {
-			setError('root', { type: 'manual', message: 'Failed to send reset link. Please try again.' });
+			showSnackbar(error)
 		}
 	}
 
@@ -63,7 +63,7 @@ function ForgotPasswordForm() {
 		<div className="flex min-w-0 flex-auto flex-col items-center sm:justify-center">
 			<Paper className="min-h-full w-full rounded-none px-4 py-8 sm:min-h-auto sm:w-auto sm:rounded-xl sm:p-12 sm:shadow-sm">
 				<div className="mx-auto w-full max-w-80 sm:mx-0 sm:w-80">
-					<img className="w-24" src="/assets/images/logo/logo.svg" alt="logo" />
+					<img className="w-32 max-h-32" src="/assets/images/logo/logo.svg" alt="logo" />
 
 					<Typography className="mt-8 text-4xl font-extrabold leading-[1.25] tracking-tight">
 						Forgot password?
@@ -104,9 +104,9 @@ function ForgotPasswordForm() {
 							className="mt-1 w-full"
 						/>
 						<Typography className="mt-8 text-md font-medium" color="text.secondary">
-							<span>Return to</span>
+							<span>Back to</span>
 							<Link className="ml-1 text-[#2E9970]" to="/sign-in">
-								sign in
+								Sign_in
 							</Link>
 						</Typography>
 					</form>

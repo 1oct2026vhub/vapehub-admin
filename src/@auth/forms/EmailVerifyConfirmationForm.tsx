@@ -9,11 +9,16 @@ import { verifyEmail } from "@/services/apiService";
 import { useFetch } from "@/hooks/useFetch";
 import { useSnackbar } from "@/contexts/SnackbarContext";
 import { useEffect } from "react";
+import { storeAuthToken } from "@/utils/auth";
+import { useRouter } from "next/navigation";
+
 
 function EmailVerifyConfirmationForm() {
 	const searchParams = useSearchParams();
 	const token = searchParams.get("token");
 	const { showSnackbar } = useSnackbar(); //Use Snackbar
+	const router = useRouter(); // Initialize router
+
 
 
 	const { data, error, isLoading } = useFetch(
@@ -21,10 +26,13 @@ function EmailVerifyConfirmationForm() {
 		verifyEmail,
 		{ token }
 	);
+
 	// Trigger snackbar only once when data.success is true
 	useEffect(() => {
 		if (data?.success) {
 			showSnackbar(data?.message);
+			storeAuthToken(data?.data?.accessToken);
+			router.push("/dashboards/project");
 		}
 		else {
 			showSnackbar('Invalid link or link expired');
