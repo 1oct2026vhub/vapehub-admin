@@ -2,27 +2,27 @@
 import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
 import { Snackbar, Alert, AlertColor } from '@mui/material';
 
-// 1️⃣ Define Context Type
+// Define Context Type
 interface SnackbarContextType {
   showSnackbar: (message: string, severity?: AlertColor) => void;
 }
 
-// 2️⃣ Create Context
+// Create Context
 const SnackbarContext = createContext<SnackbarContextType | undefined>(undefined);
 
-// 3️⃣ Define Snackbar State Type
+// Define Snackbar State Type
 interface SnackbarState {
   open: boolean;
   message: string;
   severity: AlertColor;
 }
 
-// 4️⃣ Provider Component Props
+// Provider Component Props
 interface SnackbarProviderProps {
   children: ReactNode;
 }
 
-// 5️⃣ Provider Component
+// Provider Component
 export const SnackbarProvider: React.FC<SnackbarProviderProps> = ({ children }) => {
   const [snackbar, setSnackbar] = useState<SnackbarState>({
     open: false,
@@ -59,7 +59,7 @@ export const SnackbarProvider: React.FC<SnackbarProviderProps> = ({ children }) 
   );
 };
 
-// 6️⃣ Hook to use Snackbar
+// Hook to use Snackbar
 export const useSnackbar = (): SnackbarContextType => {
   const context = useContext(SnackbarContext);
   if (!context) {

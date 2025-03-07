@@ -12,13 +12,17 @@ import FormInputField from '@/components/Shared/FormInputField';
 import { updateUser } from '@/services/apiService';
 import { useSnackbar } from '@/contexts/SnackbarContext';
 import Header from './Header';
+import FormSelectField from '@/components/Shared/SelectField';
+import FormRadioGroup from '@/components/Shared/RadioButton';
 
 // Validation Schema
 const schema = z.object({
   first_name: z.string().nonempty('First Name is required'),
   last_name: z.string().nonempty('Last Name is required'),
-  email: z.string().email('Enter a valid email').nonempty('Email is required'),
-  phone: z.string().min(10, 'Enter a valid phone number'),
+  email: z
+  .string()
+  .min(1, 'Email is required') // Ensures the field is required
+  .email('Invalid email format'), // Validates email format  phone: z.string().min(10, 'Enter a valid phone number'),
   dob: z
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/, 'DOB must be in YYYY-MM-DD format')
@@ -46,7 +50,7 @@ export type FormType = {
 const EditForm = ({ user }: { user: FormType }) => {
   const router = useRouter();
   const { showSnackbar } = useSnackbar();
-  
+
   // Form handling
   const { control, formState, handleSubmit, setError, reset } = useForm<FormType>({
     mode: 'onChange',
@@ -54,7 +58,7 @@ const EditForm = ({ user }: { user: FormType }) => {
   });
 
   const { isValid, dirtyFields, errors } = formState;
-  
+
 
   // Prefill form when user data is available
   useEffect(() => {
@@ -121,10 +125,32 @@ const EditForm = ({ user }: { user: FormType }) => {
         <FormInputField name="email" control={control} label="Email" type="email" required />
         <FormInputField name="phone" control={control} label="Phone" type="text" required />
         <FormInputField name="dob" control={control} label="DOB (YYYY-MM-DD)" type="text" required />
+        <FormSelectField
+          name="roleId"
+          control={control}
+          label="Role"
+          options={[
+            { value: 1, label: 'Super Admin' },
+            { value: 2, label: 'Customer' },
+          ]}
+          defaultValue={user?.roleId ?? ""} // Default to Customer if not provided
+        />
+
+        <FormRadioGroup
+          name="gender"
+          control={control}
+          label="Gender"
+          options={[
+            { value: 'male', label: 'Male' },
+            { value: 'female', label: 'Female' },
+            { value: 'other', label: 'Other' },
+          ]}
+          defaultValue={user?.gender ?? ''} // Default to Male if not provided
+        />
 
 
 
-        <Controller
+        {/* <Controller
         name="roleId"
         control={control}
         // defaultValue={2} // Ensures default value is set
@@ -142,11 +168,11 @@ const EditForm = ({ user }: { user: FormType }) => {
             </Select>
           </FormControl>
         )}
-      />
+      /> */}
 
 
         {/* Gender Selection */}
-        <FormControl component="fieldset" margin="normal">
+        {/* <FormControl component="fieldset" margin="normal">
           <FormLabel component="legend">Gender</FormLabel>
           <Controller
             name="gender"
@@ -160,7 +186,7 @@ const EditForm = ({ user }: { user: FormType }) => {
             )}
           />
           {errors.gender && <FormHelperText error>{errors.gender.message}</FormHelperText>}
-        </FormControl>
+        </FormControl> */}
 
 
         {/* Submit Button */}

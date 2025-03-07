@@ -18,13 +18,17 @@ import { createUser } from '@/services/apiService';
 import { useSnackbar } from '@/contexts/SnackbarContext';
 import Header from './Header';
 import { useRoles } from '@/hooks/roleFetch';
+import FormSelectField from '@/components/Shared/SelectField';
+import FormRadioGroup from '@/components/Shared/RadioButton';
 
 
 const schema = z.object({
   first_name: z.string().nonempty('First Name is required'),
   last_name: z.string().nonempty('Last Name is required'),
-  email: z.string().email('Enter a valid email').nonempty('Email is required'),
-  password: z.string().min(8, 'Password must be at least 8 characters long'),
+  email: z
+  .string()
+  .min(1, 'Email is required') // Ensures the field is required
+  .email('Invalid email format'), // Validates email format  password: z.string().min(8, 'Password must be at least 8 characters long'),
   phone: z.string().min(10, 'Enter a valid phone number'),
   dob: z
     .string()
@@ -91,15 +95,14 @@ function CreateUserForm() {
       return true;
     } catch (error) {
       console.log(error);
-
+      showSnackbar(error)
       const errorData = error?.response?.data?.error;
-
       if (errorData) {
         if (errorData.email) {
-          setError('email', { type: 'manual', message: errorData.email });
+          showSnackbar(errorData.email);
         }
         if (errorData.phone) {
-          setError('phone', { type: 'manual', message: errorData.phone });
+         showSnackbar(errorData.email);
         }
         // if (errorData.otherField) {
         //   setError('otherField', { type: 'manual', message: errorData.otherField });
@@ -151,14 +154,22 @@ function CreateUserForm() {
         {errors.roleId && <FormHelperText error>{errors.roleId.message}</FormHelperText>}
       </FormControl> */}
 
-        <FormControl fullWidth margin="normal">
+
+        <FormSelectField
+          name="roleId"
+          control={control}
+          label="Role"
+          options={roles ? roles.map((role) => ({ value: role.id, label: role.role })) : []}
+        />
+
+        {/* <FormControl fullWidth margin="normal">
           <InputLabel id="role-select-label">Role</InputLabel>
           <Controller
             name="roleId"
             control={control}
             render={({ field }) => (
               <Select {...field} labelId="role-select-label" label="Role">
-                <MenuItem value="">Select Role</MenuItem> {/* Default option */}
+                <MenuItem value="">Select Role</MenuItem>
                 {roles?.map((role) => (
                   <MenuItem key={role.id} value={role.id}>
                     {role.role}
@@ -168,11 +179,22 @@ function CreateUserForm() {
             )}
           />
           {errors.roleId && <FormHelperText error>{errors.roleId.message}</FormHelperText>}
-        </FormControl>
+        </FormControl> */}
+
+        <FormRadioGroup
+          name="gender"
+          control={control}
+          label="Gender"
+          options={[
+            { value: 'male', label: 'Male' },
+            { value: 'female', label: 'Female' },
+            { value: 'other', label: 'Other' },
+          ]}
+        />
 
 
         {/* Gender Selection */}
-        <FormControl component="fieldset" margin="normal">
+        {/* <FormControl component="fieldset" margin="normal">
           <FormLabel component="legend">Gender</FormLabel>
           <Controller
             name="gender"
@@ -186,7 +208,7 @@ function CreateUserForm() {
             )}
           />
           {errors.gender && <FormHelperText error>{errors.gender.message}</FormHelperText>}
-        </FormControl>
+        </FormControl> */}
 
         {/* Submit Button */}
         <AppButton
