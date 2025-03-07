@@ -1,16 +1,10 @@
 'use client'
-import { useForm, Controller } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import _ from 'lodash';
 import { useRouter } from 'next/navigation';
-import FormControl from '@mui/material/FormControl';
-import FormControlLabel from '@mui/material/FormControlLabel';
-import FormLabel from '@mui/material/FormLabel';
-import RadioGroup from '@mui/material/RadioGroup';
-import Radio from '@mui/material/Radio';
-import FormHelperText from '@mui/material/FormHelperText';
-import { Alert, Select, MenuItem, InputLabel } from '@mui/material';
+import { Alert } from '@mui/material';
 import AppButton from '@/components/Shared/AppButton';
 import FormInputField from '@/components/Shared/FormInputField';
 import { usePost } from '@/hooks/useFetch';
@@ -20,16 +14,27 @@ import Header from './Header';
 import { useRoles } from '@/hooks/roleFetch';
 import FormSelectField from '@/components/Shared/SelectField';
 import FormRadioGroup from '@/components/Shared/RadioButton';
+import FormDatePicker from '@/components/Shared/FormDatePicker';
 
 
 const schema = z.object({
-  first_name: z.string().nonempty('First Name is required'),
-  last_name: z.string().nonempty('Last Name is required'),
+  first_name: z.string().min(1, 'First Name is required'),
+  last_name: z.string().min(1, 'Last Name is required'),
   email: z
-  .string()
-  .min(1, 'Email is required') // Ensures the field is required
-  .email('Invalid email format'), // Validates email format  password: z.string().min(8, 'Password must be at least 8 characters long'),
-  phone: z.string().min(10, 'Enter a valid phone number'),
+    .string()
+    .min(1, 'Email is required') // Ensures the field is required
+    .email('Invalid email format'), // Validates email format
+
+  phone: z.string().regex(/^\d{10,15}$/, 'Enter a valid phone number'), // Ensures numeric phone number
+  password: z
+    .string()
+    .min(1, 'Password is required') // Ensures the field is required
+    .min(8, 'Password must be at least 8 characters long') // Minimum length validation
+    .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
+    .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
+    .regex(/[0-9]/, 'Password must contain at least one number')
+    .regex(/[@$!%*?&]/, 'Password must contain at least one special character'),
+
   dob: z
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/, 'DOB must be in YYYY-MM-DD format')
@@ -38,12 +43,12 @@ const schema = z.object({
       const today = new Date();
       return today.getFullYear() - birthDate.getFullYear() >= 18;
     }, 'You must be at least 18 years old.'),
-  roleId: z.preprocess(
-    (val) => Number(val),
-    z.union([z.literal(1), z.literal(2)])
-  ),
+
+  roleId: z.number().min(1, 'Invalid role ID').max(2, 'Invalid role ID'), // Ensures roleId is either 1 or 2
+
   gender: z.enum(['male', 'female', 'other'], { message: 'Gender is required' }),
 });
+
 
 const defaultValues = {
   first_name: '',
@@ -81,40 +86,36 @@ function CreateUserForm() {
   const { isValid, dirtyFields, errors } = formState;
   const { trigger: triggerSignup, isMutating } = usePost('signup', createUser);
 
+
   async function onSubmit(formData) {
     try {
       const formattedData = { ...formData, roleId: Number(formData.roleId) };
       const response = await triggerSignup(formattedData);
-
-      if (response?.success === false) {
-        setError('root', { type: 'manual', message: response.message });
-        return false;
-      }
-      showSnackbar('User created successfully. Please check your email for verification !', 'success');
-      router.push('/apps/users'); // Redirect after update
+      showSnackbar('User created successfully. Please check your email for verification!', 'success');
+      router.push('/apps/users'); // Redirect after successful signup
       return true;
     } catch (error) {
-      console.log(error);
-      showSnackbar(error)
-      const errorData = error?.response?.data?.error;
-      if (errorData) {
-        if (errorData.email) {
-          showSnackbar(errorData.email);
-        }
-        if (errorData.phone) {
-         showSnackbar(errorData.email);
-        }
-        // if (errorData.otherField) {
-        //   setError('otherField', { type: 'manual', message: errorData.otherField });
-        // }
-        else {
-          setError('root', { type: 'manual', message: 'An unexpected error occurred' });
-        }
-
-        return false;
+      // console.error('Signup Error:', error); // Log full error object
+  
+      const errorData = error || error; // Handle both API and unexpected errors
+      const errorMessage = errorData?.message || 'An unexpected error occurred';
+  
+      if (errorData?.error && typeof errorData.error === 'object') {
+        Object.entries(errorData.error).forEach(([field, message]) => {
+          if (typeof message === 'string') {
+            // setError(field, { type: 'manual', message });
+            showSnackbar(` ${message}`, 'error');
+          }
+        });
+      } else {
+        setError('root', { type: 'manual', message: errorMessage });
+        showSnackbar(errorMessage, 'error');
       }
+  
+      return false;
     }
   }
+  
 
   return (
     <div className='md:px-64 p-4'>
@@ -136,51 +137,14 @@ function CreateUserForm() {
         <FormInputField name="email" control={control} label="Email" type="email" required />
         <FormInputField name="password" control={control} label="Password" type="password" required />
         <FormInputField name="phone" control={control} label="Phone" type="text" required />
-        <FormInputField name="dob" control={control} label="DOB (YYYY-MM-DD)" type="text" required />
-
-        {/* Role Selection Dropdown */}
-        {/* <FormControl fullWidth margin="normal">
-        <InputLabel id="role-select-label">Role</InputLabel>
-        <Controller
-          name="roleId"
-          control={control}
-          render={({ field }) => (
-            <Select {...field} labelId="role-select-label" label="Role">
-              <MenuItem value={1}>Admin</MenuItem>
-              <MenuItem value={2}>User</MenuItem>
-            </Select>
-          )}
-        />
-        {errors.roleId && <FormHelperText error>{errors.roleId.message}</FormHelperText>}
-      </FormControl> */}
-
-
+        {/* <FormInputField name="dob" control={control} label="DOB (YYYY-MM-DD)" type="text" required /> */}
+        <FormDatePicker name="dob" control={control} label="Date of Birth" required />
         <FormSelectField
           name="roleId"
           control={control}
           label="Role"
           options={roles ? roles.map((role) => ({ value: role.id, label: role.role })) : []}
         />
-
-        {/* <FormControl fullWidth margin="normal">
-          <InputLabel id="role-select-label">Role</InputLabel>
-          <Controller
-            name="roleId"
-            control={control}
-            render={({ field }) => (
-              <Select {...field} labelId="role-select-label" label="Role">
-                <MenuItem value="">Select Role</MenuItem>
-                {roles?.map((role) => (
-                  <MenuItem key={role.id} value={role.id}>
-                    {role.role}
-                  </MenuItem>
-                ))}
-              </Select>
-            )}
-          />
-          {errors.roleId && <FormHelperText error>{errors.roleId.message}</FormHelperText>}
-        </FormControl> */}
-
         <FormRadioGroup
           name="gender"
           control={control}
@@ -191,30 +155,10 @@ function CreateUserForm() {
             { value: 'other', label: 'Other' },
           ]}
         />
-
-
-        {/* Gender Selection */}
-        {/* <FormControl component="fieldset" margin="normal">
-          <FormLabel component="legend">Gender</FormLabel>
-          <Controller
-            name="gender"
-            control={control}
-            render={({ field }) => (
-              <RadioGroup {...field} row>
-                <FormControlLabel value="male" control={<Radio />} label="Male" />
-                <FormControlLabel value="female" control={<Radio />} label="Female" />
-                <FormControlLabel value="other" control={<Radio />} label="Other" />
-              </RadioGroup>
-            )}
-          />
-          {errors.gender && <FormHelperText error>{errors.gender.message}</FormHelperText>}
-        </FormControl> */}
-
         {/* Submit Button */}
         <AppButton
           label="Create"
           type="submit"
-          // color="secondary"
           fullWidth
           size="large"
           aria-label="Register"

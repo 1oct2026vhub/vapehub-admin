@@ -14,23 +14,25 @@ import { useSnackbar } from '@/contexts/SnackbarContext';
 import Header from './Header';
 import FormSelectField from '@/components/Shared/SelectField';
 import FormRadioGroup from '@/components/Shared/RadioButton';
+import FormDatePicker from '@/components/Shared/FormDatePicker';
 
 // Validation Schema
 const schema = z.object({
   first_name: z.string().nonempty('First Name is required'),
   last_name: z.string().nonempty('Last Name is required'),
-  email: z
-  .string()
-  .min(1, 'Email is required') // Ensures the field is required
-  .email('Invalid email format'), // Validates email format  phone: z.string().min(10, 'Enter a valid phone number'),
-  dob: z
+  phone: z.string()
+    .min(10, 'Enter a valid phone number')
+    .max(15, 'Phone number is too long')
+    .regex(/^\d+$/, 'Phone must contain only numbers'), // Ensures only digits
+    dob: z
     .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/, 'DOB must be in YYYY-MM-DD format')
+    .min(1, "DOB is required") // Ensures the field is required
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "DOB must be in YYYY-MM-DD format") // Ensures correct format
     .refine((dob) => {
       const birthDate = new Date(dob);
       const today = new Date();
       return today.getFullYear() - birthDate.getFullYear() >= 18;
-    }, 'You must be at least 18 years old.'),
+    }, "You must be at least 18 years old."),
   roleId: z.preprocess((val) => Number(val), z.union([z.literal(1), z.literal(2)])),
   gender: z.enum(['male', 'female', 'other'], { message: 'Gender is required' }),
 });
@@ -39,7 +41,6 @@ const schema = z.object({
 export type FormType = {
   first_name: string;
   last_name: string;
-  email: string;
   phone: string;
   dob: string;
   roleId: number;
@@ -59,14 +60,12 @@ const EditForm = ({ user }: { user: FormType }) => {
 
   const { isValid, dirtyFields, errors } = formState;
 
-
   // Prefill form when user data is available
   useEffect(() => {
     if (user) {
       reset({
         first_name: user.first_name,
         last_name: user.last_name,
-        email: user.email,
         phone: user.phone,
         dob: user.dob ? new Date(user.dob).toISOString().split('T')[0] : '',
         roleId: user.roleId,
@@ -74,36 +73,33 @@ const EditForm = ({ user }: { user: FormType }) => {
       });
     }
   }, [user, reset]);
-  console.log("uuuuu", user);
-
+  
   async function onSubmit(formData: FormType) {
     try {
       const formattedData = { ...formData, roleId: Number(formData.roleId) };
       const response = await updateUser(user?.id, formattedData);
-
-      if (response?.success === false) {
-        setError('root', { type: 'manual', message: response.message });
-        return;
-      }
-
-      showSnackbar('User updated successfully!', 'success');
-      router.push('/apps/users'); // Redirect after update
+      showSnackbar(response?.message, 'success');
+      router.push('/apps/users'); // Redirect after successful signup
+      return true;
     } catch (error) {
-      console.log(error);
+      const errorData = error || error; // Handle both API and unexpected errors
+      const errorMessage = errorData?.message || 'error';
 
-      const errorData = error?.response?.data?.error;
-      if (errorData) {
-        if (errorData.email) {
-          setError('email', { type: 'manual', message: errorData.email });
-        }
-        if (errorData.phone) {
-          setError('phone', { type: 'manual', message: errorData.phone });
-        }
+      if (errorData?.error && typeof errorData.error === 'object') {
+        Object.entries(errorData.error).forEach(([field, message]) => {
+          if (typeof message === 'string') {
+            showSnackbar(` ${message}`, 'error');
+          }
+        });
       } else {
-        setError('root', { type: 'manual', message: 'An unexpected error occurred' });
+        setError('root', { type: 'manual', message: errorMessage });
+        showSnackbar(errorMessage, 'error'); // Ensure showSnackbar receives a **string**
       }
+
+      return false;
     }
   }
+
 
   return (
     <div className='md:px-64 p-4'>
@@ -122,15 +118,16 @@ const EditForm = ({ user }: { user: FormType }) => {
 
         <FormInputField name="first_name" control={control} label="First Name" type="text" required />
         <FormInputField name="last_name" control={control} label="Last Name" type="text" required />
-        <FormInputField name="email" control={control} label="Email" type="email" required />
+        {/* <FormInputField name="email" control={control} label="Email" type="email" required /> */}
         <FormInputField name="phone" control={control} label="Phone" type="text" required />
-        <FormInputField name="dob" control={control} label="DOB (YYYY-MM-DD)" type="text" required />
+        {/* <FormInputField name="dob" control={control} label="DOB (YYYY-MM-DD)" type="text" required /> */}
+        <FormDatePicker name="dob" control={control} label="Date of Birth" required />
         <FormSelectField
           name="roleId"
           control={control}
           label="Role"
           options={[
-            { value: 1, label: 'Super Admin' },
+            { value: 1, label: 'Admin' },
             { value: 2, label: 'Customer' },
           ]}
           defaultValue={user?.roleId ?? ""} // Default to Customer if not provided
@@ -145,59 +142,16 @@ const EditForm = ({ user }: { user: FormType }) => {
             { value: 'female', label: 'Female' },
             { value: 'other', label: 'Other' },
           ]}
-          defaultValue={user?.gender ?? ''} // Default to Male if not provided
+          defaultValue={user?.gender ?? ''} // Ensure a valid default value
         />
-
-
-
-        {/* <Controller
-        name="roleId"
-        control={control}
-        // defaultValue={2} // Ensures default value is set
-        render={({ field }) => (
-          <FormControl fullWidth>
-            <InputLabel id="role-select-label">Role</InputLabel>
-            <Select
-              {...field}
-              labelId="role-select-label"
-              label="Role"
-              value={field.value || user?.roleId} // Fallback in case defaultValue is not applied
-            >
-              <MenuItem value={1}>Super Admin</MenuItem>
-              <MenuItem value={2}>Customer</MenuItem>
-            </Select>
-          </FormControl>
-        )}
-      /> */}
-
-
-        {/* Gender Selection */}
-        {/* <FormControl component="fieldset" margin="normal">
-          <FormLabel component="legend">Gender</FormLabel>
-          <Controller
-            name="gender"
-            control={control}
-            render={({ field }) => (
-              <RadioGroup {...field} row value={field.value ?? ''}>
-                <FormControlLabel value="male" control={<Radio />} label="Male" />
-                <FormControlLabel value="female" control={<Radio />} label="Female" />
-                <FormControlLabel value="other" control={<Radio />} label="Other" />
-              </RadioGroup>
-            )}
-          />
-          {errors.gender && <FormHelperText error>{errors.gender.message}</FormHelperText>}
-        </FormControl> */}
-
 
         {/* Submit Button */}
         <AppButton
           label="Update User"
           type="submit"
-          // color="secondary"
           fullWidth
           size="large"
           aria-label="Update"
-          // disabled={_.isEmpty(dirtyFields) || !isValid}
           className="mt-4 w-full"
         />
       </form>
@@ -206,3 +160,5 @@ const EditForm = ({ user }: { user: FormType }) => {
 };
 
 export default EditForm;
+
+
