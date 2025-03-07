@@ -52,6 +52,36 @@ function ResetPasswordForm() {
     const { isValid, dirtyFields, errors } = formState;
     const { trigger: triggerResetPassword, isMutating } = usePost('reset-password', resetPassword);
 
+    // async function onSubmit(data) {
+    //     if (!token) {
+    //         setError('root', { type: 'manual', message: 'Invalid or missing token.' });
+    //         return;
+    //     }
+    //     try {
+    //         const response = await triggerResetPassword({ token, password: data.password });
+    //         showSnackbar(response?.data?.message, 'success');
+
+    //         // console.log("res",response);
+            
+    //         if (response?.success) {
+    //             // Store encrypted token in cookies
+    //             storeAuthToken(response?.data?.accessToken);
+    //             router.push("/dashboards/project");
+    //         }
+
+    //         // if (response?.error) {
+    //         //     setError('root', { type: 'manual', message: response.error });
+    //         //     setSuccessMessage('');
+    //         //     return;
+    //         // }
+    //         // setSuccessMessage('Password reset successfully! You can now sign in.');
+    //         reset(defaultValues);
+    //     } catch (error) {
+    //         showSnackbar(error, 'error');
+    //         // setSuccessMessage('');
+    //     }
+    // }
+
     async function onSubmit(data) {
         if (!token) {
             setError('root', { type: 'manual', message: 'Invalid or missing token.' });
@@ -59,28 +89,26 @@ function ResetPasswordForm() {
         }
         try {
             const response = await triggerResetPassword({ token, password: data.password });
-            showSnackbar(response?.data?.message, 'success');
-
-            console.log("res",response);
-            
+    
+            // Ensure response structure is valid before accessing properties
             if (response?.success) {
+                showSnackbar(response?.data?.message || 'Password reset successful!', 'success');
+    
                 // Store encrypted token in cookies
                 storeAuthToken(response?.data?.accessToken);
                 router.push("/dashboards/project");
+            } else {
+                throw new Error(response?.error || "Something went wrong. Please try again.");
             }
-
-            // if (response?.error) {
-            //     setError('root', { type: 'manual', message: response.error });
-            //     setSuccessMessage('');
-            //     return;
-            // }
-            // setSuccessMessage('Password reset successfully! You can now sign in.');
+    
             reset(defaultValues);
         } catch (error) {
-            showSnackbar(error, 'error');
-            setSuccessMessage('');
+            // Extract error message safely
+            const errorMessage = error?.message || error?.data?.message || "An unexpected error occurred.";
+            showSnackbar(errorMessage, 'error');
         }
     }
+    
 
     return (
         <div className="flex min-w-0 flex-auto flex-col items-center sm:justify-center">
