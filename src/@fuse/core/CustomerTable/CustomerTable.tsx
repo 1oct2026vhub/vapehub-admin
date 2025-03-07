@@ -31,6 +31,7 @@ import { useFetch } from "@/hooks/useFetch";
 import { mutate } from "swr";
 import { useRouter } from "next/navigation";
 import AppButton from "@/components/Shared/AppButton";
+import { useSnackbar } from "@/contexts/SnackbarContext";
 
 export type UserType = {
   id: number;
@@ -59,7 +60,8 @@ const CustomerTable = () => {
   const [dialogType, setDialogType] = useState<"delete" | "restore" | "block" | null>(null);
   const [selectedUser, setSelectedUser] = useState<UserType | null>(null);
   const [openDrawer, setOpenDrawer] = useState(false); // Mobile filter drawer state
-
+  const { showSnackbar } = useSnackbar();
+  
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(search), 1000);
     return () => clearTimeout(timer);
@@ -88,29 +90,73 @@ const CustomerTable = () => {
   const totalPages = Math.ceil(totalRecords / limit);  // Total pages
   const deletedCustomer = customers?.find(user => user.deletedAt !== null);
 
+  // const handleConfirmAction = async () => {
+  //   if (!selectedUser) return;
+  //   setDialogOpen(false);
+  //   try {
+  //     if (dialogType === "delete") {
+  //       setCustomers((prev) => prev.filter((user) => user.id !== selectedUser.id));
+  //       // await deleteCustomer(selectedUser.id);
+  //       await (deletedCustomer ? restoreCustomer(selectedUser.id) : deleteCustomer(selectedUser.id));
+
+  //     } else if (dialogType === "block") {
+  //       setCustomers((prev) =>
+  //         prev.map((user) =>
+  //           user.id === selectedUser.id ? { ...user, blocked: !user.blocked } : user
+  //         )
+  //       );
+  //       await (selectedUser.blocked ? unBlockCustomer(selectedUser.id) : blockCustomer(selectedUser.id));
+  //     }
+  //     await mutate(["customerList", queryParams], true);
+  //   } catch (error) {
+  //     console.error("Action error:", error);
+  //   }
+  // };
+
   const handleConfirmAction = async () => {
     if (!selectedUser) return;
     setDialogOpen(false);
+  
     try {
       if (dialogType === "delete") {
         setCustomers((prev) => prev.filter((user) => user.id !== selectedUser.id));
-        // await deleteCustomer(selectedUser.id);
+  
         await (deletedCustomer ? restoreCustomer(selectedUser.id) : deleteCustomer(selectedUser.id));
-
+  
+        // Show Snackbar for Delete/Restore
+        showSnackbar(
+          deletedCustomer ? "Customer restored successfully!" : "Customer deleted successfully!",
+          "success"
+        );
+  
       } else if (dialogType === "block") {
         setCustomers((prev) =>
           prev.map((user) =>
             user.id === selectedUser.id ? { ...user, blocked: !user.blocked } : user
           )
         );
+  
         await (selectedUser.blocked ? unBlockCustomer(selectedUser.id) : blockCustomer(selectedUser.id));
+  
+        // Show Snackbar for Block/Unblock
+        showSnackbar(
+          selectedUser.blocked ? "Customer unblocked successfully!" : "Customer blocked successfully!",
+          "success"
+        );
       }
+  
       await mutate(["customerList", queryParams], true);
+  
     } catch (error) {
       console.error("Action error:", error);
+  
+      // Show Snackbar for Error
+      showSnackbar("An error occurred while processing the request.", "error");
     }
   };
+  
   const columns = useMemo<MRT_ColumnDef<UserType>[]>(() => [
+    { accessorKey: "id", header: "Id" },
     { accessorKey: "first_name", header: "First Name" },
     { accessorKey: "last_name", header: "Last Name" },
     { accessorKey: "email", header: "Email" },
@@ -135,7 +181,7 @@ const CustomerTable = () => {
     last_name: user.last_name,
     email: user.email,
     phone: user.phone,
-    gender: user.gender,
+    gender: user.gender ? user.gender.charAt(0).toUpperCase() + user.gender.slice(1) : "N/A",
     dob: user.dob ? new Date(user.dob).toISOString().split("T")[0] : "",
     blocked: user.blocked,
     deletedAt: user.deletedAt
@@ -174,7 +220,7 @@ const CustomerTable = () => {
             <Select value={deleted === null ? "all" : deleted ? "deleted" : "active"} onChange={(e) => setDeleted(e.target.value === "all" ? null : e.target.value === "deleted")} size="small">
               <MenuItem value="all">All</MenuItem>
               <MenuItem value="active">Active</MenuItem>
-              <MenuItem value="deleted">Deleted</MenuItem>
+              <MenuItem value="deleted">In Active</MenuItem>
             </Select>
             <Select value={order} onChange={(e) => setOrder(e.target.value as "ASC" | "DESC")} size="small">
               <MenuItem value="DESC">Descending</MenuItem>
