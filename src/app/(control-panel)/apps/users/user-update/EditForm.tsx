@@ -128,7 +128,7 @@ const EditForm = ({ user }: { user: FormType }) => {
           label="Role"
           options={[
             { value: 1, label: 'Admin' },
-            { value: 2, label: 'Customer' },
+            // { value: 2, label: 'Customer' },
           ]}
           defaultValue={user?.roleId ?? ""} // Default to Customer if not provided
         />

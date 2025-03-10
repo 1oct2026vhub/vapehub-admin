@@ -152,8 +152,8 @@ function ResetPasswordForm() {
 
                         <Typography className="mt-8 text-md font-medium" color="text.secondary">
                             <span>Back to</span>
-                            <Link className="ml-1 text-[#2E9970]" to="/dashboards/project">
-                               Dashboard
+                            <Link className="ml-1 text-[#2E9970]" to="/sign-in">
+                               Sign_in
                             </Link>
                         </Typography>
                     </form>
