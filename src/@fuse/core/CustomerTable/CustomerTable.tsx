@@ -61,7 +61,7 @@ const CustomerTable = () => {
   const [selectedUser, setSelectedUser] = useState<UserType | null>(null);
   const [openDrawer, setOpenDrawer] = useState(false); // Mobile filter drawer state
   const { showSnackbar } = useSnackbar();
-  
+
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(search), 1000);
     return () => clearTimeout(timer);
@@ -116,45 +116,45 @@ const CustomerTable = () => {
   const handleConfirmAction = async () => {
     if (!selectedUser) return;
     setDialogOpen(false);
-  
+
     try {
       if (dialogType === "delete") {
         setCustomers((prev) => prev.filter((user) => user.id !== selectedUser.id));
-  
+
         await (deletedCustomer ? restoreCustomer(selectedUser.id) : deleteCustomer(selectedUser.id));
-  
+
         // Show Snackbar for Delete/Restore
         showSnackbar(
           deletedCustomer ? "Customer restored successfully!" : "Customer deleted successfully!",
           "success"
         );
-  
+
       } else if (dialogType === "block") {
         setCustomers((prev) =>
           prev.map((user) =>
             user.id === selectedUser.id ? { ...user, blocked: !user.blocked } : user
           )
         );
-  
+
         await (selectedUser.blocked ? unBlockCustomer(selectedUser.id) : blockCustomer(selectedUser.id));
-  
+
         // Show Snackbar for Block/Unblock
         showSnackbar(
           selectedUser.blocked ? "Customer unblocked successfully!" : "Customer blocked successfully!",
           "success"
         );
       }
-  
+
       await mutate(["customerList", queryParams], true);
-  
+
     } catch (error) {
       console.error("Action error:", error);
-  
+
       // Show Snackbar for Error
       showSnackbar("An error occurred while processing the request.", "error");
     }
   };
-  
+
   const columns = useMemo<MRT_ColumnDef<UserType>[]>(() => [
     { accessorKey: "id", header: "Id" },
     { accessorKey: "first_name", header: "First Name" },
@@ -286,15 +286,24 @@ const CustomerTable = () => {
         {/* Pagination Component */}
         <div className="flex justify-center mb-6">
           <Pagination
-            count={totalPages} // Placeholder value, replace with actual page count
-            page={page} // Placeholder value, replace with actual current page
-            onChange={(event, value) => setPage(value)} // Update page state on click
+            count={totalPages}
+            page={page}
+            onChange={(event, value) => setPage(value)}
             shape="rounded"
             color="primary"
             renderItem={(item) => (
               <PaginationItem
                 {...item}
                 className="text-gray-600 hover:text-[#2E9970]"
+                sx={{
+                  "&.Mui-selected": {
+                    backgroundColor: "#2E9970", // Active page background
+                    color: "#fff", // Text color
+                    "&:hover": {
+                      backgroundColor: "#247C5C", // Darker shade on hover
+                    },
+                  },
+                }}
               />
             )}
           />
