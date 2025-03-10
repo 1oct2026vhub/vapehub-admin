@@ -24,7 +24,7 @@ const schema = z.object({
     .min(10, 'Enter a valid phone number')
     .max(15, 'Phone number is too long')
     .regex(/^\d+$/, 'Phone must contain only numbers'), // Ensures only digits
-    dob: z
+  dob: z
     .string()
     .min(1, "DOB is required") // Ensures the field is required
     .regex(/^\d{4}-\d{2}-\d{2}$/, "DOB must be in YYYY-MM-DD format") // Ensures correct format
@@ -73,7 +73,7 @@ const EditForm = ({ user }: { user: FormType }) => {
       });
     }
   }, [user, reset]);
-  
+
   async function onSubmit(formData: FormType) {
     try {
       const formattedData = { ...formData, roleId: Number(formData.roleId) };
@@ -147,6 +147,7 @@ const EditForm = ({ user }: { user: FormType }) => {
 
         {/* Submit Button */}
         <AppButton
+          // label={isMutating ? 'Updating...' : 'Update User'}
           label="Update User"
           type="submit"
           fullWidth

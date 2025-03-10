@@ -53,11 +53,11 @@ function EmailVerifyConfirmationForm() {
 					</a>
 
 					<Typography className="mt-8 text-4xl font-extrabold leading-[1.25] tracking-tight">
-						Confirmation required
+						Email  Verification Required
 					</Typography>
 					<Typography className="mt-4">
-						A confirmation mail with instructions has been sent to your email address. Follow those
-						instructions to confirm your email address and activate your account.
+						User email verified successfully! Access granted to the admin dashboard.
+						Start managing and optimizing the platform now.
 					</Typography>
 
 					<Typography

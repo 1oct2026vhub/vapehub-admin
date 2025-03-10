@@ -129,3 +129,9 @@ Print styles
 Tables styles
 */
 @import './tables.css';
+
+
+input::-ms-reveal,
+input::-ms-clear {
+  display: none;
+}
