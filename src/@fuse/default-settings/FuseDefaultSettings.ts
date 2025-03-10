@@ -395,7 +395,7 @@ export const defaultThemeOptions = {
 		},
 		MuiCheckbox: {
 			defaultProps: {
-				color: 'secondary'
+				color: '#2E9970'
 			}
 		},
 		MuiRadio: {

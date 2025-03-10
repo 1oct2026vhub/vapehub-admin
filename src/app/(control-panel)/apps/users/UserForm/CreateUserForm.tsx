@@ -44,7 +44,7 @@ const schema = z.object({
       return today.getFullYear() - birthDate.getFullYear() >= 18;
     }, 'You must be at least 18 years old.'),
 
-    roleId: z
+  roleId: z
     .number({ required_error: 'Role is required' }) // Explicitly mark it as required
     .min(1, 'Invalid role ID')
     .max(2, 'Invalid role ID'),
@@ -98,10 +98,10 @@ function CreateUserForm() {
       return true;
     } catch (error) {
       // console.error('Signup Error:', error); // Log full error object
-  
+
       const errorData = error || error; // Handle both API and unexpected errors
       const errorMessage = errorData?.message || 'An unexpected error occurred';
-  
+
       if (errorData?.error && typeof errorData.error === 'object') {
         Object.entries(errorData.error).forEach(([field, message]) => {
           if (typeof message === 'string') {
@@ -113,11 +113,11 @@ function CreateUserForm() {
         setError('root', { type: 'manual', message: errorMessage });
         showSnackbar(errorMessage, 'error');
       }
-  
+
       return false;
     }
   }
-  
+
 
   return (
     <div className='md:px-64 p-4'>
@@ -160,7 +160,7 @@ function CreateUserForm() {
         />
         {/* Submit Button */}
         <AppButton
-          label="Create"
+          label={isMutating ? 'Creating...' : 'Create'}
           type="submit"
           fullWidth
           size="large"
