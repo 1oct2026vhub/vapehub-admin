@@ -44,11 +44,13 @@ function EmailVerifyConfirmationForm() {
 		<div className="flex min-w-0 flex-auto flex-col items-center sm:justify-center">
 			<Paper className="min-h-full w-full rounded-none px-4 py-8 sm:min-h-auto sm:w-auto sm:rounded-xl sm:p-12 sm:shadow-sm">
 				<div className="mx-auto w-full max-w-80 sm:mx-0 sm:w-80">
-					<img
-						className="w-24"
-						src="/assets/images/logo/logo.svg"
-						alt="logo"
-					/>
+					<a href="https://vapehub.devateam.com/" target="_blank" rel="noopener noreferrer">
+						<img
+							className="w-36"
+							src="/assets/images/logo/logo.svg"
+							alt="logo"
+						/>
+					</a>
 
 					<Typography className="mt-8 text-4xl font-extrabold leading-[1.25] tracking-tight">
 						Confirmation required
