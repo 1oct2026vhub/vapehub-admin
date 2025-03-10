@@ -234,7 +234,12 @@ const UserTable = () => {
               <MenuItem value="all">All Roles</MenuItem>
               {roles?.map((role) => (
                 <MenuItem key={role.id} value={role.id}>
-                  {role?.is_admin_panel ? role.role : ""}
+                  {/* {role?.is_admin_panel ? role.role : ""} */}
+                  {role?.is_admin_panel
+                    ? role.role === "super_admin"
+                      ? "Admin"
+                      : ""
+                    : ""}
                 </MenuItem>
               ))}
             </Select>
@@ -315,7 +320,11 @@ const UserTable = () => {
               <MenuItem value="all">All Roles</MenuItem>
               {roles?.map((role) => (
                 <MenuItem key={role.id} value={role.id}>
-                  {role.role}
+                  {role?.is_admin_panel
+                    ? role.role === "super_admin"
+                      ? "Admin"
+                      : ""
+                    : ""}
                 </MenuItem>
               ))}
             </Select>
