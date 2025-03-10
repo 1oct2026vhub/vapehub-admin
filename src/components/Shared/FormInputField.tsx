@@ -226,7 +226,7 @@ const FormInputField: React.FC<ReusableTextFieldProps> = ({
               {label} {required && <span style={{ color: 'red' }}>*</span>}
             </>
           }
-          type={name === 'password' && !showPassword ? 'password' : 'text'}
+          type={name === 'password' || name ==='confirm' && !showPassword ? 'password' : 'text'}
           autoFocus={autoFocus}
           error={touched && !!error} // Show error only if field has been clicked
           helperText={touched && error ? error.message : ''}
@@ -236,7 +236,7 @@ const FormInputField: React.FC<ReusableTextFieldProps> = ({
           onFocus={() => setTouched(true)} // Set touched when user clicks the field
           InputProps={{
             endAdornment:
-              name === 'password' ? (
+              name === 'password' || name ==='confirm' ? (
                 <InputAdornment position="end">
                   <IconButton onClick={handleTogglePassword} edge="end">
                     {showPassword ? <VisibilityOff /> : <Visibility />}

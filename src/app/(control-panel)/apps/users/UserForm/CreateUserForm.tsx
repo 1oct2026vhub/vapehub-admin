@@ -145,7 +145,7 @@ function CreateUserForm() {
           name="roleId"
           control={control}
           label="Role"
-          options={roles ? roles.map((role) => ({ value: role.id, label: role.role })) : []}
+          options={roles ? roles.map((role) => ({ value: role.id, label: role?.is_admin_panel ? role.role : "" })) : []}
           required
         />
         <FormRadioGroup
