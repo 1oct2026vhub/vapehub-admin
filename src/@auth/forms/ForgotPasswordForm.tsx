@@ -44,20 +44,41 @@ function ForgotPasswordForm() {
 	// Use the custom POST hook for forgot password API
 	const { trigger: triggerForgotPassword, isMutating } = usePost('forgot-password', forgotPassword);
 
+	// async function onSubmit(data) {
+	// 	try {
+	// 		const response = await triggerForgotPassword({ email: data.email });
+
+	// 		if (response?.error) {
+	// 			setError('root', { type: 'manual', message: response.error });
+	// 			return;
+	// 		}
+	// 		showSnackbar('Reset link sent! Please check your email.')
+	// 		reset(defaultValues);
+	// 	} catch (error) {
+	// 		showSnackbar(error)
+	// 	}
+	// }
+
 	async function onSubmit(data) {
 		try {
 			const response = await triggerForgotPassword({ email: data.email });
-
+	
 			if (response?.error) {
 				setError('root', { type: 'manual', message: response.error });
 				return;
 			}
-			showSnackbar('Reset link sent! Please check your email.')
+	
+			showSnackbar('Reset link sent! Please check your email.');
 			reset(defaultValues);
 		} catch (error) {
-			showSnackbar(error)
+			// Extract meaningful error message
+			const errorMessage =
+				error?.message || 'Something went wrong. Please try again later.';
+	
+			showSnackbar(errorMessage);
 		}
 	}
+	
 
 	return (
 		<div className="flex min-w-0 flex-auto flex-col items-center sm:justify-center">

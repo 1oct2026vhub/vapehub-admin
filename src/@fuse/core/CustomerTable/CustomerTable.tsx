@@ -339,10 +339,20 @@ const CustomerTable = () => {
         <DialogTitle>Confirm Action</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            {dialogType === "delete"
-              ? `Are you sure you want to ${deletedCustomer ? 'Restore' : 'Delete'} ${selectedUser?.first_name} ${selectedUser?.last_name}?`
-              : `Are you sure you want to ${selectedUser?.blocked ? "unblock" : "block"} this customer?`}
+            {dialogType === "delete" ? (
+              <>
+                Are you sure you want to {deletedCustomer ? "Restore" : "Delete"}{" "}
+                <strong>
+                  {selectedUser?.first_name || ""} {selectedUser?.last_name || ""}
+                </strong>
+                ?
+              </>
+            ) : (
+              `Are you sure you want to ${selectedUser?.blocked ? "unblock" : "block"} this customer?`
+            )}
           </DialogContentText>
+
+
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setDialogOpen(false)}>Cancel</Button>
