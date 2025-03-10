@@ -66,3 +66,71 @@ const FormDatePicker: React.FC<FormDatePickerProps> = ({ name, control, label, r
 export default FormDatePicker;
 
 
+// import { Controller } from "react-hook-form";
+// import { TextField, InputAdornment } from "@mui/material";
+// import { LocalizationProvider, DatePicker } from "@mui/x-date-pickers";
+// import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
+// import dayjs from "dayjs";
+// import CalendarTodayIcon from "@mui/icons-material/CalendarToday";
+
+// interface FormDatePickerProps {
+//   name: string;
+//   control: any;
+//   label: string;
+//   required?: boolean;
+// }
+
+// const FormDatePicker: React.FC<FormDatePickerProps> = ({ name, control, label, required }) => {
+//   return (
+//     <LocalizationProvider dateAdapter={AdapterDayjs}>
+//       <Controller
+//         name={name}
+//         control={control}
+//         rules={{ required: required ? "This field is required" : false }}
+//         render={({ field, fieldState }) => (
+//           <DatePicker
+//             {...field}
+//             format="YYYY-MM-DD" // Ensures date format
+//             value={field.value ? dayjs(field.value) : null}
+//             onChange={(date) => field.onChange(date ? date.format("YYYY-MM-DD") : null)}
+//             openTo="day" // Opens the calendar directly to the day selection
+//             disableOpenPicker={false} // Ensures calendar opens when clicking the input
+//             slotProps={{
+//               textField: {
+//                 fullWidth: true,
+//                 error: !!fieldState.error,
+//                 helperText: fieldState.error?.message,
+//                 variant: "outlined",
+//                 InputProps: {
+//                   endAdornment: (
+//                     <InputAdornment position="end">
+//                       <CalendarTodayIcon color="action" />
+//                     </InputAdornment>
+//                   ),
+//                 },
+//                 sx: {
+//                   "& .MuiOutlinedInput-root": {
+//                     "& fieldset": {
+//                       borderImage: "linear-gradient(to right, #2E9970, #005434) 1",
+//                     },
+//                     "&:hover fieldset": {
+//                       borderImage: "linear-gradient(to right, #247C5C, #003F29) 1",
+//                     },
+//                     "&.Mui-focused fieldset": {
+//                       borderImage: "linear-gradient(to right, #1E7A56, #004C30) 1",
+//                     },
+//                   },
+//                   "& .MuiInputLabel-root.Mui-focused": {
+//                     color: "#2E9970",
+//                   },
+//                 },
+//               },
+//             }}
+//           />
+//         )}
+//       />
+//     </LocalizationProvider>
+//   );
+// };
+
+// export default FormDatePicker;

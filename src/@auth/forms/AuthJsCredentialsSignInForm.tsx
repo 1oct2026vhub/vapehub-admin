@@ -21,19 +21,19 @@ import { useSnackbar } from '@/contexts/SnackbarContext'; // Import Snackbar
  */
 const schema = z.object({
 	email: z
-	  .string()
-	  .min(1, 'Email is required') // Ensures the field is required
-	  .email('Invalid email format'), // Validates email format
-  
+		.string()
+		.min(1, 'Email is required') // Ensures the field is required
+		.email('Invalid email format'), // Validates email format
+
 	password: z
-	  .string()
-	  .min(1, 'Password is required') // Ensures the field is required
-	  .min(8, 'Password must be at least 8 characters long') // Minimum length validation
-	  .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
-	  .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
-	  .regex(/[0-9]/, 'Password must contain at least one number')
-	  .regex(/[@$!%*?&]/, 'Password must contain at least one special character'),
-  });
+		.string()
+		.min(1, 'Password is required') // Ensures the field is required
+		// .min(8, 'Password must be at least 8 characters long') // Minimum length validation
+		// .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
+		// .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
+		// .regex(/[0-9]/, 'Password must contain at least one number')
+		// .regex(/[@$!%*?&]/, 'Password must contain at least one special character'),
+});
 
 const defaultValues = {
 	email: '',
@@ -43,7 +43,7 @@ const defaultValues = {
 
 function AuthJsCredentialsSignInForm() {
 	const { control, formState, handleSubmit, setError, setValue, getValues } = useForm({
-		mode: 'onChange',
+		mode: 'all',
 		defaultValues,
 		resolver: zodResolver(schema),
 	});
@@ -85,7 +85,6 @@ function AuthJsCredentialsSignInForm() {
 				localStorage.removeItem('rememberedPassword');
 				localStorage.removeItem('rememberMe');
 			}
-
 			showSnackbar('Login successful! Redirecting...', 'success');
 			router.push("/dashboards/project");
 
@@ -157,8 +156,19 @@ function AuthJsCredentialsSignInForm() {
 				fullWidth
 				size="large"
 				disabled={_.isEmpty(dirtyFields) || !isValid || isMutating}
-				className="mt-4 w-full"
-			/>
+				className={`mt-4 w-full ${isMutating || !isValid ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+				/>
+			{/* <AppButton
+				label={isMutating ? "Signing in..." : "Sign in"}
+				type="submit"
+				fullWidth
+				size="large"
+				disabled={_.isEmpty(dirtyFields) || !isValid || isMutating}
+				className={`mt-4 w-full ${_.isEmpty(dirtyFields) || !isValid || isMutating
+						? "bg-gray-400 text-white cursor-not-allowed"
+						: "bg-[#2E9970] hover:bg-[#1C6B4A]"
+					}`}
+			/> */}
 		</form>
 	);
 }

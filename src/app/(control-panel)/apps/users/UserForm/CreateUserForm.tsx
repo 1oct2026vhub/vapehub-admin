@@ -44,8 +44,10 @@ const schema = z.object({
       return today.getFullYear() - birthDate.getFullYear() >= 18;
     }, 'You must be at least 18 years old.'),
 
-  roleId: z.number().min(1, 'Invalid role ID').max(2, 'Invalid role ID'), // Ensures roleId is either 1 or 2
-
+    roleId: z
+    .number({ required_error: 'Role is required' }) // Explicitly mark it as required
+    .min(1, 'Invalid role ID')
+    .max(2, 'Invalid role ID'),
   gender: z.enum(['male', 'female', 'other'], { message: 'Gender is required' }),
 });
 
@@ -78,7 +80,7 @@ function CreateUserForm() {
   const { roles } = useRoles();
 
   const { control, formState, handleSubmit, setError } = useForm({
-    mode: 'onChange',
+    mode: 'all',
     defaultValues,
     resolver: zodResolver(schema),
   });
@@ -144,6 +146,7 @@ function CreateUserForm() {
           control={control}
           label="Role"
           options={roles ? roles.map((role) => ({ value: role.id, label: role.role })) : []}
+          required
         />
         <FormRadioGroup
           name="gender"
