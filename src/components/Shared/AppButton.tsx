@@ -16,13 +16,43 @@ type AppButtonProps = {
 };
 
 // Styled MUI Button with Linear Gradient
-const GradientButton = styled(Button)({
-  background: 'linear-gradient(to bottom, #2E9970, #005434)',
-  color: '#fff',
-  '&:hover': {
-    background: 'linear-gradient(to bottom, #247C5C, #003F29)',
+// const GradientButton = styled(Button)({
+//   background: 'linear-gradient(to bottom, #2E9970, #005434)',
+//   color: '#fff',
+//   '&:hover': {
+//     background: 'linear-gradient(to bottom, #247C5C, #003F29)',
+//   },
+// });
+// const GradientButton = styled(Button)(({ disabled }) => ({
+//   background: disabled ? '#BDBDBD' : 'linear-gradient(to bottom, #2E9970, #005434)',
+//   color: '#fff',
+//   cursor: disabled ? 'not-allowed !important' : 'pointer',
+//   pointerEvents: disabled ? 'none' : 'auto', // Completely disable interactions when disabled
+//   '&:hover': {
+//     background: disabled ? '#BDBDBD' : 'linear-gradient(to bottom, #247C5C, #003F29)',
+//   },
+// }));
+
+const GradientButton = styled(Button)(({ disabled }) => ({
+  background: disabled
+    ? 'linear-gradient(to bottom, rgba(46, 153, 112, 0.5), rgba(0, 84, 52, 0.5))' 
+    : 'linear-gradient(to bottom, #2E9970, #005434)',
+  color: disabled ? 'black' : '#fff', 
+  cursor: disabled ? 'not-allowed !important' : 'pointer',
+  pointerEvents: disabled ? 'none' : 'auto', 
+  opacity: disabled ? 0.6 : 1, 
+  '&.Mui-disabled': { 
+    cursor: 'not-allowed !important',
+    pointerEvents: 'none',
+    color:'black', 
   },
-});
+  '&:hover': {
+    background: disabled
+      ? 'linear-gradient(to bottom, rgba(46, 153, 112, 0.5), rgba(0, 84, 52, 0.5))'
+      : 'linear-gradient(to bottom, #247C5C, #003F29)',
+  },
+}));
+
 
 const AppButton: React.FC<AppButtonProps> = ({
   label,
