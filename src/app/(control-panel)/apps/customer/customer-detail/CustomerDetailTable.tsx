@@ -17,6 +17,7 @@ export type UserType = {
   gender: string | null;
   dob: string | null;
   blocked?: boolean; // Added 'blocked' field if needed
+  createdAt?: string | null;
 };
 
 export default function CustomerDetailsPage() {
@@ -52,6 +53,7 @@ export default function CustomerDetailsPage() {
     { accessorKey: "first_name", header: "First Name" },
     { accessorKey: "last_name", header: "Last Name" },
     { accessorKey: "email", header: "Email" },
+    { accessorKey: "createdAt", header: "Created At" },
     { accessorKey: "phone", header: "Contact" },
     { accessorKey: "gender", header: "Gender" },
     { accessorKey: "dob", header: "Date of Birth" },
@@ -63,6 +65,7 @@ export default function CustomerDetailsPage() {
     first_name: customerDetail.first_name,
     last_name: customerDetail.last_name,
     email: customerDetail.email,
+    createdAt: customerDetail.createdAt ? new Date(customerDetail.dob).toISOString().split("T")[0] : "",
     phone: customerDetail.phone,
     gender: customerDetail.gender,
     dob: customerDetail.dob ? new Date(customerDetail.dob).toISOString().split("T")[0] : "",
