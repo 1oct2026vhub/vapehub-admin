@@ -44,7 +44,7 @@ function ResetPasswordForm() {
 
     const [successMessage, setSuccessMessage] = useState('');
     const { control, formState, handleSubmit, reset, setError } = useForm({
-        mode: 'onChange',
+        mode: 'all',
         defaultValues,
         resolver: zodResolver(schema),
     });
@@ -88,7 +88,7 @@ function ResetPasswordForm() {
             return;
         }
         try {
-            const response = await triggerResetPassword({ token, password: data.password });
+            const response = await triggerResetPassword({ token, password: data.password, confirmPassword: data.confirm });
     
             // Ensure response structure is valid before accessing properties
             if (response?.success) {
@@ -114,8 +114,9 @@ function ResetPasswordForm() {
         <div className="flex min-w-0 flex-auto flex-col items-center sm:justify-center">
             <Paper className="min-h-full w-full rounded-none px-4 py-8 sm:min-h-auto sm:w-auto sm:rounded-xl sm:p-12 sm:shadow-sm">
                 <div className="mx-auto w-full max-w-80 sm:mx-0 sm:w-80">
-                    <img className="w-36" src="/assets/images/logo/logo.svg" alt="logo" />
-
+                <a href="https://vapehub.devateam.com/" target="_blank" rel="noopener noreferrer">
+						<img className="w-36 max-h-32 mb-4" src="/assets/images/logo/logo.svg" alt="logo" />
+					</a>
                     <Typography className="mt-8 text-4xl font-extrabold leading-[1.25] tracking-tight">
                         Reset your password
                     </Typography>
@@ -135,9 +136,11 @@ function ResetPasswordForm() {
 
                     <form name="resetPasswordForm" noValidate className="mt-8 flex w-full flex-col justify-center" onSubmit={handleSubmit(onSubmit)}>
                         <FormInputField name="password" control={control} label="Password" type="password" required />
+                        <FormInputField name="confirm" control={control} label="Confirm Password" type="password" required />
+
 
                         <AppButton
-                            label={isMutating ? 'Resetting...' : 'Reset your password'}
+                            label={isMutating ? 'Resetting...' : 'Reset password'}
                             type="submit"
                             variant="contained"
                             fullWidth
@@ -148,7 +151,7 @@ function ResetPasswordForm() {
                         />
 
                         <Typography className="mt-8 text-md font-medium" color="text.secondary">
-                            <span>Return to</span>
+                            <span>Back to</span>
                             <Link className="ml-1 text-[#2E9970]" to="/dashboards/project">
                                Dashboard
                             </Link>
