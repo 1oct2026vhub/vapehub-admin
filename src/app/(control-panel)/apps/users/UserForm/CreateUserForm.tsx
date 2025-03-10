@@ -152,8 +152,12 @@ function CreateUserForm() {
             roles
               ? roles.map((role) => ({
                 value: Number(role.id), // Ensure conversion
-                label: role?.is_admin_panel ? role.role : "",
-              }))
+                label: role?.is_admin_panel 
+                ? role.role === "super_admin" 
+                  ? "Admin" 
+                  : "" 
+                : "",
+                            }))
               : []
           }
           required
