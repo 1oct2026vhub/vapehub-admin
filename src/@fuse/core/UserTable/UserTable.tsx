@@ -147,7 +147,7 @@ const UserTable = () => {
       )}`
     );
   };
-  
+
 
   const columns = useMemo<MRT_ColumnDef<UserType>[]>(() => [
     { accessorKey: "id", header: "Id" },
@@ -277,15 +277,24 @@ const UserTable = () => {
         {/* Pagination Component */}
         <div className="flex justify-center mb-6">
           <Pagination
-            count={totalPages} // Placeholder value, replace with actual page count
-            page={page} // Placeholder value, replace with actual current page
-            onChange={(event, value) => setPage(value)} // Update page state on click
+            count={totalPages}
+            page={page}
+            onChange={(event, value) => setPage(value)}
             shape="rounded"
             color="primary"
             renderItem={(item) => (
               <PaginationItem
                 {...item}
                 className="text-gray-600 hover:text-[#2E9970]"
+                sx={{
+                  "&.Mui-selected": {
+                    backgroundColor: "#2E9970", // Active page background
+                    color: "#fff", // Text color
+                    "&:hover": {
+                      backgroundColor: "#247C5C", // Darker shade on hover
+                    },
+                  },
+                }}
               />
             )}
           />
