@@ -175,7 +175,7 @@ const UserTable = () => {
         let color = "success";
 
         if (deletedAt) {
-          label = "In Active"; // User is deleted
+          label = "InActive"; // User is deleted
           color = "warning";
         }
         return <Chip label={label} color={row.original.deletedAt ? "warning" : "success"} />;
@@ -230,21 +230,22 @@ const UserTable = () => {
 
           {/* Filters for larger screens */}
           <div className="hidden md:flex gap-2">
-            <Select value={roleId} onChange={(e) => setRoleId(e.target.value as number | "all")} size="small">
+
+            <Select
+              value={roleId}
+              onChange={(e) => setRoleId(e.target.value === "all" ? "all" : Number(e.target.value))}
+              size="small"
+            >
               <MenuItem value="all">All Roles</MenuItem>
-              {roles?.map((role) => (
-                <div key={role?.is_admin_panel && role.id}>
-                  {role?.is_admin_panel &&
-                    <MenuItem key={role?.is_admin_panel && role.id} value={role?.is_admin_panel && role.id}>
-                      {/* {role?.is_admin_panel ? role.role : ""} */}
-                      {role?.is_admin_panel
-                        && role.role === "super_admin"
-                        && "Admin"}
-                    </MenuItem>
-                  }
-                </div>
-              ))}
+              {roles?.map((role) =>
+                role?.is_admin_panel ? (
+                  <MenuItem key={role.id} value={role.id}>
+                    {role.role === "super_admin" ? "Admin" : role.role}
+                  </MenuItem>
+                ) : null
+              )}
             </Select>
+
             <Select
               value={deleted === null ? "all" : deleted ? "deleted" : "active"}
               onChange={(e) => setDeleted(e.target.value === "all" ? null : e.target.value === "deleted")}
@@ -252,7 +253,7 @@ const UserTable = () => {
             >
               <MenuItem value="all">All Users</MenuItem>
               <MenuItem value="active">Active</MenuItem>
-              <MenuItem value="deleted">In Active</MenuItem>
+              <MenuItem value="deleted">InActive</MenuItem>
             </Select>
             <Select value={order} onChange={(e) => setOrder(e.target.value as "ASC" | "DESC")} size="small">
               <MenuItem value="DESC">Descending</MenuItem>
@@ -318,21 +319,21 @@ const UserTable = () => {
             <TextField label="Search" value={search} onChange={(e) => setSearch(e.target.value)} fullWidth size="small" />
           </ListItem>
           <ListItem>
-            <Select value={roleId} onChange={(e) => setRoleId(e.target.value as number | "all")} size="small">
+            <Select
+              value={roleId}
+              onChange={(e) => setRoleId(e.target.value === "all" ? "all" : Number(e.target.value))}
+              size="small"
+            >
               <MenuItem value="all">All Roles</MenuItem>
-              {roles?.map((role) => (
-                <div key={role?.is_admin_panel && role.id}>
-                  {role?.is_admin_panel &&
-                    <MenuItem key={role?.is_admin_panel && role.id} value={role?.is_admin_panel && role.id}>
-                      {/* {role?.is_admin_panel ? role.role : ""} */}
-                      {role?.is_admin_panel
-                        && role.role === "super_admin"
-                        && "Admin"}
-                    </MenuItem>
-                  }
-                </div>
-              ))}
+              {roles?.map((role) =>
+                role?.is_admin_panel ? (
+                  <MenuItem key={role.id} value={role.id}>
+                    {role.role === "super_admin" ? "Admin" : role.role}
+                  </MenuItem>
+                ) : null
+              )}
             </Select>
+
           </ListItem>
           <ListItem>
             <Select value={order} onChange={(e) => setOrder(e.target.value as "ASC" | "DESC")} size="small">
