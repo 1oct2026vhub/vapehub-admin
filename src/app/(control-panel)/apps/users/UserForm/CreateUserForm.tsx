@@ -15,6 +15,7 @@ import { useRoles } from '@/hooks/roleFetch';
 import FormSelectField from '@/components/Shared/SelectField';
 import FormRadioGroup from '@/components/Shared/RadioButton';
 import FormDatePicker from '@/components/Shared/FormDatePicker';
+import { useState } from 'react';
 
 
 const schema = z.object({
@@ -88,6 +89,7 @@ export type FormType = {
 function CreateUserForm() {
   const router = useRouter();
   const { showSnackbar } = useSnackbar(); //Use Snackbar
+  const [isLoading, setIsLoading] = useState(false);
   const { roles } = useRoles();
 
   const { control, formState, handleSubmit, setError } = useForm({
@@ -101,6 +103,7 @@ function CreateUserForm() {
 
 
   async function onSubmit(formData) {
+    setIsLoading(true); // Start loading
     try {
       const formattedData = { ...formData, roleId: Number(formData.roleId) };
       const response = await triggerSignup(formattedData);
@@ -129,8 +132,10 @@ function CreateUserForm() {
       } else {
         // setError('root', { type: 'manual', message: errorMessage });
       }
-
       return false;
+    }
+    finally {
+      setIsLoading(false); // Stop loading after success or failure
     }
   }
 
@@ -187,7 +192,9 @@ function CreateUserForm() {
         />
         {/* Submit Button */}
         <AppButton
-          label={isMutating ? 'Creating...' : 'Create'}
+          // label={isMutating ? 'Creating...' : 'Create'}
+          label="Create"
+          loading={isLoading}
           type="submit"
           fullWidth
           size="large"
