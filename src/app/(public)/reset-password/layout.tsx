@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: "RESET PASSWORD | VapeHub",
+  title: "Reset password | VapeHub",
   description: "Access your VapeHub account securely.",
 };
 
