@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: "SIGN IN | VapeHub",
+  title: "Sign in | VapeHub",
   description: "Access your VapeHub account securely.",
 };
 

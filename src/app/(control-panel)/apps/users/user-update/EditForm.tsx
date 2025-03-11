@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -52,6 +52,8 @@ export type FormType = {
 const EditForm = ({ user }: { user: FormType }) => {
   const router = useRouter();
   const { showSnackbar } = useSnackbar();
+    const [isLoading, setIsLoading] = useState(false);
+  
 
   // Form handling
   const { control, formState, handleSubmit, setError, reset } = useForm<FormType>({
@@ -76,6 +78,7 @@ const EditForm = ({ user }: { user: FormType }) => {
   }, [user, reset]);
 
   async function onSubmit(formData: FormType) {
+    setIsLoading(true); // Start loading
     try {
       const formattedData = { ...formData, roleId: Number(formData.roleId) };
       const response = await updateUser(user?.id, formattedData);
@@ -102,9 +105,10 @@ const EditForm = ({ user }: { user: FormType }) => {
       } else {
         // setError('root', { type: 'manual', message: errorMessage });
       }
-
-
-      return false;
+      return false;     
+    }
+    finally {
+      setIsLoading(false); // Stop loading after success or failure
     }
   }
 
@@ -157,6 +161,7 @@ const EditForm = ({ user }: { user: FormType }) => {
         <AppButton
           // label={isMutating ? 'Updating...' : 'Update User'}
           label="Update User"
+          loading={isLoading}
           type="submit"
           fullWidth
           size="large"

@@ -2,7 +2,7 @@ import Users from "./Users";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "USERS | VapeHub",
+  title: "User | VapeHub",
   description: "Manage and view all users in VapeHub.",
 };
 
