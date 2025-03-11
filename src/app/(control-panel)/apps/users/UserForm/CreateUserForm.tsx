@@ -25,14 +25,22 @@ const schema = z.object({
     .string()
     .min(1, 'Email is required') // Ensures the field is required
     .email('Invalid email format'), // Validates email format
+  // phone: z
+  //   .string()
+  //   .min(9, { message: "Phone number must be between 9 to 16 digits." }) // Min 9 digits
+  //   // .max(16, { message: "Phone number must not exceed 16 digits." }) // Max 16 digits
+  //   .regex(/^\+?\d+$/, { message: "Phone number must contain only numbers." }) // Only numbers with optional '+'
+  //   .refine((val) => /^\+?\d{9,16}$/.test(val), {
+  //     message: "Phone number must not exceed 16 digits.",
+  //   }),
   phone: z
-    .string()
-    .min(9, { message: "Phone number must be between 9 to 16 digits." }) // Min 9 digits
-    // .max(16, { message: "Phone number must not exceed 16 digits." }) // Max 16 digits
-    .regex(/^\+?\d+$/, { message: "Phone number must contain only numbers." }) // Only numbers with optional '+'
-    .refine((val) => /^\+?\d{9,16}$/.test(val), {
-      message: "Phone number must not exceed 16 digits.",
-    }),
+  .string()
+  .min(9, { message: "Phone number must be between 9 to 16 digits." }) // Min 9 digits
+  .regex(/^\+?\d+$/, { message: "Phone number must contain only numbers." }) // Only numbers with optional '+'
+  .refine((val) => val.replace(/\D/g, "").length <= 16, {
+    message: "Phone number must not exceed 16 digits.",
+  }),
+
   password: z
     .string()
     .min(1, 'Password is required') // Ensures the field is required
