@@ -27,8 +27,8 @@ const schema = z.object({
 
     phone: z
     .string()
-    // .min(10, { message: 'Phone number is required' }) // Ensures field is not empty
-    // .max(10, { message: 'Phone number must be at most 15 digits' }) // Limits length to common international standards
+    .min(9, { message: 'Phone number is required' }) // Ensures field is not empty
+    .max(16, { message: 'Phone number must be at most 16 digits' }) // Limits length to common international standards
     .regex(/^\d+$/, { message: 'Enter a valid phone number' }), // Ensures only numbers
   
   password: z
@@ -107,7 +107,7 @@ function CreateUserForm() {
     } catch (error) {
       // console.error('Signup Error:', error); // Log full error object
       if(error?.errors){
-        showSnackbar(error?.errors[0]?.msg)
+        showSnackbar(error?.errors[0]?.msg , "error")
       }
       else{
         const errorMessage = error?.message || 'An unexpected error occurred';
