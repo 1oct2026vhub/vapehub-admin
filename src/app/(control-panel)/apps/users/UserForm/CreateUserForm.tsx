@@ -24,13 +24,12 @@ const schema = z.object({
     .string()
     .min(1, 'Email is required') // Ensures the field is required
     .email('Invalid email format'), // Validates email format
-
-    phone: z
+  phone: z
     .string()
-    .min(9, { message: 'Phone number is required' }) // Ensures field is not empty
-    .max(16, { message: 'Phone number must be at most 16 digits' }) // Limits length to common international standards
-    .regex(/^\d+$/, { message: 'Enter a valid phone number' }), // Ensures only numbers
-  
+    .min(9, { message: "Phone number must be at least 9 characters" }) // Ensures min length
+    .max(17, { message: "Phone number must be at most 16 characters" }) // Limits max length
+    .regex(/^\+?\d{9,17}$/, { message: "Enter a valid phone number (only numbers, optional '+')" }), // Allows '+' at start and numbers
+
   password: z
     .string()
     .min(1, 'Password is required') // Ensures the field is required
@@ -39,7 +38,7 @@ const schema = z.object({
     .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
     .regex(/[0-9]/, 'Password must contain at least one number')
     .regex(/[@$!%*?&]/, 'Password must contain at least one special character'),
-    dob: z
+  dob: z
     .string()
     .min(1, { message: 'Date of Birth is required' }) // Ensures the field is required
     .regex(/^\d{4}-\d{2}-\d{2}$/, { message: 'DOB must be in YYYY-MM-DD format' }) // Ensures correct format
@@ -49,13 +48,13 @@ const schema = z.object({
       return today.getFullYear() - birthDate.getFullYear() >= 18;
     }, { message: 'You must be at least 18 years old.' }),
 
-   
-      roleId: z.preprocess(
-        (val) => (val === '' ? undefined : Number(val)), // Convert non-empty values to numbers
-        z.number({ required_error: 'Role is required' })
-          .min(1, 'Invalid role ID')
-          .max(2, 'Invalid role ID')
-      ),    
+
+  roleId: z.preprocess(
+    (val) => (val === '' ? undefined : Number(val)), // Convert non-empty values to numbers
+    z.number({ required_error: 'Role is required' })
+      .min(1, 'Invalid role ID')
+      .max(2, 'Invalid role ID')
+  ),
   gender: z.enum(['male', 'female', 'other'], { message: 'Gender is required' }),
 });
 
@@ -106,10 +105,10 @@ function CreateUserForm() {
       return true;
     } catch (error) {
       // console.error('Signup Error:', error); // Log full error object
-      if(error?.errors){
-        showSnackbar(error?.errors[0]?.msg , "error")
+      if (error?.errors) {
+        showSnackbar(error?.errors[0]?.msg, "error")
       }
-      else{
+      else {
         const errorMessage = error?.message || 'An unexpected error occurred';
         showSnackbar(errorMessage, 'error');
 
@@ -161,14 +160,14 @@ function CreateUserForm() {
           options={
             roles
               ? roles
-                  .filter((role) => role?.is_admin_panel && role.role === "super_admin") // Filter first
-                  .map((role) => ({
-                    value: Number(role.id), // Ensure conversion
-                    label: "Admin", // Directly set label as "Admin"
-                  }))
+                .filter((role) => role?.is_admin_panel && role.role === "super_admin") // Filter first
+                .map((role) => ({
+                  value: Number(role.id), // Ensure conversion
+                  label: "Admin", // Directly set label as "Admin"
+                }))
               : []
           }
-        
+
           required
         />
 

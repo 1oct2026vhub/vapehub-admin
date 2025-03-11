@@ -21,10 +21,10 @@ const schema = z.object({
   first_name: z.string().nonempty('First Name is required'),
   last_name: z.string().nonempty('Last Name is required'),
   phone: z
-  .string()
-  .min(9, { message: 'Phone number is required' }) // Ensures field is not empty
-  .max(16, { message: 'Phone number must be at most 16 digits' }) // Limits length to common international standards
-  .regex(/^\d+$/, { message: 'Enter a valid phone number' }), // Ensures only numbers
+    .string()
+    .min(9, { message: "Phone number must be at least 9 characters" }) // Ensures min length
+    .max(17, { message: "Phone number must be at most 16 characters" }) // Limits max length
+    .regex(/^\+?\d{9,17}$/, { message: "Enter a valid phone number (only numbers, optional '+')" }), // Allows '+' at start and numbers
   dob: z
     .string()
     .min(1, "DOB is required") // Ensures the field is required
@@ -83,10 +83,10 @@ const EditForm = ({ user }: { user: FormType }) => {
       router.push('/apps/users'); // Redirect after successful signup
       return true;
     } catch (error) {
-      if(error?.errors){
-        showSnackbar(error?.errors[0]?.msg , 'error')
+      if (error?.errors) {
+        showSnackbar(error?.errors[0]?.msg, 'error')
       }
-      else{
+      else {
         const errorMessage = error?.message || 'An unexpected error occurred';
         showSnackbar(errorMessage, 'error');
 
