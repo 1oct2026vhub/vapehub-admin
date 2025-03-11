@@ -46,6 +46,7 @@ export type UserType = {
   role: string | null;
   roleId: number | null;
   deletedAt: string | null;
+  email_verified_at: string | null;
 };
 
 const UserTable = () => {
@@ -181,6 +182,19 @@ const UserTable = () => {
         return <Chip label={label} color={row.original.deletedAt ? "warning" : "success"} />;
       },
     },
+    {
+      accessorKey: "status",
+      header: "Verification Status",
+      Cell: ({ row }) => {
+        return (
+          <Chip
+            label={row.original.email_verified_at ? "Verified" : "Pending"}
+            color={row.original.email_verified_at ? "success" : "warning"}
+          />
+        );
+      },
+    },
+   
   ], []);
 
   if (isLoading) return <FuseLoading />;
@@ -191,13 +205,14 @@ const UserTable = () => {
     first_name: user.first_name,
     last_name: user.last_name,
     email: user.email,
-    role: user.roles?.role === 'super_admin' ? 'Admin' : user.roles?.role || "N/A",
+    role: user.roles?.role === 'super_admin' ? 'Admin' : user.roles?.role === "customer" && 'Customer' || "N/A",
     roleId: user.roles?.id || "N/A",
     phone: user.phone,
     // gender: user.gender,
     gender: user.gender ? user.gender.charAt(0).toUpperCase() + user.gender.slice(1) : "N/A",
     dob: user.dob ? new Date(user.dob).toISOString().split("T")[0] : "",
-    deletedAt: user.deletedAt
+    deletedAt: user.deletedAt,
+    email_verified_at: user.email_verified_at
   }));
 
 

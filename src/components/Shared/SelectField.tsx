@@ -149,8 +149,11 @@ const FormSelectField: React.FC<FormSelectFieldProps> = ({ name, control, label,
                                 borderImage: 'linear-gradient(to right, #1E7A56, #004C30) 1',
                             },
                         },
+                        '& .MuiInputLabel-root': {
+                            color: '#2E9970', // Label color before focus
+                        },
                         '& .MuiInputLabel-root.Mui-focused': {
-                            color: '#2E9970', // Label color when focused
+                            color: '#2E9970', // Label color on focus
                         },
                     }}
                 >
