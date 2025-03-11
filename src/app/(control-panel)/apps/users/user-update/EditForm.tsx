@@ -20,11 +20,20 @@ import FormDatePicker from '@/components/Shared/FormDatePicker';
 const schema = z.object({
   first_name: z.string().nonempty('First Name is required'),
   last_name: z.string().nonempty('Last Name is required'),
-  phone: z
-  .string()
-  .min(9, { message: "Phone number must be between 9 to 16 digits" }) // Ensures a minimum of 9 digits
+  // phone: z
+  // .string()
+  // .min(9, { message: "Phone number must be between 9 to 16 digits" }) // Ensures a minimum of 9 digits
   // .max(16, { message: "Phone number must not exceed 16 digits" }) // Ensures a maximum of 16 digits
-  .regex(/^\+?\d{9,16}$/, { message: "Phone number must contain only numbers. "}), // Allows numbers with optional '+'
+  // .regex(/^\+?\d{9,16}$/, { message: "Phone number must contain only numbers."}), // Allows numbers with optional '+'
+
+  phone: z
+    .string()
+    .min(9, { message: "Phone number must be between 9 to 16 digits." }) // Min 9 digits
+    // .max(16, { message: "Phone number must not exceed 16 digits." }) // Max 16 digits
+    .regex(/^\+?\d+$/, { message: "Phone number must contain only numbers." }) // Only numbers with optional '+'
+    .refine((val) => /^\+?\d{9,16}$/.test(val), {
+      message: "Phone number must not exceed 16 digits.",
+    }),
   dob: z
     .string()
     .min(1, "DOB is required") // Ensures the field is required
@@ -33,7 +42,7 @@ const schema = z.object({
       const birthDate = new Date(dob);
       const today = new Date();
       return today.getFullYear() - birthDate.getFullYear() >= 18;
-    }, "You must be at least 18 years old."),
+    }, "User must be at least 18 years old."),
   roleId: z.preprocess((val) => Number(val), z.union([z.literal(1), z.literal(2)])),
   gender: z.enum(['male', 'female', 'other'], { message: 'Gender is required' }),
 });
