@@ -9,7 +9,7 @@ import { SnackbarProvider } from '@/contexts/SnackbarContext';
 
 // eslint-disable-next-line react-refresh/only-export-components
 export const metadata = await generateMetadata({
-	title: 'VapeHub',
+	title: 'Dashboard | VapeHub',
 	description: 'VapeHub',
 	cardImage: '/card.png',
 	robots: 'follow, index',
