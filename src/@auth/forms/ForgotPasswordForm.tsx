@@ -63,19 +63,19 @@ function ForgotPasswordForm() {
 		try {
 			const response = await triggerForgotPassword({ email: data.email });
 	
-			if (response?.error) {
-				setError('root', { type: 'manual', message: response.error });
-				return;
-			}
+			// if (response?.error) {
+			// 	setError('root', { type: 'manual', message: response.error });
+			// 	return;
+			// }
 	
-			showSnackbar('Reset link sent! Please check your email.');
+			showSnackbar('Reset link sent! Please check your email.','success');
 			reset(defaultValues);
 		} catch (error) {
 			// Extract meaningful error message
 			const errorMessage =
 				error?.message || 'Something went wrong. Please try again later.';
 	
-			showSnackbar(errorMessage);
+			showSnackbar(errorMessage , "error");
 		}
 	}
 	

@@ -30,12 +30,13 @@ function EmailVerifyConfirmationForm() {
 	// Trigger snackbar only once when data.success is true
 	useEffect(() => {
 		if (data?.success) {
-			showSnackbar(data?.message);
+			showSnackbar(data?.message, "success");
 			storeAuthToken(data?.data?.accessToken);
-			router.push("/dashboards/project");
-		}
-		else {
-			showSnackbar('Invalid link or link expired');
+			setTimeout(() => {
+				router.push("/dashboards/project");
+			}, 1000); // Redirect after 1 seconds
+		} else {
+			showSnackbar('Invalid link or link expired',"error");
 		}
 	}, [data]);
 
