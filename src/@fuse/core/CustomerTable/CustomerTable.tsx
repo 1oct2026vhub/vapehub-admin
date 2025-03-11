@@ -160,6 +160,7 @@ const CustomerTable = () => {
     { accessorKey: "first_name", header: "First Name" },
     { accessorKey: "last_name", header: "Last Name" },
     { accessorKey: "email", header: "Email" },
+    { accessorKey: "createdAt", header: "Created At" },
     { accessorKey: "phone", header: "Contact" },
     { accessorKey: "gender", header: "Gender" },
     { accessorKey: "dob", header: "Date of Birth" },
@@ -180,6 +181,9 @@ const CustomerTable = () => {
     first_name: user.first_name,
     last_name: user.last_name,
     email: user.email,
+    createdAt: user.createdAt
+      ? new Date(user.createdAt).toLocaleDateString("en-GB").replace(/\//g, "-")
+      : "",
     phone: user.phone,
     gender: user.gender ? user.gender.charAt(0).toUpperCase() + user.gender.slice(1) : "N/A",
     dob: user.dob ? new Date(user.dob).toISOString().split("T")[0] : "",

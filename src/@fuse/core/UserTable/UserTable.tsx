@@ -47,6 +47,7 @@ export type UserType = {
   roleId: number | null;
   deletedAt: string | null;
   email_verified_at: string | null;
+  createdAt : string | null;
 };
 
 const UserTable = () => {
@@ -155,6 +156,7 @@ const UserTable = () => {
     { accessorKey: "first_name", header: "First Name" },
     { accessorKey: "last_name", header: "Last Name" },
     { accessorKey: "email", header: "Email" },
+    { accessorKey: "createdAt", header: "Created At" },
     { accessorKey: "role", header: "Role" },
     { accessorKey: "phone", header: "Contact" },
     { accessorKey: "gender", header: "Gender" },
@@ -205,7 +207,10 @@ const UserTable = () => {
     first_name: user.first_name,
     last_name: user.last_name,
     email: user.email,
-    role: user.roles?.role === 'super_admin' ? 'Admin' : user.roles?.role === "customer" && 'Customer' || "N/A",
+    createdAt: user.createdAt 
+    ? new Date(user.createdAt).toLocaleDateString("en-GB").replace(/\//g, "-") 
+    : "",
+      role: user.roles?.role === 'super_admin' ? 'Admin' : user.roles?.role === "customer" && 'Customer' || "N/A",
     roleId: user.roles?.id || "N/A",
     phone: user.phone,
     // gender: user.gender,

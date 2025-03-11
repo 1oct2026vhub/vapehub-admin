@@ -65,7 +65,9 @@ export default function CustomerDetailsPage() {
     first_name: customerDetail.first_name,
     last_name: customerDetail.last_name,
     email: customerDetail.email,
-    createdAt: customerDetail.createdAt ? new Date(customerDetail.dob).toISOString().split("T")[0] : "",
+    createdAt: customerDetail.createdAt
+    ? new Date(customerDetail.createdAt).toLocaleDateString("en-GB").replace(/\//g, "-") 
+    : "",
     phone: customerDetail.phone,
     gender: customerDetail.gender,
     dob: customerDetail.dob ? new Date(customerDetail.dob).toISOString().split("T")[0] : "",
