@@ -25,13 +25,11 @@ const schema = z.object({
   // .min(9, { message: "Phone number must be between 9 to 16 digits" }) // Ensures a minimum of 9 digits
   // .max(16, { message: "Phone number must not exceed 16 digits" }) // Ensures a maximum of 16 digits
   // .regex(/^\+?\d{9,16}$/, { message: "Phone number must contain only numbers."}), // Allows numbers with optional '+'
-
   phone: z
     .string()
     .min(9, { message: "Phone number must be between 9 to 16 digits." }) // Min 9 digits
-    // .max(16, { message: "Phone number must not exceed 16 digits." }) // Max 16 digits
     .regex(/^\+?\d+$/, { message: "Phone number must contain only numbers." }) // Only numbers with optional '+'
-    .refine((val) => /^\+?\d{9,16}$/.test(val), {
+    .refine((val) => val.replace(/\D/g, "").length <= 16, {
       message: "Phone number must not exceed 16 digits.",
     }),
   dob: z
@@ -61,8 +59,8 @@ export type FormType = {
 const EditForm = ({ user }: { user: FormType }) => {
   const router = useRouter();
   const { showSnackbar } = useSnackbar();
-    const [isLoading, setIsLoading] = useState(false);
-  
+  const [isLoading, setIsLoading] = useState(false);
+
 
   // Form handling
   const { control, formState, handleSubmit, setError, reset } = useForm<FormType>({
@@ -114,7 +112,7 @@ const EditForm = ({ user }: { user: FormType }) => {
       } else {
         // setError('root', { type: 'manual', message: errorMessage });
       }
-      return false;     
+      return false;
     }
     finally {
       setIsLoading(false); // Stop loading after success or failure
