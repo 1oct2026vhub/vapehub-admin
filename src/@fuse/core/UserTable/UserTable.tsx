@@ -175,7 +175,7 @@ const UserTable = () => {
         let color = "success";
 
         if (deletedAt) {
-          label = "In Active"; // User is deleted
+          label = "InActive"; // User is deleted
           color = "warning";
         }
         return <Chip label={label} color={row.original.deletedAt ? "warning" : "success"} />;
@@ -252,7 +252,7 @@ const UserTable = () => {
             >
               <MenuItem value="all">All Users</MenuItem>
               <MenuItem value="active">Active</MenuItem>
-              <MenuItem value="deleted">In Active</MenuItem>
+              <MenuItem value="deleted">InActive</MenuItem>
             </Select>
             <Select value={order} onChange={(e) => setOrder(e.target.value as "ASC" | "DESC")} size="small">
               <MenuItem value="DESC">Descending</MenuItem>

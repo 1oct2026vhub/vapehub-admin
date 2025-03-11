@@ -220,7 +220,7 @@ const CustomerTable = () => {
             <Select value={deleted === null ? "all" : deleted ? "deleted" : "active"} onChange={(e) => setDeleted(e.target.value === "all" ? null : e.target.value === "deleted")} size="small">
               <MenuItem value="all">All</MenuItem>
               <MenuItem value="active">Active</MenuItem>
-              <MenuItem value="deleted">In Active</MenuItem>
+              <MenuItem value="deleted">InActive</MenuItem>
             </Select>
             <Select value={order} onChange={(e) => setOrder(e.target.value as "ASC" | "DESC")} size="small">
               <MenuItem value="DESC">Descending</MenuItem>
