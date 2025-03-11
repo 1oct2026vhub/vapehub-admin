@@ -15,7 +15,15 @@ import { fetcher, poster, updater, deleter } from '@/services/apiService';
 //   return { data, error, isLoading };
 // };
 
-export const useFetch = (key, fetcherFunction, params = {}) => {
+export const useFetch = (key, fetcherFunction, params = {},options = { skip: false }) => {
+  const { skip } = options; // Now, skip is always defined
+
+  console.log("skip",skip);
+
+  
+  if(skip){
+    return { data: null, error: null, isLoading: false }; // Return default values if skipped
+  }
   const { data, error, isLoading } = useSWR([key, params], ([_, queryParams]) => fetcherFunction(queryParams), {
     revalidateOnFocus: false,
   });
