@@ -22,9 +22,8 @@ const schema = z.object({
   last_name: z.string().nonempty('Last Name is required'),
   phone: z
     .string()
-    .min(9, { message: "Phone number must be at least 9 characters" }) // Ensures min length
-    .max(17, { message: "Phone number must be at most 16 characters" }) // Limits max length
-    .regex(/^\+?\d{9,17}$/, { message: "Enter a valid phone number (only numbers, optional '+')" }), // Allows '+' at start and numbers
+    .min(9, { message: "Phone number is required" }) // Ensures min length
+    .regex(/^(?:\+\d{16}|\d{16})$/, { message: "Phone number must be exactly 16 digits" }),
   dob: z
     .string()
     .min(1, "DOB is required") // Ensures the field is required
