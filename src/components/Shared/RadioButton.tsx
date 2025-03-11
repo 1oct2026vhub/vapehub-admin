@@ -19,8 +19,12 @@ const FormRadioGroup: React.FC<FormRadioGroupProps> = ({ name, control, label, o
                 <FormControl component="fieldset" margin="normal" error={!!error}>
                     <FormLabel
                         sx={{
+                            color: '#2E9970', // Ensures label is green before focus
                             '&.Mui-focused': {
                                 color: '#2E9970', // Label color when focused
+                            },
+                            '& .MuiInputLabel-root': {
+                                color: '#2E9970',
                             },
                         }}
                     >
