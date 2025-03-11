@@ -20,10 +20,11 @@ import FormDatePicker from '@/components/Shared/FormDatePicker';
 const schema = z.object({
   first_name: z.string().nonempty('First Name is required'),
   last_name: z.string().nonempty('Last Name is required'),
-  phone: z.string()
-    .min(10, 'Enter a valid phone number')
-    .max(15, 'Phone number is too long')
-    .regex(/^\d+$/, 'Phone must contain only numbers'), // Ensures only digits
+  phone: z
+  .string()
+  // .min(10, { message: 'Phone number is required' }) // Ensures field is not empty
+  // .max(10, { message: 'Phone number must be at most 15 digits' }) // Limits length to common international standards
+  .regex(/^\d+$/, { message: 'Enter a valid phone number' }), // Ensures only numbers
   dob: z
     .string()
     .min(1, "DOB is required") // Ensures the field is required
@@ -82,19 +83,26 @@ const EditForm = ({ user }: { user: FormType }) => {
       router.push('/apps/users'); // Redirect after successful signup
       return true;
     } catch (error) {
-      const errorData = error || error; // Handle both API and unexpected errors
-      const errorMessage = errorData?.message || 'error';
+      if(error?.errors){
+        showSnackbar(error?.errors[0]?.msg)
+      }
+      else{
+        const errorMessage = error?.message || 'An unexpected error occurred';
+        showSnackbar(errorMessage, 'error');
 
+      }
+      const errorData = error || error; // Handle both API and unexpected errors
       if (errorData?.error && typeof errorData.error === 'object') {
         Object.entries(errorData.error).forEach(([field, message]) => {
           if (typeof message === 'string') {
+            // setError(field, { type: 'manual', message });
             showSnackbar(` ${message}`, 'error');
           }
         });
       } else {
-        setError('root', { type: 'manual', message: errorMessage });
-        showSnackbar(errorMessage, 'error'); // Ensure showSnackbar receives a **string**
+        // setError('root', { type: 'manual', message: errorMessage });
       }
+
 
       return false;
     }

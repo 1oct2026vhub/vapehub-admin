@@ -25,7 +25,12 @@ const schema = z.object({
     .min(1, 'Email is required') // Ensures the field is required
     .email('Invalid email format'), // Validates email format
 
-  phone: z.string().regex(/^\d{10,15}$/, 'Enter a valid phone number'), // Ensures numeric phone number
+    phone: z
+    .string()
+    // .min(10, { message: 'Phone number is required' }) // Ensures field is not empty
+    // .max(10, { message: 'Phone number must be at most 15 digits' }) // Limits length to common international standards
+    .regex(/^\d+$/, { message: 'Enter a valid phone number' }), // Ensures only numbers
+  
   password: z
     .string()
     .min(1, 'Password is required') // Ensures the field is required
@@ -34,15 +39,15 @@ const schema = z.object({
     .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
     .regex(/[0-9]/, 'Password must contain at least one number')
     .regex(/[@$!%*?&]/, 'Password must contain at least one special character'),
-
-  dob: z
+    dob: z
     .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/, 'DOB must be in YYYY-MM-DD format')
+    .min(1, { message: 'Date of Birth is required' }) // Ensures the field is required
+    .regex(/^\d{4}-\d{2}-\d{2}$/, { message: 'DOB must be in YYYY-MM-DD format' }) // Ensures correct format
     .refine((dob) => {
       const birthDate = new Date(dob);
       const today = new Date();
       return today.getFullYear() - birthDate.getFullYear() >= 18;
-    }, 'You must be at least 18 years old.'),
+    }, { message: 'You must be at least 18 years old.' }),
 
    
       roleId: z.preprocess(
@@ -101,10 +106,16 @@ function CreateUserForm() {
       return true;
     } catch (error) {
       // console.error('Signup Error:', error); // Log full error object
+      if(error?.errors){
+        showSnackbar(error?.errors[0]?.msg)
+      }
+      else{
+        const errorMessage = error?.message || 'An unexpected error occurred';
+        showSnackbar(errorMessage, 'error');
+
+      }
 
       const errorData = error || error; // Handle both API and unexpected errors
-      const errorMessage = errorData?.message || 'An unexpected error occurred';
-
       if (errorData?.error && typeof errorData.error === 'object') {
         Object.entries(errorData.error).forEach(([field, message]) => {
           if (typeof message === 'string') {
@@ -113,8 +124,7 @@ function CreateUserForm() {
           }
         });
       } else {
-        setError('root', { type: 'manual', message: errorMessage });
-        showSnackbar(errorMessage, 'error');
+        // setError('root', { type: 'manual', message: errorMessage });
       }
 
       return false;
@@ -150,16 +160,15 @@ function CreateUserForm() {
           label="Role"
           options={
             roles
-              ? roles.map((role) => ({
-                value: Number(role.id), // Ensure conversion
-                label: role?.is_admin_panel 
-                ? role.role === "super_admin" 
-                  ? "Admin" 
-                  : "" 
-                : "",
-                            }))
+              ? roles
+                  .filter((role) => role?.is_admin_panel && role.role === "super_admin") // Filter first
+                  .map((role) => ({
+                    value: Number(role.id), // Ensure conversion
+                    label: "Admin", // Directly set label as "Admin"
+                  }))
               : []
           }
+        
           required
         />
 
