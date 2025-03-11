@@ -160,32 +160,23 @@ const UserTable = () => {
     { accessorKey: "role", header: "Role" },
     { accessorKey: "phone", header: "Contact" },
     { accessorKey: "gender", header: "Gender" },
-    // {
-    //   accessorKey: "gender",
-    //   header: "Gender",
-    //   cell: ({ row }) => {
-    //     const gender = row.original.gender;
-    //     return gender ? gender.charAt(0).toUpperCase() + gender.slice(1) : "N/A";
-    //   },
-    // },
     { accessorKey: "dob", header: "Date of Birth" },
+  
     {
-      accessorKey: "status",
+      accessorKey: "status", 
       header: "Status",
       Cell: ({ row }) => {
         const { deletedAt } = row.original;
-        let label = "Active";
-        let color = "success";
-
-        if (deletedAt) {
-          label = "InActive"; // User is deleted
-          color = "warning";
-        }
-        return <Chip label={label} color={row.original.deletedAt ? "warning" : "success"} />;
+        return (
+          <Chip
+            label={deletedAt ? "Inactive" : "Active"}
+            color={deletedAt ? "warning" : "success"}
+          />
+        );
       },
     },
     {
-      accessorKey: "status",
+      accessorKey: "verification_status", 
       header: "Verification Status",
       Cell: ({ row }) => {
         return (
@@ -196,8 +187,8 @@ const UserTable = () => {
         );
       },
     },
-   
   ], []);
+  
 
   if (isLoading) return <FuseLoading />;
   if (error) return <p>Failed to load users</p>;
