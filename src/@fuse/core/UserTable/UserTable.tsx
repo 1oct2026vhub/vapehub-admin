@@ -175,7 +175,7 @@ const UserTable = () => {
         let color = "success";
 
         if (deletedAt) {
-          label = "Inactive"; // User is deleted
+          label = "In Active"; // User is deleted
           color = "warning";
         }
         return <Chip label={label} color={row.original.deletedAt ? "warning" : "success"} />;
@@ -191,7 +191,7 @@ const UserTable = () => {
     first_name: user.first_name,
     last_name: user.last_name,
     email: user.email,
-    role: user.roles?.role || "N/A",
+    role: user.roles?.role === 'super_admin' ? 'Admin' : user.roles?.role || "N/A",
     roleId: user.roles?.id || "N/A",
     phone: user.phone,
     // gender: user.gender,
@@ -233,14 +233,16 @@ const UserTable = () => {
             <Select value={roleId} onChange={(e) => setRoleId(e.target.value as number | "all")} size="small">
               <MenuItem value="all">All Roles</MenuItem>
               {roles?.map((role) => (
-                <MenuItem key={role.id} value={role.id}>
-                  {/* {role?.is_admin_panel ? role.role : ""} */}
-                  {role?.is_admin_panel
-                    ? role.role === "super_admin"
-                      ? "Admin"
-                      : ""
-                    : ""}
-                </MenuItem>
+                <div key={role?.is_admin_panel && role.id}>
+                  {role?.is_admin_panel &&
+                    <MenuItem key={role?.is_admin_panel && role.id} value={role?.is_admin_panel && role.id}>
+                      {/* {role?.is_admin_panel ? role.role : ""} */}
+                      {role?.is_admin_panel
+                        && role.role === "super_admin"
+                        && "Admin"}
+                    </MenuItem>
+                  }
+                </div>
               ))}
             </Select>
             <Select
@@ -319,13 +321,16 @@ const UserTable = () => {
             <Select value={roleId} onChange={(e) => setRoleId(e.target.value as number | "all")} size="small">
               <MenuItem value="all">All Roles</MenuItem>
               {roles?.map((role) => (
-                <MenuItem key={role.id} value={role.id}>
-                  {role?.is_admin_panel
-                    ? role.role === "super_admin"
-                      ? "Admin"
-                      : ""
-                    : ""}
-                </MenuItem>
+                <div key={role?.is_admin_panel && role.id}>
+                  {role?.is_admin_panel &&
+                    <MenuItem key={role?.is_admin_panel && role.id} value={role?.is_admin_panel && role.id}>
+                      {/* {role?.is_admin_panel ? role.role : ""} */}
+                      {role?.is_admin_panel
+                        && role.role === "super_admin"
+                        && "Admin"}
+                    </MenuItem>
+                  }
+                </div>
               ))}
             </Select>
           </ListItem>
