@@ -20,14 +20,9 @@ import FormDatePicker from '@/components/Shared/FormDatePicker';
 const schema = z.object({
   first_name: z.string().nonempty('First Name is required'),
   last_name: z.string().nonempty('Last Name is required'),
-  // phone: z
-  // .string()
-  // .min(9, { message: "Phone number must be between 9 to 16 digits" }) // Ensures a minimum of 9 digits
-  // .max(16, { message: "Phone number must not exceed 16 digits" }) // Ensures a maximum of 16 digits
-  // .regex(/^\+?\d{9,16}$/, { message: "Phone number must contain only numbers."}), // Allows numbers with optional '+'
   phone: z
     .string()
-    .min(9, { message: "Phone number must be between 9 to 16 digits." }) // Min 9 digits
+    .min(8, { message: "Phone number must be between 8 to 16 digits." }) // Min 8 digits
     .regex(/^\+?\d+$/, { message: "Phone number must contain only numbers." }) // Only numbers with optional '+'
     .refine((val) => val.replace(/\D/g, "").length <= 16, {
       message: "Phone number must not exceed 16 digits.",
