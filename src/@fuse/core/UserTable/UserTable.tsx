@@ -47,7 +47,7 @@ export type UserType = {
   roleId: number | null;
   deletedAt: string | null;
   email_verified_at: string | null;
-  createdAt : string | null;
+  createdAt: string | null;
 };
 
 const UserTable = () => {
@@ -57,6 +57,7 @@ const UserTable = () => {
   const [roleId, setRoleId] = useState<number | "all">("all");
   const [order, setOrder] = useState<"ASC" | "DESC">("DESC");
   const [deleted, setDeleted] = useState<boolean | null>(null);
+  const [verified, setVerified] = useState<boolean | null>(null);
   const [openDialog, setOpenDialog] = useState(false);
   const [selectedUser, setSelectedUser] = useState<UserType | null>(null);
   const [openDrawer, setOpenDrawer] = useState(false); // Mobile Drawer state
@@ -81,10 +82,11 @@ const UserTable = () => {
       order,
       page,
       limit,
+      ...(verified !== null && { verified }),
       ...(deleted !== null && { deleted }),
       ...(roleId !== "all" && { roleId }),
     }),
-    [debouncedSearch, order, deleted, roleId, page, limit]
+    [debouncedSearch, order, deleted, verified, roleId, page, limit]
   );
 
   const { data, error, isLoading } = useFetch(["userList", queryParams], listUser, queryParams);
@@ -161,9 +163,9 @@ const UserTable = () => {
     { accessorKey: "phone", header: "Contact" },
     { accessorKey: "gender", header: "Gender" },
     { accessorKey: "dob", header: "Date of Birth" },
-  
+
     {
-      accessorKey: "status", 
+      accessorKey: "status",
       header: "Status",
       Cell: ({ row }) => {
         const { deletedAt } = row.original;
@@ -176,7 +178,7 @@ const UserTable = () => {
       },
     },
     {
-      accessorKey: "verification_status", 
+      accessorKey: "verification_status",
       header: "Verification Status",
       Cell: ({ row }) => {
         return (
@@ -188,7 +190,7 @@ const UserTable = () => {
       },
     },
   ], []);
-  
+
 
   if (isLoading) return <FuseLoading />;
   if (error) return <p>Failed to load users</p>;
@@ -198,10 +200,10 @@ const UserTable = () => {
     first_name: user.first_name,
     last_name: user.last_name,
     email: user.email,
-    createdAt: user.createdAt 
-    ? new Date(user.createdAt).toLocaleDateString("en-GB").replace(/\//g, "-") 
-    : "",
-      role: user.roles?.role === 'super_admin' ? 'Admin' : user.roles?.role === "customer" && 'Customer' || "N/A",
+    createdAt: user.createdAt
+      ? new Date(user.createdAt).toLocaleDateString("en-GB").replace(/\//g, "-")
+      : "",
+    role: user.roles?.role === 'super_admin' ? 'Admin' : user.roles?.role === "customer" && 'Customer' || "N/A",
     roleId: user.roles?.id || "N/A",
     phone: user.phone,
     // gender: user.gender,
@@ -255,6 +257,15 @@ const UserTable = () => {
                   </MenuItem>
                 ) : null
               )}
+            </Select>
+            <Select
+              value={verified === null ? "all" : verified ? "verified" : "pending"}
+              onChange={(e) => setVerified(e.target.value === "all" ? null : e.target.value === "verified")}
+              size="small"
+            >
+              <MenuItem value="all">All</MenuItem>
+              <MenuItem value="verified">Verified</MenuItem>
+              <MenuItem value="pending">Pending</MenuItem>
             </Select>
 
             <Select
@@ -345,6 +356,17 @@ const UserTable = () => {
               )}
             </Select>
 
+          </ListItem>
+          <ListItem>
+            <Select
+              value={verified === null ? "all" : verified ? "verified" : "pending"}
+              onChange={(e) => setVerified(e.target.value === "all" ? null : e.target.value === "verified")}
+              size="small"
+            >
+              <MenuItem value="all">Verification</MenuItem>
+              <MenuItem value="verified">Verified</MenuItem>
+              <MenuItem value="pending">Pending</MenuItem>
+            </Select>
           </ListItem>
           <ListItem>
             <Select value={order} onChange={(e) => setOrder(e.target.value as "ASC" | "DESC")} size="small">

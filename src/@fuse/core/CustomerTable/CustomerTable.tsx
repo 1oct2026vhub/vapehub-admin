@@ -42,7 +42,8 @@ export type UserType = {
   gender: string | null;
   dob: string | null;
   blocked: boolean;
-  deletedAt: string | null;
+  deletedAt: string | null;  email_verified_at: string | null;
+
 };
 
 const CustomerTable = () => {
@@ -51,6 +52,8 @@ const CustomerTable = () => {
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [order, setOrder] = useState<"ASC" | "DESC">("DESC");
   const [deleted, setDeleted] = useState<boolean | null>(null);
+  const [verified, setVerified] = useState<boolean | null>(null);
+
   const [customers, setCustomers] = useState<UserType[]>([]);
   const [page, setPage] = useState(1);
   const [limit] = useState(10); // Number of records per page
@@ -67,7 +70,11 @@ const CustomerTable = () => {
     return () => clearTimeout(timer);
   }, [search]);
 
-  const queryParams = useMemo(() => ({ search: debouncedSearch, order, page, limit, ...(deleted !== null && { deleted }) }), [debouncedSearch, order, deleted, page, limit]);
+  const queryParams = useMemo(() => ({
+    search: debouncedSearch, order, page, limit, 
+    ...(verified !== null && { verified }),
+    ...(deleted !== null && { deleted })
+  }), [debouncedSearch, order, deleted,verified, page, limit]);
 
   const { data, error, isLoading } = useFetch(["customerList", queryParams], listCustomer, queryParams);
 
@@ -160,6 +167,18 @@ const CustomerTable = () => {
     { accessorKey: "first_name", header: "First Name" },
     { accessorKey: "last_name", header: "Last Name" },
     { accessorKey: "email", header: "Email" },
+    {
+      accessorKey: "verification_status",
+      header: "Verification Status",
+      Cell: ({ row }) => {
+        return (
+          <Chip
+            label={row.original.email_verified_at ? "Verified" : "Pending"}
+            color={row.original.email_verified_at ? "success" : "warning"}
+          />
+        );
+      },
+    },
     { accessorKey: "createdAt", header: "Created At" },
     { accessorKey: "phone", header: "Contact" },
     { accessorKey: "gender", header: "Gender" },
@@ -188,7 +207,8 @@ const CustomerTable = () => {
     gender: user.gender ? user.gender.charAt(0).toUpperCase() + user.gender.slice(1) : "N/A",
     dob: user.dob ? new Date(user.dob).toISOString().split("T")[0] : "",
     blocked: user.blocked,
-    deletedAt: user.deletedAt
+    deletedAt: user.deletedAt,
+    email_verified_at: user.email_verified_at
   }));
 
   console.log("customers", customers);
@@ -221,6 +241,15 @@ const CustomerTable = () => {
 
           {/* Desktop Filters */}
           <div className="hidden md:flex gap-2">
+            <Select
+              value={verified === null ? "all" : verified ? "verified" : "pending"}
+              onChange={(e) => setVerified(e.target.value === "all" ? null : e.target.value === "verified")}
+              size="small"
+            >
+              <MenuItem value="all">All</MenuItem>
+              <MenuItem value="verified">Verified</MenuItem>
+              <MenuItem value="pending">Pending</MenuItem>
+            </Select>
             <Select value={deleted === null ? "all" : deleted ? "deleted" : "active"} onChange={(e) => setDeleted(e.target.value === "all" ? null : e.target.value === "deleted")} size="small">
               <MenuItem value="all">All</MenuItem>
               <MenuItem value="active">Active</MenuItem>
@@ -323,6 +352,15 @@ const CustomerTable = () => {
               <MenuItem value="DESC">Descending</MenuItem>
               <MenuItem value="ASC">Ascending</MenuItem>
             </Select> */}
+            <Select
+              value={verified === null ? "all" : verified ? "verified" : "pending"}
+              onChange={(e) => setVerified(e.target.value === "all" ? null : e.target.value === "verified")}
+              size="small"
+            >
+              <MenuItem value="all">All</MenuItem>
+              <MenuItem value="verified">Verified</MenuItem>
+              <MenuItem value="pending">Pending</MenuItem>
+            </Select>
             <Select value={deleted === null ? "all" : deleted ? "deleted" : "active"} onChange={(e) => setDeleted(e.target.value === "all" ? null : e.target.value === "deleted")} size="small">
               <MenuItem value="all">All</MenuItem>
               <MenuItem value="active">Active</MenuItem>
