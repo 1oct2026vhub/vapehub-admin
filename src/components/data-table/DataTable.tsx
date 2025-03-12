@@ -4,6 +4,7 @@ import { useMemo } from 'react';
 import FuseSvgIcon from '@fuse/core/FuseSvgIcon';
 import { Theme } from '@mui/material/styles/createTheme';
 import DataTableTopToolbar from './DataTableTopToolbar';
+import { usePathname, useSearchParams } from 'next/navigation';
 
 const tableIcons: Partial<MRT_Icons> = {
 	ArrowDownwardIcon: (props) => (
@@ -69,9 +70,21 @@ const tableIcons: Partial<MRT_Icons> = {
 	VisibilityOffIcon: () => <FuseSvgIcon size={20}>heroicons-outline:eye-slash</FuseSvgIcon>
 };
 function DataTable<TData extends { id: number }>(
-  props: MaterialReactTableProps<TData>
-)  {
+	props: MaterialReactTableProps<TData>
+) {
 	const { columns, data, ...rest } = props;
+	const searchParams = useSearchParams();
+	const id = searchParams.get("id");
+	const pathname = usePathname();
+
+	console.log("id",data);
+
+	console.log("iddd",id);
+	
+	
+
+	const isHidden = pathname === `/apps/customer/customer-detail/${data[0]?.id}`; // Change this to your condition
+
 
 	const defaults = useMemo(
 		() =>
@@ -82,7 +95,8 @@ function DataTable<TData extends { id: number }>(
 					showGlobalFilter: true,
 					columnPinning: {
 						left: ['mrt-row-expand', 'mrt-row-select'],
-						right: ['mrt-row-actions']
+						right: isHidden ? [] : ["mrt-row-actions"],
+						// right: ['mrt-row-actions']
 					},
 					// pagination: {
 					// 	pageSize: 10
@@ -200,13 +214,13 @@ function DataTable<TData extends { id: number }>(
 
 	const tableOptions = useMemo(
 		() => ({
-		  columns,
-		  data: data ?? [], // Ensure data is always an array
-		  ...defaults,
-		  ...rest
+			columns,
+			data: data ?? [], // Ensure data is always an array
+			...defaults,
+			...rest
 		}),
 		[columns, data, defaults, rest]
-	  );
+	);
 
 	const tableInstance = useMaterialReactTable<TData>(tableOptions);
 
