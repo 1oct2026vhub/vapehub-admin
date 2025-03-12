@@ -35,13 +35,13 @@ const schema = z.object({
 
   phone: z
   .string()
-  .regex(/^\+?\d+$/, { message: "Phone number must contain only numbers." }) // Only numbers with optional '+'
+  .regex(/^\+?\d*$/, { message: "Phone number must contain only numbers." }) // Allows only numbers with optional '+'
   .refine((val) => val.replace(/\D/g, "").length >= 8, {
     message: "Phone number must be between 8 to 16 digits.",
-  }) // Ensures at least 8 digits (ignores '+')
+  }) // Ensures at least 8 digits (ignoring '+')
   .refine((val) => val.replace(/\D/g, "").length <= 16, {
     message: "Phone number must not exceed 16 digits.",
-  }), // Ensures max 16 digits (ignores '+')
+  }), // Ensures max 16 digits (ignoring '+')
 
   password: z
     .string()
