@@ -1,43 +1,459 @@
-// import DataTable from './DataTable';
-import { MaterialReactTableProps } from 'material-react-table';
-import { Button } from '@mui/material';
-import DataTable from '@/components/data-table/DataTable';
+// import { useMemo, useState, useEffect } from "react";
+// import { type MRT_ColumnDef } from "material-react-table";
+// import DataTable from "@/components/data-table/DataTable";
+// import FuseLoading from "@fuse/core/FuseLoading";
+// import SearchIcon from "@mui/icons-material/Search";
+// import MenuIcon from "@mui/icons-material/Menu";
+// import {
+//   ListItemIcon,
+//   MenuItem,
+//   Paper,
+//   Select,
+//   TextField,
+//   Dialog,
+//   DialogTitle,
+//   DialogContent,
+//   DialogActions,
+//   Typography,
+//   Button,
+//   InputAdornment,
+//   IconButton,
+//   Drawer,
+//   List,
+//   ListItem,
+//   ListItemText,
+// } from "@mui/material";
+// import { listUser, deleteUser, restoreUser } from "@/services/apiService";
+// import { useFetch } from "@/hooks/useFetch";
+// import { mutate } from "swr";
+// import { useRouter } from "next/navigation";
+// import FuseSvgIcon from "../FuseSvgIcon";
+// import AppButton from "@/components/Shared/AppButton";
+// import { useRoles } from "@/hooks/roleFetch";
+// import { listProductBrand } from "@/services/apiProductBrand";
 
-export type ProductCategoryType = {
+// export type UserType = {
+//   id: number;
+//   first_name: string | null;
+//   last_name: string | null;
+//   email: string;
+//   phone: number;
+//   gender: string | null;
+//   dob: string | null;
+//   roleId: number | null;
+//   deletedAt: string | null;
+// };
+
+// const ProductBrandTable = () => {
+//   const router = useRouter();
+//   const [search, setSearch] = useState("");
+//   const [debouncedSearch, setDebouncedSearch] = useState("");
+//   const [roleId, setRoleId] = useState<number | "all">("all");
+//   const [order, setOrder] = useState<"ASC" | "DESC">("DESC");
+//   const [deleted, setDeleted] = useState<boolean | null>(null);
+//   const [openDialog, setOpenDialog] = useState(false);
+//   const [selectedUser, setSelectedUser] = useState<UserType | null>(null);
+//   const [openDrawer, setOpenDrawer] = useState(false); // Mobile Drawer state
+
+//   // Fetch roles at the top level of the component
+//   const { roles } = useRoles();
+
+//   // Debounce search input
+//   useEffect(() => {
+//     const timer = setTimeout(() => {
+//       setDebouncedSearch(search);
+//     }, 1000);
+//     return () => clearTimeout(timer);
+//   }, [search]);
+
+//   const queryParams = useMemo(
+//     () => ({
+//       search: debouncedSearch,
+//       // order,
+//       ...(deleted !== null && { deleted }),
+//       // ...(roleId !== "all" && { roleId }),
+//     }),
+//     [debouncedSearch, deleted, ]
+//   );
+
+//   const { data, error, isLoading } = useFetch(["productBrandList", queryParams], listProductBrand, queryParams);
+//   console.log("data",data);
+
+//   const [users, setUsers] = useState<UserType[]>(data?.data?.users || []);
+//   const deletedUser = users?.find(user => user.deletedAt !== null);
+
+//   useEffect(() => {
+//     if (data?.data?.users) {
+//       setUsers(data.data.users);
+//     }
+//   }, [data]);
+
+//   const handleDeleteClick = (user: UserType) => {
+//     setSelectedUser(user);
+//     setOpenDialog(true);
+//   };
+
+//   const handleConfirmDelete = async () => {
+//     if (!selectedUser) return;
+//     setOpenDialog(false);
+//     setUsers((prev) => prev.filter((user) => user.id !== selectedUser.id));
+
+//     try {
+//       // await deleteUser(selectedUser.id);
+//       await (deletedUser ? restoreUser(selectedUser.id) : deleteUser(selectedUser.id));
+
+//       mutate(["userList", queryParams]);
+//     } catch (error) {
+//       console.error("Delete error:", error);
+//     }
+//   };
+
+//   const handleEdit = (user: UserType) => {
+//     const userData = encodeURIComponent(JSON.stringify(user));
+//     router.push(`/apps/users/user-update/${user.id}?userData=${userData}`);
+//   };
+
+//   const columns = useMemo<MRT_ColumnDef<UserType>[]>(() => [
+//     { accessorKey: "first_name", header: "Id" },
+//     { accessorKey: "first_name", header: "Name" },
+//     { accessorKey: "last_name", header: "Price" },
+//     { accessorKey: "email", header: "Size" },
+//     { accessorKey: "role", header: "Brand" },
+//     { accessorKey: "phone", header: "Category" },
+//     { accessorKey: "gender", header: "Stock Quantity" },
+//     { accessorKey: "dob", header: "Battery Capacity" },
+//   ], []);
+
+//   if (isLoading) return <FuseLoading />;
+//   if (error) return <p>Failed to load users</p>;
+
+//   const userData: UserType[] = users?.map((user: any) => ({
+//     id: user.id,
+//     first_name: user.first_name,
+//     last_name: user.last_name,
+//     email: user.email,
+//     role: user.roles?.role || "N/A",
+//     roleId: user.roles?.id || "N/A",
+//     phone: user.phone,
+//     gender: user.gender,
+//     dob: user.dob ? new Date(user.dob).toISOString().split("T")[0] : "",
+//     deletedAt: user.deletedAt
+//   }));
+
+
+//   return (
+//     <>
+//       <Paper className="flex flex-col flex-auto shadow-1 overflow-hidden" elevation={0}>
+//         {/* Top Bar with Search & Filters */}
+//         <div className="flex items-center justify-between p-3">
+//           {/* Hamburger Button for Mobile */}
+//           <IconButton className="md:hidden" onClick={() => setOpenDrawer(true)}>
+//             <MenuIcon />
+//           </IconButton>
+
+//           {/* Search Bar */}
+//           <TextField
+//             label="Search"
+//             variant="outlined"
+//             value={search}
+//             onChange={(e) => setSearch(e.target.value)}
+//             size="small"
+//             InputProps={{
+//               endAdornment: (
+//                 <InputAdornment position="start">
+//                   <SearchIcon />
+//                 </InputAdornment>
+//               ),
+//             }}
+//             className="hidden md:block"
+//           />
+
+//           {/* Filters for larger screens */}
+//           <div className="hidden md:flex gap-2">
+//             {/* <Select value={roleId} onChange={(e) => setRoleId(e.target.value as number | "all")} size="small">
+//               <MenuItem value="all">All Roles</MenuItem>
+//               <MenuItem value={1}>Admin</MenuItem>
+//               <MenuItem value={2}>User</MenuItem>
+//             </Select> */}
+//             <Select value={roleId} onChange={(e) => setRoleId(e.target.value as number | "all")} size="small">
+//               <MenuItem value="all">All Roles</MenuItem>
+//               {roles?.map((role) => (
+//                 <MenuItem key={role.id} value={role.id}>
+//                   {role.role}
+//                 </MenuItem>
+//               ))}
+//             </Select>
+//             <Select
+//               value={deleted === null ? "all" : deleted ? "deleted" : "active"}
+//               onChange={(e) => setDeleted(e.target.value === "all" ? null : e.target.value === "deleted")}
+//               size="small"
+//             >
+//               <MenuItem value="all">All Users</MenuItem>
+//               <MenuItem value="active">Active</MenuItem>
+//               <MenuItem value="deleted">Deleted</MenuItem>
+//             </Select>
+//             <Select value={order} onChange={(e) => setOrder(e.target.value as "ASC" | "DESC")} size="small">
+//               <MenuItem value="DESC">Descending</MenuItem>
+//               <MenuItem value="ASC">Ascending</MenuItem>
+//             </Select>
+//           </div>
+//         </div>
+
+//         {/* User Data Table */}
+//         <DataTable
+//           data={userData}
+//           columns={columns}
+//           renderRowActionMenuItems={({ closeMenu, row }) => [
+//             <>
+//               {!deletedUser &&
+//                 <MenuItem key="edit" onClick={() => { handleEdit(row.original); closeMenu(); }}>
+//                   <ListItemIcon><FuseSvgIcon>heroicons-outline:pencil-square</FuseSvgIcon></ListItemIcon>
+//                   Edit
+//                 </MenuItem>
+//               }
+//             </>
+//             ,
+//             <MenuItem key="delete" onClick={() => { handleDeleteClick(row.original); closeMenu(); }}>
+//               <ListItemIcon><FuseSvgIcon>{deletedUser ? "heroicons-outline:arrow-path" : "heroicons-outline:trash"}</FuseSvgIcon></ListItemIcon>
+//               {deletedUser ? 'Restore' : 'Delete'}
+//             </MenuItem>,
+//           ]}
+//         />
+//       </Paper>
+//       {/* Mobile Drawer for Filters */}
+//       <Drawer anchor="left" open={openDrawer} onClose={() => setOpenDrawer(false)}>
+//         <List className="p-4 w-64">
+//           <ListItem>
+//             <ListItemText primary="Filters" />
+//           </ListItem>
+//           <ListItem>
+//             <TextField label="Search" value={search} onChange={(e) => setSearch(e.target.value)} fullWidth size="small" />
+//           </ListItem>
+//           <ListItem>
+//             {/* <Select value={roleId} onChange={(e) => setRoleId(e.target.value as number | "all")} fullWidth size="small">
+//               <MenuItem value="all">All Roles</MenuItem>
+//               <MenuItem value={1}>Admin</MenuItem>
+//               <MenuItem value={2}>User</MenuItem>
+//             </Select> */}
+//             <Select value={roleId} onChange={(e) => setRoleId(e.target.value as number | "all")} size="small">
+//               <MenuItem value="all">All Roles</MenuItem>
+//               {roles?.map((role) => (
+//                 <MenuItem key={role.id} value={role.id}>
+//                   {role.role}
+//                 </MenuItem>
+//               ))}
+//             </Select>
+//           </ListItem>
+//           <ListItem>
+//             <Select value={order} onChange={(e) => setOrder(e.target.value as "ASC" | "DESC")} size="small">
+//               <MenuItem value="DESC">Descending</MenuItem>
+//               <MenuItem value="ASC">Ascending</MenuItem>
+//             </Select>
+//           </ListItem>
+//           <ListItem>
+//             <Button fullWidth variant="contained" onClick={() => setOpenDrawer(false)}>Apply Filters</Button>
+//           </ListItem>
+//         </List>
+//       </Drawer>
+
+//       {/* Delete Confirmation Dialog */}
+//       <Dialog open={openDialog} onClose={() => setOpenDialog(false)}>
+//         <DialogTitle>Confirm Delete</DialogTitle>
+//         <DialogContent>
+//           <Typography>
+//             Are you sure you want to {deletedUser ? 'Restore' : 'Delete'} <strong>{selectedUser?.first_name} {selectedUser?.last_name}</strong>?
+//           </Typography>
+//         </DialogContent>
+//         <DialogActions>
+//           <Button onClick={() => setOpenDialog(false)} className="text-[#247C5C]">Cancel</Button>
+//           <AppButton className="w-14" label={deletedUser ? 'Restore' : 'Delete'} type="button" fullWidth size="large" onClick={handleConfirmDelete} />
+//         </DialogActions>
+//       </Dialog>
+//     </>
+//   );
+// };
+
+// export default ProductBrandTable;
+
+
+
+import { useMemo, useState, useEffect } from "react";
+import { type MRT_ColumnDef } from "material-react-table";
+import DataTable from "@/components/data-table/DataTable";
+import FuseLoading from "@fuse/core/FuseLoading";
+import {
+  Paper,
+  TextField,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Typography,
+  Button,
+  InputAdornment,
+  IconButton,
+  MenuItem,
+  ListItemIcon,
+} from "@mui/material";
+import SearchIcon from "@mui/icons-material/Search";
+import { listProductCategory, deleteCategory, restoreCategory } from "@/services/apiProductCategory";
+import { useFetch } from "@/hooks/useFetch";
+import { mutate } from "swr";
+import { useRouter } from "next/navigation";
+import AppButton from "@/components/Shared/AppButton";
+import FuseSvgIcon from "../FuseSvgIcon";
+
+export type CategoryType = {
   id: number;
-  categoryName: string;
+  name: string;
+  slug: string;
   description: string;
+  logo_url: string;
+  updatedAt: string;
+  deletedAt: string | null;
 };
 
-const columns: MaterialReactTableProps<ProductCategoryType>['columns'] = [
-  { accessorKey: 'id', header: 'ID', size: 50 },
-  { accessorKey: 'categoryName', header: 'Category Name', size: 200 },
-  { accessorKey: 'description', header: 'Description', size: 300 },
-  {
-    header: 'Actions',
-    id: 'actions',
-    Cell: ({ row }) => (
-      <Button
-        variant="contained"
-        color="primary"
-        size="small"
-        onClick={() => alert(`Editing ${row.original.categoryName}`)}
-      >
-        Edit
-      </Button>
-    ),
-  },
-];
+const ProductCategoryTable = () => {
+  const router = useRouter();
+  const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [deleted, setDeleted] = useState<boolean | null>(null);
+  const [openDialog, setOpenDialog] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState<CategoryType | null>(null);
 
-const data: ProductCategoryType[] = [
-  { id: 1, categoryName: 'Electronics', description: 'Devices and gadgets' },
-  { id: 2, categoryName: 'Furniture', description: 'Home and office furniture' },
-  { id: 3, categoryName: 'Clothing', description: 'Apparel and accessories' },
-];
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [search]);
 
-// Component rendering the table
-const ProductListTable = () => {
-  return <DataTable columns={columns} data={data} />;
+  const queryParams = useMemo(
+    () => ({
+      search: debouncedSearch,
+      ...(deleted !== null && { deleted }),
+    }),
+    [debouncedSearch, deleted]
+  );
+
+  const { data, error, isLoading } = useFetch(["productCategoryList", queryParams], listProductCategory, queryParams);
+  console.log("category", data);
+
+  const categories: CategoryType[] = data?.data?.categories || [];
+  const deletedCategory = categories?.find((category) => category.deletedAt !== null);
+
+  const handleDeleteClick = (category: CategoryType) => {
+    setSelectedCategory(category);
+    setOpenDialog(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!selectedCategory) return;
+    setOpenDialog(false);
+
+    try {
+      await (deletedCategory ? restoreCategory(selectedCategory.id) : deleteCategory(selectedCategory.id));
+      mutate(["productCategoryList", queryParams]);
+    } catch (error) {
+      console.error("Delete error:", error);
+    }
+  };
+
+  const handleEdit = (category: CategoryType) => {
+    router.push(
+      `/apps/product-category/category-update/${category.id}?categoryData=${encodeURIComponent(
+        JSON.stringify(category)
+      )}`
+    );
+  };
+
+  const columns = useMemo<MRT_ColumnDef<CategoryType>[]>(
+    () => [
+      { accessorKey: "id", header: "ID" },
+      { accessorKey: "name", header: "Category Name" },
+      { accessorKey: "slug", header: "Slug" },
+      { accessorKey: "description", header: "Description" },
+      { accessorKey: "updatedAt", header: "Last Updated" },
+      {
+        accessorKey: "logo_url",
+        header: "Logo",
+        Cell: ({ row }) => (
+          <img src={row.original.logo_url} alt={row.original.name} width={50} height={50} />
+        ),
+      },
+    ],
+    []
+  );
+
+  if (isLoading) return <FuseLoading />;
+  if (error) return <p>Failed to load categories</p>;
+
+  return (
+    <Paper className="flex flex-col flex-auto shadow-1 overflow-hidden" elevation={0}>
+      <div className="flex items-center justify-between p-3">
+        <TextField
+          label="Search"
+          variant="outlined"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          size="small"
+          InputProps={{
+            endAdornment: (
+              <InputAdornment position="start">
+                <SearchIcon />
+              </InputAdornment>
+            ),
+          }}
+        />
+      </div>
+
+      <DataTable
+        data={categories}
+        columns={columns}
+        renderRowActionMenuItems={({ closeMenu, row }) => [
+          <>
+            <MenuItem
+              key="view-details"
+              onClick={() => {
+                router.push(`/apps/product-category/category-detail/${row.original.id}`);
+                closeMenu();
+              }}
+            >
+              <ListItemIcon>
+                <FuseSvgIcon>heroicons-outline:arrow-top-right-on-square</FuseSvgIcon>
+              </ListItemIcon>
+              View Details
+            </MenuItem>
+            <MenuItem key="edit" onClick={() => { handleEdit(row.original); closeMenu(); }}>
+              <ListItemIcon><FuseSvgIcon>heroicons-outline:pencil-square</FuseSvgIcon></ListItemIcon>
+              Edit
+            </MenuItem>
+            <MenuItem key="delete" onClick={() => { handleDeleteClick(row.original); closeMenu(); }}>
+              <ListItemIcon>
+                <FuseSvgIcon>
+                  {deletedCategory ? "heroicons-outline:arrow-path" : "heroicons-outline:trash"}
+                </FuseSvgIcon>
+              </ListItemIcon>
+              {deletedCategory ? 'Restore' : 'Delete'}
+            </MenuItem>
+          </>
+        ]}
+      />
+
+      <Dialog open={openDialog} onClose={() => setOpenDialog(false)}>
+        <DialogTitle>Confirm Delete</DialogTitle>
+        <DialogContent>
+          <Typography>
+            Are you sure you want to {deletedCategory ? 'Restore' : 'Delete'} <strong>{selectedCategory?.name}</strong>?
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenDialog(false)}>Cancel</Button>
+          <AppButton label={deletedCategory ? 'Restore' : 'Delete'} type="button" onClick={handleConfirmDelete} />
+        </DialogActions>
+      </Dialog>
+    </Paper>
+  );
 };
 
-export default ProductListTable;
+export default ProductCategoryTable;
