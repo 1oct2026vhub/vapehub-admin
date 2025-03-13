@@ -4,6 +4,7 @@ import FusePageSimple from '@fuse/core/FusePageSimple';
 import { useTranslation } from 'react-i18next';
 import { styled } from '@mui/material/styles';
 import ProductBrandTable from '@fuse/core/ProductBrandTable';
+import ProductCategoryTable from '@fuse/core/ProductCategoryTable';
 
 const Root = styled(FusePageSimple)(({ theme }) => ({
 	'& .FusePageSimple-header': {
@@ -24,7 +25,7 @@ function Example() {
 			content={
 				<div className="mt-4">				
 					<br />
-					<ProductBrandTable/>
+					<ProductCategoryTable/>
 				</div>
 			}
 		/>
