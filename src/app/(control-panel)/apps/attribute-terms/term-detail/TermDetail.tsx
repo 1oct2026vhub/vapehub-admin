@@ -7,17 +7,20 @@ import { getAttributeTermDetails } from "@/services/apiAttributeTerm";
 import FuseLoading from "@fuse/core/FuseLoading";
 import DataTable from "@/components/data-table/DataTable";
 import type { MRT_ColumnDef } from "material-react-table";
+import { useParams } from "next/navigation";
 
 interface TermDetailProps {
   id: string;
 }
 
-const TermDetail = ({ id }: TermDetailProps) => {
-  const { data, error, isLoading } = useFetch(
-    ["termDetail", id],
-    () => getAttributeTermDetails(id),
-    { revalidateOnFocus: false },
-  );
+const TermDetail = () => {
+  const params = useParams();
+    const id = params?.id;
+    const { data, error, isLoading } = useFetch(
+      ["termDetail", id],
+      () => getAttributeTermDetails(id as string), // ✅ Explicitly cast as string
+      { revalidateOnFocus: false },
+    );
 
   const term = data?.data;
 

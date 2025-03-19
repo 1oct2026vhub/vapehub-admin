@@ -61,6 +61,12 @@ export interface ProductFormData {
   hasErrors: boolean;
   completedSteps: number[];
   attributesResponse?: any; // API response from attributes endpoint
+
+  productImages?: Array<{
+    id: number;
+    url: string;
+    is_primary: boolean;
+  }>;
 }
 
 interface ProductFormContextType {

@@ -11,12 +11,12 @@ import _ from "lodash";
 import LightDarkModeToggle from "src/components/LightDarkModeToggle";
 import useFuseLayoutSettings from "@fuse/core/FuseLayout/useFuseLayoutSettings";
 import { useToolbarTheme } from "@fuse/core/FuseSettings/hooks/fuseThemeHooks";
-import AdjustFontSize from "../../components/AdjustFontSize";
-import FullScreenToggle from "../../components/FullScreenToggle";
-import LanguageSwitcher from "../../components/LanguageSwitcher";
-import NavigationShortcuts from "../../components/navigation/NavigationShortcuts";
+// import AdjustFontSize from "../../components/AdjustFontSize";
+// import FullScreenToggle from "../../components/FullScreenToggle";
+// import LanguageSwitcher from "../../components/LanguageSwitcher";
+// import NavigationShortcuts from "../../components/navigation/NavigationShortcuts";
 import NavigationSearch from "../../components/navigation/NavigationSearch";
-import QuickPanelToggleButton from "../../components/quickPanel/QuickPanelToggleButton";
+// import QuickPanelToggleButton from "../../components/quickPanel/QuickPanelToggleButton";
 import { Layout1ConfigDefaultsType } from "@/components/theme-layouts/layout1/Layout1Config";
 import useThemeMediaQuery from "../../../../@fuse/hooks/useThemeMediaQuery";
 

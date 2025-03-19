@@ -37,8 +37,7 @@ function ProfileApp() {
   }
 
   return (
-    <Root
-      header={
+ <div>
         <div className="flex flex-col w-full">
           <img
             className="h-40 lg:h-80 object-cover w-full"
@@ -100,16 +99,13 @@ function ProfileApp() {
             </div>
           </div>
         </div>
-      }
-      content={
+   
         <div className="flex flex-auto justify-center w-full max-w-7xl mx-auto p-6 sm:p-8">
           {/* {selectedTab === 'timeline' && <TimelineTab />} */}
           {selectedTab === "about" && <AboutTab />}
           {/* {selectedTab === 'photos-videos' && <PhotosVideosTab />} */}
         </div>
-      }
-      scroll={isMobile ? "normal" : "page"}
-    />
+        </div>  
   );
 }
 

@@ -331,6 +331,6 @@ function FusePageSimple(props: FusePageSimpleProps) {
   );
 }
 
-const StyledFusePageSimple = memo(styled(FusePageSimple)``);
+const StyledFusePageSimple: React.FC = memo(styled(FusePageSimple)``);
 
 export default StyledFusePageSimple;

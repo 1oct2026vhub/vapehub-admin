@@ -82,16 +82,16 @@ function FormFileUpload({
     setValue(name, null, { shouldValidate: true });
   };
 
-  return (
-    <Controller
-      name={name}
-      control={control}
+    return (
+        <Controller
+            name={name}
+            control={control}
       render={({
         field: { onChange, value },
         fieldState: { error: fieldError },
       }) => (
         <Box className="flex flex-col space-y-4">
-          <Typography>{label}</Typography>
+                    <Typography>{label}</Typography>
 
           {/* Preview Area */}
           {previewUrl && (
@@ -116,14 +116,14 @@ function FormFileUpload({
           {/* Upload Button */}
           {!previewUrl && (
             <>
-              <input
-                type="file"
+                    <input
+                        type="file"
                 accept={ACCEPTED_FILE_TYPES.join(",")}
                 onChange={(e) => handleFileChange(e, onChange)}
-                hidden
-                id={name}
-              />
-              <label htmlFor={name}>
+                        hidden
+                        id={name}
+                    />
+                    <label htmlFor={name}>
                 <Box
                   className="border-2 border-dashed border-gray-300 rounded-lg p-6 cursor-pointer hover:border-[#2E9970] transition-colors"
                   sx={{
@@ -147,7 +147,7 @@ function FormFileUpload({
                     </Typography>
                   </div>
                 </Box>
-              </label>
+                    </label>
             </>
           )}
 
@@ -158,9 +158,9 @@ function FormFileUpload({
             </Typography>
           )}
         </Box>
-      )}
-    />
-  );
+            )}
+        />
+    );
 }
 
 export default FormFileUpload;

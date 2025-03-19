@@ -70,7 +70,7 @@ function NavbarStyle2Content(props: NavbarStyle2ContentProps) {
       <Divider sx={{ bgcolor: "#2E9970" }} />
 
       <div className="p-1 md:p-2.5 w-full">
-        <UserMenu className="w-full" />
+        <UserMenu className="w-full" popoverProps={{}}/>
       </div>
     </Root>
   );

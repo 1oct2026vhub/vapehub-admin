@@ -12,7 +12,7 @@ const EditVariantPage = () => {
 
   //   if (!user) return <p>No user data found.</p>;
 
-  return <EditForm variant={variant} />;
+  return <EditForm  />;
 };
 
 export default EditVariantPage;

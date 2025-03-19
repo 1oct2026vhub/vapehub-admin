@@ -5,7 +5,7 @@ import SignOutPage from "./SignOutPage";
 
 function Page() {
   return (
-    <AuthGuardRedirect auth={null}>
+    <AuthGuardRedirect>
       <SignOutPage />
     </AuthGuardRedirect>
   );

@@ -20,14 +20,13 @@ const Root = styled(FusePageSimple)(({ theme }) => ({
 
 function Example() {
   return (
-    <Root
-      content={
+    // <Root
+    //   content={
         <div className="mt-4">
-          <br />
           <ProductCategoryTable />
         </div>
-      }
-    />
+    //   }
+    // />
   );
 }
 

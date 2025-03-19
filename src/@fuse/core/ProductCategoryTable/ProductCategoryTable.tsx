@@ -269,8 +269,8 @@ const ProductCategoryTable = () => {
                 <ListItemIcon>
                   <FuseSvgIcon>heroicons-outline:pencil-square</FuseSvgIcon>
                 </ListItemIcon>
-                Edit
-              </MenuItem>
+              Edit
+            </MenuItem>
             ),
 
             <MenuItem

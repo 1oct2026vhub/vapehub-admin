@@ -286,9 +286,9 @@ const AttributeTermTable = ({ attributeId }: AttributeTermTableProps) => {
           <MenuItem
             key="view-details"
             onClick={() => {
-              router.push(
-                `/apps/attribute-terms/term-detail/${row.original.id}`,
-              );
+              // router.push(
+              //   `/apps/attribute-terms/term-detail/${row.original.id}`,
+              // );
               closeMenu();
             }}
           >

@@ -112,23 +112,34 @@ function VariantTab() {
     if (formData.attributesResponse) {
       console.log("Attributes API Response:", formData.attributesResponse);
     }
-  }, [formData.attributesResponse]);
+    
+    if (formData.productId) {
+      console.log("VariantTab - Product ID:", formData.productId);
+      if (formData.productImages) {
+        console.log("VariantTab - Product Images:", formData.productImages);
+        // Here you can use the product images data if needed
+      }
+    }
+  }, [formData.attributesResponse, formData.productId, formData.productImages]);
 
   const variationAttributes = (formData.attributes || [])
     .filter((attr) => attr.used_in_variation && attr.attribute_id > 0)
     .map((attr) => ({
       ...attr,
-      terms: attr.term_ids.map((termId: number) => {
-        const term = formData.attributesResponse?.productAttributeTerms?.find(
-          (term) => term.term_id === termId,
-        );
+      terms: attr.term_ids
+        .map((termId: number) => {
+          const term = formData.attributesResponse?.productAttributeTerms?.find(
+            (term) => term.term_id === termId && term.used_in_variation
+          );
 
-        return {
-          value: termId,
-          label: term?.term?.name || `Term ${termId}`,
-        };
-      }),
-    }));
+          return term ? {
+            value: termId,
+            label: term.term?.name || `Term ${termId}`,
+          } : null;
+        })
+        .filter(Boolean), // Remove null values
+    }))
+    .filter((attr) => attr.terms.length > 0); // Only keep attributes with terms
 
   const defaultVariant = {
     slug: "",
@@ -146,7 +157,7 @@ function VariantTab() {
     description: null,
     attributes: variationAttributes.map((attr) => ({
       attribute_id: attr.attribute_id,
-      term_id: attr.term_ids[0] || 0,
+      term_id: attr.terms[0]?.value || 0, // Use first term or 0 if no terms
     })),
   };
 

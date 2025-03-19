@@ -10,17 +10,20 @@ import {
 } from "@mui/material";
 
 interface FormSelectFieldProps {
-  name: string;
+    name: string;
   control: Control<any>;
   label: string;
-  options: Array<{
-    value: number;
-    label: string;
-  }>;
+  // options: Array<{
+  //   value: number;
+  //   label: string;
+  // }>;
+  options: { value: string | number; label: string }[];  
   required?: boolean;
   isMulti?: boolean;
   onChange?: (event: SelectChangeEvent<any>) => void;
   onTermRemove?: (termId: number) => void;
+  defaultValue?: string | number;  // ✅ Added defaultValue prop
+
 }
 
 function FormSelectField({
@@ -32,11 +35,13 @@ function FormSelectField({
   isMulti,
   onChange,
   onTermRemove,
+  defaultValue,  // ✅ Accepting defaultValue prop
+
 }: FormSelectFieldProps) {
-  return (
-    <Controller
-      name={name}
-      control={control}
+    return (
+        <Controller
+            name={name}
+            control={control}
       rules={{ required: required ? "This field is required" : false }}
       render={({
         field: { onChange: fieldOnChange, value },
@@ -101,18 +106,18 @@ function FormSelectField({
             }}
           >
             {options.map((option) => (
-              <MenuItem key={option.value} value={option.value}>
-                {option.label}
-              </MenuItem>
-            ))}
-          </Select>
+                            <MenuItem key={option.value} value={option.value}>
+                                {option.label}
+                            </MenuItem>
+                        ))}
+                    </Select>
           {error && (
             <span className="text-red-500 text-sm">{error.message}</span>
           )}
-        </FormControl>
-      )}
-    />
-  );
+                </FormControl>
+            )}
+        />
+    );
 }
 
 export default FormSelectField;

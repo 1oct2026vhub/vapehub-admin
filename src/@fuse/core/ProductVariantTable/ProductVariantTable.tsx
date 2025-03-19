@@ -186,36 +186,36 @@ const ProductVariantTable = () => {
 
   const columns = useMemo<MRT_ColumnDef<ProductType>[]>(
     () => [
-      { accessorKey: "id", header: "ID" },
-      { accessorKey: "name", header: "Name" },
-      { accessorKey: "description", header: "Description" },
-      {
-        accessorKey: "price",
-        header: "Price",
-        Cell: ({ row }) => {
+    { accessorKey: "id", header: "ID" },
+    { accessorKey: "name", header: "Name" },
+    { accessorKey: "description", header: "Description" },
+    { 
+      accessorKey: "price", 
+      header: "Price",
+      Cell: ({ row }) => {
           const price =
             typeof row.original.price === "string"
-              ? parseFloat(row.original.price)
-              : row.original.price;
-          return `$${Number(price).toFixed(2)}`;
+          ? parseFloat(row.original.price) 
+          : row.original.price;
+        return `$${Number(price).toFixed(2)}`;
         },
-      },
-      { accessorKey: "stock_quantity", header: "Stock" },
-      { accessorKey: "category_name", header: "Category" },
-      { accessorKey: "brand_name", header: "Brand" },
-      {
-        accessorKey: "is_new",
-        header: "Status",
-        Cell: ({ row }) => (
-          <Chip
-            label={row.original.is_new ? "New" : "Regular"}
-            color={row.original.is_new ? "success" : "default"}
-          />
-        ),
-      },
-      {
-        accessorKey: "createdAt",
-        header: "Created At",
+    },
+    { accessorKey: "stock_quantity", header: "Stock" },
+    { accessorKey: "category_name", header: "Category" },
+    { accessorKey: "brand_name", header: "Brand" },
+    {
+      accessorKey: "is_new",
+      header: "Status",
+      Cell: ({ row }) => (
+        <Chip 
+          label={row.original.is_new ? "New" : "Regular"} 
+          color={row.original.is_new ? "success" : "default"} 
+        />
+      ),
+    },
+    {
+      accessorKey: "createdAt",
+      header: "Created At",
         Cell: ({ row }) =>
           new Date(row.original.createdAt).toLocaleDateString("en-GB"),
       },
@@ -467,22 +467,22 @@ const ProductVariantTable = () => {
         />
 
         {/* <div className="flex justify-center p-4">
-               <Pagination
-                 count={totalPages}
-                 page={page}
+          <Pagination
+            count={totalPages}
+            page={page}
                  onChange={(_, newPage) => setPage(newPage)}
-                 shape="rounded"
-                 color="primary"
-                 renderItem={(item) => (
-                   <PaginationItem
-                     {...item}
-                     className="text-gray-600 hover:text-[#2E9970]"
-                     sx={{
-                       "&.Mui-selected": {
-                         backgroundColor: "#2E9970",
-                         color: "#fff",
-                         "&:hover": {
-                           backgroundColor: "#247C5C",
+            shape="rounded"
+            color="primary"
+            renderItem={(item) => (
+              <PaginationItem
+                {...item}
+                className="text-gray-600 hover:text-[#2E9970]"
+                sx={{
+                  "&.Mui-selected": {
+                    backgroundColor: "#2E9970",
+                    color: "#fff",
+                    "&:hover": {
+                      backgroundColor: "#247C5C",
                          },
                        },
                      }}

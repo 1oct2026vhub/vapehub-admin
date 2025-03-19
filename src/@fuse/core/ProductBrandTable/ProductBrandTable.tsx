@@ -64,10 +64,10 @@ const ProductBrandTable = () => {
 
   const queryParams = useMemo(
     () => ({
-      search: debouncedSearch,
+    search: debouncedSearch,
       page,
       limit,
-      ...(deleted !== null && { deleted }),
+    ...(deleted !== null && { deleted }),
     }),
     [debouncedSearch, deleted, page, limit],
   );
@@ -130,7 +130,7 @@ const ProductBrandTable = () => {
         );
 
         // Sync with the server data only if the API call is successful
-        mutate(["productBrandList", queryParams]);
+      mutate(["productBrandList", queryParams]);
       } else {
         throw new Error(result?.message || "Unexpected server response");
       }
@@ -167,10 +167,10 @@ const ProductBrandTable = () => {
 
   const columns = useMemo<MRT_ColumnDef<BrandType>[]>(
     () => [
-      { accessorKey: "id", header: "ID" },
-      { accessorKey: "name", header: "Brand Name" },
-      { accessorKey: "slug", header: "Slug" },
-      { accessorKey: "description", header: "Description" },
+    { accessorKey: "id", header: "ID" },
+    { accessorKey: "name", header: "Brand Name" },
+    { accessorKey: "slug", header: "Slug" },
+    { accessorKey: "description", header: "Description" },
       {
         accessorKey: "updatedAt",
         header: "Last Updated",
@@ -178,9 +178,9 @@ const ProductBrandTable = () => {
           new Date(row.original.updatedAt).toLocaleDateString("en-GB"),
       },
       // { accessorKey: "updatedAt", header: "Last Updated" },
-      {
-        accessorKey: "logo_url",
-        header: "Logo",
+    {
+      accessorKey: "logo_url",
+      header: "Logo",
         Cell: ({ row }) => (
           <img
             src={row.original.logo_url}
@@ -289,38 +289,38 @@ const ProductBrandTable = () => {
           const menuItems = [
             // View Details MenuItem
             !row.original.deletedAt && (
-              <MenuItem
-                key="view-details"
-                onClick={() => {
+            <MenuItem
+              key="view-details"
+              onClick={() => {
                   router.push(
                     `/apps/product-brand/brand-detail/${row.original.id}`,
                   );
-                  closeMenu();
-                }}
-              >
-                <ListItemIcon>
+                closeMenu();
+              }}
+            >
+              <ListItemIcon>
                   <FuseSvgIcon>
                     heroicons-outline:arrow-top-right-on-square
                   </FuseSvgIcon>
-                </ListItemIcon>
-                View Details
-              </MenuItem>
+              </ListItemIcon>
+              View Details
+            </MenuItem>
             ),
 
             // Edit MenuItem (conditionally rendered)
             !row.original.deletedAt && (
-              <MenuItem
-                key="edit"
+            <MenuItem
+              key="edit"
                 onClick={() => {
                   handleEdit(row.original);
                   closeMenu();
                 }}
-              >
+            >
                 <ListItemIcon>
                   <FuseSvgIcon>heroicons-outline:pencil-square</FuseSvgIcon>
                 </ListItemIcon>
-                Edit
-              </MenuItem>
+              Edit
+            </MenuItem>
             ),
 
             // Delete/Restore MenuItem

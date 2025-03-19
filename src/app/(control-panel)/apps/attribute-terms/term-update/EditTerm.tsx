@@ -3,7 +3,7 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { Alert, Typography } from "@mui/material";
 import AppButton from "@/components/Shared/AppButton";
 import FormInputField from "@/components/Shared/FormInputField";
@@ -33,7 +33,9 @@ interface EditTermProps {
   id: string;
 }
 
-function EditTerm({ id }: EditTermProps) {
+function EditTerm() {
+  const params = useParams();
+    const id = params?.id;
   const router = useRouter();
   const { showSnackbar } = useSnackbar();
   const [isLoading, setIsLoading] = useState(false);
@@ -41,7 +43,7 @@ function EditTerm({ id }: EditTermProps) {
   // Fetch term details
   const { data: termData } = useFetch(
     ["termDetail", id],
-    () => getAttributeTermDetails(id),
+    () => getAttributeTermDetails(id as string),
     { revalidateOnFocus: false },
   );
 
@@ -72,7 +74,7 @@ function EditTerm({ id }: EditTermProps) {
   const onSubmit = async (formData: FormType) => {
     try {
       setIsLoading(true);
-      await triggerUpdateTerm(id, formData);
+      await triggerUpdateTerm({id, ...formData});
       showSnackbar("Term updated successfully!", "success");
       router.push("/apps/attribute-terms");
     } catch (error: any) {

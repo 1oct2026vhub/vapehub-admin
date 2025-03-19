@@ -105,7 +105,10 @@ const FormSearchableSelectField: React.FC<FormSearchableSelectFieldProps> = ({
         <Autocomplete
           options={options}
           getOptionLabel={(option) => option.label}
-          isOptionEqualToValue={(option, value) => option.value === value}
+          // isOptionEqualToValue={(option, value) => option.value === value}
+          isOptionEqualToValue={(option, value) => 
+            option.value === (value as Option)?.value  // ✅ Proper type assertion
+          }
           value={getSelectedOption(field.value)} // ✅ Properly map selected value
           onChange={(_, newValue) =>
             field.onChange(newValue ? newValue.value : "")

@@ -50,6 +50,7 @@ export type UserType = {
   blocked: boolean;
   deletedAt: string | null;
   email_verified_at: string | null;
+  createdAt:string | null;
 };
 
 const CustomerTable = () => {

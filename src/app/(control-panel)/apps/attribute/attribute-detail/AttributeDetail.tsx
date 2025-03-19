@@ -38,7 +38,7 @@
 //   );
 
 //   console.log("brand",data);
-
+  
 //   useEffect(() => {
 //     if (data?.data) {
 //       setCustomerDetail(data.data);
@@ -68,7 +68,7 @@
 //     last_name: customerDetail.last_name,
 //     email: customerDetail.email,
 //     createdAt: customerDetail.createdAt
-//     ? new Date(customerDetail.createdAt).toLocaleDateString("en-GB").replace(/\//g, "-")
+//     ? new Date(customerDetail.createdAt).toLocaleDateString("en-GB").replace(/\//g, "-") 
 //     : "",
 //     phone: customerDetail.phone,
 //     gender: customerDetail.gender,
@@ -123,14 +123,14 @@ export default function AttributeDetail() {
   }
 
   const { data, error, isLoading } = useFetch(["attributeDetail", id], () =>
-    getAttributeDetails(id),
+    getAttributeDetails(id as string),
   );
 
   console.log("brand", data);
 
   useEffect(() => {
     if (data?.data) {
-      setAttributeDetail(data.data);
+        setAttributeDetail(data.data);
     }
   }, [data]);
 

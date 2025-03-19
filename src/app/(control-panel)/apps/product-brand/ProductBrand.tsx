@@ -21,17 +21,15 @@ function Example() {
   const { t } = useTranslation("examplePage");
 
   return (
-    <Root
-      content={
+    // <Root
+    //   content={
         <div className="mt-4">
-          {/* <h4>Content</h4> */}
-          <br />
           <ProductBrandTable />
           {/* <DemoContent /> */}
           {/* <DataTable/> */}
         </div>
-      }
-    />
+    //   }
+    // />
   );
 }
 

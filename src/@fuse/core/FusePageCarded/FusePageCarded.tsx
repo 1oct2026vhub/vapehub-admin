@@ -11,6 +11,7 @@ import FusePageCardedSidebar from "./FusePageCardedSidebar";
 import FusePageCardedHeader from "./FusePageCardedHeader";
 import { FuseScrollbarsProps } from "../FuseScrollbars/FuseScrollbars";
 
+
 const headerHeight = 120;
 const toolbarHeight = 64;
 
@@ -298,6 +299,6 @@ function FusePageCarded(props: FusePageCardedProps) {
   );
 }
 
-const StyledFusePageCarded = memo(styled(FusePageCarded)``);
+const StyledFusePageCarded: React.FC<FusePageCardedProps> = memo(styled(FusePageCarded)``);
 
 export default StyledFusePageCarded;

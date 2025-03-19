@@ -178,7 +178,7 @@ const ProductListTable = () => {
       {
         accessorKey: "is_new",
         header: "Status",
-        Cell: ({ row }) => (
+    Cell: ({ row }) => (
           <Chip
             label={row.original.is_new ? "New" : "Regular"}
             color={row.original.is_new ? "success" : "default"}

@@ -6,7 +6,9 @@ import SignUpPage from "./SignUpPage";
 
 function Page() {
   return (
-    <AuthGuardRedirect auth={authRoles.onlyGuest}>
+    // <AuthGuardRedirect auth={authRoles.onlyGuest}>
+
+    <AuthGuardRedirect>
       <SignUpPage />
     </AuthGuardRedirect>
   );

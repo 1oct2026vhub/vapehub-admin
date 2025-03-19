@@ -3,7 +3,7 @@ import clsx from "clsx";
 import Button from "@mui/material/Button";
 import FuseSvgIcon from "@fuse/core/FuseSvgIcon";
 import Dialog from "@mui/material/Dialog";
-import FuseHighlight from "@fuse/core/FuseHighlight";
+// import FuseHighlight from "@fuse/core/FuseHighlight";
 import DialogTitle from "@mui/material/DialogTitle";
 import DialogActions from "@mui/material/DialogActions";
 import DialogContent from "@mui/material/DialogContent";
@@ -59,9 +59,9 @@ function FuseSettingsViewerDialog(props: FuseSettingsViewerDialogProps) {
         <DialogContent>
           <Typography className="mb-4 mt-6 text-lg font-bold">JSON</Typography>
 
-          <FuseHighlight component="pre" className="language-json">
+          {/* <FuseHighlight component="pre" className="language-json">
             {JSON.stringify(settings, null, 2)}
-          </FuseHighlight>
+          </FuseHighlight> */}
 
           <Typography className="mb-4 mt-6 text-lg font-bold">
             Query Params

@@ -21,8 +21,10 @@ export type ProductType = {
 
 export default function ProductDetailTable() {
   const params = useParams();
-  const id = params?.id;
+  const idParam = params?.id;
 
+  // ✅ Ensure ID is properly cast as a number or set to `null` if invalid
+  const id = Array.isArray(idParam) ? parseInt(idParam[0]) : parseInt(idParam || "");
   const [productDetail, setProductDetail] = useState<ProductType | null>(null);
 
   if (!id || isNaN(Number(id))) {

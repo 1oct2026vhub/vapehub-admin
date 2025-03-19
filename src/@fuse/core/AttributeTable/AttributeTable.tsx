@@ -108,7 +108,7 @@ const AttributeTable = () => {
       await (selectedAttribute.deleted_at
         ? restoreAttribute(selectedAttribute.id)
         : deleteAttribute(selectedAttribute.id));
-      showSnackbar(
+        showSnackbar(
         `Attribute ${selectedAttribute.deleted_at ? "restored" : "deleted"} successfully`,
         "success",
       );
@@ -226,9 +226,9 @@ const AttributeTable = () => {
         </div>
       </div>
 
-      <DataTable
+        <DataTable
         data={attributes}
-        columns={columns}
+          columns={columns}
         // renderRowActionMenuItems={({ closeMenu, row }) => [
         //   <>
         //         <MenuItem
@@ -266,81 +266,81 @@ const AttributeTable = () => {
         //   </>
         // ]}
         renderRowActionMenuItems={({ closeMenu, row }) => [
-          <MenuItem
-            key="view-details"
-            onClick={() => {
+                <MenuItem
+                  key="view-details"
+                  onClick={() => {
               router.push(
                 `/apps/attribute/attribute-detail/${row.original.id}`,
               );
-              closeMenu();
-            }}
-          >
-            <ListItemIcon>
+                    closeMenu();
+                  }}
+                >
+                  <ListItemIcon>
               <FuseSvgIcon>
                 heroicons-outline:arrow-top-right-on-square
               </FuseSvgIcon>
-            </ListItemIcon>
-            View Details
+                  </ListItemIcon>
+                  View Details
           </MenuItem>,
 
           !row.original.deleted_at && (
-            <MenuItem
+              <MenuItem
               key="edit"
-              onClick={() => {
+                onClick={() => {
                 handleEdit(row.original);
-                closeMenu();
-              }}
-            >
-              <ListItemIcon>
+                  closeMenu();
+                }}
+              >
+                <ListItemIcon>
                 <FuseSvgIcon>heroicons-outline:pencil-square</FuseSvgIcon>
-              </ListItemIcon>
+                </ListItemIcon>
               Edit
             </MenuItem>
           ),
 
-          <MenuItem
+                <MenuItem
             key="delete"
-            onClick={() => {
+                  onClick={() => {
               handleDeleteClick(row.original);
-              closeMenu();
-            }}
-          >
-            <ListItemIcon>
-              <FuseSvgIcon>
+                    closeMenu();
+                  }}
+                >
+                  <ListItemIcon>
+                    <FuseSvgIcon>
                 {row.original.deleted_at
                   ? "heroicons-outline:arrow-path"
                   : "heroicons-outline:trash"}
-              </FuseSvgIcon>
-            </ListItemIcon>
+                    </FuseSvgIcon>
+                  </ListItemIcon>
             {row.original.deleted_at ? "Restore" : "Delete"}
           </MenuItem>,
         ]}
       />
 
       <div className="flex justify-center p-4">
-        <Pagination
-          count={totalPages}
-          page={page}
+          <Pagination
+            count={totalPages}
+            page={page}
           onChange={(_, newPage) => setPage(newPage)}
-          shape="rounded"
-          color="primary"
-          renderItem={(item) => (
-            <PaginationItem
-              {...item}
-              className="text-gray-600 hover:text-[#2E9970]"
-              sx={{
-                "&.Mui-selected": {
+            shape="rounded"
+            color="primary"
+            renderItem={(item) => (
+              <PaginationItem
+                {...item}
+                className="text-gray-600 hover:text-[#2E9970]"
+                sx={{
+                  "&.Mui-selected": {
                   backgroundColor: "#2E9970",
                   color: "#fff",
-                  "&:hover": {
+                    "&:hover": {
                     backgroundColor: "#247C5C",
                   },
-                },
-              }}
-            />
-          )}
-        />
-      </div>
+                  },
+                }}
+              />
+            )}
+          />
+        </div>
 
       <Dialog open={openDialog} onClose={() => setOpenDialog(false)}>
         <DialogTitle>

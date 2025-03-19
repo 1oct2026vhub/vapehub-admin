@@ -75,26 +75,26 @@ function BrandHeader() {
     }
   };
 
-  return (
-    <div className="flex grow-0 flex-1 w-full items-center justify-between space-y-2 sm:space-y-0 py-6 sm:py-8">
-      <motion.span
-        initial={{ x: -20 }}
-        animate={{ x: 0, transition: { delay: 0.2 } }}
-      >
-        <div>
-          {/* <PageBreadcrumb className="mb-2" /> */}
+    return (
+        <div className="flex grow-0 flex-1 w-full items-center justify-between space-y-2 sm:space-y-0 py-6 sm:py-8">
+            <motion.span
+                initial={{ x: -20 }}
+                animate={{ x: 0, transition: { delay: 0.2 } }}
+            >
+                <div>
+                    {/* <PageBreadcrumb className="mb-2" /> */}
           <Typography className="text-4xl font-extrabold leading-none tracking-tight">
             Brand
           </Typography>
-        </div>
-      </motion.span>
+                </div>
+            </motion.span>
 
-      <div className="flex flex-1 items-center justify-end space-x-2">
-        <motion.div
+            <div className="flex flex-1 items-center justify-end space-x-2">
+                <motion.div
           className="flex grow-0 gap-2"
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0, transition: { delay: 0.2 } }}
-        >
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0, transition: { delay: 0.2 } }}
+                >
           <input
             type="file"
             ref={fileInputRef}
@@ -148,26 +148,26 @@ function BrandHeader() {
             </MenuItem>
           </Menu>
 
-          <AppButton
-            label={
-              <>
-                <FuseSvgIcon size={20}>heroicons-outline:plus</FuseSvgIcon>
+                    <AppButton
+                        label={
+                            <>
+                                <FuseSvgIcon size={20}>heroicons-outline:plus</FuseSvgIcon>
                 <span className="">Create</span>
-              </>
-            }
-            type="submit"
-            // color="secondary"
+                            </>
+                        }
+                        type="submit"
+                        // color="secondary"
             // fullWidth
-            className=""
-            variant="contained"
-            component={NavLinkAdapter}
-            to="/apps/product-brand/create-brand"
+                        className=""
+                        variant="contained"
+                        component={NavLinkAdapter}
+                        to="/apps/product-brand/create-brand"
             size={isMobile ? "small" : "medium"}
-          />
-        </motion.div>
-      </div>
-    </div>
-  );
+                    />
+                </motion.div>
+            </div>
+        </div>
+    );
 }
 
 export default BrandHeader;

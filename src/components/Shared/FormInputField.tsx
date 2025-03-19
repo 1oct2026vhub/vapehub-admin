@@ -282,6 +282,8 @@ interface ReusableTextFieldProps {
   type?: string;
   required?: boolean;
   autoFocus?: boolean;
+  multiline?: boolean; 
+  rows?: number;                  
 }
 
 const FormInputField: React.FC<ReusableTextFieldProps> = ({
@@ -290,7 +292,9 @@ const FormInputField: React.FC<ReusableTextFieldProps> = ({
   label,
   type = "text",
   required = false,
+  multiline = false,
   autoFocus = false,
+  rows = 1,
 }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [touched, setTouched] = useState(false);
@@ -324,6 +328,8 @@ const FormInputField: React.FC<ReusableTextFieldProps> = ({
           helperText={touched && error ? error.message : ""}
           variant="outlined"
           fullWidth
+          multiline={multiline}   
+          rows={rows}  
           className="mb-6"
           onFocus={() => setTouched(true)}
           InputProps={{

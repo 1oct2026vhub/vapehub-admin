@@ -10,7 +10,7 @@ import ProductHeader from "./ProductHeader";
 import BasicInfoTab from "./tabs/BasicInfoTab";
 import ProductImagesTab from "./tabs/ProductImagesTab";
 import AttributesTab from "./tabs/AttributesTab";
-import PricingTab from "./tabs/PricingTab";
+// import PricingTab from "./tabs/PricingTab";
 import { ProductFormProvider, useProductForm } from "./ProductFormContext";
 import VariantTab from "./tabs/VariantTab";
 

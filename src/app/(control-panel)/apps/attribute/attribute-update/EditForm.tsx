@@ -5,7 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { Alert, Typography, MenuItem } from "@mui/material";
+import { Alert, Typography } from "@mui/material";
 import AppButton from "@/components/Shared/AppButton";
 import FormInputField from "@/components/Shared/FormInputField";
 import { usePost } from "@/hooks/useFetch";
@@ -48,6 +48,7 @@ export type FormType = {
   type: string;
   sort_order: string;
 };
+
 
 const EditAttributeForm = ({ attribute }: { attribute: FormType }) => {
   const router = useRouter();
@@ -100,7 +101,7 @@ const EditAttributeForm = ({ attribute }: { attribute: FormType }) => {
         sort_order: formData.sort_order,
       };
 
-      await triggerUpdateAttribute(id, attributeData);
+      await triggerUpdateAttribute({id, ...attributeData});
       showSnackbar("Attribute updated successfully!", "success");
       router.push("/apps/attribute");
     } catch (error) {
@@ -132,53 +133,53 @@ const EditAttributeForm = ({ attribute }: { attribute: FormType }) => {
             </Alert>
           )}
 
-          <FormInputField
-            name="name"
-            control={control}
+            <FormInputField
+              name="name"
+              control={control}
             label="Attribute Name"
             type="text"
             required
-          />
-          <FormInputField
-            name="slug"
-            control={control}
-            label="Slug"
+            />
+            <FormInputField
+              name="slug"
+              control={control}
+              label="Slug"
             type="text"
             required
-          />
-          <FormInputField
-            name="description"
-            control={control}
-            label="Description"
+            />
+            <FormInputField
+              name="description"
+              control={control}
+              label="Description"
             type="text"
-          />
-          <FormSelectField
-            name="type"
-            control={control}
-            label="Type"
-            options={typeOptions}
+            />
+            <FormSelectField
+              name="type"
+              control={control}
+              label="Type"
+              options={typeOptions}
             required
-          />
-          <FormSelectField
-            name="sort_order"
-            control={control}
-            label="Sort Order"
-            options={sortOrderOptions}
+            />
+            <FormSelectField
+              name="sort_order"
+              control={control}
+              label="Sort Order"
+              options={sortOrderOptions}
             required
-          />
+            />
 
-          <AppButton
-            label="Update"
+            <AppButton
+              label="Update"
             loading={isLoading}
-            type="submit"
-            fullWidth
-            size="large"
+              type="submit"
+              fullWidth
+              size="large"
             // disabled={!isValid || isMutating}
-            className="mt-4 w-full"
-          />
-        </form>
+              className="mt-4 w-full"
+            />
+          </form>
       )}
-    </div>
+        </div>
   );
 };
 

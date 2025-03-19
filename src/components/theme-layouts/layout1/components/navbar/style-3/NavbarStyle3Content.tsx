@@ -139,7 +139,7 @@ function NavbarStyle3Content(props: NavbarStyle3ContentProps) {
           </FuseScrollbars>
 
           <div className="flex shrink-0 justify-center w-full py-4">
-            <UserMenu className="" />
+            <UserMenu className="" popoverProps={{}} />
           </div>
         </div>
 
