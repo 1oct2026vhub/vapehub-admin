@@ -16,16 +16,15 @@ import { z } from "zod";
 import { useEffect, useState } from "react";
 import AppButton from "@/components/Shared/AppButton";
 import FormInputField from "@/components/Shared/FormInputField";
-import FormSelectField from "@/components/Shared/SelectField";
 import { useProductForm } from "../ProductFormContext";
 import { getAuthToken } from "@/utils/auth";
 import FormSearchableSelectField from "@/components/Shared/FormSearchableSelectField";
-// import FormCKEditor from '@/components/Shared/FormCKEditor';
+import FormCKEditor from '@/components/Shared/FormCKEditor';
 
 const schema = z.object({
   name: z.string().min(1, "Name is required"),
   slug: z.string().min(1, "Slug is required"),
-  description: z.string().optional(),
+  description: z.string().optional().default(""),
   category_id: z.number().min(1, "Category is required"),
   brand_id: z.number().min(1, "Brand is required"),
   is_new: z.boolean().optional(),
@@ -54,7 +53,9 @@ function BasicInfoTab() {
 
   const {
     control,
+    trigger,
     setValue,
+    // watch,
     formState: { isValid, errors },
     handleSubmit,
   } = useForm<FormData>({
@@ -69,11 +70,20 @@ function BasicInfoTab() {
     },
     resolver: zodResolver(schema),
   });
+  
+  // Watch the description field to monitor changes
+  // const description = watch('description');
+  
+  // useEffect(() => {
+  //   console.log("Current description value:", description);
+  // }, [description]);
 
   const onSubmit = async (data: FormData) => {
     setIsLoading(true);
     try {
       console.log("Starting product creation process...");
+      console.log("Form data to be submitted:", data);
+      console.log("Description content:", data.description);
 
       // Validate required fields
       if (!data.name || !data.slug || !data.category_id || !data.brand_id) {
@@ -84,7 +94,7 @@ function BasicInfoTab() {
       const productData: CreateProductData = {
         name: data.name.trim(),
         slug: data.slug.trim(),
-        description: data.description?.trim() || "",
+        description: data.description || "", // Ensure description is included even if empty
         category_id: Number(data.category_id),
         brand_id: Number(data.brand_id),
         is_new: Boolean(data.is_new),
@@ -172,6 +182,8 @@ function BasicInfoTab() {
         const fetchProduct = async () => {
           try {
             const product = await getProduct(Number(finalProductId));
+            console.log("Product data received:", product?.data);
+
 
             // ✅ Populate form fields with product data
             setValue("name", product?.data?.name || "");
@@ -191,57 +203,50 @@ function BasicInfoTab() {
   }, [searchParams, setValue, showSnackbar]);
 
   console.log("ppprodddujdud", productId);
-
-  return (
+	
+	return (
     <form
       onSubmit={handleSubmit(onSubmit)}
       className="flex w-full flex-col justify-center"
+      onKeyDown={(e) => {
+        // Prevent form submission on Enter key unless it's inside a button
+        if (e.key === 'Enter' && (e.target as HTMLElement).tagName !== 'BUTTON') {
+          console.log('Preventing form submission from Enter key');
+          e.preventDefault();
+          return false;
+        }
+      }}
     >
       <FormInputField
-        name="name"
-        control={control}
+				name="name"
+				control={control}
         label="Name"
         type="text"
-        required
+						required
       />
       <FormInputField
-        name="slug"
-        control={control}
+				name="slug"
+				control={control}
         label="Slug"
         type="text"
-        required
+						required
       />
       {/* ✅ Use CKEditor for Description */}
-      {/* <FormCKEditor name="description" control={control} label="Description" /> */}
-      <FormInputField
-        name="description"
-        control={control}
-        label="Description"
-        type="text"
+      <FormCKEditor 
+        name="description" 
+        control={control} 
+        label="Description" 
+        defaultValue={formData.description || ""}
       />
-      {/* <FormSelectField
-				name='category_id'
+      {/* <FormInputField
+				name="description"
 				control={control}
-				label='Category'
-				options={categories?.data?.categories?.map((category) => ({
-					value: category.id,
-					label: category.name
-				})) || []}
-						required
-			/>
-			<FormSelectField
-				name='brand_id'
-				control={control}
-				label='Brand'
-				options={brands?.data?.brands?.map((brand) => ({
-					value: brand.id,
-					label: brand.name
-				})) || []}
-						required
-			/> */}
+						label="Description"
+						type="text"
+      /> */}
       <FormSearchableSelectField
         name="category_id"
-        control={control}
+				control={control}
         label="Category"
         options={
           categories?.data?.categories?.map((category) => ({
@@ -249,13 +254,13 @@ function BasicInfoTab() {
             label: category.name,
           })) || []
         }
-        required
+						required
         loading={!categories} // Show loading indicator while data is loading
       />
 
       <FormSearchableSelectField
         name="brand_id"
-        control={control}
+				control={control}
         label="Brand"
         options={
           brands?.data?.brands?.map((brand) => ({
@@ -263,20 +268,20 @@ function BasicInfoTab() {
             label: brand.name,
           })) || []
         }
-        required
+						required
         loading={!brands} // Show loading indicator while data is loading
       />
       <AppButton
         label="Next"
         loading={isLoading}
         type="submit"
-        fullWidth
+						fullWidth
         size="large"
         disabled={!isValid || isLoading}
         className="mt-4"
-      />
+					/>
     </form>
-  );
+	);
 }
 
 export default BasicInfoTab;
