@@ -11,11 +11,7 @@
         "layout": {},
         "theme": {}
       },
-      "shortcuts": [
-        "apps.calendar",
-        "apps.mailbox",
-        "apps.contacts"
-      ]
+      "shortcuts": ["apps.calendar", "apps.mailbox", "apps.contacts"]
     },
     {
       "id": "XgbuVEXBU5gtSKdbQRP1Zbbby1i1",
@@ -28,11 +24,7 @@
         "layout": {},
         "theme": {}
       },
-      "shortcuts": [
-        "apps.calendar",
-        "apps.mailbox",
-        "apps.contacts"
-      ]
+      "shortcuts": ["apps.calendar", "apps.mailbox", "apps.contacts"]
     },
     {
       "id": "XgbuVEXBU6gtSKdbTYR1Zbbby1i3",

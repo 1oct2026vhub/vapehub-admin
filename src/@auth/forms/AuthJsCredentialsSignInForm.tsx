@@ -175,8 +175,6 @@
 
 // export default AuthJsCredentialsSignInForm;
 
-
-
 "use client";
 
 import { useForm, Controller } from "react-hook-form";
@@ -201,10 +199,7 @@ import { useSnackbar } from "@/contexts/SnackbarContext";
  * Validation Schema using Zod
  */
 const schema = z.object({
-  email: z
-    .string()
-    .min(1, "Email is required")
-    .email("Invalid email format"),
+  email: z.string().min(1, "Email is required").email("Invalid email format"),
   password: z.string().min(1, "Password is required"),
   remember: z.boolean(),
 });
@@ -274,7 +269,10 @@ function AuthJsCredentialsSignInForm() {
       router.push("/dashboards/project");
     } catch (error) {
       console.log("Login Error:", error);
-      showSnackbar(error?.message || "Login failed. Please try again.", "error");
+      showSnackbar(
+        error?.message || "Login failed. Please try again.",
+        "error",
+      );
     }
   }
 
@@ -293,10 +291,23 @@ function AuthJsCredentialsSignInForm() {
       )}
 
       {/* Email Field */}
-      <FormInputField name="email" control={control} label="Email" type="email" autoFocus required />
+      <FormInputField
+        name="email"
+        control={control}
+        label="Email"
+        type="email"
+        autoFocus
+        required
+      />
 
       {/* Password Field */}
-      <FormInputField name="password" control={control} label="Password" type="password" required />
+      <FormInputField
+        name="password"
+        control={control}
+        label="Password"
+        type="password"
+        required
+      />
 
       {/* Remember Me & Forgot Password */}
       <div className="flex flex-col items-center justify-center sm:flex-row sm:justify-between">
@@ -323,7 +334,10 @@ function AuthJsCredentialsSignInForm() {
             </FormControl>
           )}
         />
-        <Link className="text-md font-medium text-[#2E9970]" to="/forgot-password">
+        <Link
+          className="text-md font-medium text-[#2E9970]"
+          to="/forgot-password"
+        >
           Forgot password?
         </Link>
       </div>
@@ -335,8 +349,7 @@ function AuthJsCredentialsSignInForm() {
         fullWidth
         size="large"
         disabled={
-          isMutating ||
-          (!isValid && !(remember && email && password)) // Enable button if "Remember Me" is checked and fields are filled
+          isMutating || (!isValid && !(remember && email && password)) // Enable button if "Remember Me" is checked and fields are filled
         }
         className={`mt-4 w-full ${
           isMutating || (!isValid && !(remember && email && password))

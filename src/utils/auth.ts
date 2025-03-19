@@ -21,13 +21,13 @@
 //   return decrypted;
 // };
 
-
 import { setCookie, getCookie, deleteCookie } from "cookies-next";
 import CryptoJS from "crypto-js";
 import { redirect } from "next/navigation"; // Use redirect for App Router
 
 // Secret key for encryption (store this securely, e.g., in .env)
-const SECRET_KEY = process.env.NEXT_PUBLIC_CRYPTO_SECRET || "default_secret_key";
+const SECRET_KEY =
+  process.env.NEXT_PUBLIC_CRYPTO_SECRET || "default_secret_key";
 
 /**
  * Encrypts the token before storing it in cookies
@@ -39,7 +39,9 @@ export const encryptToken = (token: string): string => {
 /**
  * Decrypts the token from cookies
  */
-export const decryptToken = (encryptedToken: string | undefined): string | null => {
+export const decryptToken = (
+  encryptedToken: string | undefined,
+): string | null => {
   if (!encryptedToken) return null;
 
   try {

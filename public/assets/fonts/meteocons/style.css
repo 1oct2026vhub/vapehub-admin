@@ -1,16 +1,16 @@
 @font-face {
-  font-family: 'meteocons';
+  font-family: "meteocons";
   src:
-    url('./fonts/meteocons.ttf?kx31oc') format('truetype'),
-    url('./fonts/meteocons.woff?kx31oc') format('woff'),
-    url('./fonts/meteocons.svg?kx31oc#meteocons') format('svg');
+    url("./fonts/meteocons.ttf?kx31oc") format("truetype"),
+    url("./fonts/meteocons.woff?kx31oc") format("woff"),
+    url("./fonts/meteocons.svg?kx31oc#meteocons") format("svg");
   font-weight: normal;
   font-style: normal;
 }
 
 .meteocons {
   /* use !important to prevent issues with browser extensions that change fonts */
-  font-family: 'meteocons' !important;
+  font-family: "meteocons" !important;
   speak: none;
   font-style: normal;
   font-weight: normal;

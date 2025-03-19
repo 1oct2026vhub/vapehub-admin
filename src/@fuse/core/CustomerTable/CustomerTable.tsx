@@ -26,7 +26,13 @@ import {
   PaginationItem,
 } from "@mui/material";
 import FuseSvgIcon from "@fuse/core/FuseSvgIcon";
-import { listCustomer, deleteCustomer, blockCustomer, unBlockCustomer, restoreCustomer } from "@/services/apiService";
+import {
+  listCustomer,
+  deleteCustomer,
+  blockCustomer,
+  unBlockCustomer,
+  restoreCustomer,
+} from "@/services/apiService";
 import { useFetch } from "@/hooks/useFetch";
 import { mutate } from "swr";
 import { useRouter } from "next/navigation";
@@ -42,8 +48,8 @@ export type UserType = {
   gender: string | null;
   dob: string | null;
   blocked: boolean;
-  deletedAt: string | null;  email_verified_at: string | null;
-
+  deletedAt: string | null;
+  email_verified_at: string | null;
 };
 
 const CustomerTable = () => {
@@ -60,7 +66,9 @@ const CustomerTable = () => {
 
   // State for confirmation dialog
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [dialogType, setDialogType] = useState<"delete" | "restore" | "block" | null>(null);
+  const [dialogType, setDialogType] = useState<
+    "delete" | "restore" | "block" | null
+  >(null);
   const [selectedUser, setSelectedUser] = useState<UserType | null>(null);
   const [openDrawer, setOpenDrawer] = useState(false); // Mobile filter drawer state
   const { showSnackbar } = useSnackbar();
@@ -70,21 +78,29 @@ const CustomerTable = () => {
     return () => clearTimeout(timer);
   }, [search]);
 
-  const queryParams = useMemo(() => ({
-    search: debouncedSearch, order, page, limit, 
-    ...(verified !== null && { verified }),
-    ...(deleted !== null && { deleted })
-  }), [debouncedSearch, order, deleted,verified, page, limit]);
+  const queryParams = useMemo(
+    () => ({
+      search: debouncedSearch,
+      order,
+      page,
+      limit,
+      ...(verified !== null && { verified }),
+      ...(deleted !== null && { deleted }),
+    }),
+    [debouncedSearch, order, deleted, verified, page, limit],
+  );
 
-  const { data, error, isLoading } = useFetch(["customerList", queryParams], listCustomer, queryParams);
+  const { data, error, isLoading } = useFetch(
+    ["customerList", queryParams],
+    listCustomer,
+    queryParams,
+  );
 
   useEffect(() => {
     if (data?.data?.users) {
       setCustomers(data.data.users);
     }
   }, [data]);
-
-
 
   //  Open confirmation dialog
   const openDialog = (type: "delete" | "block", user: UserType) => {
@@ -93,9 +109,9 @@ const CustomerTable = () => {
     setDialogOpen(true);
   };
 
-  const totalRecords = data?.data?.total || 0;  // Get total users from API
-  const totalPages = Math.ceil(totalRecords / limit);  // Total pages
-  const deletedCustomer = customers?.find(user => user.deletedAt !== null);
+  const totalRecords = data?.data?.total || 0; // Get total users from API
+  const totalPages = Math.ceil(totalRecords / limit); // Total pages
+  const deletedCustomer = customers?.find((user) => user.deletedAt !== null);
 
   // const handleConfirmAction = async () => {
   //   if (!selectedUser) return;
@@ -126,34 +142,44 @@ const CustomerTable = () => {
 
     try {
       if (dialogType === "delete") {
-        setCustomers((prev) => prev.filter((user) => user.id !== selectedUser.id));
+        setCustomers((prev) =>
+          prev.filter((user) => user.id !== selectedUser.id),
+        );
 
-        await (deletedCustomer ? restoreCustomer(selectedUser.id) : deleteCustomer(selectedUser.id));
+        await (deletedCustomer
+          ? restoreCustomer(selectedUser.id)
+          : deleteCustomer(selectedUser.id));
 
         // Show Snackbar for Delete/Restore
         showSnackbar(
-          deletedCustomer ? "Customer restored successfully!" : "Customer deleted successfully!",
-          "success"
+          deletedCustomer
+            ? "Customer restored successfully!"
+            : "Customer deleted successfully!",
+          "success",
         );
-
       } else if (dialogType === "block") {
         setCustomers((prev) =>
           prev.map((user) =>
-            user.id === selectedUser.id ? { ...user, blocked: !user.blocked } : user
-          )
+            user.id === selectedUser.id
+              ? { ...user, blocked: !user.blocked }
+              : user,
+          ),
         );
 
-        await (selectedUser.blocked ? unBlockCustomer(selectedUser.id) : blockCustomer(selectedUser.id));
+        await (selectedUser.blocked
+          ? unBlockCustomer(selectedUser.id)
+          : blockCustomer(selectedUser.id));
 
         // Show Snackbar for Block/Unblock
         showSnackbar(
-          selectedUser.blocked ? "Customer unblocked successfully!" : "Customer blocked successfully!",
-          "success"
+          selectedUser.blocked
+            ? "Customer unblocked successfully!"
+            : "Customer blocked successfully!",
+          "success",
         );
       }
 
       await mutate(["customerList", queryParams], true);
-
     } catch (error) {
       console.error("Action error:", error);
 
@@ -162,35 +188,53 @@ const CustomerTable = () => {
     }
   };
 
-  const columns = useMemo<MRT_ColumnDef<UserType>[]>(() => [
-    { accessorKey: "id", header: "Id" },
-    { accessorKey: "first_name", header: "First Name" },
-    { accessorKey: "last_name", header: "Last Name" },
-    { accessorKey: "email", header: "Email" },
-    {
-      accessorKey: "verification_status",
-      header: "Verification Status",
-      Cell: ({ row }) => {
-        return (
-          <Chip
-            label={row.original.email_verified_at ? "Verified" : "Pending"}
-            color={row.original.email_verified_at ? "success" : "warning"}
-          />
-        );
+  const columns = useMemo<MRT_ColumnDef<UserType>[]>(
+    () => [
+      { accessorKey: "id", header: "Id" },
+      { accessorKey: "first_name", header: "First Name" },
+      { accessorKey: "last_name", header: "Last Name" },
+      { accessorKey: "email", header: "Email" },
+      {
+        accessorKey: "verification_status",
+        header: "Verification Status",
+        Cell: ({ row }) => {
+          return (
+            <Chip
+              label={row.original.email_verified_at ? "Verified" : "Pending"}
+              color={row.original.email_verified_at ? "success" : "warning"}
+            />
+          );
+        },
       },
-    },
-    { accessorKey: "createdAt", header: "Created At" },
-    { accessorKey: "phone", header: "Contact" },
-    { accessorKey: "gender", header: "Gender" },
-    { accessorKey: "dob", header: "Date of Birth" },
-    {
-      accessorKey: "blocked",
-      header: "Status",
-      Cell: ({ row }) => (
-        <Chip label={row.original.blocked ? "Blocked" : "Active"} color={row.original.blocked ? "error" : "success"} />
-      ),
-    },
-  ], []);
+      {
+        accessorKey: "createdAt",
+        header: "Created At",
+        Cell: ({ row }) =>
+          new Date(row.original.createdAt).toLocaleDateString("en-GB"),
+      },
+      // { accessorKey: "createdAt", header: "Created At" },
+      { accessorKey: "phone", header: "Contact" },
+      { accessorKey: "gender", header: "Gender" },
+      {
+        accessorKey: "dob",
+        header: "Date of Birth",
+        Cell: ({ row }) =>
+          new Date(row.original.dob).toLocaleDateString("en-GB"),
+      },
+      // { accessorKey: "dob", header: "Date of Birth" },
+      {
+        accessorKey: "blocked",
+        header: "Status",
+        Cell: ({ row }) => (
+          <Chip
+            label={row.original.blocked ? "Blocked" : "Active"}
+            color={row.original.blocked ? "error" : "success"}
+          />
+        ),
+      },
+    ],
+    [],
+  );
 
   if (isLoading) return <FuseLoading />;
   if (error) return <p>Failed to load customers</p>;
@@ -200,15 +244,15 @@ const CustomerTable = () => {
     first_name: user.first_name,
     last_name: user.last_name,
     email: user.email,
-    createdAt: user.createdAt
-      ? new Date(user.createdAt).toLocaleDateString("en-GB").replace(/\//g, "-")
-      : "",
+    createdAt: user.createdA,
     phone: user.phone,
-    gender: user.gender ? user.gender.charAt(0).toUpperCase() + user.gender.slice(1) : "N/A",
-    dob: user.dob ? new Date(user.dob).toISOString().split("T")[0] : "",
+    gender: user.gender
+      ? user.gender.charAt(0).toUpperCase() + user.gender.slice(1)
+      : "N/A",
+    dob: user.dob,
     blocked: user.blocked,
     deletedAt: user.deletedAt,
-    email_verified_at: user.email_verified_at
+    email_verified_at: user.email_verified_at,
   }));
 
   console.log("customers", customers);
@@ -216,7 +260,10 @@ const CustomerTable = () => {
   return (
     <>
       {/* Table */}
-      <Paper className="flex flex-col flex-auto shadow-1 overflow-hidden" elevation={0}>
+      <Paper
+        className="flex flex-col flex-auto shadow-1 overflow-hidden"
+        elevation={0}
+      >
         {/* Search & Filters */}
         <div className="flex items-center justify-between p-3">
           <IconButton className="md:hidden" onClick={() => setOpenDrawer(true)}>
@@ -237,25 +284,58 @@ const CustomerTable = () => {
               ),
             }}
             className="hidden md:block"
+            sx={{
+              "& .MuiOutlinedInput-root": {
+                "&.Mui-focused fieldset": {
+                  borderColor: "#2E9970", // Border color on focus (click)
+                  borderWidth: "2px", // Optional: increase border thickness on focus
+                },
+              },
+              "& .MuiInputLabel-root.Mui-focused": {
+                color: "#2E9970", // Label color on focus
+              },
+            }}
           />
 
           {/* Desktop Filters */}
           <div className="hidden md:flex gap-2">
             <Select
-              value={verified === null ? "all" : verified ? "verified" : "pending"}
-              onChange={(e) => setVerified(e.target.value === "all" ? null : e.target.value === "verified")}
+              value={
+                verified === null ? "all" : verified ? "verified" : "pending"
+              }
+              onChange={(e) =>
+                setVerified(
+                  e.target.value === "all"
+                    ? null
+                    : e.target.value === "verified",
+                )
+              }
               size="small"
             >
               <MenuItem value="all">All</MenuItem>
               <MenuItem value="verified">Verified</MenuItem>
               <MenuItem value="pending">Pending</MenuItem>
             </Select>
-            <Select value={deleted === null ? "all" : deleted ? "deleted" : "active"} onChange={(e) => setDeleted(e.target.value === "all" ? null : e.target.value === "deleted")} size="small">
+            <Select
+              value={deleted === null ? "all" : deleted ? "deleted" : "active"}
+              onChange={(e) =>
+                setDeleted(
+                  e.target.value === "all"
+                    ? null
+                    : e.target.value === "deleted",
+                )
+              }
+              size="small"
+            >
               <MenuItem value="all">All</MenuItem>
               <MenuItem value="active">Active</MenuItem>
               <MenuItem value="deleted">InActive</MenuItem>
             </Select>
-            <Select value={order} onChange={(e) => setOrder(e.target.value as "ASC" | "DESC")} size="small">
+            <Select
+              value={order}
+              onChange={(e) => setOrder(e.target.value as "ASC" | "DESC")}
+              size="small"
+            >
               <MenuItem value="DESC">Descending</MenuItem>
               <MenuItem value="ASC">Ascending</MenuItem>
             </Select>
@@ -264,20 +344,76 @@ const CustomerTable = () => {
         <DataTable
           data={customerData}
           columns={columns}
-          renderRowActionMenuItems={({ closeMenu, row }) => {
-            const isDeleted = row.original.deletedAt !== null; // Avoid using `deletedCustomer` which depends on state
+          // renderRowActionMenuItems={({ closeMenu, row }) => {
+          //   const isDeleted = row.original.deletedAt !== null; // Avoid using `deletedCustomer` which depends on state
 
-            return [
+          //   return [
+          //     !isDeleted && (
+          //       <MenuItem
+          //         key="view-details"
+          //         onClick={() => {
+          //           router.push(`/apps/customer/customer-detail/${row.original.id}`);
+          //           closeMenu();
+          //         }}
+          //       >
+          //         <ListItemIcon>
+          //           <FuseSvgIcon>heroicons-outline:arrow-top-right-on-square</FuseSvgIcon>
+          //         </ListItemIcon>
+          //         View Details
+          //       </MenuItem>
+          //     ),
+          //     <MenuItem
+          //       key="delete"
+          //       onClick={() => {
+          //         openDialog("delete", row.original);
+          //         closeMenu();
+          //       }}
+          //     >
+          //       <ListItemIcon>
+          //         <FuseSvgIcon>
+          //           {isDeleted ? "heroicons-outline:arrow-path" : "heroicons-outline:trash"}
+          //         </FuseSvgIcon>
+          //       </ListItemIcon>
+          //       {isDeleted ? "Restore" : "Delete"}
+          //     </MenuItem>,
+          //     !isDeleted && (
+          //       <MenuItem
+          //         key="block-unblock"
+          //         onClick={() => {
+          //           openDialog("block", row.original);
+          //           closeMenu();
+          //         }}
+          //       >
+          //         <ListItemIcon>
+          //           <FuseSvgIcon>
+          //             {row.original.blocked ? "heroicons-outline:lock-open" : "heroicons-outline:lock-closed"}
+          //           </FuseSvgIcon>
+          //         </ListItemIcon>
+          //         {row.original.blocked ? "Unblock" : "Block"}
+          //       </MenuItem>
+          //     ),
+          //   ].filter(Boolean); // Removes `null` values
+          // }}
+
+          renderRowActionMenuItems={({ closeMenu, row }) => {
+            const isDeleted = row.original.deletedAt !== null;
+
+            // Prepare menu items first
+            const menuItems = [
               !isDeleted && (
                 <MenuItem
                   key="view-details"
                   onClick={() => {
-                    router.push(`/apps/customer/customer-detail/${row.original.id}`);
+                    router.push(
+                      `/apps/customer/customer-detail/${row.original.id}`,
+                    );
                     closeMenu();
                   }}
                 >
                   <ListItemIcon>
-                    <FuseSvgIcon>heroicons-outline:arrow-top-right-on-square</FuseSvgIcon>
+                    <FuseSvgIcon>
+                      heroicons-outline:arrow-top-right-on-square
+                    </FuseSvgIcon>
                   </ListItemIcon>
                   View Details
                 </MenuItem>
@@ -291,7 +427,9 @@ const CustomerTable = () => {
               >
                 <ListItemIcon>
                   <FuseSvgIcon>
-                    {isDeleted ? "heroicons-outline:arrow-path" : "heroicons-outline:trash"}
+                    {isDeleted
+                      ? "heroicons-outline:arrow-path"
+                      : "heroicons-outline:trash"}
                   </FuseSvgIcon>
                 </ListItemIcon>
                 {isDeleted ? "Restore" : "Delete"}
@@ -306,13 +444,18 @@ const CustomerTable = () => {
                 >
                   <ListItemIcon>
                     <FuseSvgIcon>
-                      {row.original.blocked ? "heroicons-outline:lock-open" : "heroicons-outline:lock-closed"}
+                      {row.original.blocked
+                        ? "heroicons-outline:lock-open"
+                        : "heroicons-outline:lock-closed"}
                     </FuseSvgIcon>
                   </ListItemIcon>
                   {row.original.blocked ? "Unblock" : "Block"}
                 </MenuItem>
               ),
-            ].filter(Boolean); // Removes `null` values
+            ];
+
+            // Filter out falsy values before returning
+            return menuItems.filter(Boolean);
           }}
         />
 
@@ -341,11 +484,14 @@ const CustomerTable = () => {
             )}
           />
         </div>
-
-      </Paper >
+      </Paper>
 
       {/* Mobile Filter Drawer */}
-      < Drawer anchor="left" open={openDrawer} onClose={() => setOpenDrawer(false)}>
+      <Drawer
+        anchor="left"
+        open={openDrawer}
+        onClose={() => setOpenDrawer(false)}
+      >
         <List>
           <ListItem>
             {/* <Select value={order} onChange={(e) => setOrder(e.target.value as "ASC" | "DESC")} size="small">
@@ -353,39 +499,63 @@ const CustomerTable = () => {
               <MenuItem value="ASC">Ascending</MenuItem>
             </Select> */}
             <Select
-              value={verified === null ? "all" : verified ? "verified" : "pending"}
-              onChange={(e) => setVerified(e.target.value === "all" ? null : e.target.value === "verified")}
+              value={
+                verified === null ? "all" : verified ? "verified" : "pending"
+              }
+              onChange={(e) =>
+                setVerified(
+                  e.target.value === "all"
+                    ? null
+                    : e.target.value === "verified",
+                )
+              }
               size="small"
             >
               <MenuItem value="all">All</MenuItem>
               <MenuItem value="verified">Verified</MenuItem>
               <MenuItem value="pending">Pending</MenuItem>
             </Select>
-            <Select value={deleted === null ? "all" : deleted ? "deleted" : "active"} onChange={(e) => setDeleted(e.target.value === "all" ? null : e.target.value === "deleted")} size="small">
+            <Select
+              value={deleted === null ? "all" : deleted ? "deleted" : "active"}
+              onChange={(e) =>
+                setDeleted(
+                  e.target.value === "all"
+                    ? null
+                    : e.target.value === "deleted",
+                )
+              }
+              size="small"
+            >
               <MenuItem value="all">All</MenuItem>
               <MenuItem value="active">Active</MenuItem>
               <MenuItem value="deleted">Deleted</MenuItem>
             </Select>
           </ListItem>
           <ListItem>
-            <Select value={order} onChange={(e) => setOrder(e.target.value as "ASC" | "DESC")} size="small">
+            <Select
+              value={order}
+              onChange={(e) => setOrder(e.target.value as "ASC" | "DESC")}
+              size="small"
+            >
               <MenuItem value="DESC">Descending</MenuItem>
               <MenuItem value="ASC">Ascending</MenuItem>
             </Select>
           </ListItem>
         </List>
-      </Drawer >
+      </Drawer>
 
       {/* Confirmation Dialog */}
-      < Dialog open={dialogOpen} onClose={() => setDialogOpen(false)}>
+      <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)}>
         <DialogTitle>Confirm Action</DialogTitle>
         <DialogContent>
           <DialogContentText>
             {dialogType === "delete" ? (
               <>
-                Are you sure you want to {deletedCustomer ? "Restore" : "Delete"}{" "}
+                Are you sure you want to{" "}
+                {deletedCustomer ? "Restore" : "Delete"}{" "}
                 <strong>
-                  {selectedUser?.first_name || ""} {selectedUser?.last_name || ""}
+                  {selectedUser?.first_name || ""}{" "}
+                  {selectedUser?.last_name || ""}
                 </strong>
                 ?
               </>
@@ -393,21 +563,23 @@ const CustomerTable = () => {
               `Are you sure you want to ${selectedUser?.blocked ? "unblock" : "block"} this customer?`
             )}
           </DialogContentText>
-
-
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setDialogOpen(false)}>Cancel</Button>
-          <AppButton label={
-            dialogType === "delete"
-              ? selectedUser?.deletedAt ? "Restore" : "Delete"
-              : selectedUser?.blocked
-                ? "Unblock"
-                : "Block"
-          }
-            onClick={handleConfirmAction} />
+          <AppButton
+            label={
+              dialogType === "delete"
+                ? selectedUser?.deletedAt
+                  ? "Restore"
+                  : "Delete"
+                : selectedUser?.blocked
+                  ? "Unblock"
+                  : "Block"
+            }
+            onClick={handleConfirmAction}
+          />
         </DialogActions>
-      </Dialog >
+      </Dialog>
     </>
   );
 };

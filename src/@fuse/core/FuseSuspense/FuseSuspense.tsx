@@ -1,10 +1,10 @@
-import FuseLoading from '@fuse/core/FuseLoading';
-import { ReactNode, Suspense } from 'react';
-import { FuseLoadingProps } from '@fuse/core/FuseLoading/FuseLoading';
+import FuseLoading from "@fuse/core/FuseLoading";
+import { ReactNode, Suspense } from "react";
+import { FuseLoadingProps } from "@fuse/core/FuseLoading/FuseLoading";
 
 type FuseSuspenseProps = {
-	loadingProps?: FuseLoadingProps;
-	children: ReactNode;
+  loadingProps?: FuseLoadingProps;
+  children: ReactNode;
 };
 
 /**
@@ -15,8 +15,10 @@ type FuseSuspenseProps = {
  * For to Avoid Repetition
  */
 function FuseSuspense(props: FuseSuspenseProps) {
-	const { children, loadingProps } = props;
-	return <Suspense fallback={<FuseLoading {...loadingProps} />}>{children}</Suspense>;
+  const { children, loadingProps } = props;
+  return (
+    <Suspense fallback={<FuseLoading {...loadingProps} />}>{children}</Suspense>
+  );
 }
 
 export default FuseSuspense;

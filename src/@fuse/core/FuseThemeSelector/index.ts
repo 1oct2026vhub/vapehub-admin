@@ -1,1 +1,1 @@
-export { default } from './FuseThemeSelector';
+export { default } from "./FuseThemeSelector";

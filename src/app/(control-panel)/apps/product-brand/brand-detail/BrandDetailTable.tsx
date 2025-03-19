@@ -38,7 +38,6 @@
 //   );
 
 //   console.log("brand",data);
-  
 
 //   useEffect(() => {
 //     if (data?.data) {
@@ -69,7 +68,7 @@
 //     last_name: customerDetail.last_name,
 //     email: customerDetail.email,
 //     createdAt: customerDetail.createdAt
-//     ? new Date(customerDetail.createdAt).toLocaleDateString("en-GB").replace(/\//g, "-") 
+//     ? new Date(customerDetail.createdAt).toLocaleDateString("en-GB").replace(/\//g, "-")
 //     : "",
 //     phone: customerDetail.phone,
 //     gender: customerDetail.gender,
@@ -91,8 +90,6 @@
 //     </div>
 //   );
 // }
-
-
 
 "use client";
 import { useParams } from "next/navigation";
@@ -124,7 +121,7 @@ export default function BrandDetailTable() {
   }
 
   const { data, error, isLoading } = useFetch(["brandDetail", id], () =>
-    brandDetails(id)
+    brandDetails(id),
   );
 
   console.log("brand", data);
@@ -154,7 +151,9 @@ export default function BrandDetailTable() {
     logoUrl: brandDetail.logoUrl,
     website: brandDetail.website,
     createdAt: brandDetail.createdAt
-      ? new Date(brandDetail.createdAt).toLocaleDateString("en-GB").replace(/\//g, "-")
+      ? new Date(brandDetail.createdAt)
+          .toLocaleDateString("en-GB")
+          .replace(/\//g, "-")
       : "",
   };
 
@@ -172,5 +171,3 @@ export default function BrandDetailTable() {
     </div>
   );
 }
-
-

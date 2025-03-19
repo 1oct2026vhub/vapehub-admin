@@ -38,7 +38,6 @@
 //   );
 
 //   console.log("brand",data);
-  
 
 //   useEffect(() => {
 //     if (data?.data) {
@@ -69,7 +68,7 @@
 //     last_name: customerDetail.last_name,
 //     email: customerDetail.email,
 //     createdAt: customerDetail.createdAt
-//     ? new Date(customerDetail.createdAt).toLocaleDateString("en-GB").replace(/\//g, "-") 
+//     ? new Date(customerDetail.createdAt).toLocaleDateString("en-GB").replace(/\//g, "-")
 //     : "",
 //     phone: customerDetail.phone,
 //     gender: customerDetail.gender,
@@ -91,8 +90,6 @@
 //     </div>
 //   );
 // }
-
-
 
 "use client";
 import { useParams } from "next/navigation";
@@ -120,14 +117,16 @@ export default function CategoryDetailTable() {
   const params = useParams();
   const id = params?.id;
 
-  const [categoryDetail, setCategoryDetail] = useState<CategoryType | null>(null);
+  const [categoryDetail, setCategoryDetail] = useState<CategoryType | null>(
+    null,
+  );
 
   if (!id || isNaN(Number(id))) {
     return <p className="text-center text-red-500">Invalid category ID</p>;
   }
 
   const { data, error, isLoading } = useFetch(["categoryDetail", id], () =>
-    categoryDetails(id)
+    categoryDetails(id),
   );
 
   useEffect(() => {
@@ -138,7 +137,9 @@ export default function CategoryDetailTable() {
 
   if (isLoading) return <FuseLoading />;
   if (error || !categoryDetail) {
-    return <p className="text-center text-red-500 mt-28">Category not found!</p>;
+    return (
+      <p className="text-center text-red-500 mt-28">Category not found!</p>
+    );
   }
 
   const columns: MRT_ColumnDef<CategoryType>[] = [
@@ -154,7 +155,11 @@ export default function CategoryDetailTable() {
       header: "Logo",
       Cell: ({ cell }) =>
         cell.getValue() ? (
-          <Avatar src={cell.getValue() as string} alt="Category Logo" variant="rounded" />
+          <Avatar
+            src={cell.getValue() as string}
+            alt="Category Logo"
+            variant="rounded"
+          />
         ) : (
           "No Logo"
         ),
@@ -168,8 +173,12 @@ export default function CategoryDetailTable() {
     slug: categoryDetail.slug,
     parent_id: categoryDetail.parent_id || null,
     updated_by: categoryDetail.updated_by,
-    updatedAt: new Date(categoryDetail.updatedAt).toLocaleDateString("en-GB").replace(/\//g, "-"),
-    createdAt: new Date(categoryDetail.createdAt).toLocaleDateString("en-GB").replace(/\//g, "-"),
+    updatedAt: new Date(categoryDetail.updatedAt)
+      .toLocaleDateString("en-GB")
+      .replace(/\//g, "-"),
+    createdAt: new Date(categoryDetail.createdAt)
+      .toLocaleDateString("en-GB")
+      .replace(/\//g, "-"),
     logo_url: categoryDetail.logo_url,
   };
 
@@ -187,5 +196,3 @@ export default function CategoryDetailTable() {
     </div>
   );
 }
-
-
