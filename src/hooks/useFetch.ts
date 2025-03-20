@@ -1,19 +1,5 @@
 import useSWR from "swr";
 import useSWRMutation from "swr/mutation";
-import { fetcher, poster, updater, deleter } from "@/services/apiService";
-
-// Custom Hook for GET requests
-// export const useFetch = (endpoint) => {
-//   const { data, error, isLoading } = useSWR(endpoint, fetcher);
-//   return { data, error, isLoading };
-// };
-// export const useFetch = (endpoint, params = {}) => {
-//   const { data, error, isLoading } = useSWR([endpoint, params], ([url, queryParams]) => fetcher(url, queryParams), {
-//     revalidateOnFocus: false,
-//   });
-
-//   return { data, error, isLoading };
-// };
 
 export const useFetch = (
   key,

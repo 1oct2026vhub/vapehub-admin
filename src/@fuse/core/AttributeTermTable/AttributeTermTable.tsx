@@ -192,7 +192,7 @@ const AttributeTermTable = ({ attributeId }: AttributeTermTableProps) => {
               },
             }}
           />
-          <FormControlLabel
+          {/* <FormControlLabel
             control={
               <Switch
                 checked={showDeleted}
@@ -200,7 +200,26 @@ const AttributeTermTable = ({ attributeId }: AttributeTermTableProps) => {
               />
             }
             label="Show Deleted"
+          /> */}
+
+          <FormControlLabel
+            control={
+              <Switch
+                checked={showDeleted}
+                onChange={(e) => setShowDeleted(e.target.checked)}
+                sx={{
+                  '& .MuiSwitch-switchBase.Mui-checked': {
+                    color: '#2E9970', // Thumb color when checked
+                  },
+                  '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
+                    backgroundColor: '#2E9970', // Track color when checked
+                  }
+                }}
+              />
+            }
+            label="Show Deleted"
           />
+
         </div>
         <div className="flex items-center gap-4">
           <FormControl size="small" className="min-w-[150px]">

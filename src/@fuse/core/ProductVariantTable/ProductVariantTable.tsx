@@ -26,15 +26,6 @@ import {
   Pagination,
   PaginationItem,
   Chip,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  TablePagination,
-  Box,
-  Tooltip,
 } from "@mui/material";
 import { listProducts } from "@/services/apiProduct";
 import { useFetch } from "@/hooks/useFetch";
@@ -48,12 +39,9 @@ import { useDebounce } from "@/hooks/useDebounce";
 import {
   listProductVariants,
   ProductVariant,
-  getStockStatusText,
-  formatPrice,
   deleteVariant,
   restoreVariant,
 } from "@/services/apiProductVariant";
-import SortIcon from "@mui/icons-material/Sort";
 
 export type ProductType = {
   id: number;
@@ -424,18 +412,18 @@ const ProductVariantTable = () => {
               </ListItemIcon>
               View Details
             </MenuItem>,
-            <MenuItem
-              key="edit"
-              onClick={() => {
-                router.push(`/apps/product/edit/${row.original.id}`);
-                closeMenu();
-              }}
-            >
-              <ListItemIcon>
-                <FuseSvgIcon>heroicons-outline:pencil-square</FuseSvgIcon>
-              </ListItemIcon>
-              Edit
-            </MenuItem>,
+            // <MenuItem
+            //   key="edit"
+            //   onClick={() => {
+            //     router.push(`/apps/product/edit/${row.original.id}`);
+            //     closeMenu();
+            //   }}
+            // >
+            //   <ListItemIcon>
+            //     <FuseSvgIcon>heroicons-outline:pencil-square</FuseSvgIcon>
+            //   </ListItemIcon>
+            //   Edit
+            // </MenuItem>,
             row.original.deletedAt ? (
               <MenuItem
                 key="restore"

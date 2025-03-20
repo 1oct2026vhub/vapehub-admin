@@ -2,18 +2,39 @@
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {
-      "@auth/*": ["./src/@auth/*"],
-      "@i18n": ["./src/@i18n/index"],
-      "@i18n/*": ["./src/@i18n/*"],
-      "@fuse/*": ["./src/@fuse/*"],
-      "@history*": ["./src/@history"],
-      "@mock-utils/*": ["./src/@mock-utils/*"],
-      "@schema": ["./src/@schema"],
-      "@/*": ["./src/*"]
+      "@auth/*": [
+        "./src/@auth/*"
+      ],
+      "@i18n": [
+        "./src/@i18n/index"
+      ],
+      "@i18n/*": [
+        "./src/@i18n/*"
+      ],
+      "@fuse/*": [
+        "./src/@fuse/*"
+      ],
+      "@history*": [
+        "./src/@history"
+      ],
+      "@mock-utils/*": [
+        "./src/@mock-utils/*"
+      ],
+      "@schema": [
+        "./src/@schema"
+      ],
+    "@/*": [
+      "./src/*"
+    ]
     },
     "declaration": true,
     "target": "esnext",
-    "lib": ["dom", "dom.iterable", "es2020", "scripthost"],
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "es2020",
+      "scripthost"
+    ],
     "plugins": [
       {
         "name": "typescript-plugin-css-modules"

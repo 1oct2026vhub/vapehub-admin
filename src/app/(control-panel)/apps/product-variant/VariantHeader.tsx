@@ -171,7 +171,7 @@ const VariantHeader = () => {
             </MenuItem>
           </Menu>
 
-          <AppButton
+          {/* <AppButton
             label={
               <>
                 <FuseSvgIcon size={20}>heroicons-outline:plus</FuseSvgIcon>
@@ -186,7 +186,7 @@ const VariantHeader = () => {
             component={NavLinkAdapter}
             // to="/apps/product-brand/create-brand"
             size={isMobile ? "small" : "medium"}
-          />
+          /> */}
         </motion.div>
       </div>
     </div>

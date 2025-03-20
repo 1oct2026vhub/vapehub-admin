@@ -65,14 +65,14 @@ type ThemesPanelProps = {
 
 function ThemesPanel(props: ThemesPanelProps) {
   const { schemesHandlers, onClose, open } = props;
-  const { setSettings } = useFuseSettings();
-  const { isGuest, updateUserSettings } = useUser();
-  const dispatch = useAppDispatch();
+  // const { setSettings } = useFuseSettings();
+  // const { isGuest, updateUserSettings } = useUser();
+  // const dispatch = useAppDispatch();
 
   async function handleThemeSelect(_theme: FuseThemeOption) {
-    const _newSettings = setSettings({
-      theme: { ..._theme?.section },
-    } as Partial<FuseSettingsConfigType>);
+    // const _newSettings = setSettings({
+    //   theme: { ..._theme?.section },
+    // } as Partial<FuseSettingsConfigType>);
 
     /**
      * Updating user settings disabled for demonstration purposes

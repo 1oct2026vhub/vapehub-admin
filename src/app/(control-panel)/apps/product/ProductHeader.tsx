@@ -399,7 +399,7 @@ function ProductHeader() {
             className=""
             variant="contained"
             component={NavLinkAdapter}
-            to="/apps/product/new"
+            // to="/apps/product/new"
             size={isMobile ? "small" : "medium"}
           />
         </motion.div>

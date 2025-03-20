@@ -108,7 +108,6 @@
     "eslint-plugin-react-refresh": "0.4.16",
     "eslint-plugin-unused-imports": "4.1.4",
     "immutable": "4.3.6",
-    "prettier": "3.2.5",
     "promise": "8.3.0",
     "tailwindcss": "4.0.0",
     "typescript": "5.4.5",

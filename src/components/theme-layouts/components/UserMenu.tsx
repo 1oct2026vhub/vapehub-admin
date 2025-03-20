@@ -7,10 +7,10 @@ import Typography from "@mui/material/Typography";
 import { useState } from "react";
 import Link from "@fuse/core/Link";
 import FuseSvgIcon from "@fuse/core/FuseSvgIcon";
-import { darken, alpha } from "@mui/material/styles";
+import {  alpha } from "@mui/material/styles";
 import Tooltip from "@mui/material/Tooltip";
 import clsx from "clsx";
-import Popover, { PopoverProps } from "@mui/material/Popover";
+import Popover from "@mui/material/Popover";
 import { logoutUser } from "@/utils/auth";
 import { useRouter } from "next/navigation";
 
@@ -34,10 +34,10 @@ function UserMenu({
   const userMenuClose = () => {
     setUserMenu(null);
   };
-  const signOut = () => {
-    console.log("Signing out...");
-    setUserMenu(null);
-  };
+  // const signOut = () => {
+  //   console.log("Signing out...");
+  //   setUserMenu(null);
+  // };
 
   const router = useRouter();
 

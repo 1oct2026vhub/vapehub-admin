@@ -146,8 +146,8 @@ function AttributesTab() {
       if (response?.data?.productAttributeTerms && response.data.productAttributeTerms.length > 0) {
         console.log("Product attributes found:", response.data.productAttributeTerms);
         
-        // Group terms by attribute_id
-        const attributeGroups = Object.values(
+        // Group terms by attribute_id with explicit typing
+        const attributeGroups: ProductAttribute[] = Object.values(
           response.data.productAttributeTerms.reduce((acc, attr) => {
             // Use attribute_id as the key
             if (!acc[attr.attribute_id]) {
@@ -157,7 +157,6 @@ function AttributesTab() {
                 is_visible_page: Boolean(attr.is_visible_page),
                 used_in_variation: Boolean(attr.used_in_variation),
                 default_value: '', // Initialize with empty default value
-                attribute: attr.attribute, // Store attribute details
               };
             } else {
               // Add term_id to existing attribute group if not already present
@@ -167,7 +166,7 @@ function AttributesTab() {
             }
             
             return acc;
-          }, {} as Record<number, ProductAttribute & { attribute: any }>)
+          }, {} as Record<number, ProductAttribute>)
         );
         
         console.log("Grouped attribute data:", attributeGroups);
@@ -177,7 +176,7 @@ function AttributesTab() {
         
         // Update form context data
         updateFormData({
-          attributes: attributeGroups,
+          attributes: attributeGroups as ProductAttribute[],
           attributesResponse: {
             productAttributeTerms: response.data.productAttributeTerms
           }
@@ -303,7 +302,13 @@ function AttributesTab() {
 
       // Store both the form data and API response data
       updateFormData({
-        attributes: data.attributes as ProductAttribute[],
+        attributes: data.attributes.map(attr => ({
+          attribute_id: attr.attribute_id,
+          term_ids: attr.term_ids,
+          is_visible_page: attr.is_visible_page,
+          used_in_variation: attr.used_in_variation,
+          default_value: attr.default_value || '',
+        })) as ProductAttribute[],
         attributesResponse: response.data, // Store the API response
         hasErrors: false,
       });

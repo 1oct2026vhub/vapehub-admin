@@ -1,7 +1,4 @@
 import { FuseNavItemType } from "@fuse/core/FuseNavigation/types/FuseNavItemType";
-import ar from "./navigation-i18n/ar";
-import en from "./navigation-i18n/en";
-import tr from "./navigation-i18n/tr";
 
 /**
  * The navigationConfig object is an array of navigation items for the Fuse application.
@@ -19,14 +16,14 @@ const navigationConfig: FuseNavItemType[] = [
     id: "attributes",
     title: "Attributes",
     type: "item",
-    icon: "heroicons-outline:user-group", // Clipboard List Icon for Orders
+    icon: "heroicons-outline:star", // Clipboard List Icon for Orders
     url: "/apps/attribute",
   },
   {
     id: "terms",
     title: "Attribute Terms",
     type: "item",
-    icon: "heroicons-outline:user-group", // Clipboard List Icon for Orders
+    icon: "heroicons-outline:sun", // Clipboard List Icon for Orders
     url: "/apps/attribute-terms",
   },
   {

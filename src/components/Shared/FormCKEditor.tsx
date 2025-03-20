@@ -158,9 +158,9 @@ const FormCKEditor = ({ name, control, label, defaultValue = "" }: FormCKEditorP
   let field: any;
 
   return (
-    <Controller
-      name={name}
-      control={control}
+      <Controller
+        name={name}
+        control={control}
       defaultValue={defaultValue}
       render={({ field: f, fieldState }) => {
         // Store field reference for use in useEffect
@@ -183,9 +183,9 @@ const FormCKEditor = ({ name, control, label, defaultValue = "" }: FormCKEditorP
           
           // Handle blur event
           editor.on('blur', function() {
-            const data = editor.getData();
+              const data = editor.getData();
             console.log('CKEditor blur event:', data);
-            field.onChange(data);
+              field.onChange(data);
             field.onBlur();
           });
         }
