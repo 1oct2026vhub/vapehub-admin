@@ -5,7 +5,7 @@ import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useState, useEffect, useCallback, useRef } from "react";
-import { IconButton, Paper, CircularProgress } from "@mui/material";
+import { IconButton, Paper, CircularProgress, TextField } from "@mui/material";
 import AppButton from "@/components/Shared/AppButton";
 import FormSelectField from "@/components/Shared/SelectField";
 import FormCheckboxField from "@/components/Shared/FormCheckboxField";
@@ -23,6 +23,7 @@ interface ProductAttribute {
   term_ids: number[];
   is_visible_page: boolean;
   used_in_variation: boolean;
+  default_value?: string;
 }
 
 const attributeSchema = z.object({
@@ -32,6 +33,7 @@ const attributeSchema = z.object({
       term_ids: z.array(z.number()).min(1, "At least one term is required"),
       is_visible_page: z.boolean(),
       used_in_variation: z.boolean(),
+      default_value: z.string().optional(),
     }),
   ),
 });
@@ -82,6 +84,7 @@ function AttributesTab() {
           term_ids: [],
           is_visible_page: true,
           used_in_variation: false,
+          default_value: '',
         },
       ],
     },
@@ -143,22 +146,38 @@ function AttributesTab() {
       if (response?.data?.productAttributeTerms && response.data.productAttributeTerms.length > 0) {
         console.log("Product attributes found:", response.data.productAttributeTerms);
         
-        // Map API attributes to the form schema format
-        const attributeData = response.data.productAttributeTerms.map(attr => ({
-          attribute_id: Number(attr.attribute_id),
-          term_ids: [Number(attr.term_id)], // API returns single term_id, convert to array
-          is_visible_page: Boolean(attr.is_visible_page),
-          used_in_variation: Boolean(attr.used_in_variation)
-        }));
+        // Group terms by attribute_id
+        const attributeGroups = Object.values(
+          response.data.productAttributeTerms.reduce((acc, attr) => {
+            // Use attribute_id as the key
+            if (!acc[attr.attribute_id]) {
+              acc[attr.attribute_id] = {
+                attribute_id: Number(attr.attribute_id),
+                term_ids: [Number(attr.term_id)],
+                is_visible_page: Boolean(attr.is_visible_page),
+                used_in_variation: Boolean(attr.used_in_variation),
+                default_value: '', // Initialize with empty default value
+                attribute: attr.attribute, // Store attribute details
+              };
+            } else {
+              // Add term_id to existing attribute group if not already present
+              if (!acc[attr.attribute_id].term_ids.includes(Number(attr.term_id))) {
+                acc[attr.attribute_id].term_ids.push(Number(attr.term_id));
+              }
+            }
+            
+            return acc;
+          }, {} as Record<number, ProductAttribute & { attribute: any }>)
+        );
         
-        console.log("Mapped attribute data:", attributeData);
+        console.log("Grouped attribute data:", attributeGroups);
         
         // Update form with the loaded attribute data
-        replace(attributeData);
+        replace(attributeGroups);
         
         // Update form context data
         updateFormData({
-          attributes: attributeData,
+          attributes: attributeGroups,
           attributesResponse: {
             productAttributeTerms: response.data.productAttributeTerms
           }
@@ -259,14 +278,17 @@ function AttributesTab() {
     setIsSubmitting(true);
     try {
       // Transform the data to match the API requirements
+      // Create a flat list of attributes, one for each term
       const transformedData = {
-        attributes: data.attributes.map((attr) => ({
-          attribute_id: attr.attribute_id,
-          term_id: attr.term_ids[0], // Temporarily keep first term_id for API compatibility
-          term_ids: attr.term_ids, // Keep full term_ids for future reference
-          is_visible_page: attr.is_visible_page,
-          used_in_variation: attr.used_in_variation,
-        })),
+        attributes: data.attributes.flatMap((attr) => 
+          attr.term_ids.map((term_id) => ({
+            attribute_id: attr.attribute_id,
+            term_id: term_id,
+            is_visible_page: attr.is_visible_page,
+            used_in_variation: attr.used_in_variation,
+            default_value: attr.default_value || '',
+          }))
+        ),
       };
 
       console.log("Submitting attribute data:", transformedData);
@@ -345,10 +367,17 @@ function AttributesTab() {
                 [
                   // First, add existing product attributes
                   ...(formData.attributesResponse?.productAttributeTerms
-                    ? formData.attributesResponse.productAttributeTerms.map((attr) => ({
-                        value: attr.attribute_id,
-                        label: attr.attribute.name,
-                      }))
+                    ? Object.values(
+                        formData.attributesResponse.productAttributeTerms.reduce((acc, attr) => {
+                          if (!acc[attr.attribute_id]) {
+                            acc[attr.attribute_id] = {
+                              value: attr.attribute_id,
+                              label: attr.attribute.name,
+                            };
+                          }
+                          return acc;
+                        }, {} as Record<number, { value: number; label: string }>)
+                      )
                     : []),
                   
                   // Then add available attributes from listAttributes
@@ -392,6 +421,19 @@ function AttributesTab() {
               isMulti
               onTermRemove={(termId) => handleTermRemove(index, termId)}
             />
+            {/* <TextField
+              fullWidth
+              label="Default Value"
+              variant="outlined"
+              value={watch(`attributes.${index}.default_value`) || ''}
+              onChange={(e) => {
+                setValue(`attributes.${index}.default_value`, e.target.value, {
+                  shouldValidate: true,
+                  shouldDirty: true,
+                });
+              }}
+              placeholder="Enter default value for selected terms"
+            /> */}
             <FormCheckboxField
               name={`attributes.${index}.is_visible_page`}
               control={control}
@@ -431,6 +473,7 @@ function AttributesTab() {
               term_ids: [],
               is_visible_page: true,
               used_in_variation: false,
+              default_value: '',
             })
           }
         />
@@ -455,5 +498,7 @@ function AttributesTab() {
 }
 
 export default AttributesTab;
+
+
 
 
