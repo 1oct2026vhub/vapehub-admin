@@ -371,7 +371,7 @@ function ProductHeader() {
             <MenuItem onClick={handleFileUploadClick}>
               <ListItemIcon>
                 <FuseSvgIcon size={20}>
-                  heroicons-outline:cloud-upload
+                  heroicons-outline:arrow-up-on-square
                 </FuseSvgIcon>
               </ListItemIcon>
               <ListItemText>Upload Excel File</ListItemText>
@@ -379,7 +379,7 @@ function ProductHeader() {
             <MenuItem onClick={handleDownloadSample}>
               <ListItemIcon>
                 <FuseSvgIcon size={20}>
-                  heroicons-outline:cloud-download
+                  heroicons-outline:arrow-down-tray
                 </FuseSvgIcon>
               </ListItemIcon>
               <ListItemText>Download Sample Excel</ListItemText>

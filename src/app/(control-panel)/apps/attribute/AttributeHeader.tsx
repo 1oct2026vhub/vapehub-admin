@@ -222,7 +222,7 @@ function AttributeHeader() {
             <MenuItem onClick={handleFileUploadClick}>
               <ListItemIcon>
                 <FuseSvgIcon size={20}>
-                  heroicons-outline:cloud-upload
+                  heroicons-outline:arrow-up-on-square
                 </FuseSvgIcon>
               </ListItemIcon>
               <ListItemText>Upload Excel File</ListItemText>
@@ -230,16 +230,12 @@ function AttributeHeader() {
             <MenuItem onClick={handleDownloadSample}>
               <ListItemIcon>
                 <FuseSvgIcon size={20}>
-                  heroicons-outline:cloud-download
+                  heroicons-outline:arrow-down-tray
                 </FuseSvgIcon>
               </ListItemIcon>
-              <ListItemText>
-                {/* <FuseSvgIcon size={20} className='text-black'>heroicons-outline:arrow-down-tray</FuseSvgIcon> */}
-                Download Sample Excel
-              </ListItemText>
+              <ListItemText>Download Sample Excel</ListItemText>
             </MenuItem>
           </Menu>
-
           <AppButton
             label={
               <>
