@@ -148,3 +148,22 @@ export const addProductAttributes = async (
   );
   return response.data;
 };
+
+
+// Bulk update attribute from Excel file
+export const bulkUpdateVariant = async (file: File) => {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const response = await axiosInstance.post(
+    "/api/admin/product-variants/bulk-update",
+    formData,
+    {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    },
+  );
+  return response.data;
+};
+

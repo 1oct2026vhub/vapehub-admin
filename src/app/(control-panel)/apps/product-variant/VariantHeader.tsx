@@ -1,12 +1,12 @@
-import { Box, Button, Typography } from "@mui/material";
+import { Box, Button, ListItemIcon, ListItemText, Menu, MenuItem, Typography } from "@mui/material";
 import { motion } from "motion/react";
 import FuseSvgIcon from "@fuse/core/FuseSvgIcon";
 import NavLinkAdapter from "@fuse/core/NavLinkAdapter";
 import useThemeMediaQuery from "@fuse/hooks/useThemeMediaQuery";
 import AppButton from "@/components/Shared/AppButton";
-import { downloadSampleExcel } from "@/services/apiProductVariant";
+import { downloadSampleExcel,bulkUpdateVariant } from "@/services/apiProductVariant";
 import { useSnackbar } from "@/contexts/SnackbarContext";
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 /**
  * The products header.
@@ -14,27 +14,60 @@ import { useState } from "react";
 const VariantHeader = () => {
   const isMobile = useThemeMediaQuery((theme) => theme.breakpoints.down("lg"));
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
-
-  const { showSnackbar } = useSnackbar();
-
-  const handleMenuClick = (event: React.MouseEvent<HTMLElement>) => {
-    setAnchorEl(event.currentTarget);
-  };
-
-  const handleMenuClose = () => {
-    setAnchorEl(null);
-  };
-
-  const handleDownloadSample = async () => {
-    try {
-      await downloadSampleExcel();
-      showSnackbar("Sample Excel file downloaded successfully", "success");
-    } catch (error) {
-      console.error("Error downloading sample:", error);
-      showSnackbar("Failed to download sample file", "error");
-    }
-    handleMenuClose();
-  };
+  const fileInputRef = useRef<HTMLInputElement>(null);
+   const { showSnackbar } = useSnackbar();
+  
+    const handleMenuClick = (event: React.MouseEvent<HTMLElement>) => {
+      setAnchorEl(event.currentTarget);
+    };
+  
+    const handleMenuClose = () => {
+      setAnchorEl(null);
+    };
+  
+    const handleDownloadSample = async () => {
+      try {
+        await downloadSampleExcel();
+        showSnackbar("Sample Excel file downloaded successfully", "success");
+      } catch (error) {
+        showSnackbar("Failed to download sample Excel file", "error");
+      }
+      handleMenuClose();
+    };
+  
+    const handleFileUploadClick = () => {
+      fileInputRef.current?.click();
+      handleMenuClose();
+    };
+  
+    const handleFileChange = async (
+      event: React.ChangeEvent<HTMLInputElement>,
+    ) => {
+      const file = event.target.files?.[0];
+      if (!file) return;
+  
+      // Check if file is Excel
+      const validTypes = [
+        "application/vnd.ms-excel",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      ];
+      if (!validTypes.includes(file.type)) {
+        showSnackbar("Please upload an Excel file (.xls or .xlsx)", "error");
+        return;
+      }
+  
+      try {
+        await bulkUpdateVariant(file);
+        showSnackbar("Variant updated successfully", "success");
+      } catch (error) {
+        showSnackbar("Failed to update Variant", "error");
+      }
+  
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    };
 
   return (
     // <Box className="flex flex-col sm:flex-row space-y-16 sm:space-y-0 flex-1 w-full items-center justify-between py-8 px-24 md:px-32">
@@ -96,17 +129,47 @@ const VariantHeader = () => {
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0, transition: { delay: 0.2 } }}
         >
-          <AppButton
+           <AppButton
             label={
               <>
-                {/* <FuseSvgIcon size={20}>heroicons-outline:arrow-down-tray</FuseSvgIcon> */}
-                <span className="w-full">Download</span>
+                <span className="w-full">Bulk Update</span>
               </>
             }
-            onClick={handleDownloadSample}
             variant="outlined"
             size={isMobile ? "small" : "medium"}
+            onClick={handleMenuClick}
           />
+
+          <Menu
+            anchorEl={anchorEl}
+            open={Boolean(anchorEl)}
+            onClose={handleMenuClose}
+            anchorOrigin={{
+              vertical: "bottom",
+              horizontal: "right",
+            }}
+            transformOrigin={{
+              vertical: "top",
+              horizontal: "right",
+            }}
+          >
+            <MenuItem onClick={handleFileUploadClick}>
+              <ListItemIcon>
+                <FuseSvgIcon size={20}>
+                  heroicons-outline:arrow-up-on-square
+                </FuseSvgIcon>
+              </ListItemIcon>
+              <ListItemText>Upload Excel File</ListItemText>
+            </MenuItem>
+            <MenuItem onClick={handleDownloadSample}>
+              <ListItemIcon>
+                <FuseSvgIcon size={20}>
+                  heroicons-outline:arrow-down-tray
+                </FuseSvgIcon>
+              </ListItemIcon>
+              <ListItemText>Download Sample Excel</ListItemText>
+            </MenuItem>
+          </Menu>
 
           <AppButton
             label={
