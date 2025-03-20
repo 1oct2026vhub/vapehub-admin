@@ -111,7 +111,7 @@ function CreateBrandForm() {
           </Alert>
         )}
 
-        <div className="flex flex-col gap-6">
+        <div className="flex flex-col">
           <FormInputField
             name="name"
             control={control}

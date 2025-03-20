@@ -1,27 +1,36 @@
-import { Control, Controller } from "react-hook-form";
-import { Checkbox, FormControlLabel } from "@mui/material";
+import { Controller, Control } from 'react-hook-form';
+import { Checkbox } from '@mui/material';
 
 interface FormCheckboxFieldProps {
   name: string;
   control: Control<any>;
   label: string;
+  disabled?: boolean;
 }
 
-function FormCheckboxField({ name, control, label }: FormCheckboxFieldProps) {
+const FormCheckboxField: React.FC<FormCheckboxFieldProps> = ({
+  name,
+  control,
+  label,
+  disabled = false,
+}) => {
   return (
     <Controller
       name={name}
       control={control}
-      render={({ field: { onChange, value } }) => (
-        <FormControlLabel
-          control={
-            <Checkbox checked={value} onChange={onChange} color="primary" />
-          }
-          label={label}
-        />
+      render={({ field: { value, onChange } }) => (
+        <div className="flex items-center">
+          <Checkbox
+            checked={value}
+            onChange={onChange}
+            color="primary"
+            disabled={disabled}
+          />
+          <span>{label}</span>
+        </div>
       )}
     />
   );
-}
+};
 
 export default FormCheckboxField;

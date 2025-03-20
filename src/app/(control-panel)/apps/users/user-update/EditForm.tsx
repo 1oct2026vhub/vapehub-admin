@@ -23,7 +23,7 @@ import FormInputField from "@/components/Shared/FormInputField";
 import { updateUser } from "@/services/apiService";
 import { useSnackbar } from "@/contexts/SnackbarContext";
 import Header from "./Header";
-import FormSelectField from "@/components/Shared/SelectField";
+import FormSelectField from "@/components/Shared/FormSelectFiled";
 import FormRadioGroup from "@/components/Shared/RadioButton";
 import FormDatePicker from "@/components/Shared/FormDatePicker";
 

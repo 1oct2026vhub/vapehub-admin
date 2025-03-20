@@ -12,12 +12,39 @@ import { useSnackbar } from "@/contexts/SnackbarContext";
 import FormFileUpload from "@/components/Shared/FormFileUpload";
 import { useState } from "react";
 
+// const schema = z.object({
+//   name: z.string().min(1, "Brand Name is required"),
+//   slug: z.string().min(1, "Slug is required"),
+//   description: z.string().optional(),
+//   logo: z.instanceof(File).optional(),
+//   parent_id: z.string().optional().nullable(), // ✅ Added Parent ID
+// });
+
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+const ACCEPTED_FILE_TYPES = [
+  "image/png",
+  "image/jpeg",
+  "image/jpg",
+  "image/webp",
+];
+
 const schema = z.object({
-  name: z.string().min(1, "Brand Name is required"),
+  name: z.string().min(1, "Category Name is required"),
   slug: z.string().min(1, "Slug is required"),
   description: z.string().optional(),
-  logo: z.instanceof(File).optional(),
-  parent_id: z.string().optional().nullable(), // ✅ Added Parent ID
+  logo: z
+    .instanceof(File)
+    .refine((file) => file instanceof File, "Logo is required")
+    .refine(
+      (file) => file.size <= MAX_FILE_SIZE,
+      "File size must be less than 5MB",
+    )
+    .refine(
+      (file) => ACCEPTED_FILE_TYPES.includes(file.type),
+      "Only .jpg, .jpeg, .png and .webp formats are supported",
+    )
+    .optional(),
+    parent_id: z.string().optional().nullable(),
 });
 
 const defaultValues = {
@@ -79,8 +106,8 @@ function CreateCategoryForm() {
       }
 
       await triggerCreateCategory(formDataObj);
-      showSnackbar("Brand created successfully!", "success");
-      // router.push("/apps/product-brand");
+      showSnackbar("Category created successfully!", "success");
+      router.push("/apps/product-category");
     } catch (error) {
       showSnackbar(error?.message || "An unexpected error occurred", "error");
     } finally {
@@ -131,12 +158,14 @@ function CreateCategoryForm() {
           label="Logo (optional)"
           setValue={setValue}
         />
+        <div className="mt-6">
         <FormInputField
           name="parent_id"
           control={control}
           label="Parent ID (optional)"
           type="text"
         />
+        </div>
 
         <AppButton
           label="Create"

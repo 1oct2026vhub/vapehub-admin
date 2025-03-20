@@ -2,7 +2,7 @@
 
 import { useSnackbar } from "@/contexts/SnackbarContext";
 import { useState, useEffect } from "react";
-import { Paper, Grid, TextField, IconButton } from "@mui/material";
+import { Paper, Grid, TextField, IconButton, SelectChangeEvent } from "@mui/material";
 import AppButton from "@/components/Shared/AppButton";
 import FormCheckboxField from "@/components/Shared/FormCheckboxField";
 import { useProductForm, type ProductFormData } from "../ProductFormContext";
@@ -108,6 +108,9 @@ function VariantTab() {
     markStepAsCompleted,
   } = useProductForm();
 
+  // Track used terms across all variants
+  const [usedTerms, setUsedTerms] = useState<Record<number, Set<number>>>({});
+
   useEffect(() => {
     if (formData.attributesResponse) {
       console.log("Attributes API Response:", formData.attributesResponse);
@@ -122,43 +125,61 @@ function VariantTab() {
     }
   }, [formData.attributesResponse, formData.productId, formData.productImages]);
 
+  // Compute available terms for each attribute
   const variationAttributes = (formData.attributes || [])
     .filter((attr) => attr.used_in_variation && attr.attribute_id > 0)
-    .map((attr) => ({
-      ...attr,
-      terms: attr.term_ids
-        .map((termId: number) => {
-          const term = formData.attributesResponse?.productAttributeTerms?.find(
-            (term) => term.term_id === termId && term.used_in_variation
+    .map((attr) => {
+      // Get all terms for this attribute from attributeResponse
+      const allTerms = (formData.attributesResponse?.productAttributeTerms || [])
+        .filter(
+          (term) => 
+            term.attribute_id === attr.attribute_id && 
+            term.used_in_variation
+        )
+        .map((term) => ({
+          value: term.term_id,
+          label: term.term?.name || `Term ${term.term_id}`,
+        }));
+
+      return {
+        ...attr,
+        allTerms,
+      };
+    });
+
+  // Compute default variant with safe attribute initialization
+  const createDefaultVariant = () => {
+    return {
+      slug: "",
+      price: 0,
+      stock: 0,
+      status: true,
+      discount_price: null,
+      purchase_price: null,
+      low_stock_threshold: null,
+      weight: null,
+      length: null,
+      width: null,
+      height: null,
+      barcode: null,
+      description: null,
+      attributes: variationAttributes.map((attr) => {
+        // Ensure we have a valid term_id
+        const availableTerms = (formData.attributesResponse?.productAttributeTerms || [])
+          .filter(
+            (term) => 
+              term.attribute_id === attr.attribute_id && 
+              term.used_in_variation
           );
-
-          return term ? {
-            value: termId,
-            label: term.term?.name || `Term ${termId}`,
-          } : null;
-        })
-        .filter(Boolean), // Remove null values
-    }))
-    .filter((attr) => attr.terms.length > 0); // Only keep attributes with terms
-
-  const defaultVariant = {
-    slug: "",
-    price: 0,
-    stock: 0,
-    status: true,
-    discount_price: null,
-    purchase_price: null,
-    low_stock_threshold: null,
-    weight: null,
-    length: null,
-    width: null,
-    height: null,
-    barcode: null,
-    description: null,
-    attributes: variationAttributes.map((attr) => ({
-      attribute_id: attr.attribute_id,
-      term_id: attr.terms[0]?.value || 0, // Use first term or 0 if no terms
-    })),
+        
+        return {
+          attribute_id: attr.attribute_id,
+          term_id: availableTerms.length > 0 
+            ? availableTerms[0].term_id 
+            : 0, // Fallback to 0 if no terms available
+        };
+      }),
+    };
   };
 
   const {
@@ -166,18 +187,56 @@ function VariantTab() {
     register,
     handleSubmit,
     formState: { errors },
+    watch,
+    setValue,
   } = useForm<FormData>({
     defaultValues: {
       variants:
         formData.variants && formData.variants.length > 0
           ? formData.variants
-          : [defaultVariant],
+          : [createDefaultVariant()],
     },
+    resolver: zodResolver(variantSchema),
   });
 
   const { fields, append, remove } = useFieldArray({
     control,
     name: "variants",
+  });
+
+  // Watch all variants to track used terms
+  const variants = watch("variants");
+
+  // Update used terms whenever variants change
+  useEffect(() => {
+    const newUsedTerms: Record<number, Set<number>> = {};
+    
+    variants.forEach((variant) => {
+      variant.attributes.forEach((attr) => {
+        if (!newUsedTerms[attr.attribute_id]) {
+          newUsedTerms[attr.attribute_id] = new Set();
+        }
+        // Only add if term_id is a valid number
+        if (attr.term_id && attr.term_id !== 0) {
+          newUsedTerms[attr.attribute_id].add(attr.term_id);
+        }
+      });
+    });
+
+    setUsedTerms(newUsedTerms);
+  }, [variants]);
+
+  // Compute if all terms have been used
+  const areAllTermsUsed = variationAttributes.some((attr) => {
+    const availableTerms = (formData.attributesResponse?.productAttributeTerms || [])
+      .filter(
+        (term) => 
+          term.attribute_id === attr.attribute_id && 
+          term.used_in_variation && 
+          (!usedTerms[attr.attribute_id] || 
+           !usedTerms[attr.attribute_id].has(term.term_id))
+      );
+    return availableTerms.length === 0;
   });
 
   const handleDeleteVariant = async (variantId: number, index: number) => {
@@ -205,6 +264,15 @@ function VariantTab() {
       showSnackbar("Failed to delete variant", "error");
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleAddVariant = () => {
+    // Only add variant if not all terms are used
+    if (!areAllTermsUsed) {
+      append(createDefaultVariant());
+    } else {
+      showSnackbar("All attribute terms have been used", "warning");
     }
   };
 
@@ -280,29 +348,67 @@ function VariantTab() {
     }
   };
 
+  // Find the attribute name from attributesResponse
+  const getAttributeName = (attributeId: number) => {
+    const attribute = (formData.attributesResponse?.productAttributes || [])
+      .find(attr => attr.attribute_id === attributeId);
+    return attribute?.name || `Attribute ${attributeId}`;
+  };
+
+  // Find the term name for a given term ID
+  const getTermName = (attributeId: number, termId: number) => {
+    const term = (formData.attributesResponse?.productAttributeTerms || [])
+      .find(t => t.attribute_id === attributeId && t.term_id === termId);
+    return term?.term?.name || `Term ${termId}`;
+  };
+
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
       {fields.map((field, index) => (
         <Paper key={field.id || index} className="p-4 relative">
           <Grid container spacing={2}>
-            {variationAttributes.map((attr, attrIndex) => (
-              <Grid item xs={12} sm={6} key={attr.attribute_id}>
-                <FormSelectField
-                  name={`variants.${index}.attributes.${attrIndex}.term_id`}
-                  control={control}
-                  label={`Attribute ${attrIndex + 1}`}
-                  options={attr.terms} // Use transformed terms with name labels
-                  required
-                />
-                <input
-                  type="hidden"
-                  {...register(
-                    `variants.${index}.attributes.${attrIndex}.attribute_id`,
-                  )}
-                  value={attr.attribute_id}
-                />
-              </Grid>
-            ))}
+            {variationAttributes.map((attr, attrIndex) => {
+              // Ensure we have a valid attributes array
+              const variantAttributes = variants[index]?.attributes || [];
+              
+              // Safely get the current term_id or use a fallback
+              const currentTermId = 
+                variantAttributes[attrIndex]?.term_id || 
+                (attr.allTerms[0]?.value || 0);
+              
+              // Compute available terms for this specific variant
+              const availableTerms = attr.allTerms.filter(term => 
+                // Include all terms used in variation
+                term.value === currentTermId || 
+                // Exclude terms used in other variants for this attribute
+                !usedTerms[attr.attribute_id]?.has(term.value)
+              );
+
+              return (
+                <Grid item xs={12} sm={6} key={attr.attribute_id}>
+                  <FormSelectField
+                    name={`variants.${index}.attributes.${attrIndex}.term_id`}
+                    control={control}
+                    label={getAttributeName(attr.attribute_id)}
+                    options={availableTerms}
+                    required
+                    onChange={(event) => {
+                      // Extract the value from the event and convert to number
+                      const selectedValue = Number(event.target.value);
+                      // Directly set the value using the selected number
+                      setValue(`variants.${index}.attributes.${attrIndex}.term_id`, selectedValue);
+                    }}
+                  />
+                  <input
+                    type="hidden"
+                    {...register(
+                      `variants.${index}.attributes.${attrIndex}.attribute_id`,
+                    )}
+                    value={attr.attribute_id}
+                  />
+                </Grid>
+              );
+            })}
 
             <Grid item xs={12} sm={6}>
               <TextField
@@ -464,10 +570,10 @@ function VariantTab() {
       <div className="flex justify-center">
         <AppButton
           label="Add Variant"
-          onClick={() => append(defaultVariant)}
+          onClick={handleAddVariant}
           variant="outlined"
           type="button"
-          disabled={isLoading}
+          disabled={isLoading || areAllTermsUsed}
         />
       </div>
 
@@ -478,7 +584,12 @@ function VariantTab() {
           variant="outlined"
           disabled={isLoading}
         />
-        <AppButton label="Next" type="submit" loading={isLoading} />
+        <AppButton 
+          label="Next" 
+          type="submit" 
+          loading={isLoading} 
+          disabled={areAllTermsUsed}
+        />
       </div>
     </form>
   );
