@@ -138,7 +138,7 @@ const AttributeTable = () => {
       { accessorKey: "slug", header: "Slug" },
       { accessorKey: "type", header: "Type" },
       { accessorKey: "sort_order", header: "Sort Order" },
-      { accessorKey: "description", header: "Description" },
+      // { accessorKey: "description", header: "Description" },
       {
         accessorKey: "created_at",
         header: "Created At",

@@ -176,7 +176,7 @@ const ProductVariantTable = () => {
     () => [
     { accessorKey: "id", header: "ID" },
     { accessorKey: "name", header: "Name" },
-    { accessorKey: "description", header: "Description" },
+    // { accessorKey: "description", header: "Description" },
     { 
       accessorKey: "price", 
       header: "Price",

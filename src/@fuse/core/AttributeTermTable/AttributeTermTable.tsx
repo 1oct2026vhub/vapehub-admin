@@ -145,7 +145,7 @@ const AttributeTermTable = ({ attributeId }: AttributeTermTableProps) => {
       { accessorKey: "id", header: "ID" },
       { accessorKey: "name", header: "Name" },
       { accessorKey: "slug", header: "Slug" },
-      { accessorKey: "description", header: "Description" },
+      // { accessorKey: "description", header: "Description" },
       {
         accessorKey: "created_at",
         header: "Created At",
