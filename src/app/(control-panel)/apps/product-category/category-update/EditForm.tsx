@@ -15,7 +15,7 @@ import { useSnackbar } from "@/contexts/SnackbarContext";
 import axiosInstance from "@/utils/axiosApi";
 
 const schema = z.object({
-  name: z.string().min(1, "Category Name is required"),
+  name: z.string().min(1, "Category Name is required").max(50, "Name must be less than 50 characters"),
   slug: z.string().min(1, "Slug is required"),
   description: z.string().optional(),
   logo: z.instanceof(File).optional(),
@@ -45,11 +45,16 @@ const EditCategoryForm = ({ category }: { category: FormType }) => {
   const { showSnackbar } = useSnackbar();
   const [isLoading, setIsLoading] = useState(false);
 
-  const { control, formState, handleSubmit, setValue } = useForm({
+  const { control, formState, handleSubmit, setValue, watch } = useForm({
     mode: "all",
     defaultValues,
     resolver: zodResolver(schema),
   });
+
+  // Watch the name field to display character count
+  const nameValue = watch("name") || "";
+  const nameLength = nameValue.length;
+  const nameRemaining = 50 - nameLength;
 
   const { isValid, errors } = formState;
   const { trigger: triggerUpdateCategory, isMutating } = usePost(
@@ -123,7 +128,7 @@ const EditCategoryForm = ({ category }: { category: FormType }) => {
         <form
           name="categoryForm"
           noValidate
-          className="flex w-full flex-col justify-center gap-2"
+          className="flex w-full flex-col justify-center"
           onSubmit={handleSubmit(onSubmit)}
         >
           {errors?.root?.message && (
@@ -139,6 +144,9 @@ const EditCategoryForm = ({ category }: { category: FormType }) => {
             type="text"
             required
           />
+          <div className="text-xs text-gray-500 -mt-3 mb-4">
+            {nameLength} / 50 characters used {nameRemaining < 0 ? "(exceeded maximum)" : ""}
+          </div>
           <FormInputField
             name="slug"
             control={control}

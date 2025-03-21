@@ -10,6 +10,8 @@ import {
   createProductVariants,
   deleteProductVariant,
   getProduct,
+  type ProductVariant,
+  type CreateProductVariantsRequest
 } from "@/services/apiProduct";
 import FormSelectField from "@/components/Shared/SelectField";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -110,8 +112,14 @@ const variantSchema = z.object({
         description: z.string().nullable(),
         attributes: z.array(
           z.object({
-            attribute_id: z.number().min(1, "Attribute ID is required"),
-            term_id: z.number().min(1, "Term must be selected for each attribute"),
+            attribute_id: z.preprocess(
+              (val) => Number(val),
+              z.number().min(1, "Attribute ID is required")
+            ),
+            term_id: z.preprocess(
+              (val) => Number(val),
+              z.number().min(1, "Term must be selected for each attribute")
+            ),
           })
         ).min(1, "At least one attribute must be selected"),
       }),
@@ -271,13 +279,14 @@ function VariantTab() {
       };
     });
 
-  // Compute default variant with safe attribute initialization
+  // Create a new empty variant with only attribute structure
   const createDefaultVariant = (isNewVariant: boolean = false) => {
     // If existing variants exist from getProduct API and it's not a new variant, use the first variant's data
     if (formData.variants && formData.variants.length > 0 && !isNewVariant) {
       const existingVariant = formData.variants[0];
       return {
         id: existingVariant.id,
+        product_id: formData.productId,
         slug: existingVariant.slug || "",
         price: typeof existingVariant.price === 'string' 
           ? parseFloat(existingVariant.price) 
@@ -328,27 +337,21 @@ function VariantTab() {
           ? (existingVariant as Variant).variantAttributes!.map(varAttr => ({
               attribute_id: Number(varAttr.attribute_id),
               term_id: Number(varAttr.term_id),
+              is_visible: true,
+              used_in_variation: true,
+              term: varAttr.term,
+              attribute: varAttr.attribute
             }))
-          : existingVariant.attributes || variationAttributes.map((attr) => {
-              // Ensure we have a valid term_id
-              const availableTerms = (formData.attributesResponse?.productAttributeTerms || [])
-                .filter(
-                  (term) => 
-                    term.attribute_id === attr.attribute_id && 
-                    term.used_in_variation
-                );
-              
-              return {
-                attribute_id: Number(attr.attribute_id),
-                term_id: availableTerms.length > 0 
-                  ? Number(availableTerms[0].term_id)
-                  : 0, // Fallback to 0 if no terms available
-              };
-            }),
+          : variationAttributes.map((attr) => ({
+              attribute_id: Number(attr.attribute_id),
+              term_id: 0,
+              is_visible: true,
+              used_in_variation: true
+            })),
       };
     }
 
-    // Create a new empty variant with only attribute structure
+    // Create a new empty variant
     return {
       slug: "",
       price: 0,
@@ -363,22 +366,12 @@ function VariantTab() {
       height: null,
       barcode: null,
       description: null,
-      attributes: variationAttributes.map((attr) => {
-        // Find first unused term for this attribute
-        const availableTerms = (formData.attributesResponse?.productAttributeTerms || [])
-          .filter(
-            (term) => 
-              term.attribute_id === attr.attribute_id && 
-              term.used_in_variation &&
-              (!usedTerms[attr.attribute_id] || 
-               !usedTerms[attr.attribute_id].has(term.term_id))
-          );
-        
-        return {
-          attribute_id: Number(attr.attribute_id),
-          term_id: 0, // Start with no term selected
-        };
-      }),
+      attributes: variationAttributes.map((attr) => ({
+        attribute_id: Number(attr.attribute_id),
+        term_id: 0,
+        is_visible: true,
+        used_in_variation: true
+      })),
     };
   };
 
@@ -393,7 +386,18 @@ function VariantTab() {
   } = useForm<FormData>({
     defaultValues: {
       variants: formData.variants && formData.variants.length > 0 
-        ? formData.variants 
+        ? formData.variants.map(variant => ({
+            ...variant,
+            attributes: Array.isArray(variant.attributes) 
+              ? variant.attributes.map(attr => ({
+                  attribute_id: Number(attr.attribute_id),
+                  term_id: Number(attr.term_id)
+                }))
+              : variationAttributes.map(attr => ({
+                  attribute_id: Number(attr.attribute_id),
+                  term_id: 0
+                }))
+          }))
         : [createDefaultVariant()],
     },
     mode: "all",
@@ -413,15 +417,17 @@ function VariantTab() {
     const newUsedTerms: Record<number, Set<number>> = {};
     
     variants.forEach((variant) => {
-      variant.attributes.forEach((attr) => {
-        if (!newUsedTerms[attr.attribute_id]) {
-          newUsedTerms[attr.attribute_id] = new Set();
-        }
-        // Only add if term_id is a valid number
-        if (attr.term_id && attr.term_id !== 0) {
-          newUsedTerms[attr.attribute_id].add(attr.term_id);
-        }
-      });
+      if (Array.isArray(variant.attributes)) {
+        variant.attributes.forEach((attr) => {
+          if (!newUsedTerms[attr.attribute_id]) {
+            newUsedTerms[attr.attribute_id] = new Set();
+          }
+          // Only add if term_id is a valid number
+          if (attr.term_id && attr.term_id !== 0) {
+            newUsedTerms[attr.attribute_id].add(attr.term_id);
+          }
+        });
+      }
     });
 
     setUsedTerms(newUsedTerms);
@@ -445,7 +451,8 @@ function VariantTab() {
     const currentVariant = variants[variantIndex];
     const currentTermId = currentVariant?.attributes?.find(attr => attr.attribute_id === attributeId)?.term_id;
     
-    return (formData.attributesResponse?.productAttributeTerms || [])
+    // Get all terms for this attribute
+    const allTerms = (formData.attributesResponse?.productAttributeTerms || [])
       .filter(term => 
         term.attribute_id === attributeId && 
         term.used_in_variation && 
@@ -456,6 +463,9 @@ function VariantTab() {
         value: term.term_id,
         label: term.term?.name || `Term ${term.term_id}`,
       }));
+      
+    console.log(`Available terms for attribute ${attributeId}, variant ${variantIndex}:`, allTerms);
+    return allTerms;
   };
 
   // Function to check if an attribute has any available terms
@@ -500,182 +510,122 @@ function VariantTab() {
     }
   };
 
-  const onSubmit = async (data: FormData) => {
-    // Detailed logging of form submission
-    console.log("Form submitted:", data);
-    console.log("Form validation errors:", errors);
-    console.log("Is form valid:", isValid);
-    console.log("Existing form data:", formData);
+  // Transform the data to match API requirements
+  const transformVariantData = (variant: any): ProductVariant => {
+    const transformedVariant: ProductVariant = {
+      slug: variant.slug,
+      price: Number(variant.price),
+      stock: Number(variant.stock),
+      status: Boolean(variant.status),
+      discount_price: variant.discount_price ? Number(variant.discount_price) : undefined,
+      purchase_price: variant.purchase_price ? Number(variant.purchase_price) : undefined,
+      low_stock_threshold: variant.low_stock_threshold ? Number(variant.low_stock_threshold) : undefined,
+      weight: variant.weight ? Number(variant.weight) : undefined,
+      length: variant.length ? Number(variant.length) : undefined,
+      width: variant.width ? Number(variant.width) : undefined,
+      height: variant.height ? Number(variant.height) : undefined,
+      barcode: variant.barcode || undefined,
+      description: variant.description || undefined,
+      attributes: Array.isArray(variant.attributes) 
+        ? variant.attributes.map((attr: any) => ({
+            attribute_id: Number(attr.attribute_id),
+            term_id: Number(attr.term_id)
+          }))
+        : []
+    };
 
-    // Validate data manually
-    if (!data.variants || data.variants.length === 0) {
-      showSnackbar("No variants defined", "error");
-      return;
-    }
+    return transformedVariant;
+  };
 
-    // Validate each variant with detailed logging
-    const invalidVariants = data.variants.filter((variant, index) => {
-      const variantErrors: string[] = [];
-
-      if (!variant.slug) variantErrors.push(`Variant ${index + 1}: Slug is missing`);
-      if (!variant.price) variantErrors.push(`Variant ${index + 1}: Price is missing`);
-      if (!variant.stock) variantErrors.push(`Variant ${index + 1}: Stock is missing`);
-      
-      const invalidAttributes = variant.attributes.filter(attr => !attr.term_id);
-      if (invalidAttributes.length > 0) {
-        variantErrors.push(`Variant ${index + 1}: Some attributes are missing term selection`);
-      }
-
-      if (variantErrors.length > 0) {
-        console.error(`Variant ${index + 1} errors:`, variantErrors);
-        return true;
-      }
-      return false;
+  // Function for debugging attribute values before submission
+  const debugAttributeValues = () => {
+    const currentVariants = watch("variants");
+    currentVariants.forEach((variant, variantIndex) => {
+      console.log(`Debugging Variant ${variantIndex + 1} attributes:`);
+      variant.attributes.forEach((attr, attrIndex) => {
+        console.log(`  Attribute ${attrIndex}: attribute_id=${attr.attribute_id}, term_id=${attr.term_id}`);
+      });
     });
+  };
 
-    if (invalidVariants.length > 0) {
-      showSnackbar("Some variants are missing required information", "error");
-      return;
-    }
-
-    setIsLoading(true);
-
+  const onSubmit = async (data: FormData) => {
     try {
-      // Ensure we have a productId
+      console.log("Form data being submitted:", JSON.stringify(data, null, 2));
+      
+      // Debug attributes
+      data.variants.forEach((variant, index) => {
+        console.log(`Variant ${index + 1} attributes before submission:`);
+        if (Array.isArray(variant.attributes)) {
+          variant.attributes.forEach((attr, attrIndex) => {
+            console.log(`  Attribute ${attrIndex}: attribute_id=${attr.attribute_id} (${typeof attr.attribute_id}), term_id=${attr.term_id} (${typeof attr.term_id})`);
+          });
+        } else {
+          console.log(`  No attributes array for variant ${index + 1}`);
+        }
+      });
+
+      if (!data.variants || data.variants.length === 0) {
+        showSnackbar("No variants defined", "error");
+        return;
+      }
+
+      setIsLoading(true);
+
       if (!formData.productId) {
         throw new Error("Product ID is required");
       }
 
-      // Transform the data to match API requirements
-      const transformedData = {
-        variants: data.variants.map((variant) => ({
-          id: variant.id, // Include existing variant ID if present
+      // Transform variants data for API
+      const transformedVariants = data.variants.map(variant => {
+        // Make a new object to avoid mutation
+        return {
           slug: variant.slug,
           price: Number(variant.price),
           stock: Number(variant.stock),
-          status: variant.status,
-          discount_price: variant.discount_price
-            ? Number(variant.discount_price)
-            : null,
-          purchase_price: variant.purchase_price
-            ? Number(variant.purchase_price)
-            : null,
-          low_stock_threshold: variant.low_stock_threshold
-            ? Number(variant.low_stock_threshold)
-            : null,
-          weight: variant.weight ? Number(variant.weight) : null,
-          length: variant.length ? Number(variant.length) : null,
-          width: variant.width ? Number(variant.width) : null,
-          height: variant.height ? Number(variant.height) : null,
-          barcode: variant.barcode,
-          description: variant.description,
-          attributes: variant.attributes.map(attr => ({
-            attribute_id: attr.attribute_id,
-            term_id: attr.term_id
-          })),
-        })),
+          status: Boolean(variant.status),
+          discount_price: variant.discount_price ? Number(variant.discount_price) : undefined,
+          purchase_price: variant.purchase_price ? Number(variant.purchase_price) : undefined,
+          low_stock_threshold: variant.low_stock_threshold ? Number(variant.low_stock_threshold) : undefined,
+          weight: variant.weight ? Number(variant.weight) : undefined,
+          length: variant.length ? Number(variant.length) : undefined,
+          width: variant.width ? Number(variant.width) : undefined,
+          height: variant.height ? Number(variant.height) : undefined,
+          barcode: variant.barcode || undefined,
+          description: variant.description || undefined,
+          attributes: Array.isArray(variant.attributes)
+            ? variant.attributes.map(attr => ({
+                attribute_id: Number(attr.attribute_id),
+                term_id: Number(attr.term_id)
+              }))
+            : []
+        };
+      });
+      
+      // Create API request payload
+      const apiPayload: CreateProductVariantsRequest = {
+        variants: transformedVariants
       };
 
-      console.log("Calling API with transformed data:", transformedData);
+      console.log("API payload:", JSON.stringify(apiPayload, null, 2));
 
-      // Call the API
+      // Make API call
       const response = await createProductVariants(
         formData.productId,
-        transformedData,
+        apiPayload
       );
+
       console.log("API response:", response);
 
       // After successful creation, fetch the latest product data
-      try {
-        console.log("Fetching updated product data...");
-        const productResponse = await getProduct(formData.productId);
-        console.log("Updated product data received:", productResponse?.data);
-        
-        if (productResponse?.data?.variants) {
-          // Convert API variant data to form data format
-          const updatedVariants = productResponse.data.variants.map((variant: any) => ({
-            id: variant.id,
-            slug: variant.slug || "",
-            price: typeof variant.price === 'string' 
-              ? parseFloat(variant.price) 
-              : (variant.price || 0),
-            stock: typeof variant.stock === 'string' 
-              ? parseInt(variant.stock) 
-              : (variant.stock || 0),
-            status: variant.status === true || 
-              (typeof variant.status === 'string' && variant.status === 'active'),
-            discount_price: variant.discount_price 
-              ? (typeof variant.discount_price === 'string' 
-                ? parseFloat(variant.discount_price) 
-                : variant.discount_price) 
-              : null,
-            purchase_price: variant.purchase_price 
-              ? (typeof variant.purchase_price === 'string' 
-                ? parseFloat(variant.purchase_price) 
-                : variant.purchase_price) 
-              : null,
-            low_stock_threshold: variant.low_stock_threshold 
-              ? (typeof variant.low_stock_threshold === 'string' 
-                ? parseInt(variant.low_stock_threshold) 
-                : variant.low_stock_threshold) 
-              : null,
-            weight: variant.weight 
-              ? (typeof variant.weight === 'string' 
-                ? parseFloat(variant.weight) 
-                : variant.weight) 
-              : null,
-            length: variant.length 
-              ? (typeof variant.length === 'string' 
-                ? parseFloat(variant.length) 
-                : variant.length) 
-              : null,
-            width: variant.width 
-              ? (typeof variant.width === 'string' 
-                ? parseFloat(variant.width) 
-                : variant.width) 
-              : null,
-            height: variant.height 
-              ? (typeof variant.height === 'string' 
-                ? parseFloat(variant.height) 
-                : variant.height) 
-              : null,
-            barcode: variant.barcode || null,
-            description: variant.description || null,
-            attributes: variant.variantAttributes 
-              ? variant.variantAttributes.map((varAttr: any) => ({
-                  attribute_id: Number(varAttr.attribute_id),
-                  term_id: Number(varAttr.term_id),
-                }))
-              : [],
-          }));
-          
-          // Update form with fresh data from API
-          reset({ variants: updatedVariants });
-          
-          // Also update form context
-          updateFormData({
-            variants: updatedVariants,
-            attributesResponse: {
-              productAttributeTerms: productResponse.data.productAttributeTerms || [],
-              productAttributes: productResponse.data.productAttributes || []
-            },
-            hasErrors: false,
-          });
-          
-          console.log("Form updated with latest variant data:", updatedVariants);
-        } else {
-          // If no variants in response, use the ones from the form submission
-          updateFormData({
-            variants: data.variants,
-            hasErrors: false,
-          });
-        }
-      } catch (fetchError) {
-        console.error("Error fetching updated product data:", fetchError);
-        // Fall back to using the submitted data
+      const productResponse = await getProduct(formData.productId);
+      
+      if (productResponse?.data?.variants) {
         updateFormData({
-          variants: data.variants,
-          hasErrors: false,
+          variants: productResponse.data.variants,
+          attributesResponse: {
+            productAttributeTerms: productResponse.data.productAttributeTerms || [],
+            productAttributes: productResponse.data.productAttributes || []
+          }
         });
       }
 
@@ -683,18 +633,9 @@ function VariantTab() {
       markStepAsCompleted(3);
       nextStep();
     } catch (error) {
-      console.error("API error:", error);
-
-      if (error.response) {
-        showSnackbar(
-          error.response.data.message || "Failed to save variants",
-          "error",
-        );
-      } else if (error.request) {
-        showSnackbar("Network error, please try again", "error");
-      } else {
-        showSnackbar(error.message || "An unexpected error occurred", "error");
-      }
+      console.error("Error submitting variants:", error);
+      const errorMessage = error.response?.data?.message || "Failed to save variants";
+      showSnackbar(errorMessage, "error");
     } finally {
       setIsLoading(false);
     }
@@ -756,7 +697,15 @@ function VariantTab() {
               attribute_id: Number(varAttr.attribute_id),
               term_id: Number(varAttr.term_id),
             }))
-          : variant.attributes || [],
+          : Array.isArray(variant.attributes)
+              ? variant.attributes.map(attr => ({
+                  attribute_id: Number(attr.attribute_id),
+                  term_id: Number(attr.term_id),
+                }))
+              : variationAttributes.map(attr => ({
+                  attribute_id: Number(attr.attribute_id),
+                  term_id: 0,
+                })),
       }));
 
       console.log("Updating form with formatted variants:", formattedVariants);
@@ -779,66 +728,38 @@ function VariantTab() {
   };
 
   return (
-    <form 
-      onSubmit={(e) => {
-        e.preventDefault(); // Prevent default form submission
+    <form onSubmit={handleSubmit(onSubmit, (errors) => {
+      console.error("Form validation errors:", errors);
+      
+      if (errors.variants) {
+        // Handle array-level errors
+        if (typeof errors.variants === 'string') {
+          showSnackbar(errors.variants, "error");
+          return;
+        }
         
-        // Get the current form values
-        const formValues = watch();
-        console.log("Current form values:", formValues);
-
-        // Validate form values before submission
-        if (!formValues.variants || formValues.variants.length === 0) {
-          showSnackbar("Please add at least one variant", "error");
-          return;
-        }
-
-        // Check if all variants have required fields
-        const invalidVariants = formValues.variants.filter((variant: any, index: number) => {
-          const errors: string[] = [];
-          
-          if (!variant.slug) errors.push(`Variant ${index + 1}: Slug is required`);
-          if (!variant.price) errors.push(`Variant ${index + 1}: Price is required`);
-          if (!variant.stock) errors.push(`Variant ${index + 1}: Stock is required`);
-          
-          const invalidAttributes = variant.attributes.filter((attr: any) => !attr.term_id);
-          if (invalidAttributes.length > 0) {
-            errors.push(`Variant ${index + 1}: All attributes must have a term selected`);
-          }
-
-          return errors.length > 0;
-        });
-
-        if (invalidVariants.length > 0) {
-          showSnackbar("Please fill in all required fields for each variant", "error");
-          return;
-        }
-
-        // If validation passes, proceed with form submission
-        handleSubmit(
-          onSubmit, 
-          (validationErrors) => {
-            console.error("Form validation errors:", validationErrors);
-            
-            // Construct a more informative error message
-            const errorMessages = Object.entries(validationErrors)
-              .map(([key, error]) => {
-                if (key === 'variants') {
-                  return `Variant validation errors: ${error.message}`;
-                }
-                return `${key}: ${error.message}`;
+        // Handle individual variant errors
+        const errorMessages = Array.isArray(errors.variants) 
+          ? errors.variants
+              .map((variantError, index) => {
+                if (!variantError) return null;
+                
+                // Extract field names with errors for this variant
+                const fieldNames = Object.keys(variantError);
+                if (fieldNames.length === 0) return null;
+                
+                return `Variant ${index + 1}: Issues with ${fieldNames.join(', ')}`;
               })
-              .join('; ');
-            
-            showSnackbar(
-              errorMessages || "Please fix form errors before submitting", 
-              "error"
-            );
-          }
-        )(e);
-      }} 
-      className="space-y-4"
-    >
+              .filter(Boolean)
+              .join('; ')
+          : "Issues with variants";
+
+        showSnackbar(errorMessages || "Please check all variant fields", "error");
+      } else {
+        showSnackbar("Please check all required fields", "error");
+      }
+    })} 
+    className="space-y-4">
       {fields.map((field, index) => (
         <Paper key={field.id || index} className="p-4 relative">
           <Grid container spacing={2}>
@@ -859,17 +780,18 @@ function VariantTab() {
                     label={getAttributeName(attr.attribute_id)}
                     options={availableTerms}
                     required
-                    onChange={(event) => {
+                    onChange={(event: SelectChangeEvent<unknown>) => {
                       const selectedValue = Number(event.target.value);
+                      console.log(`Setting term_id=${selectedValue} for variant ${index}, attribute ${attrIndex}`);
                       setValue(`variants.${index}.attributes.${attrIndex}.term_id`, selectedValue);
                     }}
                   />
-                  <input
-                    type="hidden"
-                    {...register(
-                      `variants.${index}.attributes.${attrIndex}.attribute_id`,
-                    )}
-                    value={attr.attribute_id}
+
+                  {/* Set attribute_id as hidden field */}
+                  <input 
+                    type="hidden" 
+                    {...register(`variants.${index}.attributes.${attrIndex}.attribute_id`)}
+                    defaultValue={Number(attr.attribute_id)}
                   />
                 </Grid>
               );

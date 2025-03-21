@@ -61,9 +61,8 @@ const AttributeTable = () => {
     useState<AttributeListParams["sort_by"]>("created_at");
   const [order, setOrder] = useState<"ASC" | "DESC">("DESC");
   const [openDialog, setOpenDialog] = useState(false);
-  const [selectedAttribute, setSelectedAttribute] = useState<Attribute | null>(
-    null,
-  );
+  const [selectedAttribute, setSelectedAttribute] = useState<Attribute | null>(null);
+  const [localAttributes, setLocalAttributes] = useState<Attribute[]>([]);
 
   // Debounce search input
   useEffect(() => {
@@ -91,9 +90,12 @@ const AttributeTable = () => {
     { keepPreviousData: true },
   );
 
-  const attributes: Attribute[] = data?.data?.attributes || [];
-  const totalRecords = data?.data?.pagination?.total || 0;
-  const totalPages = Math.ceil(totalRecords / pageSize);
+  // Update localAttributes when data changes
+  useEffect(() => {
+    if (data?.data?.attributes) {
+      setLocalAttributes(data.data.attributes);
+    }
+  }, [data?.data?.attributes]);
 
   const handleDeleteClick = (attribute: Attribute) => {
     setSelectedAttribute(attribute);
@@ -105,20 +107,40 @@ const AttributeTable = () => {
     setOpenDialog(false);
 
     try {
-      await (selectedAttribute.deleted_at
-        ? restoreAttribute(selectedAttribute.id)
-        : deleteAttribute(selectedAttribute.id));
-      showSnackbar(
-        `Attribute ${selectedAttribute.deleted_at ? "restored" : "deleted"} successfully`,
-        "success",
+      // Immediately update local state
+      const updatedAttributes = localAttributes.filter(
+        attr => attr.id !== selectedAttribute.id
       );
-      mutate(["attributeList", queryParams]);
+      setLocalAttributes(updatedAttributes);
+
+      // Update pagination if needed
+      const newTotal = (data?.data?.pagination?.total || 0) - 1;
+      if (newTotal <= (page - 1) * pageSize && page > 1) {
+        setPage(page - 1);
+      }
+
+      // Perform the actual API call
+      if (selectedAttribute.deleted_at) {
+        await restoreAttribute(selectedAttribute.id);
+        showSnackbar("Attribute restored successfully!", "success");
+      } else {
+        await deleteAttribute(selectedAttribute.id);
+        showSnackbar("Attribute deleted successfully!", "success");
+      }
+
+      // Update the server data
+      await mutate(["attributeList", queryParams]);
     } catch (error: any) {
+      // Revert local state on error
+      if (data?.data?.attributes) {
+        setLocalAttributes(data.data.attributes);
+      }
+      
       console.error("Action error:", error);
       showSnackbar(
         error?.response?.data?.message ||
         `Failed to ${selectedAttribute.deleted_at ? "restore" : "delete"} attribute`,
-        "error",
+        "error"
       );
     }
   };
@@ -235,45 +257,19 @@ const AttributeTable = () => {
       </div>
 
       <DataTable
-        data={attributes}
+        data={localAttributes}
         columns={columns}
-        // renderRowActionMenuItems={({ closeMenu, row }) => [
-        //   <>
-        //         <MenuItem
-        //           key="view-details"
-        //           onClick={() => {
-        //         router.push(`/apps/attribute/attribute-detail/${row.original.id}`);
-        //             closeMenu();
-        //           }}
-        //         >
-        //           <ListItemIcon>
-        //             <FuseSvgIcon>heroicons-outline:arrow-top-right-on-square</FuseSvgIcon>
-        //           </ListItemIcon>
-        //           View Details
-        //         </MenuItem>
-        //     {!row.original.deleted_at && (
-        //       <MenuItem
-        //         key="edit"
-        //         onClick={() => { handleEdit(row.original); closeMenu(); }}
-        //       >
-        //         <ListItemIcon><FuseSvgIcon>heroicons-outline:pencil-square</FuseSvgIcon></ListItemIcon>
-        //         Edit
-        //       </MenuItem>
-        //     )}
-        //         <MenuItem
-        //       key="delete"
-        //       onClick={() => { handleDeleteClick(row.original); closeMenu(); }}
-        //         >
-        //           <ListItemIcon>
-        //             <FuseSvgIcon>
-        //           {row.original.deleted_at ? "heroicons-outline:arrow-path" : "heroicons-outline:trash"}
-        //             </FuseSvgIcon>
-        //           </ListItemIcon>
-        //       {row.original.deleted_at ? 'Restore' : 'Delete'}
-        //         </MenuItem>
-        //   </>
-        // ]}
+        enablePagination
+        manualPagination
+        state={{ pagination: { pageIndex: page - 1, pageSize } }}
+        onPaginationChange={(updater: any) => {
+          const newPagination = updater({ pageIndex: page - 1, pageSize });
+          setPage(newPagination.pageIndex + 1);
+          setPageSize(newPagination.pageSize);
+        }}
+        rowCount={data?.data?.pagination?.total || 0}
         renderRowActionMenuItems={({ closeMenu, row }) => [
+          !row.original.deleted_at && (
           <MenuItem
             key="view-details"
             onClick={() => {
@@ -289,7 +285,7 @@ const AttributeTable = () => {
               </FuseSvgIcon>
             </ListItemIcon>
             View Details
-          </MenuItem>,
+          </MenuItem>),
 
           !row.original.deleted_at && (
             <MenuItem
@@ -327,7 +323,7 @@ const AttributeTable = () => {
 
       <div className="flex justify-center p-4">
         <Pagination
-          count={totalPages}
+          count={Math.ceil(data?.data?.pagination?.total / pageSize)}
           page={page}
           onChange={(_, newPage) => setPage(newPage)}
           shape="rounded"
@@ -359,12 +355,12 @@ const AttributeTable = () => {
             Are you sure you want to{" "}
             {selectedAttribute?.deleted_at ? "restore" : "delete"}{" "}
             <strong>{selectedAttribute?.name}</strong>?
-            {!selectedAttribute?.deleted_at && (
+            {/* {!selectedAttribute?.deleted_at && (
               <Typography color="warning.main" sx={{ mt: 1 }}>
                 Note: This action will only succeed if the attribute is not
                 being used in any product variants and has no terms.
               </Typography>
-            )}
+            )} */}
           </Typography>
         </DialogContent>
         <DialogActions>

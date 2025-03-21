@@ -162,7 +162,7 @@ export default function AttributeDetail() {
   return (
     <div className="mt-10">
       <Typography className="text-4xl font-extrabold leading-none tracking-tight mb-4">
-        Brand Details
+        Attribute Details
       </Typography>
       <Paper
         className="flex flex-col flex-auto shadow-1 rounded-lg overflow-hidden w-full h-full p-4"

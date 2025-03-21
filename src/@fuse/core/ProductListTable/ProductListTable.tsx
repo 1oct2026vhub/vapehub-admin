@@ -113,7 +113,7 @@ const ProductListTable = () => {
     queryParams,
   );
   const products = data?.data?.products || [];
-  const totalRecords = data?.data?.total || 0;
+  const totalRecords = data?.data?.pagination?.total_count || 0;
   const totalPages = Math.ceil(totalRecords / limit);
 
   const handleEdit = (product: ProductType) => {

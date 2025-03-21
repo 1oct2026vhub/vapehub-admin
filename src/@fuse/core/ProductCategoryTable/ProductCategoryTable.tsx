@@ -50,12 +50,11 @@ const ProductCategoryTable = () => {
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [deleted, setDeleted] = useState<boolean | null>(null);
   const [openDialog, setOpenDialog] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState<CategoryType | null>(
-    null,
-  );
+  const [selectedCategory, setSelectedCategory] = useState<CategoryType | null>(null);
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
   const { showSnackbar } = useSnackbar();
+  const [localCategories, setLocalCategories] = useState<CategoryType[]>([]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -80,9 +79,11 @@ const ProductCategoryTable = () => {
     queryParams,
   );
 
-  const categories: CategoryType[] = data?.data?.categories || [];
-  const totalRecords = data?.data?.total || 0;
-  const totalPages = Math.ceil(totalRecords / limit);
+  useEffect(() => {
+    if (data?.data?.categories) {
+      setLocalCategories(data.data.categories);
+    }
+  }, [data?.data?.categories]);
 
   const handleDeleteClick = (category: CategoryType) => {
     setSelectedCategory(category);
@@ -94,19 +95,35 @@ const ProductCategoryTable = () => {
     setOpenDialog(false);
 
     try {
-      await (selectedCategory.deletedAt
-        ? restoreCategory(selectedCategory.id)
-        : deleteCategory(selectedCategory.id));
-      showSnackbar(
-        `Category ${selectedCategory.deletedAt ? "restored" : "deleted"} successfully`,
-        "success",
+      const updatedCategories = localCategories.filter(
+        cat => cat.id !== selectedCategory.id
       );
-      mutate(["productCategoryList", queryParams]);
-    } catch (error) {
+      setLocalCategories(updatedCategories);
+
+      const newTotal = (data?.data?.total || 0) - 1;
+      if (newTotal <= (page - 1) * limit && page > 1) {
+        setPage(page - 1);
+      }
+
+      if (selectedCategory.deletedAt) {
+        await restoreCategory(selectedCategory.id);
+        showSnackbar("Category restored successfully!", "success");
+      } else {
+        await deleteCategory(selectedCategory.id);
+        showSnackbar("Category deleted successfully!", "success");
+      }
+
+      await mutate(["productCategoryList", queryParams]);
+    } catch (error: any) {
+      if (data?.data?.categories) {
+        setLocalCategories(data.data.categories);
+      }
+      
       console.error("Action error:", error);
       showSnackbar(
+        error?.response?.data?.message ||
         `Failed to ${selectedCategory.deletedAt ? "restore" : "delete"} category`,
-        "error",
+        "error"
       );
     }
   };
@@ -200,47 +217,20 @@ const ProductCategoryTable = () => {
       </div>
 
       <DataTable
-        data={categories}
+        data={localCategories}
         columns={columns}
-        // renderRowActionMenuItems={({ closeMenu, row }) => [
-        //   <>
-        //     <MenuItem
-        //       key="view-details"
-        //       onClick={() => {
-        //         router.push(`/apps/product-category/category-detail/${row.original.id}`);
-        //         closeMenu();
-        //       }}
-        //     >
-        //       <ListItemIcon>
-        //         <FuseSvgIcon>heroicons-outline:arrow-top-right-on-square</FuseSvgIcon>
-        //       </ListItemIcon>
-        //       View Details
-        //     </MenuItem>
-        //     {!row.original.deletedAt && (
-        //       <MenuItem
-        //         key="edit"
-        //         onClick={() => { handleEdit(row.original); closeMenu(); }}
-        //       >
-        //       <ListItemIcon><FuseSvgIcon>heroicons-outline:pencil-square</FuseSvgIcon></ListItemIcon>
-        //       Edit
-        //     </MenuItem>
-        //     )}
-        //     <MenuItem
-        //       key="delete"
-        //       onClick={() => { handleDeleteClick(row.original); closeMenu(); }}
-        //     >
-        //       <ListItemIcon>
-        //         <FuseSvgIcon>
-        //           {row.original.deletedAt ? "heroicons-outline:arrow-path" : "heroicons-outline:trash"}
-        //         </FuseSvgIcon>
-        //       </ListItemIcon>
-        //       {row.original.deletedAt ? 'Restore' : 'Delete'}
-        //     </MenuItem>
-        //   </>
-        // ]}
-
+        enablePagination
+        manualPagination
+        state={{ pagination: { pageIndex: page - 1, pageSize: limit } }}
+        onPaginationChange={(updater: any) => {
+          const newPagination = updater({ pageIndex: page - 1, pageSize: limit });
+          setPage(newPagination.pageIndex + 1);
+          setLimit(newPagination.pageSize);
+        }}
+        rowCount={data?.data?.total || 0}
         renderRowActionMenuItems={({ closeMenu, row }) => {
           return [
+            !row.original.deletedAt && (
             <MenuItem
               key="view-details"
               onClick={() => {
@@ -256,7 +246,7 @@ const ProductCategoryTable = () => {
                 </FuseSvgIcon>
               </ListItemIcon>
               View Details
-            </MenuItem>,
+            </MenuItem>),
 
             !row.original.deletedAt && (
               <MenuItem
@@ -289,13 +279,13 @@ const ProductCategoryTable = () => {
               </ListItemIcon>
               {row.original.deletedAt ? "Restore" : "Delete"}
             </MenuItem>,
-          ].filter(Boolean); // Filters out `null` items
+          ].filter(Boolean);
         }}
       />
 
       <div className="flex justify-center p-4">
         <Pagination
-          count={totalPages}
+          count={Math.ceil((data?.data?.total || 0) / limit)}
           page={page}
           onChange={(_, newPage) => setPage(newPage)}
           shape="rounded"
