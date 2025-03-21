@@ -232,9 +232,9 @@ export const createProductVariants = async (
   return response.data;
 };
 
-export const deleteProductVariant = async (variantId: number) => {
+export const deleteProductVariant = async (variant_id: number) => {
   const response = await axiosInstance.delete(
-    `/api/admin/product-variants/variants/${variantId}`,
+    `/api/admin/product-variants/variants/${variant_id}`,
   );
   return response.data;
 };

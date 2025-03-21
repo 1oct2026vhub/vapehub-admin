@@ -10,14 +10,14 @@ import {
 } from "@mui/material";
 
 interface FormSelectFieldProps {
-  name: string;
+    name: string;
   control: Control<any>;
-  label: string;
+    label: string;
   // options: Array<{
   //   value: number;
   //   label: string;
   // }>;
-  options: { value: string | number; label: string }[];
+    options: { value: string | number; label: string }[];
   required?: boolean;
   isMulti?: boolean;
   onChange?: (event: SelectChangeEvent<any>) => void;
@@ -34,36 +34,36 @@ function FormSelectField({
   onChange,
   onTermRemove,
 }: FormSelectFieldProps) {
-  return (
-    <Controller
-      name={name}
-      control={control}
+    return (
+        <Controller
+            name={name}
+            control={control}
       rules={{ required: required ? "This field is required" : false }}
       render={({
         field: { onChange: fieldOnChange, value },
         fieldState: { error },
       }) => (
-        <FormControl
-          fullWidth
-          error={!!error}
-          sx={{
-            '& .MuiOutlinedInput-root': {
-              '& fieldset': {
-                borderImage: 'linear-gradient(to right, #2E9970, #005434) 1',
-              },
-              '&:hover fieldset': {
-                borderImage: 'linear-gradient(to right, #247C5C, #003F29) 1',
-              },
-              '&.Mui-focused fieldset': {
-                borderImage: 'linear-gradient(to right, #1E7A56, #004C30) 1',
-              },
-            },
-            '& .MuiInputLabel-root': {
-              color: '#2E9970', // Label color before focus
-            },
-            '& .MuiInputLabel-root.Mui-focused': {
-              color: '#2E9970', // Label color on focus
-            },
+                <FormControl
+                    fullWidth
+                    error={!!error}
+                    sx={{
+                        '& .MuiOutlinedInput-root': {
+                            '& fieldset': {
+                                borderImage: 'linear-gradient(to right, #2E9970, #005434) 1',
+                            },
+                            '&:hover fieldset': {
+                                borderImage: 'linear-gradient(to right, #247C5C, #003F29) 1',
+                            },
+                            '&.Mui-focused fieldset': {
+                                borderImage: 'linear-gradient(to right, #1E7A56, #004C30) 1',
+                            },
+                        },
+                        '& .MuiInputLabel-root': {
+                            color: '#2E9970', // Label color before focus
+                        },
+                        '& .MuiInputLabel-root.Mui-focused': {
+                            color: '#2E9970', // Label color on focus
+                        },
             marginBottom: '20px'
           }}
         >
@@ -125,18 +125,18 @@ function FormSelectField({
             }}
           >
             {options.map((option) => (
-              <MenuItem key={option.value} value={option.value}>
-                {option.label}
-              </MenuItem>
-            ))}
-          </Select>
+                            <MenuItem key={option.value} value={option.value}>
+                                {option.label}
+                            </MenuItem>
+                        ))}
+                    </Select>
           {error && (
             <span className="text-red-500 text-sm">{error.message}</span>
           )}
-        </FormControl>
-      )}
-    />
-  );
+                </FormControl>
+            )}
+        />
+    );
 }
 
 export default FormSelectField;
