@@ -1,14 +1,16 @@
-import { useContext } from 'react';
-import FuseSettingsContext, { FuseSettingsContextType } from '../FuseSettingsContext';
+import { useContext } from "react";
+import FuseSettingsContext, {
+  FuseSettingsContextType,
+} from "../FuseSettingsContext";
 
 const useFuseSettings = (): FuseSettingsContextType => {
-	const context = useContext(FuseSettingsContext);
+  const context = useContext(FuseSettingsContext);
 
-	if (!context) {
-		throw new Error('useSettings must be used within a FuseSettingsProvider');
-	}
+  if (!context) {
+    throw new Error("useSettings must be used within a FuseSettingsProvider");
+  }
 
-	return context;
+  return context;
 };
 
 export default useFuseSettings;

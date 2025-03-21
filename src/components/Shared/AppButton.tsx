@@ -35,16 +35,16 @@
 
 // const GradientButton = styled(Button)(({ disabled }) => ({
 //   background: disabled
-//     ? 'linear-gradient(to bottom, rgba(46, 153, 112, 0.5), rgba(0, 84, 52, 0.5))' 
+//     ? 'linear-gradient(to bottom, rgba(46, 153, 112, 0.5), rgba(0, 84, 52, 0.5))'
 //     : 'linear-gradient(to bottom, #2E9970, #005434)',
-//   color: disabled ? 'black' : '#fff', 
+//   color: disabled ? 'black' : '#fff',
 //   cursor: disabled ? 'not-allowed !important' : 'pointer',
-//   pointerEvents: disabled ? 'none' : 'auto', 
-//   opacity: disabled ? 0.6 : 1, 
-//   '&.Mui-disabled': { 
+//   pointerEvents: disabled ? 'none' : 'auto',
+//   opacity: disabled ? 0.6 : 1,
+//   '&.Mui-disabled': {
 //     cursor: 'not-allowed !important',
 //     pointerEvents: 'none',
-//     color:'black', 
+//     color:'black',
 //   },
 //   '&:hover': {
 //     background: disabled
@@ -52,7 +52,6 @@
 //       : 'linear-gradient(to bottom, #247C5C, #003F29)',
 //   },
 // }));
-
 
 // const AppButton: React.FC<AppButtonProps> = ({
 //   label,
@@ -81,43 +80,43 @@
 
 // export default AppButton;
 
-
-import React, { ElementType } from 'react';
-import Button from '@mui/material/Button';
-import CircularProgress from '@mui/material/CircularProgress';
-import { styled } from '@mui/material/styles';
+import React, { ElementType } from "react";
+import Button from "@mui/material/Button";
+import CircularProgress from "@mui/material/CircularProgress";
+import { styled } from "@mui/material/styles";
 
 type AppButtonProps = {
   label: React.ReactNode;
   component?: ElementType; // Allow custom components like NavLinkAdapter
   to?: string; // Only used when component supports it
-  onClick?: () => void;
-  type?: 'button' | 'submit' | 'reset';
-  variant?: 'text' | 'outlined' | 'contained';
+  // onClick?: () => void;
+  onClick?: (event?: React.MouseEvent<HTMLElement>) => void; // Accept event parameter
+  type?: "button" | "submit" | "reset";
+  variant?: "text" | "outlined" | "contained";
   disabled?: boolean;
   fullWidth?: boolean;
-  size?: 'small' | 'medium' | 'large';
+  size?: "small" | "medium" | "large";
   className?: string;
   loading?: boolean; // New prop to show loading state
 };
 
 const GradientButton = styled(Button)(({ disabled }) => ({
   background: disabled
-    ? 'linear-gradient(to bottom, rgba(46, 153, 112, 0.5), rgba(0, 84, 52, 0.5))'
-    : 'linear-gradient(to bottom, #2E9970, #005434)',
-  color: disabled ? 'black' : '#fff',
-  cursor: disabled ? 'not-allowed !important' : 'pointer',
-  pointerEvents: disabled ? 'none' : 'auto',
+    ? "linear-gradient(to bottom, rgba(46, 153, 112, 0.5), rgba(0, 84, 52, 0.5))"
+    : "linear-gradient(to bottom, #2E9970, #005434)",
+  color: disabled ? "black" : "#fff",
+  cursor: disabled ? "not-allowed !important" : "pointer",
+  pointerEvents: disabled ? "none" : "auto",
   opacity: disabled ? 0.6 : 1,
-  '&.Mui-disabled': {
-    cursor: 'not-allowed !important',
-    pointerEvents: 'none',
-    color: 'black',
+  "&.Mui-disabled": {
+    cursor: "not-allowed !important",
+    pointerEvents: "none",
+    color: "black",
   },
-  '&:hover': {
+  "&:hover": {
     background: disabled
-      ? 'linear-gradient(to bottom, rgba(46, 153, 112, 0.5), rgba(0, 84, 52, 0.5))'
-      : 'linear-gradient(to bottom, #247C5C, #003F29)',
+      ? "linear-gradient(to bottom, rgba(46, 153, 112, 0.5), rgba(0, 84, 52, 0.5))"
+      : "linear-gradient(to bottom, #247C5C, #003F29)",
   },
 }));
 
@@ -126,15 +125,23 @@ const AppButton: React.FC<AppButtonProps> = ({
   component,
   to,
   onClick,
-  type = 'button',
-  variant = 'contained',
+  type = "button",
+  variant = "contained",
   disabled = false,
   fullWidth = false,
-  size = 'medium',
-  className = '',
+  size = "medium",
+  className = "",
   loading = false, // Default loading to false
 }) => {
-  const buttonProps: any = { onClick, type, variant, disabled: disabled || loading, fullWidth, size, className };
+  const buttonProps: any = {
+    onClick,
+    type,
+    variant,
+    disabled: disabled || loading,
+    fullWidth,
+    size,
+    className,
+  };
 
   if (component) {
     buttonProps.component = component;
@@ -151,4 +158,3 @@ const AppButton: React.FC<AppButtonProps> = ({
 };
 
 export default AppButton;
-

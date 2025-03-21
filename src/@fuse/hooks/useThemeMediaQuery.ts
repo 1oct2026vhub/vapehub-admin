@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import { useTheme } from '@mui/material/styles';
-import { Theme } from '@mui/system/createTheme/createTheme';
+import { useEffect, useState } from "react";
+import { useTheme } from "@mui/material/styles";
+import { Theme } from "@mui/system/createTheme/createTheme";
 
 /**
  * The useThemeMediaQuery function is a custom hook that returns a boolean indicating whether the current screen matches the specified media query.
@@ -10,43 +10,43 @@ import { Theme } from '@mui/system/createTheme/createTheme';
  * It returns a boolean indicating whether the current screen matches the specified media query.
  */
 function useThemeMediaQuery(themeCallbackFunc: (theme: Theme) => string) {
-	const theme = useTheme();
+  const theme = useTheme();
 
-	const query = themeCallbackFunc(theme).replace('@media ', '');
+  const query = themeCallbackFunc(theme).replace("@media ", "");
 
-	// State to track whether the component has mounted
-	const [hasMounted, setHasMounted] = useState(false);
-	const [matches, setMatches] = useState(false);
+  // State to track whether the component has mounted
+  const [hasMounted, setHasMounted] = useState(false);
+  const [matches, setMatches] = useState(false);
 
-	useEffect(() => {
-		// After mounting, we can safely access the `window` object and evaluate the media query
-		setHasMounted(true);
-	}, []);
+  useEffect(() => {
+    // After mounting, we can safely access the `window` object and evaluate the media query
+    setHasMounted(true);
+  }, []);
 
-	useEffect(() => {
-		if (hasMounted) {
-			const mediaQuery = window.matchMedia(query);
+  useEffect(() => {
+    if (hasMounted) {
+      const mediaQuery = window.matchMedia(query);
 
-			// Update the state with the current value
-			setMatches(mediaQuery.matches);
+      // Update the state with the current value
+      setMatches(mediaQuery.matches);
 
-			// Create an event listener to update state when the query matches change
-			const handler = (event: MediaQueryListEvent) => setMatches(event.matches);
-			mediaQuery.addEventListener('change', handler);
+      // Create an event listener to update state when the query matches change
+      const handler = (event: MediaQueryListEvent) => setMatches(event.matches);
+      mediaQuery.addEventListener("change", handler);
 
-			// Cleanup event listener on unmount
-			return () => mediaQuery.removeEventListener('change', handler);
-		}
+      // Cleanup event listener on unmount
+      return () => mediaQuery.removeEventListener("change", handler);
+    }
 
-		return undefined;
-	}, [query, hasMounted]);
+    return undefined;
+  }, [query, hasMounted]);
 
-	// Prevent rendering mismatched content by ensuring consistent SSR and client behavior
-	if (!hasMounted) {
-		return false; // Prevents server-client mismatch by avoiding media queries until client-side render
-	}
+  // Prevent rendering mismatched content by ensuring consistent SSR and client behavior
+  if (!hasMounted) {
+    return false; // Prevents server-client mismatch by avoiding media queries until client-side render
+  }
 
-	return matches;
+  return matches;
 }
 
 export default useThemeMediaQuery;

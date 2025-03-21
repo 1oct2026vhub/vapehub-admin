@@ -1,3 +1,3 @@
-import ProfileApp from './ProfileApp';
+import ProfileApp from "./ProfileApp";
 
 export default ProfileApp;

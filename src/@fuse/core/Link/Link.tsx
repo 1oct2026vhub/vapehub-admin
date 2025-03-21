@@ -1,31 +1,31 @@
-'use client';
+"use client";
 
-import NextLink, { LinkProps as NextLinkProps } from 'next/link';
-import { ReactNode } from 'react';
+import NextLink, { LinkProps as NextLinkProps } from "next/link";
+import { ReactNode } from "react";
 
-type CustomLinkProps = Omit<NextLinkProps, 'href'> & {
-	to?: string;
-	href?: string;
-	children?: ReactNode;
-	className?: string;
-	role?: string;
-	ref?: React.RefObject<HTMLAnchorElement>;
+type CustomLinkProps = Omit<NextLinkProps, "href"> & {
+  to?: string;
+  href?: string;
+  children?: ReactNode;
+  className?: string;
+  role?: string;
+  ref?: React.RefObject<HTMLAnchorElement>;
 };
 
 function Link(props: CustomLinkProps) {
-	const { ref, to, href, children, className, role, ...rest } = props;
+  const { ref, to, href, children, className, role, ...rest } = props;
 
-	return (
-		<NextLink
-			className={className}
-			href={to || href || ''}
-			role={role}
-			ref={ref}
-			{...rest}
-		>
-			{children}
-		</NextLink>
-	);
+  return (
+    <NextLink
+      className={className}
+      href={to || href || ""}
+      role={role}
+      ref={ref}
+      {...rest}
+    >
+      {children}
+    </NextLink>
+  );
 }
 
 export default Link;

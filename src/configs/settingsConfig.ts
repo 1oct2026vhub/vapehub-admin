@@ -61,7 +61,6 @@
 
 // export default settingsConfig;
 
-
 import themesConfig from "src/configs/themesConfig";
 import { FuseSettingsConfigType } from "@fuse/core/FuseSettings/FuseSettings";
 // import i18n from "@i18n/i18n";
@@ -92,7 +91,7 @@ const settingsConfig: FuseSettingsConfigType = {
    * Uncomment the line below if you are using i18n for dynamic language direction.
    */
   direction: "ltr", // or 'rtl' based on your app's requirements
-  // direction: i18n.dir(i18n.options.lng) || 'ltr', 
+  // direction: i18n.dir(i18n.options.lng) || 'ltr',
 
   /**
    * The theme object defines the color theme for the application.

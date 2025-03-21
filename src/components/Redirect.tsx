@@ -1,16 +1,16 @@
-import { redirect } from 'next/navigation';
+import { redirect } from "next/navigation";
 
 type RedirectProps = {
-	to: string;
-	children?: React.ReactNode;
+  to: string;
+  children?: React.ReactNode;
 };
 
 function Redirect(props: RedirectProps) {
-	const { to, children = null } = props;
+  const { to, children = null } = props;
 
-	redirect(to);
+  redirect(to);
 
-	return children;
+  return children;
 }
 
 export default Redirect;

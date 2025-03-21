@@ -1,1 +1,1 @@
-export { default } from './FuseSvgIcon';
+export { default } from "./FuseSvgIcon";

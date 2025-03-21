@@ -1,30 +1,33 @@
-'use client';
+"use client";
 
-import GlobalStyles from '@mui/material/GlobalStyles';
-import ProductsHeader from './ProductsHeader';
-import ProductTable from './ProductTable';
-// import ProductTable from './ProductTable';
+import FusePageSimple from "@fuse/core/FusePageSimple";
+import { styled } from "@mui/material/styles";
+import ProductHeader from "./ProductHeader";
+import ProductListTable from "@fuse/core/ProductListTable";
+
+const Root = styled(FusePageSimple)(({ theme }) => ({
+  "& .FusePageSimple-header": {
+    backgroundColor: "white",
+    borderBottomWidth: 1,
+    borderStyle: "solid",
+    borderColor: theme.palette.divider,
+  },
+  "& .FusePageSimple-content": {},
+  "& .FusePageSimple-sidebarHeader": {},
+  "& .FusePageSimple-sidebarContent": {},
+}));
 
 /**
  * The products page.
  */
 
 function Products() {
-	return (
-		<>
-			<GlobalStyles
-				styles={() => ({
-					'#root': {
-						maxHeight: '100vh'
-					}
-				})}
-			/>
-			<div className="w-full h-full flex flex-col px-4">
-				<ProductsHeader />
-				<ProductTable />
-			</div>
-		</>
-	);
+  return (
+    <div className="p-4">
+      <ProductHeader />
+      <ProductListTable />
+    </div>
+  );
 }
 
 export default Products;

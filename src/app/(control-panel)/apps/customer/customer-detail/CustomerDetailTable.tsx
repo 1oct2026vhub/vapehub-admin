@@ -34,7 +34,7 @@ export default function CustomerDetailsPage() {
 
   // Fetch customer data using SWR (useFetch)
   const { data, error, isLoading } = useFetch(["customerDetail", id], () =>
-    customerDetails(id)
+    customerDetails(id),
   );
 
   useEffect(() => {
@@ -45,7 +45,9 @@ export default function CustomerDetailsPage() {
 
   if (isLoading) return <FuseLoading />;
   if (error || !customerDetail) {
-    return <p className="text-center text-red-500 mt-28">Customer not found!</p>;
+    return (
+      <p className="text-center text-red-500 mt-28">Customer not found!</p>
+    );
   }
 
   // Table Columns
@@ -66,11 +68,15 @@ export default function CustomerDetailsPage() {
     last_name: customerDetail.last_name,
     email: customerDetail.email,
     createdAt: customerDetail.createdAt
-    ? new Date(customerDetail.createdAt).toLocaleDateString("en-GB").replace(/\//g, "-") 
-    : "",
+      ? new Date(customerDetail.createdAt)
+          .toLocaleDateString("en-GB")
+          .replace(/\//g, "-")
+      : "",
     phone: customerDetail.phone,
     gender: customerDetail.gender,
-    dob: customerDetail.dob ? new Date(customerDetail.dob).toISOString().split("T")[0] : "",
+    dob: customerDetail.dob
+      ? new Date(customerDetail.dob).toISOString().split("T")[0]
+      : "",
     blocked: customerDetail.blocked,
   };
 
@@ -88,4 +94,3 @@ export default function CustomerDetailsPage() {
     </div>
   );
 }
-
