@@ -77,7 +77,14 @@ export const updateAttribute = async (
   id: string | number,
   data: UpdateAttributeData,
 ) => {
-  const response = await axiosInstance.put(`/api/admin/attributes/${id}`, data);
+  // Ensure id is a number if it's a numeric string
+  const attributeId = typeof id === 'string' && !isNaN(Number(id)) 
+    ? Number(id) 
+    : id;
+  
+  console.log("Updating attribute with ID:", attributeId, "and data:", data);
+  
+  const response = await axiosInstance.put(`/api/admin/attributes/${attributeId}`, data);
   return response.data;
 };
 

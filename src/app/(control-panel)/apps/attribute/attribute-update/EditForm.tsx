@@ -14,7 +14,7 @@ import { useSnackbar } from "@/contexts/SnackbarContext";
 import FormSelectField from "@/components/Shared/SelectField";
 
 const schema = z.object({
-  name: z.string().min(1, "Attribute Name is required"),
+  name: z.string().min(1, "Attribute Name is required").max(50, "Name must be less than 50 characters"),
   slug: z.string().min(1, "Slug is required"),
   description: z.string().optional(),
   type: z.string().min(1, "Type is required"),
@@ -56,11 +56,16 @@ const EditAttributeForm = ({ attribute }: { attribute: FormType }) => {
   const { showSnackbar } = useSnackbar();
   const [isLoading, setIsLoading] = useState(false);
 
-  const { control, formState, handleSubmit, setValue } = useForm<FormType>({
+  const { control, formState, handleSubmit, setValue, watch } = useForm<FormType>({
     mode: "all",
     defaultValues,
     resolver: zodResolver(schema),
   });
+
+  // Watch the name field to display character count
+  const nameValue = watch("name") || "";
+  const nameLength = nameValue.length;
+  const nameRemaining = 50 - nameLength;
 
   const { isValid, errors } = formState;
   const { trigger: triggerUpdateAttribute, isMutating } = usePost(
@@ -93,6 +98,14 @@ const EditAttributeForm = ({ attribute }: { attribute: FormType }) => {
         throw new Error("Required fields are missing");
       }
 
+      // Validate id parameter
+      if (!id) {
+        throw new Error("Attribute ID is missing");
+      }
+
+      // Make sure id is a valid number or string
+      const attributeId = typeof id === 'object' ? id.toString() : id;
+
       const attributeData = {
         name: formData.name.trim(),
         slug: formData.slug.toLowerCase().replace(/\s+/g, "-"),
@@ -101,7 +114,8 @@ const EditAttributeForm = ({ attribute }: { attribute: FormType }) => {
         sort_order: formData.sort_order,
       };
 
-      await triggerUpdateAttribute({id, ...attributeData});
+      // Pass validated ID and attributeData as separate arguments
+      await triggerUpdateAttribute([attributeId, attributeData]);
       showSnackbar("Attribute updated successfully!", "success");
       router.push("/apps/attribute");
     } catch (error) {
@@ -124,7 +138,7 @@ const EditAttributeForm = ({ attribute }: { attribute: FormType }) => {
         <form
           name="attributeForm"
           noValidate
-          className="flex w-full flex-col justify-center gap-6"
+          className="flex w-full flex-col justify-center"
           onSubmit={handleSubmit(onSubmit)}
         >
           {errors?.root?.message && (
@@ -136,10 +150,13 @@ const EditAttributeForm = ({ attribute }: { attribute: FormType }) => {
             <FormInputField
               name="name"
               control={control}
-            label="Attribute Name"
-            type="text"
-            required
+              label="Attribute Name"
+              type="text"
+              required
             />
+            <div className="text-xs text-gray-500 -mt-3 mb-4">
+              {nameLength} / 50 characters used {nameRemaining < 0 ? "(exceeded maximum)" : ""}
+            </div>
             <FormInputField
               name="slug"
               control={control}
