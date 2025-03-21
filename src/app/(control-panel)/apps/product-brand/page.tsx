@@ -1,3 +1,3 @@
-import ProductBrand from './ProductBrand';
+import Brand from "./Brand";
 
-export default ProductBrand;
+export default Brand;

@@ -1,49 +1,49 @@
-'use client';
+"use client";
 
-import FusePageSimple from '@fuse/core/FusePageSimple';
-import { useState } from 'react';
-import { styled } from '@mui/material/styles';
-import * as React from 'react';
-import FuseLoading from '@fuse/core/FuseLoading';
-import FuseTabs from 'src/components/tabs/FuseTabs';
-import FuseTab from 'src/components/tabs/FuseTab';
-import ProjectDashboardAppHeader from './ProjectDashboardAppHeader';
-import HomeTab from './tabs/home/HomeTab';
-import { useGetProjectDashboardWidgetsQuery } from './ProjectDashboardApi';
-import OverdueWidget from './tabs/home/widgets/OverdueWidget';
+import FusePageSimple from "@fuse/core/FusePageSimple";
+import { useState } from "react";
+import { styled } from "@mui/material/styles";
+import * as React from "react";
+import FuseLoading from "@fuse/core/FuseLoading";
+import FuseTabs from "src/components/tabs/FuseTabs";
+import FuseTab from "src/components/tabs/FuseTab";
+import ProjectDashboardAppHeader from "./ProjectDashboardAppHeader";
+import HomeTab from "./tabs/home/HomeTab";
+import { useGetProjectDashboardWidgetsQuery } from "./ProjectDashboardApi";
+import OverdueWidget from "./tabs/home/widgets/OverdueWidget";
 
 const Root = styled(FusePageSimple)(({ theme }) => ({
-	'& .FusePageSimple-header': {
-		backgroundColor: theme.palette.background.paper,
-		boxShadow: `inset 0 -1px 0 0px  ${theme.palette.divider}`
-	}
+  "& .FusePageSimple-header": {
+    backgroundColor: theme.palette.background.paper,
+    boxShadow: `inset 0 -1px 0 0px  ${theme.palette.divider}`,
+  },
 }));
 
 /**
  * The ProjectDashboardApp page.
  */
 function ProjectDashboardApp() {
-	const { isLoading } = useGetProjectDashboardWidgetsQuery();
+  const { isLoading } = useGetProjectDashboardWidgetsQuery();
 
-	const [tabValue, setTabValue] = useState('home');
+  const [tabValue, setTabValue] = useState("home");
 
-	function handleTabChange(event: React.SyntheticEvent, value: string) {
-		setTabValue(value);
-	}
+  function handleTabChange(event: React.SyntheticEvent, value: string) {
+    setTabValue(value);
+  }
 
-	if (isLoading) {
-		return <FuseLoading />;
-	}
+  if (isLoading) {
+    return <FuseLoading />;
+  }
 
-	return (
-		// <Root
-		// 	header={<ProjectDashboardAppHeader />}
-		// 	content={
-				<div className="w-full pt-4 sm:pt-6">
-					<ProjectDashboardAppHeader />
-					<div className="w-full">
-					<HomeTab />
-					{/* <HomeTab />
+  return (
+    // <Root
+    // 	header={<ProjectDashboardAppHeader />}
+    // 	content={
+    <div className="w-full pt-4 sm:pt-6">
+      <ProjectDashboardAppHeader />
+      <div className="w-full">
+        <HomeTab />
+        {/* <HomeTab />
 						<FuseTabs
 							value={tabValue}
 							onChange={handleTabChange}
@@ -62,14 +62,14 @@ function ProjectDashboardApp() {
 								label="Team"
 							/>
 						</FuseTabs> */}
-					</div>
-					{/* {tabValue === 'home' && <HomeTab />}
+      </div>
+      {/* {tabValue === 'home' && <HomeTab />}
 					{tabValue === 'budget' && <BudgetTab />}
 					{tabValue === 'team' && <TeamTab />} */}
-				</div>
-		// 	}
-		// />
-	);
+    </div>
+    // 	}
+    // />
+  );
 }
 
 export default ProjectDashboardApp;

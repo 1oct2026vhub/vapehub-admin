@@ -1,13 +1,12 @@
-import MainLayout from 'src/components/MainLayout';
-import AuthGuardRedirect from '@auth/AuthGuardRedirect';
+import MainLayout from "src/components/MainLayout";
+import AuthGuardRedirect from "@auth/AuthGuardRedirect";
 
 function Layout({ children }) {
-	return (
-		<AuthGuardRedirect>
-			<MainLayout>{children}</MainLayout>
-	   </AuthGuardRedirect>
-	); 
+  return (
+    <AuthGuardRedirect>
+      <MainLayout>{children}</MainLayout>
+    </AuthGuardRedirect>
+  );
 }
 
 export default Layout;
- 

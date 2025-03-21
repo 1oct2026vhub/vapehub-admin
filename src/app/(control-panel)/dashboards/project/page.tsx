@@ -1,3 +1,3 @@
-import ProjectDashboardApp from './ProjectDashboardApp';
+import ProjectDashboardApp from "./ProjectDashboardApp";
 
 export default ProjectDashboardApp;

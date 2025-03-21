@@ -85,13 +85,12 @@
 // //                 borderImage: 'linear-gradient(to right, #1E7A56, #004C30) 1',
 // //               },
 // //             },
-           
+
 // //             '& .MuiInputLabel-root.Mui-focused': {
 // //               color: '#2E9970', // Label color when focused
 // //             },
 // //           }}
 // //         />
-
 
 // //       )}
 // //     />
@@ -99,7 +98,6 @@
 // // };
 
 // // export default FormInputField;
-
 
 // // import { useState } from 'react';
 // // import { Controller } from 'react-hook-form';
@@ -126,7 +124,7 @@
 // //   autoFocus = false,
 // // }) => {
 // //   const [showPassword, setShowPassword] = useState(false);
-  
+
 // //   const handleTogglePassword = () => {
 // //     setShowPassword((prev) => !prev);
 // //   };
@@ -180,7 +178,6 @@
 // // };
 
 // // export default FormInputField;
-
 
 // import { useState } from 'react';
 // import { Controller } from 'react-hook-form';
@@ -271,14 +268,12 @@
 
 // export default FormInputField;
 
-
-
-import { useState } from 'react';
-import { Controller } from 'react-hook-form';
-import TextField from '@mui/material/TextField';
-import InputAdornment from '@mui/material/InputAdornment';
-import IconButton from '@mui/material/IconButton';
-import { Visibility, VisibilityOff } from '@mui/icons-material';
+import { useState } from "react";
+import { Controller } from "react-hook-form";
+import TextField from "@mui/material/TextField";
+import InputAdornment from "@mui/material/InputAdornment";
+import IconButton from "@mui/material/IconButton";
+import { Visibility, VisibilityOff } from "@mui/icons-material";
 
 interface ReusableTextFieldProps {
   name: string;
@@ -287,15 +282,19 @@ interface ReusableTextFieldProps {
   type?: string;
   required?: boolean;
   autoFocus?: boolean;
+  multiline?: boolean; 
+  rows?: number;                  
 }
 
 const FormInputField: React.FC<ReusableTextFieldProps> = ({
   name,
   control,
   label,
-  type = 'text',
+  type = "text",
   required = false,
+  multiline = false,
   autoFocus = false,
+  rows = 1,
 }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [touched, setTouched] = useState(false);
@@ -314,20 +313,28 @@ const FormInputField: React.FC<ReusableTextFieldProps> = ({
           {...field}
           label={
             <>
-              {label} {required && <span style={{ color: 'red' }}>*</span>}
+              {label} {required && <span style={{ color: "red" }}>*</span>}
             </>
           }
-          type={name === 'password' || name === 'confirm' ? (showPassword ? 'text' : 'password') : 'text'}
+          type={
+            name === "password" || name === "confirm"
+              ? showPassword
+                ? "text"
+                : "password"
+              : "text"
+          }
           autoFocus={autoFocus}
           error={touched && !!error}
-          helperText={touched && error ? error.message : ''}
+          helperText={touched && error ? error.message : ""}
           variant="outlined"
           fullWidth
+          multiline={multiline}   
+          rows={rows}  
           className="mb-6"
           onFocus={() => setTouched(true)}
           InputProps={{
             endAdornment:
-              (name === 'password' || name === 'confirm') ? (
+              name === "password" || name === "confirm" ? (
                 <InputAdornment position="end">
                   <IconButton onClick={handleTogglePassword} edge="end">
                     {showPassword ? <VisibilityOff /> : <Visibility />}
@@ -336,26 +343,26 @@ const FormInputField: React.FC<ReusableTextFieldProps> = ({
               ) : null,
           }}
           sx={{
-            '& .MuiOutlinedInput-root': {
-              '& fieldset': {
-                borderImage: 'linear-gradient(to right, #2E9970, #005434) 1',
+            "& .MuiOutlinedInput-root": {
+              "& fieldset": {
+                borderImage: "linear-gradient(to right, #2E9970, #005434) 1",
               },
-              '&:hover fieldset': {
-                borderImage: 'linear-gradient(to right, #247C5C, #003F29) 1',
+              "&:hover fieldset": {
+                borderImage: "linear-gradient(to right, #247C5C, #003F29) 1",
               },
-              '&.Mui-focused fieldset': {
-                borderImage: 'linear-gradient(to right, #1E7A56, #004C30) 1',
+              "&.Mui-focused fieldset": {
+                borderImage: "linear-gradient(to right, #1E7A56, #004C30) 1",
               },
             },
-            '& .MuiInputLabel-root': {
-              color: '#2E9970',
+            "& .MuiInputLabel-root": {
+              color: "#2E9970",
             },
-            '& .MuiInputLabel-root.Mui-focused': {
-              color: '#2E9970',
+            "& .MuiInputLabel-root.Mui-focused": {
+              color: "#2E9970",
             },
             /* Hide Edge's default password reveal icon */
-            '& input::-ms-reveal, & input::-ms-clear': {
-              display: 'none',
+            "& input::-ms-reveal, & input::-ms-clear": {
+              display: "none",
             },
           }}
         />

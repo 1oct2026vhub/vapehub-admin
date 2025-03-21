@@ -253,186 +253,186 @@
 
 // export default memo(GithubIssuesWidget);
 
-
-
-import Paper from '@mui/material/Paper';
-import { lighten, useTheme } from '@mui/material/styles';
-import Typography from '@mui/material/Typography';
-import { memo, useEffect, useState } from 'react';
-import Box from '@mui/material/Box';
-import { ApexOptions } from 'apexcharts';
-import FuseLoading from '@fuse/core/FuseLoading';
-import _ from 'lodash';
-import FuseTabs from 'src/components/tabs/FuseTabs';
-import FuseTab from 'src/components/tabs/FuseTab';
-import dynamic from 'next/dynamic';
-const ReactApexChart = dynamic(() => import('react-apexcharts'), { ssr: false });
+import Paper from "@mui/material/Paper";
+import { lighten, useTheme } from "@mui/material/styles";
+import Typography from "@mui/material/Typography";
+import { memo, useEffect, useState } from "react";
+import Box from "@mui/material/Box";
+import { ApexOptions } from "apexcharts";
+import FuseLoading from "@fuse/core/FuseLoading";
+import _ from "lodash";
+import FuseTabs from "src/components/tabs/FuseTabs";
+import FuseTab from "src/components/tabs/FuseTab";
+import dynamic from "next/dynamic";
+const ReactApexChart = dynamic(() => import("react-apexcharts"), {
+  ssr: false,
+});
 
 const dummyWidget = {
-    githubIssues: {
-        overview: {
-            'last-7-days': {
-                'new-issues': 25,
-                'closed-issues': 18,
-                fixed: 12,
-                'wont-fix': 3,
-                're-opened': 2,
-                'needs-triage': 5
-            },
-            'last-30-days': {
-                'new-issues': 100,
-                'closed-issues': 80,
-                fixed: 60,
-                'wont-fix': 10,
-                're-opened': 8,
-                'needs-triage': 15
-            }
+  githubIssues: {
+    overview: {
+      "last-7-days": {
+        "new-issues": 25,
+        "closed-issues": 18,
+        fixed: 12,
+        "wont-fix": 3,
+        "re-opened": 2,
+        "needs-triage": 5,
+      },
+      "last-30-days": {
+        "new-issues": 100,
+        "closed-issues": 80,
+        fixed: 60,
+        "wont-fix": 10,
+        "re-opened": 8,
+        "needs-triage": 15,
+      },
+    },
+    series: {
+      "last-7-days": [
+        {
+          name: "New Issues",
+          data: [5, 7, 4, 6, 5, 8, 10],
         },
-        series: {
-            'last-7-days': [
-                {
-                    name: 'New Issues',
-                    data: [5, 7, 4, 6, 5, 8, 10]
-                },
-                {
-                    name: 'Closed Issues',
-                    data: [4, 6, 3, 5, 4, 7, 9]
-                }
-            ],
-            'last-30-days': [
-                {
-                    name: 'New Issues',
-                    data: [10, 15, 12, 18, 14, 20, 25]
-                },
-                {
-                    name: 'Closed Issues',
-                    data: [8, 12, 10, 16, 12, 18, 22]
-                }
-            ]
+        {
+          name: "Closed Issues",
+          data: [4, 6, 3, 5, 4, 7, 9],
         },
-        ranges: {
-            'last-7-days': 'Last 7 Days',
-            'last-30-days': 'Last 30 Days'
+      ],
+      "last-30-days": [
+        {
+          name: "New Issues",
+          data: [10, 15, 12, 18, 14, 20, 25],
         },
-        labels: ['Day 1', 'Day 2', 'Day 3', 'Day 4', 'Day 5', 'Day 6', 'Day 7']
-    }
+        {
+          name: "Closed Issues",
+          data: [8, 12, 10, 16, 12, 18, 22],
+        },
+      ],
+    },
+    ranges: {
+      "last-7-days": "Last 7 Days",
+      "last-30-days": "Last 30 Days",
+    },
+    labels: ["Day 1", "Day 2", "Day 3", "Day 4", "Day 5", "Day 6", "Day 7"],
+  },
 };
 
 function GithubIssuesWidget() {
-    const theme = useTheme();
-    const [awaitRender, setAwaitRender] = useState(true);
-    const [tabValue, setTabValue] = useState(0);
-    const isLoading = false;
-    const widget = dummyWidget.githubIssues;
-    const { overview, series, ranges, labels } = widget;
-    const currentRange = Object.keys(ranges)[tabValue];
+  const theme = useTheme();
+  const [awaitRender, setAwaitRender] = useState(true);
+  const [tabValue, setTabValue] = useState(0);
+  const isLoading = false;
+  const widget = dummyWidget.githubIssues;
+  const { overview, series, ranges, labels } = widget;
+  const currentRange = Object.keys(ranges)[tabValue];
 
-    const chartOptions: ApexOptions = {
-        chart: {
-            fontFamily: 'inherit',
-            foreColor: 'inherit',
-            height: '100%',
-            type: 'line',
-            toolbar: {
-                show: false
-            },
-            zoom: {
-                enabled: false
-            }
+  const chartOptions: ApexOptions = {
+    chart: {
+      fontFamily: "inherit",
+      foreColor: "inherit",
+      height: "100%",
+      type: "line",
+      toolbar: {
+        show: false,
+      },
+      zoom: {
+        enabled: false,
+      },
+    },
+    colors: [theme.palette.primary.main, theme.palette.secondary.main],
+    labels,
+    dataLabels: {
+      enabled: true,
+      enabledOnSeries: [0],
+      background: {
+        borderWidth: 0,
+      },
+    },
+    grid: {
+      borderColor: theme.palette.divider,
+    },
+    legend: {
+      show: false,
+    },
+    plotOptions: {
+      bar: {
+        columnWidth: "50%",
+      },
+    },
+    states: {
+      hover: {
+        filter: {
+          type: "darken",
         },
-        colors: [theme.palette.primary.main, theme.palette.secondary.main],
-        labels,
-        dataLabels: {
-            enabled: true,
-            enabledOnSeries: [0],
-            background: {
-                borderWidth: 0
-            }
+      },
+    },
+    stroke: {
+      width: [3, 0],
+    },
+    tooltip: {
+      followCursor: true,
+      theme: theme.palette.mode,
+    },
+    xaxis: {
+      axisBorder: {
+        show: false,
+      },
+      axisTicks: {
+        color: theme.palette.divider,
+      },
+      labels: {
+        style: {
+          colors: theme.palette.text.secondary,
         },
-        grid: {
-            borderColor: theme.palette.divider
+      },
+      tooltip: {
+        enabled: false,
+      },
+    },
+    yaxis: {
+      labels: {
+        offsetX: -16,
+        style: {
+          colors: theme.palette.text.secondary,
         },
-        legend: {
-            show: false
-        },
-        plotOptions: {
-            bar: {
-                columnWidth: '50%'
-            }
-        },
-        states: {
-            hover: {
-                filter: {
-                    type: 'darken'
-                }
-            }
-        },
-        stroke: {
-            width: [3, 0]
-        },
-        tooltip: {
-            followCursor: true,
-            theme: theme.palette.mode
-        },
-        xaxis: {
-            axisBorder: {
-                show: false
-            },
-            axisTicks: {
-                color: theme.palette.divider
-            },
-            labels: {
-                style: {
-                    colors: theme.palette.text.secondary
-                }
-            },
-            tooltip: {
-                enabled: false
-            }
-        },
-        yaxis: {
-            labels: {
-                offsetX: -16,
-                style: {
-                    colors: theme.palette.text.secondary
-                }
-            }
-        }
-    };
+      },
+    },
+  };
 
-    useEffect(() => {
-        setAwaitRender(false);
-    }, []);
+  useEffect(() => {
+    setAwaitRender(false);
+  }, []);
 
-    if (isLoading) {
-        return <FuseLoading />;
-    }
+  if (isLoading) {
+    return <FuseLoading />;
+  }
 
-    if (!widget) {
-        return null;
-    }
+  if (!widget) {
+    return null;
+  }
 
-    if (awaitRender) {
-        return null;
-    }
+  if (awaitRender) {
+    return null;
+  }
 
-    return (
-        <Paper className="flex flex-col flex-auto p-6 shadow-sm rounded-xl overflow-hidden">
-            <Typography className="text-xl font-medium tracking-tight leading-6 truncate">
-                Github Issues Summary
-            </Typography>
-            <FuseTabs value={tabValue} onChange={(_, value) => setTabValue(value)}>
-                {Object.entries(ranges).map(([key, label], index) => (
-                    <FuseTab key={key} value={index} label={label} />
-                ))}
-            </FuseTabs>
-            <ReactApexChart
-                options={chartOptions}
-                series={_.cloneDeep(series[currentRange])}
-                height={320}
-            />
-        </Paper>
-    );
+  return (
+    <Paper className="flex flex-col flex-auto p-6 shadow-sm rounded-xl overflow-hidden">
+      <Typography className="text-xl font-medium tracking-tight leading-6 truncate">
+        Github Issues Summary
+      </Typography>
+      <FuseTabs value={tabValue} onChange={(_, value) => setTabValue(value)}>
+        {Object.entries(ranges).map(([key, label], index) => (
+          <FuseTab key={key} value={index} label={label} />
+        ))}
+      </FuseTabs>
+      <ReactApexChart
+        options={chartOptions}
+        series={_.cloneDeep(series[currentRange])}
+        height={320}
+      />
+    </Paper>
+  );
 }
 
 export default memo(GithubIssuesWidget);

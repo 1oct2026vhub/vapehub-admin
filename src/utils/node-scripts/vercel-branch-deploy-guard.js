@@ -9,26 +9,26 @@
 const allowedBranchesArg = process.argv[2];
 
 if (!allowedBranchesArg) {
-	console.error('🛑 No branches provided for deployment check.');
-	process.exit(1); // Exit if no branches are specified.
+  console.error("🛑 No branches provided for deployment check.");
+  process.exit(1); // Exit if no branches are specified.
 }
 
 // Split the allowed branches into an array for validation.
-const allowedBranches = allowedBranchesArg.split(',');
+const allowedBranches = allowedBranchesArg.split(",");
 
 // Get the current branch from the Vercel environment variable.
 const currentBranch = process.env.VERCEL_GIT_COMMIT_REF;
 
 if (!currentBranch) {
-	console.error('🛑 VERCEL_GIT_COMMIT_REF is not defined.');
-	process.exit(0); // Exit with no error if branch info is unavailable (deployment continues).
+  console.error("🛑 VERCEL_GIT_COMMIT_REF is not defined.");
+  process.exit(0); // Exit with no error if branch info is unavailable (deployment continues).
 }
 
 // Check if the current branch is in the allowed branches list.
 if (allowedBranches.includes(currentBranch)) {
-	console.log(`✅ Deploying branch '${currentBranch}'.`);
-	process.exit(1); // Allow deployment to continue for authorized branches.
+  console.log(`✅ Deploying branch '${currentBranch}'.`);
+  process.exit(1); // Allow deployment to continue for authorized branches.
 } else {
-	console.log(`🛑 Deployment skipped for branch '${currentBranch}'.`);
-	process.exit(0); // Stop deployment for unauthorized branches.
+  console.log(`🛑 Deployment skipped for branch '${currentBranch}'.`);
+  process.exit(0); // Stop deployment for unauthorized branches.
 }

@@ -1,9 +1,9 @@
-'use client';
+"use client";
 
-import Error401Page from './Error401Page';
+import Error401Page from "./Error401Page";
 
 function Page() {
-	return <Error401Page />;
+  return <Error401Page />;
 }
 
 export default Page;

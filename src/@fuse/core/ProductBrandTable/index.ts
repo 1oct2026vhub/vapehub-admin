@@ -1,1 +1,1 @@
-export { default } from './ProductBrandTable';
+export { default } from "./ProductBrandTable";
