@@ -4,7 +4,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useParams, useRouter } from "next/navigation";
-import { Alert, Typography } from "@mui/material";
+import { Alert, Typography, CircularProgress } from "@mui/material";
 import AppButton from "@/components/Shared/AppButton";
 import FormInputField from "@/components/Shared/FormInputField";
 import { usePost, useFetch } from "@/hooks/useFetch";
@@ -16,7 +16,7 @@ import { useSnackbar } from "@/contexts/SnackbarContext";
 import { useEffect, useState } from "react";
 
 const schema = z.object({
-  name: z.string().min(1, "Term Name is required"),
+  name: z.string().min(1, "Term Name is required").max(50, "Term Name must be 50 characters or less"),
   slug: z.string().min(1, "Slug is required"),
   description: z.string().optional(),
 });
@@ -29,34 +29,41 @@ const defaultValues = {
 
 export type FormType = z.infer<typeof schema>;
 
-interface EditTermProps {
-  id: string;
-}
-
 function EditTerm() {
   const params = useParams();
-    const id = params?.id;
+  // Get the ID from URL params
+  const id = params?.id;
   const router = useRouter();
   const { showSnackbar } = useSnackbar();
   const [isLoading, setIsLoading] = useState(false);
 
+  console.log("Term ID from params:", id);
+
   // Fetch term details
-  const { data: termData } = useFetch(
+  const { data: termData, isLoading: isLoadingTerm } = useFetch(
     ["termDetail", id],
     () => getAttributeTermDetails(id as string),
     { revalidateOnFocus: false },
   );
 
   const term = termData?.data;
-  const { control, formState, handleSubmit, reset } = useForm<FormType>({
+  console.log("Term data fetched:", term);
+
+  const { control, formState, handleSubmit, reset, watch } = useForm<FormType>({
     mode: "onChange",
     defaultValues,
     resolver: zodResolver(schema),
   });
 
+  // Watch the name field to display character count
+  const nameValue = watch("name") || "";
+  const nameLength = nameValue.length;
+  const nameRemaining = 50 - nameLength;
+
   // Prefill form when term data is available
   useEffect(() => {
     if (term) {
+      console.log("Setting form values with term data:", term);
       reset({
         name: term?.attribute?.name,
         slug: term?.attribute?.slug,
@@ -74,10 +81,33 @@ function EditTerm() {
   const onSubmit = async (formData: FormType) => {
     try {
       setIsLoading(true);
-      await triggerUpdateTerm({id, ...formData});
+      
+      // Validate id parameter
+      if (!id) {
+        throw new Error("Term ID is missing");
+      }
+
+      // Check name field length
+      if (formData.name.length > 50) {
+        throw new Error("Term Name must be 50 characters or less");
+      }
+
+      // Make sure id is a valid number or string
+      const termId = typeof id === 'object' ? id.toString() : id;
+      
+      const termData = {
+        name: formData.name.trim(),
+        slug: formData.slug.toLowerCase().replace(/\s+/g, "-"),
+        description: formData.description || '',
+      };
+      
+      // Pass termId and termData as separate arguments
+      await triggerUpdateTerm([termId, termData]);
+      
       showSnackbar("Term updated successfully!", "success");
       router.push("/apps/attribute-terms");
     } catch (error: any) {
+      console.error("Error updating term:", error);
       if (error?.errors) {
         showSnackbar(error?.errors[0]?.msg, "error");
       } else {
@@ -89,9 +119,13 @@ function EditTerm() {
     }
   };
 
-  // if (!term) {
-  //   return <Typography>Loading...</Typography>;
-  // }
+  if (isLoadingTerm) {
+    return (
+      <div className="flex justify-center items-center p-10">
+        <CircularProgress />
+      </div>
+    );
+  }
 
   return (
     <div className="md:px-64 p-4">
@@ -118,6 +152,9 @@ function EditTerm() {
           type="text"
           required
         />
+        <div className="text-xs text-gray-500 -mt-3 mb-4">
+          {nameLength} / 50 characters used {nameRemaining < 0 ? "(exceeded maximum)" : ""}
+        </div>
 
         <FormInputField
           name="slug"
@@ -140,7 +177,7 @@ function EditTerm() {
           type="submit"
           fullWidth
           size="large"
-          // disabled={!isValid}
+          disabled={!isValid || isLoading}
           className="mt-4 w-full"
         />
       </form>

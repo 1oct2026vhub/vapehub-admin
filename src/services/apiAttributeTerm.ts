@@ -101,8 +101,15 @@ export const updateAttributeTerm = async (
   data: UpdateAttributeTermData,
 ) => {
   try {
+    // Ensure id is a number if it's a numeric string
+    const termId = typeof id === 'string' && !isNaN(Number(id)) 
+      ? Number(id) 
+      : id;
+    
+    console.log("Updating attribute term with ID:", termId, "and data:", data);
+    
     const response = await axiosInstance.put(
-      `/api/admin/attribute-terms/${id}`,
+      `/api/admin/attribute-terms/${termId}`,
       data,
     );
     return response.data;
@@ -135,7 +142,7 @@ export const downloadSampleExcel = () => {
       const url = window.URL.createObjectURL(new Blob([res.data]));
       const link = document.createElement("a");
       link.href = url;
-      link.setAttribute("download", "brand-sample.xlsx");
+      link.setAttribute("download", "term-sample.xlsx");
       document.body.appendChild(link);
       link.click();
       link.remove();

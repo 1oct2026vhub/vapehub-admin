@@ -27,7 +27,13 @@ export const useFetch = (
 export const usePost = (key, apiFunction) => {
   const { trigger, data, error, isMutating } = useSWRMutation(
     key,
-    (_, { arg }) => apiFunction(arg),
+    (_, { arg }) => {
+      // Handle both single arguments and arrays of arguments
+      if (Array.isArray(arg)) {
+        return apiFunction(...arg);
+      }
+      return apiFunction(arg);
+    }
   );
   return { trigger, data, error, isMutating };
 };
@@ -36,7 +42,13 @@ export const usePost = (key, apiFunction) => {
 export const useUpdate = (key, apiFunction) => {
   const { trigger, data, error, isMutating } = useSWRMutation(
     key,
-    (_, { arg }) => apiFunction(arg),
+    (_, { arg }) => {
+      // Handle both single arguments and arrays of arguments
+      if (Array.isArray(arg)) {
+        return apiFunction(...arg);
+      }
+      return apiFunction(arg);
+    }
   );
   return { trigger, data, error, isMutating };
 };
@@ -45,7 +57,13 @@ export const useUpdate = (key, apiFunction) => {
 export const useDelete = (key, apiFunction) => {
   const { trigger, data, error, isMutating } = useSWRMutation(
     key,
-    (_, { arg }) => apiFunction(arg),
+    (_, { arg }) => {
+      // Handle both single arguments and arrays of arguments
+      if (Array.isArray(arg)) {
+        return apiFunction(...arg);
+      }
+      return apiFunction(arg);
+    }
   );
   return { trigger, data, error, isMutating };
 };

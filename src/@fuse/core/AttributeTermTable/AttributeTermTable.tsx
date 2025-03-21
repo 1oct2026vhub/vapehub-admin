@@ -38,6 +38,7 @@ import { useRouter } from "next/navigation";
 import AppButton from "@/components/Shared/AppButton";
 import FuseSvgIcon from "@fuse/core/FuseSvgIcon";
 import axiosInstance from "@/utils/axiosApi";
+import { useSnackbar } from "@/contexts/SnackbarContext";
 
 // // Add delete and restore functions
 // const deleteAttributeTerm = async (id: number) => {
@@ -64,6 +65,7 @@ interface AttributeTermTableProps {
 
 const AttributeTermTable = ({ attributeId }: AttributeTermTableProps) => {
   const router = useRouter();
+  const { showSnackbar } = useSnackbar();
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState(10);
   const [search, setSearch] = useState("");
@@ -74,6 +76,7 @@ const AttributeTermTable = ({ attributeId }: AttributeTermTableProps) => {
   const [order, setOrder] = useState<"ASC" | "DESC">("DESC");
   const [openDialog, setOpenDialog] = useState(false);
   const [selectedTerm, setSelectedTerm] = useState<AttributeTerm | null>(null);
+  const [localTerms, setLocalTerms] = useState<AttributeTerm[]>([]);
 
   // Debounce search input
   useEffect(() => {
@@ -102,6 +105,13 @@ const AttributeTermTable = ({ attributeId }: AttributeTermTableProps) => {
     { keepPreviousData: true },
   );
 
+  // Update localTerms when data changes
+  useEffect(() => {
+    if (data?.data?.terms) {
+      setLocalTerms(data.data.terms);
+    }
+  }, [data?.data?.terms]);
+
   const terms: AttributeTerm[] = data?.data?.terms || [];
   const totalRecords = data?.data?.pagination?.total || 0;
   const totalPages = Math.ceil(totalRecords / pageSize);
@@ -118,17 +128,38 @@ const AttributeTermTable = ({ attributeId }: AttributeTermTableProps) => {
     setOpenDialog(false);
 
     try {
+      // Immediately update local state
+      const updatedTerms = localTerms.filter(term => term.id !== selectedTerm.id);
+      setLocalTerms(updatedTerms);
+
+      // Perform the actual API call
       if (selectedTerm.deleted_at) {
         await restoreAttributeTerm(selectedTerm.id);
+        showSnackbar("Term restored successfully!", "success");
       } else {
         await deleteAttributeTerm(selectedTerm.id);
+        showSnackbar("Term deleted successfully!", "success");
       }
-      mutate(["attributeTerms", queryParams]);
+
+      // Update the server data
+      await mutate(["attributeTerms", queryParams]);
     } catch (error: any) {
-      console.error(
-        "Delete/Restore error:",
-        error?.response?.data?.message || error.message,
+      // Revert local state on error
+      if (data?.data?.terms) {
+        setLocalTerms(data.data.terms);
+      }
+      if( error?.error){
+      showSnackbar(
+        error?.error?.message || "An error occurred while processing your request",
+        "error"
       );
+    }
+    else{
+      showSnackbar(
+        error?.message || "An error occurred while processing your request",
+        "error"
+      );
+    }
     }
   };
 
@@ -253,7 +284,7 @@ const AttributeTermTable = ({ attributeId }: AttributeTermTableProps) => {
       </div>
 
       <DataTable
-        data={terms}
+        data={localTerms}
         columns={columns}
         enablePagination
         manualPagination
@@ -264,50 +295,10 @@ const AttributeTermTable = ({ attributeId }: AttributeTermTableProps) => {
           setPageSize(newPagination.pageSize);
         }}
         rowCount={totalRecords}
-        // renderRowActionMenuItems={({ closeMenu, row }) => [
-        //   <>
-        //     <MenuItem
-        //       key="view-details"
-        //       onClick={() => {
-        //         router.push(`/apps/attribute-terms/term-detail/${row.original.id}`);
-        //         closeMenu();
-        //       }}
-        //     >
-        //       <ListItemIcon>
-        //         <FuseSvgIcon>heroicons-outline:arrow-top-right-on-square</FuseSvgIcon>
-        //       </ListItemIcon>
-        //       View Details
-        //     </MenuItem>
-        //     {!row.original.deleted_at && (
-        //       <MenuItem
-        //         key="edit"
-        //         onClick={() => { handleEdit(row.original); closeMenu(); }}
-        //       >
-        //         <ListItemIcon><FuseSvgIcon>heroicons-outline:pencil-square</FuseSvgIcon></ListItemIcon>
-        //         Edit
-        //       </MenuItem>
-        //     )}
-        //     <MenuItem
-        //       key="delete"
-        //       onClick={() => { handleDeleteClick(row.original); closeMenu(); }}
-        //     >
-        //       <ListItemIcon>
-        //         <FuseSvgIcon>
-        //           {row.original.deleted_at ? "heroicons-outline:arrow-path" : "heroicons-outline:trash"}
-        //         </FuseSvgIcon>
-        //       </ListItemIcon>
-        //       {row.original.deleted_at ? 'Restore' : 'Delete'}
-        //     </MenuItem>
-        //   </>
-        // ]}
-
         renderRowActionMenuItems={({ closeMenu, row }) => [
           <MenuItem
             key="view-details"
             onClick={() => {
-              // router.push(
-              //   `/apps/attribute-terms/term-detail/${row.original.id}`,
-              // );
               closeMenu();
             }}
           >
@@ -353,11 +344,11 @@ const AttributeTermTable = ({ attributeId }: AttributeTermTableProps) => {
         ]}
       />
 
-      {/* <div className="flex justify-center p-4">
+      <div className="flex justify-center p-4">
         <Pagination
           count={totalPages}
-          page={page}
-          onChange={(_, newPage) => setPage(newPage)}
+          page={page + 1}
+          onChange={(_, newPage) => setPage(newPage - 1)}
           shape="rounded"
           color="primary"
           renderItem={(item) => (
@@ -365,39 +356,14 @@ const AttributeTermTable = ({ attributeId }: AttributeTermTableProps) => {
               {...item}
               className="text-gray-600 hover:text-[#2E9970]"
               sx={{
+                backgroundColor:
+                  item.page === 1 && page === 0 ? "#2E9970" : "transparent",
+                color: item.page === 1 && page === 0 ? "#fff" : "inherit",
                 "&.Mui-selected": {
                   backgroundColor: "#2E9970",
                   color: "#fff",
                   "&:hover": {
                     backgroundColor: "#247C5C",
-                  },
-                },
-              }}
-            />
-          )}
-        />
-      </div> */}
-      <div className="flex justify-center p-4">
-        <Pagination
-          count={totalPages}
-          page={page + 1} // Adjust to display 1-based page index
-          onChange={(_, newPage) => setPage(newPage - 1)} // Map back to 0-based index
-          shape="rounded"
-          color="primary"
-          renderItem={(item) => (
-            <PaginationItem
-              {...item}
-              className="text-gray-600 hover:text-[#2E9970]"
-              sx={{
-                // Highlight the first page by default
-                backgroundColor:
-                  item.page === 1 && page === 0 ? "#2E9970" : "transparent",
-                color: item.page === 1 && page === 0 ? "#fff" : "inherit",
-                "&.Mui-selected": {
-                  backgroundColor: "#2E9970", // Highlight selected page
-                  color: "#fff",
-                  "&:hover": {
-                    backgroundColor: "#247C5C", // Darker green on hover
                   },
                 },
               }}

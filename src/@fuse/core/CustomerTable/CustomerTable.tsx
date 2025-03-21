@@ -245,7 +245,7 @@ const CustomerTable = () => {
     first_name: user.first_name,
     last_name: user.last_name,
     email: user.email,
-    createdAt: user.createdA,
+    createdAt: user.createdAt,
     phone: user.phone,
     gender: user.gender
       ? user.gender.charAt(0).toUpperCase() + user.gender.slice(1)

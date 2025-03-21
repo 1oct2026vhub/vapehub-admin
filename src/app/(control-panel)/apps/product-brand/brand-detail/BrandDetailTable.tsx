@@ -106,7 +106,7 @@ export type BrandType = {
   name: string;
   description: string | null;
   logoUrl: string | null;
-  website: string | null;
+  slug: string | null;
   createdAt?: string | null;
 };
 
@@ -140,7 +140,7 @@ export default function BrandDetailTable() {
   const columns: MRT_ColumnDef<BrandType>[] = [
     { accessorKey: "name", header: "Brand Name" },
     { accessorKey: "description", header: "Description" },
-    { accessorKey: "website", header: "Website" },
+    { accessorKey: "slug", header: "Slug" },
     { accessorKey: "createdAt", header: "Created At" },
   ];
 
@@ -149,7 +149,7 @@ export default function BrandDetailTable() {
     name: brandDetail.name,
     description: brandDetail.description,
     logoUrl: brandDetail.logoUrl,
-    website: brandDetail.website,
+    slug: brandDetail.slug,
     createdAt: brandDetail.createdAt
       ? new Date(brandDetail.createdAt)
           .toLocaleDateString("en-GB")

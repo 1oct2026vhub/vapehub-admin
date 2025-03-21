@@ -15,7 +15,7 @@ import { useSnackbar } from "@/contexts/SnackbarContext";
 import axiosInstance from "@/utils/axiosApi";
 
 const schema = z.object({
-  name: z.string().min(1, "Brand Name is required"),
+  name: z.string().min(1, "Brand Name is required").max(50, "Name must be less than 50 characters"),
   slug: z.string().min(1, "Slug is required"),
   description: z.string().optional(),
   logo: z.instanceof(File).optional(),
@@ -42,11 +42,16 @@ const EditBrandForm = ({ brand }: { brand: FormType }) => {
   const { showSnackbar } = useSnackbar();
   const [isLoading, setIsLoading] = useState(false);
 
-  const { control, formState, handleSubmit, setValue } = useForm({
+  const { control, formState, handleSubmit, setValue, watch } = useForm({
     mode: "all",
     defaultValues,
     resolver: zodResolver(schema),
   });
+
+  // Watch the name field to display character count
+  const nameValue = watch("name") || "";
+  const nameLength = nameValue.length;
+  const nameRemaining = 50 - nameLength;
 
   const { isValid, errors } = formState;
   const { trigger: triggerUpdateBrand, isMutating } = usePost(
@@ -150,7 +155,7 @@ const EditBrandForm = ({ brand }: { brand: FormType }) => {
       router.push("/apps/product-brand");
     } catch (error) {
       console.error("Update error:", error);
-      showSnackbar(error?.message || "An unexpected error occurred", "error");
+      showSnackbar(error || "An unexpected error occurred", "error");
     } finally {
       setIsLoading(false);
     }
@@ -184,6 +189,9 @@ const EditBrandForm = ({ brand }: { brand: FormType }) => {
             type="text"
             required
           />
+          <div className="text-xs text-gray-500 -mt-3 mb-4">
+            {nameLength} / 50 characters used {nameRemaining < 0 ? "(exceeded maximum)" : ""}
+          </div>
           <FormInputField
             name="slug"
             control={control}
