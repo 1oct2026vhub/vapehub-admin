@@ -392,7 +392,9 @@ function VariantTab() {
     reset,
   } = useForm<FormData>({
     defaultValues: {
-      variants: formData.variants || [createDefaultVariant()], // Initialize with existing variants or default
+      variants: formData.variants && formData.variants.length > 0 
+        ? formData.variants 
+        : [createDefaultVariant()],
     },
     mode: "all",
     resolver: zodResolver(variantSchema),
@@ -504,11 +506,6 @@ function VariantTab() {
     console.log("Form validation errors:", errors);
     console.log("Is form valid:", isValid);
     console.log("Existing form data:", formData);
-
-    // Detailed error logging
-    Object.keys(errors).forEach((key) => {
-      console.error(`Error in ${key}:`, (errors as any)[key]);
-    });
 
     // Validate data manually
     if (!data.variants || data.variants.length === 0) {
@@ -785,14 +782,52 @@ function VariantTab() {
     <form 
       onSubmit={(e) => {
         e.preventDefault(); // Prevent default form submission
+        
+        // Get the current form values
+        const formValues = watch();
+        console.log("Current form values:", formValues);
+
+        // Validate form values before submission
+        if (!formValues.variants || formValues.variants.length === 0) {
+          showSnackbar("Please add at least one variant", "error");
+          return;
+        }
+
+        // Check if all variants have required fields
+        const invalidVariants = formValues.variants.filter((variant: any, index: number) => {
+          const errors: string[] = [];
+          
+          if (!variant.slug) errors.push(`Variant ${index + 1}: Slug is required`);
+          if (!variant.price) errors.push(`Variant ${index + 1}: Price is required`);
+          if (!variant.stock) errors.push(`Variant ${index + 1}: Stock is required`);
+          
+          const invalidAttributes = variant.attributes.filter((attr: any) => !attr.term_id);
+          if (invalidAttributes.length > 0) {
+            errors.push(`Variant ${index + 1}: All attributes must have a term selected`);
+          }
+
+          return errors.length > 0;
+        });
+
+        if (invalidVariants.length > 0) {
+          showSnackbar("Please fill in all required fields for each variant", "error");
+          return;
+        }
+
+        // If validation passes, proceed with form submission
         handleSubmit(
           onSubmit, 
           (validationErrors) => {
-            console.error("Detailed validation errors:", validationErrors);
+            console.error("Form validation errors:", validationErrors);
             
             // Construct a more informative error message
             const errorMessages = Object.entries(validationErrors)
-              .map(([key, error]) => `${key}: ${error?.message}`)
+              .map(([key, error]) => {
+                if (key === 'variants') {
+                  return `Variant validation errors: ${error.message}`;
+                }
+                return `${key}: ${error.message}`;
+              })
               .join('; ');
             
             showSnackbar(
@@ -800,7 +835,7 @@ function VariantTab() {
               "error"
             );
           }
-        )(e); // Immediately invoke the returned function
+        )(e);
       }} 
       className="space-y-4"
     >

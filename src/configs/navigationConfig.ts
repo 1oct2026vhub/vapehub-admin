@@ -28,7 +28,7 @@ const navigationConfig: FuseNavItemType[] = [
   },
   {
     id: "apps.ecommerce",
-    title: "Procucts",
+    title: "Products",
     type: "collapse",
     icon: "heroicons-outline:shopping-bag",
     children: [

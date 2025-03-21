@@ -582,11 +582,11 @@ const schema = z.object({
     .optional(),
     // .max(200, "Description must be at most 200 characters"),
 
-  type: z.enum(["select", "radio", "checkbox", "text", "textarea"], {
+  type: z.enum(["select", "radio", "text", "image"], {
     message: "Type is required",
   }),
 
-  sort_order: z.enum(["custom", "name", "name_numeric"], {
+  sort_order: z.enum(["custom", "name", "id"], {
     message: "Invalid sort order value",
   }),
 });
@@ -604,15 +604,14 @@ export type FormType = z.infer<typeof schema>;
 const typeOptions = [
   { label: "Select", value: "select" },
   { label: "Radio", value: "radio" },
-  { label: "Checkbox", value: "checkbox" },
   { label: "Text", value: "text" },
-  { label: "Textarea", value: "textarea" },
+  { label: "Image", value: "image" },
 ];
 
 const sortOrderOptions = [
   { label: "Custom", value: "custom" },
   { label: "Name", value: "name" },
-  { label: "Name (Numeric)", value: "name_numeric" },
+  { label: "Id", value: "id" },
 ];
 
 function CreateAttribute() {

@@ -124,7 +124,7 @@ const ProductCategoryTable = () => {
       { accessorKey: "id", header: "ID" },
       { accessorKey: "name", header: "Category Name" },
       { accessorKey: "slug", header: "Slug" },
-      { accessorKey: "description", header: "Description" },
+      // { accessorKey: "description", header: "Description" },
       {
         accessorKey: "updatedAt",
         header: "Last Updated",
