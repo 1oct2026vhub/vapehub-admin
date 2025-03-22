@@ -18,8 +18,12 @@ import FormDatePicker from "@/components/Shared/FormDatePicker";
 import { useState } from "react";
 
 const schema = z.object({
-  first_name: z.string().min(1, "First Name is required"),
-  last_name: z.string().min(1, "Last Name is required"),
+  first_name: z.string()
+    .min(1, "First Name is required")
+    .max(50, "First Name must not exceed 50 characters"),
+  last_name: z.string()
+    .min(1, "Last Name is required")
+    .max(50, "Last Name must not exceed 50 characters"),
   email: z
     .string()
     .min(1, "Email is required") // Ensures the field is required

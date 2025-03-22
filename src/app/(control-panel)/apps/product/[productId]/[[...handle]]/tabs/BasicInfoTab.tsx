@@ -22,7 +22,8 @@ import FormSearchableSelectField from "@/components/Shared/FormSearchableSelectF
 import FormCKEditor from '@/components/Shared/FormCKEditor';
 
 const schema = z.object({
-  name: z.string().min(1, "Name is required"),
+  name: z.string().min(1, "Name is required")
+  .max(50, "Name must not exceed 50 characters"),
   slug: z.string().min(1, "Slug is required"),
   description: z.string().optional().default(""),
   category_id: z.number().min(1, "Category is required"),

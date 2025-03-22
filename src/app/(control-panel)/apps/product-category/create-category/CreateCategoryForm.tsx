@@ -29,7 +29,8 @@ const ACCEPTED_FILE_TYPES = [
 ];
 
 const schema = z.object({
-  name: z.string().min(1, "Category Name is required"),
+  name: z.string().min(1, "Category Name is required")
+  .max(50, "Category Name must not exceed 50 characters"),
   slug: z.string().min(1, "Slug is required"),
   description: z.string().optional(),
   logo: z
