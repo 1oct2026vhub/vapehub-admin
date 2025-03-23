@@ -8,6 +8,7 @@ import {
   uploadProductImages,
   getProduct,
   updatePrimaryImage,
+  deleteProductImage,
 } from "@/services/apiProduct";
 import { useProductForm } from "../ProductFormContext";
 import AppButton from "@/components/Shared/AppButton";
@@ -23,6 +24,7 @@ import {
 } from "@mui/material";
 import Image from "next/image";
 import BrokenImageIcon from "@mui/icons-material/BrokenImage";
+import { Delete as DeleteIcon, Add as AddIcon } from "@mui/icons-material";
 
 interface ProductImage {
   id: number;
@@ -300,6 +302,40 @@ function ProductImagesTab() {
     }
   };
 
+  const handleDeleteImage = async (imageId: number) => {
+    try {
+      if (!productId) {
+        throw new Error("Product ID is required");
+      }
+
+      // Convert productId to number
+      const numericProductId = Number(productId);
+      if (isNaN(numericProductId)) {
+        throw new Error("Invalid product ID");
+      }
+
+      // Call the delete API first
+      await deleteProductImage(numericProductId, imageId);
+
+      // After successful API call, update both UI and form context
+      const updatedImages = uploadedImages.filter((img) => img.id !== imageId);
+      setUploadedImages(updatedImages);
+      updateFormData({ 
+        productImages: updatedImages,
+        hasErrors: false 
+      });
+
+      // Show success message
+      showSnackbar("Image deleted successfully", "success");
+    } catch (error) {
+      console.error("Error deleting image:", error);
+      showSnackbar("Failed to delete image", "error");
+      updateFormData({ 
+        hasErrors: true 
+      });
+    }
+  };
+
   const ImageWithFallback = ({
     src,
     alt,
@@ -371,7 +407,7 @@ function ProductImagesTab() {
                       src={image.url}
                       alt={`Product image ${image.id}`}
                     />
-                    <div className="absolute top-2 left-2 bg-white/80 p-2 rounded">
+                    <div className="absolute top-2 left-2 bg-white/80 px-1 rounded">
                       <FormControlLabel
                         control={
                           <Checkbox
@@ -384,6 +420,13 @@ function ProductImagesTab() {
                         label="Primary"
                       />
                     </div>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteImage(image.id)}
+                      className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                    >
+                      <DeleteIcon />
+                    </button>
                   </div>
                 ))}
               </div>

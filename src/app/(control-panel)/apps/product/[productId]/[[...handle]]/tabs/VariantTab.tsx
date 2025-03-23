@@ -1,7 +1,7 @@
 "use client";
 
 import { useSnackbar } from "@/contexts/SnackbarContext";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Paper, Grid, TextField, IconButton, SelectChangeEvent } from "@mui/material";
 import AppButton from "@/components/Shared/AppButton";
 import FormCheckboxField from "@/components/Shared/FormCheckboxField";
@@ -11,13 +11,15 @@ import {
   deleteProductVariant,
   getProduct,
   type ProductVariant,
-  type CreateProductVariantsRequest
+  type CreateProductVariantsRequest,
+  updateProductVariant
 } from "@/services/apiProduct";
 import FormSelectField from "@/components/Shared/SelectField";
 import DeleteIcon from "@mui/icons-material/Delete";
 import { z } from "zod";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useSearchParams } from "next/navigation";
 
 type Variant = NonNullable<ProductFormData["variants"]>[number] & {
   variantAttributes?: Array<{
@@ -42,7 +44,7 @@ interface FormData {
     slug: string;
     price: number;
     stock: number;
-    status: boolean;
+    status: "active" | "inactive";
     discount_price: number | null;
     purchase_price: number | null;
     low_stock_threshold: number | null;
@@ -59,206 +61,35 @@ interface FormData {
   }>;
 }
 
-// const variantSchema = z.object({
-//   variants: z
-//     .array(
-//       z.object({
-//         id: z.number().optional(),
-//         slug: z.string().min(1, "Slug is required and cannot be empty"),
-//         price: z.preprocess(
-//           (val) => (val === "" ? null : Number(val)),
-//           z.number({ 
-//             required_error: "Price is required",
-//             invalid_type_error: "Price must be a number" 
-//           }).min(0, "Price must be >= 0"),
-//         ),
-//         stock: z.preprocess(
-//           (val) => (val === "" ? null : Number(val)),
-//           z.number({ 
-//             required_error: "Stock is required",
-//             invalid_type_error: "Stock must be a number" 
-//           }).min(0, "Stock must be >= 0"),
-//         ),
-//         status: z.boolean(),
-//         discount_price: z.preprocess(
-//           (val) => (val === "" ? null : Number(val)),
-//           z.number().nullable(),
-//         ),
-//         purchase_price: z.preprocess(
-//           (val) => (val === "" ? null : Number(val)),
-//           z.number().nullable(),
-//         ),
-//         low_stock_threshold: z.preprocess(
-//           (val) => (val === "" ? null : Number(val)),
-//           z.number().nullable(),
-//         ),
-//         weight: z.preprocess(
-//           (val) => (val === "" ? null : Number(val)),
-//           z.number().nullable(),
-//         ),
-//         length: z.preprocess(
-//           (val) => (val === "" ? null : Number(val)),
-//           z.number().nullable(),
-//         ),
-//         width: z.preprocess(
-//           (val) => (val === "" ? null : Number(val)),
-//           z.number().nullable(),
-//         ),
-//         height: z.preprocess(
-//           (val) => (val === "" ? null : Number(val)),
-//           z.number().nullable(),
-//         ),
-//         barcode: z.string().nullable(),
-//         description: z.string().nullable(),
-//         attributes: z.array(
-//           z.object({
-//             attribute_id: z.preprocess(
-//               (val) => Number(val),
-//               z.number().min(1, "Attribute ID is required")
-//             ),
-//             term_id: z.preprocess(
-//               (val) => Number(val),
-//               z.number().min(1, "Term must be selected for each attribute")
-//             ),
-//           })
-//         ).min(1, "At least one attribute must be selected"),
-//       }),
-//     )
-//     .min(1, "At least one variant is required"),
-// });
-
-
-// ✅ Price field validation schema
-const variantSchema = z.object({
+const schema = z.object({
   variants: z.array(
     z.object({
       id: z.number().optional(),
       slug: z.string().min(1, "Slug is required"),
-      price: z.preprocess(
-        (val) => (val === "" ? null : Number(val)),
-        z
-          .number({
-            required_error: "Price is required",
-            invalid_type_error: "Price must be a number",
-          })
-          .min(1, "Price must be greater than 0")
-          .max(1000000, "Price exceeds the limit")
-          .refine((val) => /^\d+(\.\d{1,2})?$/.test(val.toString()), {
-            message: "Only two decimal places allowed",
-          })
-      ),
-      stock: z.preprocess(
-        (val) => (val === "" ? null : Number(val)),
-        z
-          .number({
-            required_error: "Stock is required",
-            invalid_type_error: "Stock must be a number",
-          })
-          .min(0, "Stock must be >= 0")
-      ),
-      status: z.boolean(),
-      discount_price: z.preprocess(
-        (val) => (val === "" ? null : Number(val)),
-        z.number({
-          required_error: "Discount price is required",
-          invalid_type_error: "Discount price must be a number",
-        })
-        .min(1, "Discount price must be greater than 0")
-        .max(1000000, "Discount price exceeds the limit")
-        .refine((val) => /^\d+(\.\d{1,2})?$/.test(val.toString()), {
-          message: "Only two decimal places allowed",
-        })
-      ),
-      purchase_price: z.preprocess(
-        (val) => (val === "" ? null : Number(val)),
-        z.number({
-          required_error: "Purchase price is required",
-          invalid_type_error: "Purchase price must be a number",
-        })
-        .min(1, "Purchase price must be greater than 0")
-        .max(1000000, "Purchase price exceeds the limit")
-        .refine((val) => /^\d+(\.\d{1,2})?$/.test(val.toString()), {
-          message: "Only two decimal places allowed",
-        })
-      ),
-      low_stock_threshold: z.preprocess(
-        (val) => (val === "" ? null : Number(val)),
-        z.number({
-          required_error: "Low stock threshold is required",
-          invalid_type_error: "Low stock threshold must be a number",
-        })
-      ),
-      weight: z.preprocess(
-        (val) => (val === "" ? null : Number(val)),
-        z.number({
-          required_error: "Weight is required",
-          invalid_type_error: "Weight must be a number",
-        })
-        .min(1, "Weight must be greater than 0")
-        .max(1000000, "Weight exceeds the limit")
-        .refine((val) => /^\d+(\.\d{1,2})?$/.test(val.toString()), {
-          message: "Only two decimal places allowed",
-        })
-      ),
-      length: z.preprocess(
-        (val) => (val === "" ? null : Number(val)),
-        z.number({
-          required_error: "Length is required",
-          invalid_type_error: "Length price must be a number",
-        })
-        .min(1, "Length must be greater than 0")
-        .max(1000000, "Length exceeds the limit")
-        .refine((val) => /^\d+(\.\d{1,2})?$/.test(val.toString()), {
-          message: "Only two decimal places allowed",
-        })
-      ),
-      width: z.preprocess(
-        (val) => (val === "" ? null : Number(val)),
-        z.number({
-          required_error: "Width is required",
-          invalid_type_error: "Width must be a number",
-        })
-        .min(1, "Width must be greater than 0")
-        .max(1000000, "Width exceeds the limit")
-        .refine((val) => /^\d+(\.\d{1,2})?$/.test(val.toString()), {
-          message: "Only two decimal places allowed",
-        })
-      ),
-      height: z.preprocess(
-        (val) => (val === "" ? null : Number(val)),
-        z.number({
-          required_error: "Height is required",
-          invalid_type_error: "Height must be a number",
-        })
-        .min(1, "Height must be greater than 0")
-        .max(1000000, "Height exceeds the limit")
-        .refine((val) => /^\d+(\.\d{1,2})?$/.test(val.toString()), {
-          message: "Only two decimal places allowed",
-        })
-      ),
+      price: z.number().min(0, "Price must be greater than or equal to 0"),
+      stock: z.number().min(0, "Stock must be greater than or equal to 0"),
+      status: z.enum(["active", "inactive"]).default("active"),
+      discount_price: z.number().nullable(),
+      purchase_price: z.number().nullable(),
+      low_stock_threshold: z.number().nullable(),
+      weight: z.number().nullable(),
+      length: z.number().nullable(),
+      width: z.number().nullable(),
+      height: z.number().nullable(),
       barcode: z.string().nullable(),
       description: z.string().nullable(),
-      attributes: z
-        .array(
-          z.object({
-            attribute_id: z.preprocess(
-              (val) => Number(val),
-              z.number().min(1, "Attribute ID is required")
-            ),
-            term_id: z.preprocess(
-              (val) => Number(val),
-              z.number().min(1, "Term must be selected for each attribute")
-            ),
-          })
-        )
-        .min(1, "At least one attribute must be selected"),
+      attributes: z.array(
+        z.object({
+          attribute_id: z.number().min(1, "Attribute is required"),
+          term_id: z.number().min(1, "Term is required"),
+        })
+      ).min(1, "At least one attribute is required"),
     })
-  )
+  ),
 });
 
 function VariantTab() {
   const { showSnackbar } = useSnackbar();
-  const [isLoading, setIsLoading] = useState(false);
   const {
     formData,
     updateFormData,
@@ -266,12 +97,113 @@ function VariantTab() {
     previousStep,
     markStepAsCompleted,
   } = useProductForm();
+  const searchParams = useSearchParams();
+  const productId = formData.productId || searchParams.get("productId");
 
-  // Track used terms across all variants
+  // Determine if we're in edit mode based on existing variants
+  const isEditMode = Boolean(formData.variants?.some(variant => 
+    variant.id !== undefined && 
+    variant.attributes?.some(attr => attr.term_id > 0)
+  ));
+
+  // State declarations
+  const [isLoading, setIsLoading] = useState(false);
   const [usedTerms, setUsedTerms] = useState<Record<number, Set<number>>>({});
+  const fetchedRef = useRef(false);
+
+  // Compute available terms for each attribute
+  const variationAttributes = (formData.attributes || [])
+    .filter((attr) => attr.used_in_variation && attr.attribute_id > 0)
+    .map((attr) => {
+      // Get all terms for this attribute from attributeResponse
+      const allTerms = (formData.attributesResponse?.productAttributeTerms || [])
+        .filter(
+          (term) => 
+            term.attribute_id === attr.attribute_id && 
+            term.used_in_variation
+        )
+        .map((term) => ({
+          value: term.term_id,
+          label: term.term?.name || `Term ${term.term_id}`,
+        }));
+
+      return {
+        ...attr,
+        allTerms,
+      };
+    });
+
+  // Update the createDefaultVariant function to accept and use specific terms
+  const createDefaultVariant = (isNewVariant: boolean = false, presetTerms?: Array<{ attribute_id: number; term_id: number }>) => ({
+    slug: "",
+    price: 0,
+    stock: 0,
+    status: "active" as const,
+    discount_price: null,
+    purchase_price: null,
+    low_stock_threshold: null,
+    weight: null,
+    length: null,
+    width: null,
+    height: null,
+    barcode: null,
+    description: null,
+    attributes: presetTerms || variationAttributes.map(attr => ({
+      attribute_id: Number(attr.attribute_id),
+      term_id: 0,
+    })),
+  });
+
+  // Add a function to get all available terms for an attribute
+  const getAllTermsForAttribute = (attributeId: number) => {
+    return (formData.attributesResponse?.productAttributeTerms || [])
+      .filter(term => 
+        term.attribute_id === attributeId && 
+        term.used_in_variation
+      )
+      .map(term => ({
+        value: term.term_id,
+        label: term.term?.name || `Term ${term.term_id}`,
+        attributeId: term.attribute_id
+      }));
+  };
+
+  // Form setup
+  const {
+    control,
+    register,
+    handleSubmit,
+    formState: { errors, isValid, dirtyFields },
+    watch,
+    setValue,
+    reset,
+  } = useForm<FormData>({
+    defaultValues: {
+      variants: formData.variants && formData.variants.length > 0 
+        ? formData.variants.map(variant => ({
+            ...variant,
+            attributes: variant.attributes?.map((attr) => ({
+              attribute_id: Number(attr.attribute_id),
+              term_id: Number(attr.term_id),
+            })) || [],
+            status: "active" as const,
+          }))
+        : [createDefaultVariant()],
+    },
+    mode: "onChange",
+    resolver: zodResolver(schema),
+  });
+
+  const { fields, append, remove } = useFieldArray({
+    control,
+    name: "variants",
+  });
+
+  // Watch all variants to track used terms
+  const variants = watch("variants") || [];
 
   // Function to fetch product data including variants
-  const fetchProductData = async (productId: number) => {
+  const fetchProductData = useCallback(async (productId: number) => {
     if (!productId) return;
 
     setIsLoading(true);
@@ -349,7 +281,7 @@ function VariantTab() {
           },
         });
         
-        // Reset form with fetched variants - note this will only work if the form is already initialized
+        // Reset form with fetched variants
         reset({ variants: fetchedVariants });
       }
     } catch (error) {
@@ -358,14 +290,14 @@ function VariantTab() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [reset]);
 
-  // Fetch product data when component mounts or productId changes
+  // Effects
   useEffect(() => {
     if (formData.productId) {
       fetchProductData(formData.productId);
     }
-  }, [formData.productId]);
+  }, [formData.productId, fetchProductData]);
 
   useEffect(() => {
     if (formData.attributesResponse) {
@@ -375,7 +307,6 @@ function VariantTab() {
     if (formData.productId) {
       console.log("VariantTab - Product ID:", formData.productId);
       
-      // Log existing variants
       if (formData.variants) {
         console.log("Existing Variants:", formData.variants);
       }
@@ -386,162 +317,6 @@ function VariantTab() {
     }
   }, [formData.attributesResponse, formData.productId, formData.productImages, formData.variants]);
 
-  // Compute available terms for each attribute
-  const variationAttributes = (formData.attributes || [])
-    .filter((attr) => attr.used_in_variation && attr.attribute_id > 0)
-    .map((attr) => {
-      // Get all terms for this attribute from attributeResponse
-      const allTerms = (formData.attributesResponse?.productAttributeTerms || [])
-        .filter(
-          (term) => 
-            term.attribute_id === attr.attribute_id && 
-            term.used_in_variation
-        )
-        .map((term) => ({
-          value: term.term_id,
-          label: term.term?.name || `Term ${term.term_id}`,
-        }));
-
-      return {
-        ...attr,
-        allTerms,
-      };
-    });
-
-  // Create a new empty variant with only attribute structure
-  const createDefaultVariant = (isNewVariant: boolean = false) => {
-    // If existing variants exist from getProduct API and it's not a new variant, use the first variant's data
-    if (formData.variants && formData.variants.length > 0 && !isNewVariant) {
-      const existingVariant = formData.variants[0];
-      return {
-        id: existingVariant.id,
-        product_id: formData.productId,
-        slug: existingVariant.slug || "",
-        price: typeof existingVariant.price === 'string' 
-          ? parseFloat(existingVariant.price) 
-          : (existingVariant.price || 0),
-        stock: typeof existingVariant.stock === 'string' 
-          ? parseInt(existingVariant.stock) 
-          : (existingVariant.stock || 0),
-        status: existingVariant.status === true || 
-          (typeof existingVariant.status === 'string' && existingVariant.status === 'active'),
-        discount_price: existingVariant.discount_price 
-          ? (typeof existingVariant.discount_price === 'string' 
-            ? parseFloat(existingVariant.discount_price) 
-            : existingVariant.discount_price) 
-          : null,
-        purchase_price: existingVariant.purchase_price 
-          ? (typeof existingVariant.purchase_price === 'string' 
-            ? parseFloat(existingVariant.purchase_price) 
-            : existingVariant.purchase_price) 
-          : null,
-        low_stock_threshold: existingVariant.low_stock_threshold 
-          ? (typeof existingVariant.low_stock_threshold === 'string' 
-            ? parseInt(existingVariant.low_stock_threshold) 
-            : existingVariant.low_stock_threshold) 
-          : null,
-        weight: existingVariant.weight 
-          ? (typeof existingVariant.weight === 'string' 
-            ? parseFloat(existingVariant.weight) 
-            : existingVariant.weight) 
-          : null,
-        length: existingVariant.length 
-          ? (typeof existingVariant.length === 'string' 
-            ? parseFloat(existingVariant.length) 
-            : existingVariant.length) 
-          : null,
-        width: existingVariant.width 
-          ? (typeof existingVariant.width === 'string' 
-            ? parseFloat(existingVariant.width) 
-            : existingVariant.width) 
-          : null,
-        height: existingVariant.height 
-          ? (typeof existingVariant.height === 'string' 
-            ? parseFloat(existingVariant.height) 
-            : existingVariant.height) 
-          : null,
-        barcode: existingVariant.barcode ?? null,
-        description: existingVariant.description ?? null,
-        attributes: (existingVariant as Variant).variantAttributes 
-          ? (existingVariant as Variant).variantAttributes!.map(varAttr => ({
-              attribute_id: Number(varAttr.attribute_id),
-              term_id: Number(varAttr.term_id),
-              is_visible: true,
-              used_in_variation: true,
-              term: varAttr.term,
-              attribute: varAttr.attribute
-            }))
-          : variationAttributes.map((attr) => ({
-              attribute_id: Number(attr.attribute_id),
-              term_id: 0,
-              is_visible: true,
-              used_in_variation: true
-            })),
-      };
-    }
-
-    // Create a new empty variant
-    return {
-      slug: "",
-      price: 0,
-      stock: 0,
-      status: true,
-      discount_price: null,
-      purchase_price: null,
-      low_stock_threshold: null,
-      weight: null,
-      length: null,
-      width: null,
-      height: null,
-      barcode: null,
-      description: null,
-      attributes: variationAttributes.map((attr) => ({
-        attribute_id: Number(attr.attribute_id),
-        term_id: 0,
-        is_visible: true,
-        used_in_variation: true
-      })),
-    };
-  };
-
-  const {
-    control,
-    register,
-    handleSubmit,
-    formState: { errors, isValid },
-    watch,
-    setValue,
-    reset,
-  } = useForm<FormData>({
-    defaultValues: {
-      variants: formData.variants && formData.variants.length > 0 
-        ? formData.variants.map(variant => ({
-            ...variant,
-            attributes: Array.isArray(variant.attributes) 
-              ? variant.attributes.map(attr => ({
-                  attribute_id: Number(attr.attribute_id),
-                  term_id: Number(attr.term_id)
-                }))
-              : variationAttributes.map(attr => ({
-                  attribute_id: Number(attr.attribute_id),
-                  term_id: 0
-                }))
-          }))
-        : [createDefaultVariant()],
-    },
-    mode: "all",
-    resolver: zodResolver(variantSchema),
-  });
-
-  const { fields, append, remove } = useFieldArray({
-    control,
-    name: "variants",
-  });
-
-  // Watch all variants to track used terms
-  const variants = watch("variants") || [];
-
-  // Update used terms whenever variants change
   useEffect(() => {
     const newUsedTerms: Record<number, Set<number>> = {};
     
@@ -551,7 +326,6 @@ function VariantTab() {
           if (!newUsedTerms[attr.attribute_id]) {
             newUsedTerms[attr.attribute_id] = new Set();
           }
-          // Only add if term_id is a valid number
           if (attr.term_id && attr.term_id !== 0) {
             newUsedTerms[attr.attribute_id].add(attr.term_id);
           }
@@ -575,26 +349,32 @@ function VariantTab() {
     return availableTerms.length > 0;
   });
 
-  // Function to get available terms for a specific attribute and variant
+  // Update the getAvailableTermsForAttribute function to filter out used terms
   const getAvailableTermsForAttribute = (attributeId: number, variantIndex: number) => {
     const currentVariant = variants[variantIndex];
     const currentTermId = currentVariant?.attributes?.find(attr => attr.attribute_id === attributeId)?.term_id;
     
     // Get all terms for this attribute
-    const allTerms = (formData.attributesResponse?.productAttributeTerms || [])
-      .filter(term => 
-        term.attribute_id === attributeId && 
-        term.used_in_variation && 
-        (term.term_id === currentTermId || // Include current term
-         !usedTerms[attributeId]?.has(term.term_id)) // Include unused terms
-      )
-      .map(term => ({
-        value: term.term_id,
-        label: term.term?.name || `Term ${term.term_id}`,
-      }));
+    const allTerms = getAllTermsForAttribute(attributeId);
+    
+    // Filter out terms that are used in other variants
+    return allTerms.filter(term => {
+      // Always include the current term for this variant
+      if (term.value === currentTermId) {
+        return true;
+      }
       
-    console.log(`Available terms for attribute ${attributeId}, variant ${variantIndex}:`, allTerms);
-    return allTerms;
+      // Check if this term is used in any other variant
+      const isUsedInOtherVariant = variants.some((variant, idx) => 
+        idx !== variantIndex && // Skip current variant
+        variant.attributes?.some(attr => 
+          attr.attribute_id === attributeId && 
+          attr.term_id === term.value
+        )
+      );
+      
+      return !isUsedInOtherVariant;
+    });
   };
 
   // Function to check if an attribute has any available terms
@@ -630,22 +410,134 @@ function VariantTab() {
     }
   };
 
+  // Update the handleAddVariant function to handle automatic variant creation
   const handleAddVariant = () => {
-    // Only add variant if there are unused terms
-    if (hasUnusedTerms) {
-      append(createDefaultVariant(true)); // Pass true to indicate this is a new variant
+    const currentVariants = watch("variants") || [];
+    
+    // If this is the first variant being added
+    if (currentVariants.length === 0) {
+      // Get all attributes and their terms
+      const attributeTerms = variationAttributes.map(attr => ({
+        attributeId: attr.attribute_id,
+        terms: getAllTermsForAttribute(attr.attribute_id)
+      }));
+      
+      // Create first variant with first terms
+      const firstVariantTerms = attributeTerms.map(attr => ({
+        attribute_id: attr.attributeId,
+        term_id: attr.terms[0]?.value || 0
+      }));
+      
+      // Create second variant with second terms if available
+      const hasSecondTerms = attributeTerms.some(attr => attr.terms.length > 1);
+      if (hasSecondTerms) {
+        const secondVariantTerms = attributeTerms.map(attr => ({
+          attribute_id: attr.attributeId,
+          term_id: attr.terms[1]?.value || attr.terms[0]?.value || 0
+        }));
+        
+        // Add both variants
+        const firstVariant = createDefaultVariant(true, firstVariantTerms);
+        const secondVariant = createDefaultVariant(true, secondVariantTerms);
+        
+        append([firstVariant, secondVariant]);
+        
+        // Update form data
+        updateFormData({
+          variants: [firstVariant, secondVariant]
+        });
+      } else {
+        // Add only first variant
+        const firstVariant = createDefaultVariant(true, firstVariantTerms);
+        append(firstVariant);
+        updateFormData({
+          variants: [firstVariant]
+        });
+      }
+    } else if (hasUnusedTerms) {
+      // Add a single new variant for subsequent additions
+      const newVariant = createDefaultVariant(true);
+      append(newVariant);
+      updateFormData({
+        variants: [...currentVariants, newVariant]
+      });
     } else {
       showSnackbar("All attribute terms have been used", "warning");
     }
   };
 
-  // Transform the data to match API requirements
-  const transformVariantData = (variant: any): ProductVariant => {
-    const transformedVariant: ProductVariant = {
+  // Update the getAttributeName function to use the correct property access
+  const getAttributeName = (attributeId: number) => {
+    // First try to find the attribute in the attributesResponse
+    const responseAttribute = formData.attributesResponse?.productAttributeTerms?.find(
+      term => term.attribute_id === attributeId
+    )?.attribute;
+    if (responseAttribute?.name) {
+      return responseAttribute.name;
+    }
+    
+    // If not found, return a default name
+    return `Attribute ${attributeId}`;
+  };
+
+  // Find the term name for a given term ID
+  const getTermName = (attributeId: number, termId: number) => {
+    const term = (formData.attributesResponse?.productAttributeTerms || [])
+      .find(t => t.attribute_id === attributeId && t.term_id === termId);
+    return term?.term?.name || `Term ${termId}`;
+  };
+
+  // Update the areRequiredFieldsFilled function with more precise checks
+  const areRequiredFieldsFilled = (variant: FormData['variants'][0]) => {
+    const isValid = Boolean(
+      variant.slug?.trim() && // Check slug is not empty
+      typeof variant.price === 'number' && variant.price >= 0 && // Check price is valid
+      typeof variant.stock === 'number' && variant.stock >= 0 && // Check stock is valid
+      variant.attributes?.every(attr => 
+        typeof attr.attribute_id === 'number' && attr.attribute_id > 0 && // Check attribute_id
+        typeof attr.term_id === 'number' && attr.term_id > 0 // Check term_id
+      )
+    );
+    
+    console.log("Variant validation:", {
+      variant,
+      isValid,
+      hasSlug: Boolean(variant.slug?.trim()),
+      validPrice: typeof variant.price === 'number' && variant.price >= 0,
+      validStock: typeof variant.stock === 'number' && variant.stock >= 0,
+      validAttributes: variant.attributes?.every(attr => 
+        typeof attr.attribute_id === 'number' && attr.attribute_id > 0 &&
+        typeof attr.term_id === 'number' && attr.term_id > 0
+      )
+    });
+    
+    return isValid;
+  };
+
+  // Update the transformVariantData function to ensure correct status type
+  const transformVariantData = (variant: FormData['variants'][0]): ProductVariant => {
+    // Map through variation attributes to ensure all required attributes are included
+    const transformedAttributes = variationAttributes.map(attr => {
+      // Find if this attribute already has a term in the current variant
+      const existingAttribute = variant.attributes?.find(
+        a => a.attribute_id === attr.attribute_id
+      );
+      
+      // If there's an existing term, use it; otherwise, use the first available term
+      const termId = existingAttribute?.term_id || 
+        (attr.allTerms?.[0]?.value || 0);
+      
+      return {
+        attribute_id: Number(attr.attribute_id),
+        term_id: Number(termId),
+      };
+    });
+
+    return {
       slug: variant.slug,
       price: Number(variant.price),
       stock: Number(variant.stock),
-      status: Boolean(variant.status),
+      status: variant.status === "active" ? "active" : "inactive",
       discount_price: variant.discount_price ? Number(variant.discount_price) : undefined,
       purchase_price: variant.purchase_price ? Number(variant.purchase_price) : undefined,
       low_stock_threshold: variant.low_stock_threshold ? Number(variant.low_stock_threshold) : undefined,
@@ -655,122 +547,74 @@ function VariantTab() {
       height: variant.height ? Number(variant.height) : undefined,
       barcode: variant.barcode || undefined,
       description: variant.description || undefined,
-      attributes: Array.isArray(variant.attributes) 
-        ? variant.attributes.map((attr: any) => ({
-            attribute_id: Number(attr.attribute_id),
-            term_id: Number(attr.term_id)
-          }))
-        : []
+      attributes: transformedAttributes,
     };
-
-    return transformedVariant;
   };
 
-  // Function for debugging attribute values before submission
-  const debugAttributeValues = () => {
-    const currentVariants = watch("variants");
-    currentVariants.forEach((variant, variantIndex) => {
-      console.log(`Debugging Variant ${variantIndex + 1} attributes:`);
-      variant.attributes.forEach((attr, attrIndex) => {
-        console.log(`  Attribute ${attrIndex}: attribute_id=${attr.attribute_id}, term_id=${attr.term_id}`);
-      });
-    });
-  };
-
+  // Update the onSubmit function to use the transformVariantData function
   const onSubmit = async (data: FormData) => {
+    if (!productId) {
+      showSnackbar("Please complete the previous steps first", "error");
+      return;
+    }
+
+    setIsLoading(true);
     try {
-      console.log("Form data being submitted:", JSON.stringify(data, null, 2));
-      
-      // Debug attributes
-      data.variants.forEach((variant, index) => {
-        console.log(`Variant ${index + 1} attributes before submission:`);
-        if (Array.isArray(variant.attributes)) {
-          variant.attributes.forEach((attr, attrIndex) => {
-            console.log(`  Attribute ${attrIndex}: attribute_id=${attr.attribute_id} (${typeof attr.attribute_id}), term_id=${attr.term_id} (${typeof attr.term_id})`);
-          });
-        } else {
-          console.log(`  No attributes array for variant ${index + 1}`);
-        }
-      });
-
-      if (!data.variants || data.variants.length === 0) {
-        showSnackbar("No variants defined", "error");
-        return;
-      }
-
-      setIsLoading(true);
-
-      if (!formData.productId) {
-        throw new Error("Product ID is required");
-      }
-
-      // Transform variants data for API
-      const transformedVariants = data.variants.map(variant => {
-        // Make a new object to avoid mutation
-        return {
-          slug: variant.slug,
-          price: Number(variant.price),
-          stock: Number(variant.stock),
-          status: Boolean(variant.status),
-          discount_price: variant.discount_price ? Number(variant.discount_price) : undefined,
-          purchase_price: variant.purchase_price ? Number(variant.purchase_price) : undefined,
-          low_stock_threshold: variant.low_stock_threshold ? Number(variant.low_stock_threshold) : undefined,
-          weight: variant.weight ? Number(variant.weight) : undefined,
-          length: variant.length ? Number(variant.length) : undefined,
-          width: variant.width ? Number(variant.width) : undefined,
-          height: variant.height ? Number(variant.height) : undefined,
-          barcode: variant.barcode || undefined,
-          description: variant.description || undefined,
-          attributes: Array.isArray(variant.attributes)
-            ? variant.attributes.map(attr => ({
-                attribute_id: Number(attr.attribute_id),
-                term_id: Number(attr.term_id)
-              }))
-            : []
-        };
-      });
-      
-      // Create API request payload
-      const apiPayload: CreateProductVariantsRequest = {
-        variants: transformedVariants
+      // Transform the data to match the API requirements
+      const transformedData: CreateProductVariantsRequest = {
+        variants: data.variants.map(transformVariantData),
       };
 
-      console.log("API payload:", JSON.stringify(apiPayload, null, 2));
+      console.log("Submitting variant data:", transformedData);
 
-      // Make API call
-      const response = await createProductVariants(
-        formData.productId,
-        apiPayload
-      );
+      let response;
+      if (isEditMode) {
+        // Update existing variants
+        const updatePromises = transformedData.variants.map((variant, index) => {
+          const variantId = formData.variants?.[index]?.id;
+          if (!variantId) {
+            throw new Error(`Variant ID not found for index ${index}`);
+          }
+          return updateProductVariant(Number(productId), variantId, variant);
+        });
+        response = await Promise.all(updatePromises);
+        showSnackbar("Product variants updated successfully", "success");
+      } else {
+        // Create new variants
+        response = await createProductVariants(Number(productId), transformedData);
+        showSnackbar("Product variants saved successfully", "success");
+      }
 
       console.log("API response:", response);
 
-      // After successful creation, fetch the latest product data
-      const productResponse = await getProduct(formData.productId);
-      
-      if (productResponse?.data?.variants) {
-        updateFormData({
-          variants: productResponse.data.variants,
-          attributesResponse: {
-            productAttributeTerms: productResponse.data.productAttributeTerms || [],
-            productAttributes: productResponse.data.productAttributes || []
-          }
-        });
-      }
+      // Store both the form data and API response data
+      updateFormData({
+        variants: data.variants.map((variant, index) => ({
+          ...variant,
+          id: isEditMode ? formData.variants?.[index]?.id : response[index]?.id,
+        })),
+        hasErrors: false,
+      });
 
-      showSnackbar("Product variants saved successfully", "success");
       markStepAsCompleted(3);
-      nextStep();
+      
+      // Reset fetch status to allow re-fetching if needed
+      fetchedRef.current = false;
+      
+      // Only move to next step if we're not in edit mode
+      if (!isEditMode) {
+        nextStep();
+      }
     } catch (error) {
-      console.error("Error submitting variants:", error);
-      const errorMessage = error.response?.data?.message || "Failed to save variants";
-      showSnackbar(errorMessage, "error");
+      console.error("Error saving product variants:", error);
+      updateFormData({ hasErrors: true });
+      showSnackbar("Failed to save product variants", "error");
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Effect to update form when variants data changes
+  // Update the effect that handles variant data formatting
   useEffect(() => {
     if (formData.variants && formData.variants.length > 0) {
       const formattedVariants = formData.variants.map((variant) => ({
@@ -782,8 +626,11 @@ function VariantTab() {
         stock: typeof variant.stock === 'string' 
           ? parseInt(variant.stock) 
           : (variant.stock || 0),
-        status: variant.status === true || 
-          (typeof variant.status === 'string' && variant.status === 'active'),
+        status: (typeof variant.status === 'boolean' 
+          ? variant.status 
+          : variant.status === 'active') 
+            ? 'active' as const 
+            : 'inactive' as const,
         discount_price: variant.discount_price 
           ? (typeof variant.discount_price === 'string' 
             ? parseFloat(variant.discount_price) 
@@ -837,58 +684,37 @@ function VariantTab() {
                 })),
       }));
 
-      console.log("Updating form with formatted variants:", formattedVariants);
+      console.log("Formatted variants before reset:", formattedVariants);
       reset({ variants: formattedVariants });
     }
   }, [formData.variants, reset]);
 
-  // Find the attribute name from attributesResponse
-  const getAttributeName = (attributeId: number) => {
-    const attribute = (formData.attributesResponse?.productAttributes || [])
-      .find(attr => attr.attribute_id === attributeId);
-    return attribute?.name || `Attribute ${attributeId}`;
-  };
-
-  // Find the term name for a given term ID
-  const getTermName = (attributeId: number, termId: number) => {
-    const term = (formData.attributesResponse?.productAttributeTerms || [])
-      .find(t => t.attribute_id === attributeId && t.term_id === termId);
-    return term?.term?.name || `Term ${termId}`;
-  };
+  // Add validation state logging
+  useEffect(() => {
+    const currentVariants = watch("variants");
+    const validationState = {
+      variants: currentVariants,
+      errors,
+      isValid,
+      dirtyFields,
+      hasErrors: Object.keys(errors).length > 0,
+      areAllVariantsFilled: currentVariants?.every(areRequiredFieldsFilled),
+      buttonShouldBeEnabled: Boolean(
+        !isLoading &&
+        currentVariants?.length > 0 &&
+        currentVariants?.every(areRequiredFieldsFilled) &&
+        Object.keys(errors).length === 0 &&
+        isValid
+      )
+    };
+    console.log("Form validation state:", validationState);
+  }, [watch, errors, isValid, dirtyFields, isLoading]);
 
   return (
-    <form onSubmit={handleSubmit(onSubmit, (errors) => {
-      console.error("Form validation errors:", errors);
-      
-      if (errors.variants) {
-        // Handle array-level errors
-        if (typeof errors.variants === 'string') {
-          showSnackbar(errors.variants, "error");
-          return;
-        }
-        
-        // Handle individual variant errors
-        const errorMessages = Array.isArray(errors.variants) 
-          ? errors.variants
-              .map((variantError, index) => {
-                if (!variantError) return null;
-                
-                // Extract field names with errors for this variant
-                const fieldNames = Object.keys(variantError);
-                if (fieldNames.length === 0) return null;
-                
-                return `Variant ${index + 1}: Issues with ${fieldNames.join(', ')}`;
-              })
-              .filter(Boolean)
-              .join('; ')
-          : "Issues with variants";
-
-        showSnackbar(errorMessages || "Please check all variant fields", "error");
-      } else {
-        showSnackbar("Please check all required fields", "error");
-      }
-    })} 
-    className="space-y-4">
+    <form
+      onSubmit={handleSubmit(onSubmit)}
+      className="flex w-full flex-col justify-center space-y-4"
+    >
       {fields.map((field, index) => (
         <Paper key={field.id || index} className="p-4 relative">
           <Grid container spacing={2}>
@@ -900,6 +726,13 @@ function VariantTab() {
 
               // Get available terms for this attribute and variant
               const availableTerms = getAvailableTermsForAttribute(attr.attribute_id, index);
+
+              // Get the current variant's attribute value
+              const currentVariant = variants[index];
+              const currentAttribute = currentVariant?.attributes?.find(
+                (a) => a.attribute_id === attr.attribute_id
+              );
+              const defaultValue = currentAttribute?.term_id || 0;
 
               return (
                 <Grid item xs={12} sm={6} key={attr.attribute_id}>
@@ -1068,13 +901,13 @@ function VariantTab() {
                 helperText={errors.variants?.[index]?.description?.message}
               />
             </Grid>
-            <Grid item xs={12}>
+            {/* <Grid item xs={12}>
               <FormCheckboxField
                 name={`variants.${index}.status`}
                 control={control}
                 label="Active"
               />
-            </Grid>
+            </Grid> */}
           </Grid>
 
           {/* Delete Variant Button - Only show for non-default variants */}
@@ -1112,10 +945,17 @@ function VariantTab() {
           variant="outlined"
           disabled={isLoading}
         />
-        <AppButton 
-          label="Next" 
-          type="submit" 
-          loading={isLoading} 
+        <AppButton
+          label={isEditMode ? "Update" : "Next"}
+          type="submit"
+          loading={isLoading}
+          disabled={
+            isLoading || 
+            !variants.length || // Check if there are variants
+            !variants.every(areRequiredFieldsFilled) || // Check if all variants are filled
+            Object.keys(errors).length > 0 || // Check for any validation errors
+            !isValid // Check overall form validity
+          }
         />
       </div>
     </form>
