@@ -38,10 +38,17 @@ import { deleteProduct, restoreProduct } from "@/services/apiProduct";
 import { useDebounce } from "@/hooks/useDebounce";
 import {
   listProductVariants,
-  ProductVariant,
+  ProductVariant as BaseProductVariant,
   deleteVariant,
   restoreVariant,
 } from "@/services/apiProductVariant";
+
+// Extend the base ProductVariant type
+interface ProductVariant extends BaseProductVariant {
+  product?: {
+    name: string;
+  };
+}
 
 export type ProductType = {
   id: number;
@@ -60,178 +67,56 @@ export type ProductType = {
 
 const ProductVariantTable = () => {
   const router = useRouter();
+  const { showSnackbar } = useSnackbar();
+  
+  // State management
   const [search, setSearch] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [order, setOrder] = useState<"ASC" | "DESC">("ASC");
   const [sortBy, setSortBy] = useState<string>("id");
   const [deleted, setDeleted] = useState<boolean | null>(null);
-  const [isNew, setIsNew] = useState<boolean | null>(null);
-  const [priceRange, setPriceRange] = useState<string>("");
-  const [categories, setCategories] = useState<string>("");
-  const [brands, setBrands] = useState<string>("");
+  const [isNew, setIsNew] = useState<boolean | null>(null);  const [priceRange, setPriceRange] = useState<string>("");
+  const [stockStatus, setStockStatus] = useState("");
+  const [productId, setProductId] = useState<string>("");
   const [openDrawer, setOpenDrawer] = useState(false);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
-  const { showSnackbar } = useSnackbar();
+  const [openDialog, setOpenDialog] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [restoreDialogOpen, setRestoreDialogOpen] = useState(false);
-  const [selectedProduct, setSelectedProduct] = useState<ProductType | null>(
-    null,
-  );
+  const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null);
   const [totalRows, setTotalRows] = useState(0);
   const [variants, setVariants] = useState<ProductVariant[]>([]);
   const [loading, setLoading] = useState(false);
-  const [stockStatus, setStockStatus] = useState("");
-  const [productId, setProductId] = useState<string>("");
-  const [openDialog, setOpenDialog] = useState(false);
-  const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(
-    null,
-  );
 
-  // Debounce search input
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSearch(search);
-    }, 1000);
-    return () => clearTimeout(timer);
-  }, [search]);
+  // Debounced values
+  const debouncedSearch = useDebounce(search, 500);
+  const debouncedPriceRange = useDebounce(priceRange, 500);
 
+  // Query parameters
   const queryParams = useMemo(
     () => ({
-      keyword: debouncedSearch,
       sort_by: sortBy,
       order,
       limit: rowsPerPage,
       offset: page * rowsPerPage,
-      ...(priceRange && { price_range: priceRange }),
-      ...(categories && { categories }),
-      ...(brands && { brands }),
-      ...(deleted !== null && { deleted }),
-      ...(isNew !== null && { is_new: isNew }),
+      keyword: debouncedSearch,
+      price_range: debouncedPriceRange,
+      stock_status: stockStatus as any,
+      product_id: productId ? parseInt(productId) : undefined,
     }),
-    [
-      debouncedSearch,
-      sortBy,
-      order,
-      deleted,
-      isNew,
-      priceRange,
-      categories,
-      brands,
-      page,
-      rowsPerPage,
-    ],
+    [sortBy, order, rowsPerPage, page,deleted, debouncedSearch, debouncedPriceRange, stockStatus, productId]
   );
 
-  const { data, error, isLoading } = useFetch(
-    ["productList", queryParams],
-    listProducts,
-    queryParams,
-  );
-  const products = data?.data?.products || [];
-  const totalRecords = data?.data?.pagination?.total_count || 0;
-  const totalPages = Math.ceil(totalRecords / rowsPerPage);
-
-  const handleEdit = (product: ProductType) => {
-    router.push(`/apps/product/${product.id}`);
-  };
-
-  const handleDelete = async (product: ProductType) => {
-    setSelectedProduct(product);
-    setDeleteDialogOpen(true);
-  };
-
-  const handleRestore = async (product: ProductType) => {
-    setSelectedProduct(product);
-    setRestoreDialogOpen(true);
-  };
-
-  const confirmDelete = async () => {
-    if (!selectedProduct) return;
-    try {
-      await deleteProduct(selectedProduct.id);
-      showSnackbar("Product deleted successfully", "success");
-      mutate(["productList", queryParams]);
-    } catch (error) {
-      showSnackbar("Failed to delete product", "error");
-    }
-    setDeleteDialogOpen(false);
-    setSelectedProduct(null);
-  };
-
-  const confirmRestore = async () => {
-    if (!selectedProduct) return;
-    try {
-      await restoreProduct(selectedProduct.id);
-      showSnackbar("Product restored successfully", "success");
-      mutate(["productList", queryParams]);
-    } catch (error) {
-      showSnackbar("Failed to restore product", "error");
-    }
-    setRestoreDialogOpen(false);
-    setSelectedProduct(null);
-  };
-
-  const columns = useMemo<MRT_ColumnDef<ProductType>[]>(
-    () => [
-    { accessorKey: "id", header: "ID" },
-    { accessorKey: "name", header: "Name" },
-    // { accessorKey: "description", header: "Description" },
-    { 
-      accessorKey: "price", 
-      header: "Price",
-      Cell: ({ row }) => {
-          const price =
-            typeof row.original.price === "string"
-          ? parseFloat(row.original.price) 
-          : row.original.price;
-        return `$${Number(price).toFixed(2)}`;
-        },
-    },
-    { accessorKey: "stock_quantity", header: "Stock" },
-    { accessorKey: "category_name", header: "Category" },
-    { accessorKey: "brand_name", header: "Brand" },
-    {
-      accessorKey: "is_new",
-      header: "Status",
-      Cell: ({ row }) => (
-        <Chip 
-          label={row.original.is_new ? "New" : "Regular"} 
-          color={row.original.is_new ? "success" : "default"} 
-        />
-      ),
-    },
-    {
-      accessorKey: "createdAt",
-      header: "Created At",
-        Cell: ({ row }) =>
-          new Date(row.original.createdAt).toLocaleDateString("en-GB"),
-      },
-    ],
-    [router],
-  );
-
-  const debouncedKeyword = useDebounce(search, 500);
-  const debouncedPriceRange = useDebounce(priceRange, 500);
-
+  // Fetch variants
   const fetchVariants = async () => {
     setLoading(true);
     try {
-      const response = await listProductVariants({
-        sort_by: sortBy,
-        order,
-        limit: rowsPerPage,
-        offset: page * rowsPerPage,
-        keyword: debouncedKeyword,
-        price_range: debouncedPriceRange,
-        stock_status: stockStatus as any,
-        product_id: productId ? parseInt(productId) : undefined,
-      });
-
-      setVariants(response.data);
-      setTotalRows(response.total);
+      const response = await listProductVariants(queryParams);
+      setVariants(response.data?.variants);
+      setTotalRows(response.data?.pagination?.total_count);
     } catch (error) {
       console.error("Error fetching variants:", error);
+      showSnackbar("Failed to fetch variants", "error");
     } finally {
       setLoading(false);
     }
@@ -239,34 +124,50 @@ const ProductVariantTable = () => {
 
   useEffect(() => {
     fetchVariants();
-  }, [
-    page,
-    rowsPerPage,
-    sortBy,
-    order,
-    debouncedKeyword,
-    debouncedPriceRange,
-    stockStatus,
-    productId,
-  ]);
+  }, [queryParams]);
 
-  const handleChangePage = (_: unknown, newPage: number) => {
-    setPage(newPage);
-  };
+  // Table columns
+  const columns = useMemo<MRT_ColumnDef<ProductVariant>[]>(
+    () => [
+      { accessorKey: "id", header: "ID" },
+      
+      {
+        accessorKey: "name",
+        header: "Name",
+        Cell: ({ row }) => row.original.product?.name || "N/A",
+      },
+      { accessorKey: "slug", header: "Slug" },
+      { 
+        accessorKey: "price", 
+        header: "Price",
+        Cell: ({ row }) => {
+          const price = typeof row.original.price === "string"
+            ? parseFloat(row.original.price) 
+            : row.original.price;
+          return `$${Number(price).toFixed(2)}`;
+        },
+      },
+      { accessorKey: "stock_quantity", header: "Stock" },
+      {
+        accessorKey: "deleted_at",
+        header: "Status",
+        Cell: ({ row }) => (
+          <Chip 
+            label={row.original.deleted_at ? "Deleted" : "Active"} 
+            color={row.original.deleted_at ? "error" : "success"} 
+          />
+        ),
+      },
+      {
+        accessorKey: "created_at",
+        header: "Created At",
+        Cell: ({ row }) => new Date(row.original.created_at).toLocaleDateString("en-GB"),
+      },
+    ],
+    []
+  );
 
-  const handleChangeRowsPerPage = (
-    event: React.ChangeEvent<HTMLInputElement>,
-  ) => {
-    setRowsPerPage(+event.target.value);
-    setPage(0);
-  };
-
-  const handleSort = (columnId: string) => {
-    const isAsc = sortBy === columnId && order === "ASC";
-    setOrder(isAsc ? "DESC" : "ASC");
-    setSortBy(columnId);
-  };
-
+  // Handlers
   const handleDeleteClick = (variant: ProductVariant) => {
     setSelectedVariant(variant);
     setOpenDialog(true);
@@ -278,37 +179,29 @@ const ProductVariantTable = () => {
 
     try {
       if (selectedVariant.deleted_at) {
-        // Restore the variant
         await restoreVariant(selectedVariant.id);
         showSnackbar("Variant restored successfully", "success");
       } else {
-        // Delete the variant
         await deleteVariant(selectedVariant.id);
         showSnackbar("Variant deleted successfully", "success");
       }
 
-      // Update the variants state directly without refreshing
-      setVariants((prevVariants) =>
-        prevVariants.filter((variant) => variant.id !== selectedVariant.id),
+      // Update local state
+      setVariants(prevVariants => 
+        prevVariants.filter(variant => variant.id !== selectedVariant.id)
       );
-
-      // Update total rows count
-      setTotalRows((prev) => prev - 1);
+      setTotalRows(prev => prev - 1);
     } catch (error) {
       console.error("Action error:", error);
       showSnackbar("Failed to perform action", "error");
     }
   };
 
-  if (isLoading) return <FuseLoading />;
-  if (error) return <p>Failed to load products</p>;
+  if (loading) return <FuseLoading />;
 
   return (
     <>
-      <Paper
-        className="flex flex-col flex-auto shadow-1 overflow-hidden"
-        elevation={0}
-      >
+      <Paper className="flex flex-col flex-auto shadow-1 overflow-hidden" elevation={0}>
         <div className="flex items-center justify-between p-3">
           <IconButton className="md:hidden" onClick={() => setOpenDrawer(true)}>
             <MenuIcon />
@@ -331,79 +224,46 @@ const ProductVariantTable = () => {
             sx={{
               "& .MuiOutlinedInput-root": {
                 "&.Mui-focused fieldset": {
-                  borderColor: "#2E9970", // Border color on focus (click)
-                  borderWidth: "2px", // Optional: increase border thickness on focus
+                  borderColor: "#2E9970",
+                  borderWidth: "2px",
                 },
               },
               "& .MuiInputLabel-root.Mui-focused": {
-                color: "#2E9970", // Label color on focus
+                color: "#2E9970",
               },
             }}
           />
 
           <div className="hidden md:flex gap-2">
-            <Select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
-              size="small"
-            >
+            <Select value={sortBy} onChange={(e) => setSortBy(e.target.value)} size="small">
               <MenuItem value="id">Sort by ID</MenuItem>
               <MenuItem value="name">Sort by Name</MenuItem>
               <MenuItem value="price">Sort by Price</MenuItem>
               <MenuItem value="stock_quantity">Sort by Stock</MenuItem>
             </Select>
 
-            <Select
-              value={order}
-              onChange={(e) => setOrder(e.target.value as "ASC" | "DESC")}
-              size="small"
-            >
+            <Select value={order} onChange={(e) => setOrder(e.target.value as "ASC" | "DESC")} size="small">
               <MenuItem value="ASC">Ascending</MenuItem>
               <MenuItem value="DESC">Descending</MenuItem>
             </Select>
 
-            <Select
-              value={isNew === null ? "all" : isNew ? "new" : "regular"}
-              onChange={(e) =>
-                setIsNew(
-                  e.target.value === "all" ? null : e.target.value === "new",
-                )
-              }
-              size="small"
-            >
-              <MenuItem value="all">All Products</MenuItem>
-              <MenuItem value="new">New Products</MenuItem>
-              <MenuItem value="regular">Regular Products</MenuItem>
-            </Select>
-
-            <Select
-              value={deleted === null ? "all" : deleted ? "deleted" : "active"}
-              onChange={(e) =>
-                setDeleted(
-                  e.target.value === "all"
-                    ? null
-                    : e.target.value === "deleted",
-                )
-              }
-              size="small"
-            >
-              <MenuItem value="all">All Status</MenuItem>
-              <MenuItem value="active">Active</MenuItem>
-              <MenuItem value="deleted">Deleted</MenuItem>
+            <Select value={stockStatus} onChange={(e) => setStockStatus(e.target.value)} size="small">
+              <MenuItem value="">All Status</MenuItem>
+              <MenuItem value="in_stock">In Stock</MenuItem>
+              <MenuItem value="low_stock">Low Stock</MenuItem>
+              <MenuItem value="out_of_stock">Out of Stock</MenuItem>
             </Select>
           </div>
         </div>
 
         <DataTable
-          data={products}
+          data={variants}
           columns={columns}
           renderRowActionMenuItems={({ closeMenu, row }) => [
             <MenuItem
               key="view"
               onClick={() => {
-                router.push(
-                  `/apps/product-variant/variant-detail/${row.original.id}`,
-                );
+                router.push(`/apps/product-variant/variant-detail/${row.original.id}`);
                 closeMenu();
               }}
             >
@@ -413,52 +273,25 @@ const ProductVariantTable = () => {
               View Details
             </MenuItem>,
             // <MenuItem
-            //   key="edit"
+            //   key="delete"
             //   onClick={() => {
-            //     router.push(`/apps/product/edit/${row.original.id}`);
+            //     handleDeleteClick(row.original);
             //     closeMenu();
             //   }}
             // >
             //   <ListItemIcon>
-            //     <FuseSvgIcon>heroicons-outline:pencil-square</FuseSvgIcon>
+            //     <FuseSvgIcon>heroicons-outline:trash</FuseSvgIcon>
             //   </ListItemIcon>
-            //   Edit
+            //   {row.original.deleted_at ? "Restore" : "Delete"}
             // </MenuItem>,
-            row.original.deletedAt ? (
-              <MenuItem
-                key="restore"
-                onClick={() => {
-                  handleRestore(row.original);
-                  closeMenu();
-                }}
-              >
-                <ListItemIcon>
-                  <FuseSvgIcon>heroicons-outline:arrow-path</FuseSvgIcon>
-                </ListItemIcon>
-                Restore
-              </MenuItem>
-            ) : (
-              <MenuItem
-                key="delete"
-                onClick={() => {
-                  handleDelete(row.original);
-                  closeMenu();
-                }}
-              >
-                <ListItemIcon>
-                  <FuseSvgIcon>heroicons-outline:trash</FuseSvgIcon>
-                </ListItemIcon>
-                Delete
-              </MenuItem>
-            ),
           ]}
         />
 
-        {/* <div className="flex justify-center p-4">
+        <div className="flex justify-center p-4">
           <Pagination
-            count={totalPages}
-            page={page}
-                 onChange={(_, newPage) => setPage(newPage)}
+            count={Math.ceil(totalRows / rowsPerPage)}
+            page={page + 1}
+            onChange={(_, newPage) => setPage(newPage - 1)}
             shape="rounded"
             color="primary"
             renderItem={(item) => (
@@ -466,40 +299,13 @@ const ProductVariantTable = () => {
                 {...item}
                 className="text-gray-600 hover:text-[#2E9970]"
                 sx={{
+                  backgroundColor: item.page === 1 && page === 0 ? "#2E9970" : "transparent",
+                  color: item.page === 1 && page === 0 ? "#fff" : "inherit",
                   "&.Mui-selected": {
                     backgroundColor: "#2E9970",
                     color: "#fff",
                     "&:hover": {
                       backgroundColor: "#247C5C",
-                         },
-                       },
-                     }}
-                   />
-                 )}
-               />
-             </div> */}
-
-        <div className="flex justify-center p-4">
-          <Pagination
-            count={totalPages}
-            page={page + 1} // Adjust to display 1-based page index
-            onChange={(_, newPage) => setPage(newPage - 1)} // Map back to 0-based index
-            shape="rounded"
-            color="primary"
-            renderItem={(item) => (
-              <PaginationItem
-                {...item}
-                className="text-gray-600 hover:text-[#2E9970]"
-                sx={{
-                  // Highlight the first page by default
-                  backgroundColor:
-                    item.page === 1 && page === 0 ? "#2E9970" : "transparent",
-                  color: item.page === 1 && page === 0 ? "#fff" : "inherit",
-                  "&.Mui-selected": {
-                    backgroundColor: "#2E9970", // Highlight selected page
-                    color: "#fff",
-                    "&:hover": {
-                      backgroundColor: "#247C5C", // Darker green on hover
                     },
                   },
                 }}
@@ -509,11 +315,7 @@ const ProductVariantTable = () => {
         </div>
       </Paper>
 
-      <Drawer
-        anchor="left"
-        open={openDrawer}
-        onClose={() => setOpenDrawer(false)}
-      >
+      <Drawer anchor="left" open={openDrawer} onClose={() => setOpenDrawer(false)}>
         <List className="p-4 w-64">
           <ListItem>
             <ListItemText primary="Filters" />
@@ -528,12 +330,7 @@ const ProductVariantTable = () => {
             />
           </ListItem>
           <ListItem>
-            <Select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
-              fullWidth
-              size="small"
-            >
+            <Select value={sortBy} onChange={(e) => setSortBy(e.target.value)} fullWidth size="small">
               <MenuItem value="id">Sort by ID</MenuItem>
               <MenuItem value="name">Sort by Name</MenuItem>
               <MenuItem value="price">Sort by Price</MenuItem>
@@ -541,33 +338,20 @@ const ProductVariantTable = () => {
             </Select>
           </ListItem>
           <ListItem>
-            <Select
-              value={order}
-              onChange={(e) => setOrder(e.target.value as "ASC" | "DESC")}
-              fullWidth
-              size="small"
-            >
+            <Select value={order} onChange={(e) => setOrder(e.target.value as "ASC" | "DESC")} fullWidth size="small">
               <MenuItem value="ASC">Ascending</MenuItem>
               <MenuItem value="DESC">Descending</MenuItem>
             </Select>
           </ListItem>
           <ListItem>
-            <Select
-              value={isNew === null ? "all" : isNew ? "new" : "regular"}
-              onChange={(e) =>
-                setIsNew(
-                  e.target.value === "all" ? null : e.target.value === "new",
-                )
-              }
-              fullWidth
-              size="small"
-            >
-              <MenuItem value="all">All Products</MenuItem>
-              <MenuItem value="new">New Products</MenuItem>
-              <MenuItem value="regular">Regular Products</MenuItem>
+            <Select value={stockStatus} onChange={(e) => setStockStatus(e.target.value)} fullWidth size="small">
+              <MenuItem value="">All Status</MenuItem>
+              <MenuItem value="in_stock">In Stock</MenuItem>
+              <MenuItem value="low_stock">Low Stock</MenuItem>
+              <MenuItem value="out_of_stock">Out of Stock</MenuItem>
             </Select>
           </ListItem>
-          <ListItem>
+          {/* <ListItem>
             <Select
               value={deleted === null ? "all" : deleted ? "deleted" : "active"}
               onChange={(e) =>
@@ -584,57 +368,14 @@ const ProductVariantTable = () => {
               <MenuItem value="active">Active</MenuItem>
               <MenuItem value="deleted">Deleted</MenuItem>
             </Select>
-          </ListItem>
+          </ListItem> */}
           <ListItem>
-            <Button
-              fullWidth
-              variant="contained"
-              onClick={() => setOpenDrawer(false)}
-            >
+            <Button fullWidth variant="contained" onClick={() => setOpenDrawer(false)}>
               Apply Filters
             </Button>
           </ListItem>
         </List>
       </Drawer>
-
-      {/* Delete Confirmation Dialog */}
-      <Dialog
-        open={deleteDialogOpen}
-        onClose={() => setDeleteDialogOpen(false)}
-      >
-        <DialogTitle>Delete Product</DialogTitle>
-        <DialogContent>
-          <Typography>
-            Are you sure you want to delete this product? This action cannot be
-            undone.
-          </Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
-          <Button onClick={confirmDelete} color="error" variant="contained">
-            Delete
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* Restore Confirmation Dialog */}
-      <Dialog
-        open={restoreDialogOpen}
-        onClose={() => setRestoreDialogOpen(false)}
-      >
-        <DialogTitle>Restore Product</DialogTitle>
-        <DialogContent>
-          <Typography>
-            Are you sure you want to restore this product?
-          </Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setRestoreDialogOpen(false)}>Cancel</Button>
-          <Button onClick={confirmRestore} color="success" variant="contained">
-            Restore
-          </Button>
-        </DialogActions>
-      </Dialog>
 
       <Dialog open={openDialog} onClose={() => setOpenDialog(false)}>
         <DialogTitle>
@@ -642,8 +383,7 @@ const ProductVariantTable = () => {
         </DialogTitle>
         <DialogContent>
           <Typography>
-            Are you sure you want to{" "}
-            {selectedVariant?.deleted_at ? "Restore" : "Delete"} variant{" "}
+            Are you sure you want to {selectedVariant?.deleted_at ? "Restore" : "Delete"} variant{" "}
             <strong>{selectedVariant?.sku}</strong>?
           </Typography>
         </DialogContent>

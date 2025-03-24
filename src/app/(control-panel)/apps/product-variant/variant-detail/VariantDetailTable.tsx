@@ -51,7 +51,7 @@ export default function VariantDetailTable() {
   const columns: MRT_ColumnDef<VariantDetailType>[] = [
     { accessorKey: "id", header: "Variant ID" },
     { accessorKey: "product_id", header: "Product ID" },
-    { accessorKey: "sku", header: "SKU" },
+    { accessorKey: "slug", header: "Slug" },
     { accessorKey: "barcode", header: "Barcode" },
     {
       accessorKey: "price",
