@@ -15,8 +15,10 @@ import FormSelectField from "@/components/Shared/SelectField";
 
 const schema = z.object({
   name: z.string().min(1, "Attribute Name is required").max(50, "Name must be less than 50 characters"),
-  slug: z.string().min(1, "Slug is required"),
-  description: z.string().optional(),
+ slug: z.string()
+    .min(1, "Slug is required")
+    .max(50, "Slug must be at most 50 characters")
+    .regex(/^[a-z0-9-]+$/, "Slug must be a valid URL-friendly string (lowercase letters, numbers, and hyphens only)"),  description: z.string().optional(),
   type: z.string().min(1, "Type is required"),
   sort_order: z.string().min(1, "Sort order is required"),
 });
@@ -119,8 +121,21 @@ const EditAttributeForm = ({ attribute }: { attribute: FormType }) => {
       showSnackbar("Attribute updated successfully!", "success");
       router.push("/apps/attribute");
     } catch (error) {
-      console.error("Update error:", error);
-      showSnackbar(error?.message || "An unexpected error occurred", "error");
+      if (error?.errors) {
+        showSnackbar(error?.errors[0]?.msg, "error");
+      } else {
+        const errorMessage = error?.message || "An unexpected error occurred";
+        showSnackbar(errorMessage, "error");
+      }
+
+      const errorData = error || error;
+      if (errorData?.error && typeof errorData.error === "object") {
+        Object.entries(errorData.error).forEach(([field, message]) => {
+          if (typeof message === "string") {
+            showSnackbar(message, "error");
+          }
+        });
+      }
     } finally {
       setIsLoading(false);
     }

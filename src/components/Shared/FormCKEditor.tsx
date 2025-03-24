@@ -114,7 +114,7 @@ const FormCKEditor = ({ name, control, label, defaultValue = "" }: FormCKEditorP
 
         // Prevent Enter key from submitting the form
         editorInstance.on('instanceReady', function(evt: any) {
-          console.log('CKEditor is ready:', evt.editor.name);
+          // console.log('CKEditor is ready:', evt.editor.name);
           
           // Apply additional styling to the container
           const editorContainer = document.querySelector(`#cke_${uniqueId.current}`);
@@ -135,7 +135,7 @@ const FormCKEditor = ({ name, control, label, defaultValue = "" }: FormCKEditorP
           });
         });
       } catch (error) {
-        console.error("Error initializing CKEditor:", error);
+        // console.error("Error initializing CKEditor:", error);
       }
     };
 

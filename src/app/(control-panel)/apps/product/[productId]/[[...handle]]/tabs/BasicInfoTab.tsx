@@ -9,6 +9,7 @@ import {
   createProduct,
   getProduct,
   type CreateProductData,
+  updateProduct,
 } from "@/services/apiProduct";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -22,8 +23,12 @@ import FormSearchableSelectField from "@/components/Shared/FormSearchableSelectF
 import FormCKEditor from '@/components/Shared/FormCKEditor';
 
 const schema = z.object({
-  name: z.string().min(1, "Name is required"),
-  slug: z.string().min(1, "Slug is required"),
+  name: z.string().min(1, "Name is required")
+    .max(50, "Name must not exceed 50 characters"),
+    slug: z.string()
+    .min(1, "Slug is required")
+    .max(50, "Slug must be at most 50 characters")
+    .regex(/^[a-z0-9-]+$/, "Slug must be a valid URL-friendly string (lowercase letters, numbers, and hyphens only)"),
   description: z.string().optional().default(""),
   category_id: z.number().min(1, "Category is required"),
   brand_id: z.number().min(1, "Brand is required"),
@@ -51,11 +56,14 @@ function BasicInfoTab() {
     useProductForm();
   const [productId, setProductId] = useState<number | null>(null);
 
+  // Determine if we're in edit mode
+  const isEditMode = Boolean(productId && productId > 0);
+
   const {
     control,
     trigger,
     setValue,
-    // watch,
+    reset,
     formState: { isValid, errors },
     handleSubmit,
   } = useForm<FormData>({
@@ -66,24 +74,67 @@ function BasicInfoTab() {
       description: formData.description || "",
       category_id: formData.category_id || 0,
       brand_id: formData.brand_id || 0,
-      is_new: true,
+      is_new: formData.is_new ?? true,
     },
     resolver: zodResolver(schema),
   });
+
+  console.log("productId",productId);
   
-  // Watch the description field to monitor changes
-  // const description = watch('description');
-  
-  // useEffect(() => {
-  //   console.log("Current description value:", description);
-  // }, [description]);
+
+  // Fetch product data when component mounts or productId changes
+  useEffect(() => {
+    const fetchProductData = async () => {
+      const urlProductId = searchParams.get("productId");
+      const finalProductId = urlProductId || localStorage.getItem("productId");
+
+      if (finalProductId && finalProductId !== "new") {
+        try {
+          setProductId(Number(finalProductId));
+          const response = await getProduct(Number(finalProductId));
+          console.log("Product data received:", response?.data);
+
+          if (response?.data) {
+            const productData = response.data;
+            
+            // Update form with fetched data
+            setValue("name", productData.name || "");
+            setValue("slug", productData.slug || "");
+            setValue("description", productData.description || "");
+            setValue("category_id", productData.category_id || 0);
+            setValue("brand_id", productData.brand_id || 0);
+            setValue("is_new", productData.is_new ?? true);
+
+            // Update form context
+            updateFormData({
+              name: productData.name || "",
+              slug: productData.slug || "",
+              description: productData.description || "",
+              category_id: productData.category_id || 0,
+              brand_id: productData.brand_id || 0,
+              is_new: productData.is_new ?? true,
+              productId: Number(finalProductId),
+            });
+          }
+        } catch (error) {
+          console.error("Error fetching product:", error);
+          // showSnackbar("Failed to load product details", "error");
+        }
+      } else {
+        // Clear productId if we're creating a new product
+        setProductId(null);
+        localStorage.removeItem("productId");
+      }
+    };
+
+    fetchProductData();
+  }, [searchParams, setValue]);
 
   const onSubmit = async (data: FormData) => {
     setIsLoading(true);
     try {
-      console.log("Starting product creation process...");
+      console.log("Starting product creation/update process...");
       console.log("Form data to be submitted:", data);
-      console.log("Description content:", data.description);
 
       // Validate required fields
       if (!data.name || !data.slug || !data.category_id || !data.brand_id) {
@@ -94,7 +145,7 @@ function BasicInfoTab() {
       const productData: CreateProductData = {
         name: data.name.trim(),
         slug: data.slug.trim(),
-        description: data.description || "", // Ensure description is included even if empty
+        description: data.description || "",
         category_id: Number(data.category_id),
         brand_id: Number(data.brand_id),
         is_new: Boolean(data.is_new),
@@ -110,101 +161,98 @@ function BasicInfoTab() {
         throw new Error("Authentication required. Please login again.");
       }
 
-      console.log("Making API call to create product...");
-      const response = await createProduct(productData);
-      console.log("Product creation response:", response);
-      const newProductId = response.data.id; // ✅ Get the newly created product ID
-      setProductId(newProductId);
-
-      if (!response?.data?.id) {
-        throw new Error("Failed to create product: No ID returned");
+      let response;
+      if (isEditMode) {
+        // Update existing product
+        console.log("Updating existing product with ID:", productId);
+        response = await updateProduct(Number(productId), productData);
+        showSnackbar("Product updated successfully", "success");
+        
+        // Update form data and stay on the same page
+        updateFormData({
+          ...data,
+          productId: Number(productId),
+          hasErrors: false,
+        });
+      } else {
+        // Create new product
+        console.log("Creating new product");
+        response = await createProduct(productData);
+        showSnackbar("Product created successfully", "success");
+        
+        // Update form data and move to next step
+        updateFormData({
+          ...data,
+          productId: response.data.id,
+          hasErrors: false,
+        });
+        
+        // Update URL with the new product ID
+        router.push(`/apps/product/edit?productId=${response.data.id}`);
+        
+        // Move to next step only for new products
+        nextStep();
       }
 
-      console.log("Product created successfully with ID:", response.data.id);
+      console.log("API response:", response);
 
-      updateFormData({
-        ...data,
-        productId: newProductId,
-        hasErrors: false,
-      });
+      if (!response?.data?.id) {
+        throw new Error("Failed to save product: No ID returned");
+      }
 
-      showSnackbar("Product details saved successfully", "success");
-      router.push(`/apps/product/new?productId=${newProductId}`);
-      nextStep();
+      console.log("Product saved successfully with ID:", response.data.id);
+
     } catch (error: any) {
-      console.error("Detailed error in BasicInfoTab:", {
-        error,
-        message: error.message,
-        response: error.response,
-        request: error.request,
-        config: error.config,
-        stack: error.stack,
-      });
 
-      updateFormData({ hasErrors: true });
-
-      // Show more specific error messages
-      if (error.message === "Authentication required. Please login again.") {
-        showSnackbar(error.message, "error");
-        window.location.href = "/sign-in";
-      } else if (error.message) {
-        showSnackbar(error.message, "error");
-      } else if (error.response?.data?.message) {
-        showSnackbar(error.response.data.message, "error");
+      if (error?.errors) {
+        showSnackbar(error?.errors[0]?.msg, "error");
       } else {
-        showSnackbar(
-          "Failed to save product details. Please try again.",
-          "error",
-        );
+        const errorMessage = error?.message || "An unexpected error occurred";
+        showSnackbar(errorMessage, "error");
+      }
+
+      const errorData = error || error;
+      if (errorData?.error && typeof errorData.error === "object") {
+        Object.entries(errorData.error).forEach(([field, message]) => {
+          if (typeof message === "string") {
+            showSnackbar(message, "error");
+          }
+        });
       }
     } finally {
       setIsLoading(false);
     }
+    //   console.error("Detailed error in BasicInfoTab:", {
+    //     error,
+    //     message: error.message,
+    //     response: error.response,
+    //     request: error.request,
+    //     config: error.config,
+    //     stack: error.stack,
+    //   });
+
+    //   updateFormData({ hasErrors: true });
+
+    //   // Show more specific error messages
+    //   if (error.message === "Authentication required. Please login again.") {
+    //     showSnackbar(error.message, "error");
+    //     window.location.href = "/sign-in";
+    //   } else if (error.message) {
+    //     showSnackbar(error.message, "error");
+    //   } else if (error.response?.data?.message) {
+    //     showSnackbar(error.response.data.message, "error");
+    //   } else {
+    //     showSnackbar(
+    //       "Failed to save product details. Please try again.",
+    //       "error",
+    //     );
+    //   }
+    // } finally {
+    //   setIsLoading(false);
+    // }
   };
 
-  // ✅ On component mount, handle localStorage clearing logic
-  useEffect(() => {
-    const urlProductId = searchParams.get("productId");
-
-    // If no productId in URL => clear the localStorage
-    if (!urlProductId) {
-      localStorage.removeItem("productId");
-      setProductId(null);
-    } else {
-      // ✅ Use the productId from URL or localStorage
-      const localStorageProductId = localStorage.getItem("productId");
-      const finalProductId = urlProductId || localStorageProductId;
-
-      if (finalProductId) {
-        setProductId(Number(finalProductId));
-
-        // ✅ Fetch product data
-        const fetchProduct = async () => {
-          try {
-            const product = await getProduct(Number(finalProductId));
-            console.log("Product data received:", product?.data);
-
-
-            // ✅ Populate form fields with product data
-            setValue("name", product?.data?.name || "");
-            setValue("slug", product?.data?.slug || "");
-            setValue("description", product?.data?.description || "");
-            setValue("category_id", product?.data?.category_id || 0);
-            setValue("brand_id", product?.data?.brand_id || 0);
-          } catch (error) {
-            console.error("Error fetching product:", error);
-            showSnackbar("Failed to load product details", "error");
-          }
-        };
-
-        fetchProduct();
-      }
-    }
-  }, [searchParams, setValue, showSnackbar]);
-
-  console.log("ppprodddujdud", productId);
-	
-	return (
+  return (
     <form
       onSubmit={handleSubmit(onSubmit)}
       className="flex w-full flex-col justify-center"
@@ -218,35 +266,29 @@ function BasicInfoTab() {
       }}
     >
       <FormInputField
-				name="name"
-				control={control}
+        name="name"
+        control={control}
         label="Name"
         type="text"
-						required
+        required
       />
       <FormInputField
-				name="slug"
-				control={control}
+        name="slug"
+        control={control}
         label="Slug"
         type="text"
-						required
+        required
       />
-      {/* ✅ Use CKEditor for Description */}
-      <FormCKEditor 
-        name="description" 
-        control={control} 
-        label="Description" 
+      <FormCKEditor
+        name="description"
+        control={control}
+        label="Description"
         defaultValue={formData.description || ""}
+
       />
-      {/* <FormInputField
-				name="description"
-				control={control}
-						label="Description"
-						type="text"
-      /> */}
       <FormSearchableSelectField
         name="category_id"
-				control={control}
+        control={control}
         label="Category"
         options={
           categories?.data?.categories?.map((category) => ({
@@ -254,13 +296,13 @@ function BasicInfoTab() {
             label: category.name,
           })) || []
         }
-						required
-        loading={!categories} // Show loading indicator while data is loading
+        required
+        loading={!categories}
       />
 
       <FormSearchableSelectField
         name="brand_id"
-				control={control}
+        control={control}
         label="Brand"
         options={
           brands?.data?.brands?.map((brand) => ({
@@ -268,20 +310,20 @@ function BasicInfoTab() {
             label: brand.name,
           })) || []
         }
-						required
-        loading={!brands} // Show loading indicator while data is loading
+        required
+        loading={!brands}
       />
       <AppButton
-        label="Next"
+        label={isEditMode ? "Update" : "Next"}
         loading={isLoading}
         type="submit"
-						fullWidth
+        fullWidth
         size="large"
         disabled={!isValid || isLoading}
         className="mt-4"
-					/>
+      />
     </form>
-	);
+  );
 }
 
 export default BasicInfoTab;

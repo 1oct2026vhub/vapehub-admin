@@ -16,17 +16,28 @@ import axiosInstance from "@/utils/axiosApi";
 
 const schema = z.object({
   name: z.string().min(1, "Category Name is required").max(50, "Name must be less than 50 characters"),
-  slug: z.string().min(1, "Slug is required"),
-  description: z.string().optional(),
-  logo: z.instanceof(File).optional(),
-  parent_id: z.number().optional(),
+  slug: z.string()
+  .min(1, "Slug is required")
+  .max(50, "Slug must be at most 50 characters")
+  .regex(/^[a-z0-9-]+$/, "Slug must be a valid URL-friendly string (lowercase letters, numbers, and hyphens only)"),  description: z.string().optional(),
+  logo: z.union([
+    z.instanceof(File),
+    z.string(),
+    z.null(),
+    z.undefined()
+  ]).optional(),
+  parent_id: z.union([
+    z.number(),
+    z.null(),
+    z.undefined()
+  ]).optional(),
 });
 
 const defaultValues = {
   name: "",
   slug: "",
   description: "",
-  logo: null,
+  logo: undefined,
   parent_id: undefined,
 };
 
@@ -34,9 +45,9 @@ export type FormType = {
   name: string;
   slug: string;
   description?: string;
-  logo?: File;
+  logo?: File | string | null | undefined;
   logo_url?: string;
-  parent_id?: number;
+  parent_id?: number | null;
 };
 
 const EditCategoryForm = ({ category }: { category: FormType }) => {
@@ -46,7 +57,7 @@ const EditCategoryForm = ({ category }: { category: FormType }) => {
   const [isLoading, setIsLoading] = useState(false);
 
   const { control, formState, handleSubmit, setValue, watch } = useForm({
-    mode: "all",
+    mode: "onChange",
     defaultValues,
     resolver: zodResolver(schema),
   });
@@ -56,11 +67,21 @@ const EditCategoryForm = ({ category }: { category: FormType }) => {
   const nameLength = nameValue.length;
   const nameRemaining = 50 - nameLength;
 
-  const { isValid, errors } = formState;
+  const { isValid, errors, dirtyFields } = formState;
   const { trigger: triggerUpdateCategory, isMutating } = usePost(
     "updateCategory",
     updateCategory,
   );
+
+  // Check if required fields are filled
+  const areRequiredFieldsFilled = () => {
+    return (
+      nameValue.trim() !== "" &&
+      watch("slug")?.trim() !== "" &&
+      !errors.name &&
+      !errors.slug
+    );
+  };
 
   // Prefill form when category data is available
   useEffect(() => {
@@ -68,7 +89,16 @@ const EditCategoryForm = ({ category }: { category: FormType }) => {
       setValue("name", category.name);
       setValue("slug", category.slug);
       setValue("description", category.description || "");
-      setValue("parent_id", category.parent_id);
+      // Handle parent_id properly
+      if (category.parent_id !== undefined && category.parent_id !== null) {
+        setValue("parent_id", Number(category.parent_id));
+      } else {
+        setValue("parent_id", null);
+      }
+      // Set the logo field with the existing logo URL
+      if (category.logo_url) {
+        setValue("logo", category.logo_url);
+      }
     }
   }, [category, setValue]);
 
@@ -94,6 +124,14 @@ const EditCategoryForm = ({ category }: { category: FormType }) => {
         formDataObj.append("description", formData.description);
       }
 
+      // Handle parent_id properly
+      if (formData.parent_id !== undefined && formData.parent_id !== null) {
+        formDataObj.append("parent_id", formData.parent_id.toString());
+      } else if (formData.parent_id === null) {
+        formDataObj.append("parent_id", "");
+      }
+
+      // Only append logo if it's a File instance
       if (formData.logo instanceof File) {
         formDataObj.append("logo", formData.logo);
       }
@@ -103,14 +141,35 @@ const EditCategoryForm = ({ category }: { category: FormType }) => {
         console.log(`${key}:`, value);
       }
 
-      // ✅ Use the API service function instead of direct API call
-      const response = await updateCategory(id, formDataObj);
+      // Get the category ID from the URL params
+      // const params = new URLSearchParams(window.location.search);
+      // const categoryId = params.get('id');
+      
+      // if (!categoryId) {
+      //   throw new Error("Category ID is required");
+      // }
+
+      // Call the updateCategory API with the correct ID format
+      await updateCategory(id, formDataObj);
 
       showSnackbar("Category updated successfully!", "success");
       router.push("/apps/product-category");
     } catch (error) {
-      console.error("Update error:", error);
-      showSnackbar(error?.message || "An unexpected error occurred", "error");
+      if (error?.errors) {
+        showSnackbar(error?.errors[0]?.msg, "error");
+      } else {
+        const errorMessage = error?.message || "An unexpected error occurred";
+        showSnackbar(errorMessage, "error");
+      }
+
+      const errorData = error || error;
+      if (errorData?.error && typeof errorData.error === "object") {
+        Object.entries(errorData.error).forEach(([field, message]) => {
+          if (typeof message === "string") {
+            showSnackbar(message, "error");
+          }
+        });
+      }
     } finally {
       setIsLoading(false);
     }
@@ -172,6 +231,7 @@ const EditCategoryForm = ({ category }: { category: FormType }) => {
             label="Category Logo"
             setValue={setValue}
             existingImage={category?.logo_url}
+            onDelete={() => setValue("logo", undefined)}
           />
 
           <AppButton
@@ -180,7 +240,7 @@ const EditCategoryForm = ({ category }: { category: FormType }) => {
             type="submit"
             fullWidth
             size="large"
-            // disabled={!isValid || isMutating}
+            disabled={!areRequiredFieldsFilled() || isMutating}
             className="mt-4 w-full"
           />
         </form>

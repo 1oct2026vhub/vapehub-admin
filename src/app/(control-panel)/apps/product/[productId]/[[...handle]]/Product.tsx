@@ -13,17 +13,52 @@ import AttributesTab from "./tabs/AttributesTab";
 // import PricingTab from "./tabs/PricingTab";
 import { ProductFormProvider, useProductForm } from "./ProductFormContext";
 import VariantTab from "./tabs/VariantTab";
+import { useParams } from "next/navigation";
+import { getProduct } from "@/services/apiProduct";
+import { useSnackbar } from "@/contexts/SnackbarContext";
 
 const steps = ["basic-info", "product-images", "attributes", "variants"];
 
 function ProductContent() {
   const isMobile = useThemeMediaQuery((theme) => theme.breakpoints.down("lg"));
-  const { formData, setCurrentStep, isStepCompleted } = useProductForm();
+  const { formData, setCurrentStep, isStepCompleted, updateFormData } = useProductForm();
+  const params = useParams();
+  const { showSnackbar } = useSnackbar();
+  const productId = params?.productId as string;
 
   const handleTabChange = (event: React.SyntheticEvent, value: string) => {
     const stepIndex = steps.indexOf(value);
     setCurrentStep(stepIndex);
   };
+
+  // Fetch product data if in edit mode
+  useEffect(() => {
+    const fetchProductData = async () => {
+      if (productId && productId !== "new") {
+        try {
+          const response = await getProduct(Number(productId));
+          const productData = response.data;
+
+          // Update form data with fetched product information
+          updateFormData({
+            name: productData.name,
+            slug: productData.slug,
+            description: productData.description,
+            category_id: productData.category_id,
+            brand_id: productData.brand_id,
+            is_new: productData.is_new,
+            productId: Number(productId),
+            // Add other fields as needed
+          });
+        } catch (error) {
+          console.error("Error fetching product:", error);
+          // showSnackbar("Failed to load product data", "error");
+        }
+      }
+    };
+
+    fetchProductData();
+  }, [productId]);
 
   return (
     <FusePageCarded

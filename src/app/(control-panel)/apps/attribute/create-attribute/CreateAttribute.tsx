@@ -371,19 +371,19 @@
 //     .min(1, "Attribute Name is required")
 //     .max(50, "Attribute Name must be at most 50 characters")
 //     .regex(/^[a-zA-Z0-9\s]+$/, "Only alphanumeric characters and spaces allowed"),
-  
+
 //   slug: z
 //     .string()
 //     .min(1, "Slug is required")
 //     .max(50, "Slug must be at most 50 characters")
 //     .regex(/^[a-z0-9-]+$/, "Slug must be lowercase and can contain hyphens only"),
-  
+
 //   description: z
 //     .string()
 //     .min(1, "Description is required")
 //     .optional(),
 //     // .max(200, "Description must be at most 200 characters"),
-  
+
 //   type: z.enum(["select", "radio", "checkbox", "text", "textarea"], {
 //     message: "Type is required",
 //   }),
@@ -570,17 +570,16 @@ const schema = z.object({
     .min(1, "Attribute Name is required")
     .max(50, "Attribute Name must be at most 50 characters")
     .regex(/^[a-zA-Z0-9\s]+$/, "Only alphanumeric characters and spaces allowed"),
-  
-  slug: z
-    .string()
+
+  slug: z.string()
     .min(1, "Slug is required")
     .max(50, "Slug must be at most 50 characters")
-    .regex(/^[a-z0-9-]+$/, "Slug must be lowercase and can contain hyphens only"),
-  
+    .regex(/^[a-z0-9-]+$/, "Slug must be a valid URL-friendly string (lowercase letters, numbers, and hyphens only)"),
+
   description: z
     .string()
     .optional(),
-    // .max(200, "Description must be at most 200 characters"),
+  // .max(200, "Description must be at most 200 characters"),
 
   type: z.enum(["select", "radio", "text", "image"], {
     message: "Type is required",
