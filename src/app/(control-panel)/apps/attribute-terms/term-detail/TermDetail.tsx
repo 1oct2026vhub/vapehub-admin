@@ -8,6 +8,7 @@ import FuseLoading from "@fuse/core/FuseLoading";
 import DataTable from "@/components/data-table/DataTable";
 import type { MRT_ColumnDef } from "material-react-table";
 import { useParams } from "next/navigation";
+import { formatDate } from "@/utils/actions";
 
 interface TermDetailProps {
   id: string;
@@ -29,12 +30,11 @@ const TermDetail = () => {
       { accessorKey: "id", header: "Attribute ID" },
       { accessorKey: "name", header: "Name" },
       { accessorKey: "slug", header: "Slug" },
-      { accessorKey: "description", header: "Description" },
+      // { accessorKey: "description", header: "Description" },
       {
         accessorKey: "created_at",
         header: "Created At",
-        Cell: ({ row }) =>
-          new Date(row.original.created_at).toLocaleDateString(),
+           Cell: ({ row }) => formatDate(row.original.created_at),
       },
       {
         accessorKey: "status",

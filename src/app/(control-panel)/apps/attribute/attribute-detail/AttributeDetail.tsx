@@ -38,7 +38,7 @@
 //   );
 
 //   console.log("brand",data);
-  
+
 //   useEffect(() => {
 //     if (data?.data) {
 //       setCustomerDetail(data.data);
@@ -100,14 +100,15 @@ import { getAttributeDetails } from "@/services/apiAttribute";
 import { useFetch } from "@/hooks/useFetch";
 import FuseLoading from "@fuse/core/FuseLoading";
 import { useEffect, useState } from "react";
+import { formatDate } from "@/utils/actions";
 
 export type AttributeType = {
   id: number;
   name: string;
   description: string | null;
   logoUrl: string | null;
-  website: string | null;
-  createdAt?: string | null;
+  slug: string | null;
+  created_at?: string | null;
 };
 
 export default function AttributeDetail() {
@@ -126,11 +127,10 @@ export default function AttributeDetail() {
     getAttributeDetails(id as string),
   );
 
-  console.log("brand", data);
 
   useEffect(() => {
     if (data?.data) {
-        setAttributeDetail(data.data);
+      setAttributeDetail(data.data);
     }
   }, [data]);
 
@@ -141,9 +141,9 @@ export default function AttributeDetail() {
 
   const columns: MRT_ColumnDef<AttributeType>[] = [
     { accessorKey: "name", header: "Brand Name" },
-    { accessorKey: "description", header: "Description" },
-    { accessorKey: "website", header: "Website" },
-    { accessorKey: "createdAt", header: "Created At" },
+    // { accessorKey: "description", header: "Description" },
+    { accessorKey: "slug", header: "Slug" },
+    { accessorKey: "created_at", header: "Created At" },
   ];
 
   const attributeDetailData: AttributeType = {
@@ -151,11 +151,10 @@ export default function AttributeDetail() {
     name: attributeDetail.name,
     description: attributeDetail.description,
     logoUrl: attributeDetail.logoUrl,
-    website: attributeDetail.website,
-    createdAt: attributeDetail.createdAt
-      ? new Date(attributeDetail.createdAt)
-          .toLocaleDateString("en-GB")
-          .replace(/\//g, "-")
+    slug: attributeDetail.slug,
+    created_at: attributeDetail.created_at
+      ? formatDate(attributeDetail.created_at)
+  
       : "",
   };
 
