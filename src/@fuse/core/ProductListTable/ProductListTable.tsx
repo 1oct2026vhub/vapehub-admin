@@ -71,6 +71,9 @@ const ProductListTable = () => {
   const [selectedProduct, setSelectedProduct] = useState<ProductType | null>(
     null,
   );
+  const [products, setProducts] = useState<ProductType[]>([]);
+  const [totalRecords, setTotalRecords] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
 
   // Debounce search input
   useEffect(() => {
@@ -112,9 +115,14 @@ const ProductListTable = () => {
     listProducts,
     queryParams,
   );
-  const products = data?.data?.products || [];
-  const totalRecords = data?.data?.pagination?.total_count || 0;
-  const totalPages = Math.ceil(totalRecords / limit);
+
+  useEffect(() => {
+    if (data?.data) {
+      setProducts(data.data.products || []);
+      setTotalRecords(data.data.pagination?.total_count || 0);
+      setTotalPages(Math.ceil((data.data.pagination?.total_count || 0) / limit));
+    }
+  }, [data, limit]);
 
   const handleEdit = (product: ProductType) => {
     router.push(`/apps/product/${product.id}`);
@@ -135,7 +143,13 @@ const ProductListTable = () => {
     try {
       await deleteProduct(selectedProduct.id);
       showSnackbar("Product deleted successfully", "success");
-      mutate(["productList", queryParams]);
+      
+      // Update local state without reloading
+      setProducts(prevProducts => 
+        prevProducts.filter(product => product.id !== selectedProduct.id)
+      );
+      setTotalRecords(prev => prev - 1);
+      setTotalPages(Math.ceil((totalRecords - 1) / limit));
     } catch (error) {
       showSnackbar("Failed to delete product", "error");
     }
@@ -148,7 +162,13 @@ const ProductListTable = () => {
     try {
       await restoreProduct(selectedProduct.id);
       showSnackbar("Product restored successfully", "success");
-      mutate(["productList", queryParams]);
+      
+      // Update local state without reloading
+      setProducts(prevProducts => 
+        prevProducts.filter(product => product.id !== selectedProduct.id)
+      );
+      setTotalRecords(prev => prev - 1);
+      setTotalPages(Math.ceil((totalRecords - 1) / limit));
     } catch (error) {
       showSnackbar("Failed to restore product", "error");
     }
