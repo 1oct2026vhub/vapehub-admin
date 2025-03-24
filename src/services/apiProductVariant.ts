@@ -31,33 +31,38 @@ export interface ProductVariantListResponse {
   offset: number;
 }
 
-export const listProductVariants = async (
-  params: ProductVariantListParams = {},
-): Promise<ProductVariantListResponse> => {
-  const {
-    sort_by = "id",
-    order = "ASC",
-    limit = 10,
-    offset = 0,
-    keyword,
-    price_range,
-    stock_status,
-    product_id,
-  } = params;
+// export const listProductVariants = async (
+//   params: ProductVariantListParams = {},
+// ): Promise<ProductVariantListResponse> => {
+//   const {
+//     sort_by = "id",
+//     order = "ASC",
+//     limit = 10,
+//     offset = 0,
+//     keyword,
+//     price_range,
+//     stock_status,
+//     product_id,
+//   } = params;
 
-  const response = await axiosInstance.get("/api/admin/product-variants", {
-    params: {
-      sort_by,
-      order,
-      limit,
-      offset,
-      ...(keyword && { keyword }),
-      ...(price_range && { price_range }),
-      ...(stock_status && { stock_status }),
-      ...(product_id && { product_id }),
-    },
-  });
+//   const response = await axiosInstance.get("/api/admin/product-variants", {
+//     params: {
+//       sort_by,
+//       order,
+//       limit,
+//       offset,
+//       ...(keyword && { keyword }),
+//       ...(price_range && { price_range }),
+//       ...(stock_status && { stock_status }),
+//       ...(product_id && { product_id }),
+//     },
+//   });
 
+//   return response.data;
+// };
+
+export const listProductVariants = async (params = {}) => {
+  const response = await axiosInstance.get("/api/admin/product-variants", { params });
   return response.data;
 };
 

@@ -31,33 +31,37 @@ export const deleter = (url: string) =>
   axiosInstance.delete(url).then((res) => res.data);
 
 // Product actions
-export const listProducts = (params: ProductListParams = {}) => {
-  const {
-    sort_by = "id",
-    order = "ASC",
-    limit = 10,
-    offset = 0,
-    keyword = "",
-    price_range = "",
-    categories = "",
-    brands = "",
-    deleted = false,
-    is_new = false,
-  } = params;
+// export const listProducts = (params: ProductListParams = {}) => {
+//   const {
+//     sort_by = "id",
+//     order = "ASC",
+//     limit = 10,
+//     offset = 0,
+//     keyword = "",
+//     price_range = "",
+//     categories = "",
+//     brands = "",
+//     deleted = false,
+//     is_new = false,
+//   } = params;
 
-  return fetcher("/api/admin/products", {
-    sort_by,
-    order,
-    limit,
-    offset,
-    ...(keyword && { keyword }),
-    ...(price_range && { price_range }),
-    ...(categories && { categories }),
-    ...(brands && { brands }),
-    ...(deleted !== null && { deleted }),
-    ...(is_new !== null && { is_new }),
-  });
-};
+//   return fetcher("/api/admin/products", {
+//     sort_by,
+//     order,
+//     limit,
+//     offset,
+//     ...(keyword && { keyword }),
+//     // ...(price_range && { price_range }),
+//     ...(categories && { categories }),
+//     ...(brands && { brands }),
+//     ...(deleted !== null && { deleted }),
+//     // ...(is_new !== null && { is_new }),
+//   });
+// };
+export const listProducts = (params = {}) =>
+  fetcher("/api/admin/products", params);
+
+
 
 export const getProduct = async (id: number) => {
   const response = await axiosInstance.get(`/api/admin/products/fetch/${id}`);
