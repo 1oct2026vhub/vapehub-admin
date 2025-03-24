@@ -35,6 +35,7 @@ import FuseSvgIcon from "../FuseSvgIcon";
 import AppButton from "@/components/Shared/AppButton";
 import { useSnackbar } from "@/contexts/SnackbarContext";
 import { deleteProduct, restoreProduct } from "@/services/apiProduct";
+import { formatDate } from "@/utils/actions";
 
 export type ProductType = {
   id: number;
@@ -151,8 +152,26 @@ const ProductListTable = () => {
       setTotalRecords(prev => prev - 1);
       setTotalPages(Math.ceil((totalRecords - 1) / limit));
     } catch (error) {
-      showSnackbar("Failed to delete product", "error");
-    }
+      if (error?.errors) {
+        showSnackbar(error?.errors[0]?.msg, "error");
+      } else {
+        const errorMessage = error?.message || "An unexpected error occurred";
+        showSnackbar(errorMessage, "error");
+      }
+
+      const errorData = error || error; // Handle both API and unexpected errors
+      if (errorData?.error && typeof errorData.error === "object") {
+        Object.entries(errorData.error).forEach(([field, message]) => {
+          if (typeof message === "string") {
+            // setError(field, { type: 'manual', message });
+            showSnackbar(` ${message}`, "error");
+          }
+        });
+      } else {
+        // setError('root', { type: 'manual', message: errorMessage });
+      }
+      return false;
+    } 
     setDeleteDialogOpen(false);
     setSelectedProduct(null);
   };
@@ -170,7 +189,25 @@ const ProductListTable = () => {
       setTotalRecords(prev => prev - 1);
       setTotalPages(Math.ceil((totalRecords - 1) / limit));
     } catch (error) {
-      showSnackbar("Failed to restore product", "error");
+      if (error?.errors) {
+        showSnackbar(error?.errors[0]?.msg, "error");
+      } else {
+        const errorMessage = error?.message || "An unexpected error occurred";
+        showSnackbar(errorMessage, "error");
+      }
+
+      const errorData = error || error; // Handle both API and unexpected errors
+      if (errorData?.error && typeof errorData.error === "object") {
+        Object.entries(errorData.error).forEach(([field, message]) => {
+          if (typeof message === "string") {
+            // setError(field, { type: 'manual', message });
+            showSnackbar(` ${message}`, "error");
+          }
+        });
+      } else {
+        // setError('root', { type: 'manual', message: errorMessage });
+      }
+      return false;
     }
     setRestoreDialogOpen(false);
     setSelectedProduct(null);
@@ -208,8 +245,7 @@ const ProductListTable = () => {
       {
         accessorKey: "createdAt",
         header: "Created At",
-        Cell: ({ row }) =>
-          new Date(row.original.createdAt).toLocaleDateString("en-GB"),
+         Cell: ({ row }) => formatDate(row.original.createdAt),
       },
     ],
     [router],
@@ -292,17 +328,16 @@ const ProductListTable = () => {
             </Select>
 
             <Select
-              value={deleted === null ? "all" : deleted ? "deleted" : "active"}
+              value={deleted === null ? "active" : deleted ? "deleted" : "active"}
               onChange={(e) =>
                 setDeleted(
-                  e.target.value === "all"
+                  e.target.value === "active"
                     ? null
                     : e.target.value === "deleted",
                 )
               }
               size="small"
             >
-              <MenuItem value="all">All Status</MenuItem>
               <MenuItem value="active">Active</MenuItem>
               <MenuItem value="deleted">Deleted</MenuItem>
             </Select>

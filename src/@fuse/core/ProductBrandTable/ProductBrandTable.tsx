@@ -32,6 +32,7 @@ import { useRouter } from "next/navigation";
 import AppButton from "@/components/Shared/AppButton";
 import FuseSvgIcon from "../FuseSvgIcon";
 import { useSnackbar } from "@/contexts/SnackbarContext";
+import { formatDate } from "@/utils/actions";
 
 export type BrandType = {
   id: number;
@@ -135,18 +136,26 @@ const ProductBrandTable = () => {
         throw new Error(result?.message || "Unexpected server response");
       }
     } catch (error) {
-      console.error("Action error:", error);
+      if (error?.errors) {
+        showSnackbar(error?.errors[0]?.msg, "error");
+      } else {
+        const errorMessage = error?.message || "An unexpected error occurred";
+        showSnackbar(errorMessage, "error");
+      }
 
-      // Restore the row in case of failure (rollback)
-      setBrands(previousBrands);
-
-      // Show error snackbar with server message or generic error
-      showSnackbar(
-        error?.message ||
-          `Failed to ${selectedBrand.deletedAt ? "restore" : "delete"} brand`,
-        "error",
-      );
-    }
+      const errorData = error || error; // Handle both API and unexpected errors
+      if (errorData?.error && typeof errorData.error === "object") {
+        Object.entries(errorData.error).forEach(([field, message]) => {
+          if (typeof message === "string") {
+            // setError(field, { type: 'manual', message });
+            showSnackbar(` ${message}`, "error");
+          }
+        });
+      } else {
+        // setError('root', { type: 'manual', message: errorMessage });
+      }
+      return false;
+    } 
   };
 
   const handleEdit = (brand: BrandType) => {
@@ -174,8 +183,7 @@ const ProductBrandTable = () => {
       {
         accessorKey: "updatedAt",
         header: "Last Updated",
-        Cell: ({ row }) =>
-          new Date(row.original.updatedAt).toLocaleDateString("en-GB"),
+       Cell: ({ row }) => formatDate(row.original.updatedAt),
       },
       // { accessorKey: "updatedAt", header: "Last Updated" },
     {
@@ -230,16 +238,18 @@ const ProductBrandTable = () => {
         />
 
         <div className="flex gap-2">
-          <Select
-            value={deleted === null ? "all" : deleted ? "deleted" : "active"}
-            onChange={(e) =>
-              setDeleted(
-                e.target.value === "all" ? null : e.target.value === "deleted",
-              )
-            }
-            size="small"
-          >
-            <MenuItem value="all">All Brands</MenuItem>
+        <Select
+              value={deleted === null ? "active" : deleted ? "deleted" : "active"}
+              onChange={(e) =>
+                setDeleted(
+                  e.target.value === "active"
+                    ? null
+                    : e.target.value === "deleted",
+                )
+              }
+              size="small"
+            >
+            {/* <MenuItem value="all">All Brands</MenuItem> */}
             <MenuItem value="active">Active</MenuItem>
             <MenuItem value="deleted">Deleted</MenuItem>
           </Select>

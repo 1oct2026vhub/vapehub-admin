@@ -38,6 +38,7 @@ import { useRouter } from "next/navigation";
 import AppButton from "@/components/Shared/AppButton";
 import FuseSvgIcon from "@fuse/core/FuseSvgIcon";
 import { useSnackbar } from "@/contexts/SnackbarContext";
+import { formatDate } from "@/utils/actions";
 
 const SORT_FIELDS = [
   { value: "id", label: "ID" },
@@ -131,18 +132,26 @@ const AttributeTable = () => {
       // Update the server data
       await mutate(["attributeList", queryParams]);
     } catch (error: any) {
-      // Revert local state on error
-      if (data?.data?.attributes) {
-        setLocalAttributes(data.data.attributes);
+      if (error?.errors) {
+        showSnackbar(error?.errors[0]?.msg, "error");
+      } else {
+        const errorMessage = error?.message || "An unexpected error occurred";
+        showSnackbar(errorMessage, "error");
       }
-      
-      console.error("Action error:", error);
-      showSnackbar(
-        error?.response?.data?.message ||
-        `Failed to ${selectedAttribute.deleted_at ? "restore" : "delete"} attribute`,
-        "error"
-      );
-    }
+
+      const errorData = error || error; // Handle both API and unexpected errors
+      if (errorData?.error && typeof errorData.error === "object") {
+        Object.entries(errorData.error).forEach(([field, message]) => {
+          if (typeof message === "string") {
+            // setError(field, { type: 'manual', message });
+            showSnackbar(` ${message}`, "error");
+          }
+        });
+      } else {
+        // setError('root', { type: 'manual', message: errorMessage });
+      }
+      return false;
+    } 
   };
 
   const handleEdit = (attribute: Attribute) => {
@@ -164,8 +173,7 @@ const AttributeTable = () => {
       {
         accessorKey: "created_at",
         header: "Created At",
-        Cell: ({ row }) =>
-          new Date(row.original.created_at).toLocaleDateString(),
+        Cell: ({ row }) => formatDate(row.original.created_at),
       },
     ],
     [],
@@ -270,22 +278,22 @@ const AttributeTable = () => {
         rowCount={data?.data?.pagination?.total || 0}
         renderRowActionMenuItems={({ closeMenu, row }) => [
           !row.original.deleted_at && (
-          <MenuItem
-            key="view-details"
-            onClick={() => {
-              router.push(
-                `/apps/attribute/attribute-detail/${row.original.id}`,
-              );
-              closeMenu();
-            }}
-          >
-            <ListItemIcon>
-              <FuseSvgIcon>
-                heroicons-outline:arrow-top-right-on-square
-              </FuseSvgIcon>
-            </ListItemIcon>
-            View Details
-          </MenuItem>),
+            <MenuItem
+              key="view-details"
+              onClick={() => {
+                router.push(
+                  `/apps/attribute/attribute-detail/${row.original.id}`,
+                );
+                closeMenu();
+              }}
+            >
+              <ListItemIcon>
+                <FuseSvgIcon>
+                  heroicons-outline:arrow-top-right-on-square
+                </FuseSvgIcon>
+              </ListItemIcon>
+              View Details
+            </MenuItem>),
 
           !row.original.deleted_at && (
             <MenuItem

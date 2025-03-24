@@ -14,6 +14,14 @@ import { updateBrand, brandDetails } from "@/services/apiProductBrand";
 import { useSnackbar } from "@/contexts/SnackbarContext";
 import axiosInstance from "@/utils/axiosApi";
 
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+const ACCEPTED_FILE_TYPES = [
+  "image/png",
+  "image/jpeg",
+  "image/jpg",
+  "image/webp",
+];
+
 const schema = z.object({
   name: z.string().min(1, "Brand Name is required").max(50, "Name must be less than 50 characters"),
    slug: z.string()
@@ -21,12 +29,17 @@ const schema = z.object({
       .max(50, "Slug must be at most 50 characters")
       .regex(/^[a-z0-9-]+$/, "Slug must be a valid URL-friendly string (lowercase letters, numbers, and hyphens only)"),
   description: z.string().optional(),
-  logo: z.union([
-    z.instanceof(File),
-    z.string().optional(),
-    z.null(),
-    z.undefined()
-  ]).optional(),
+   logo: z
+        .instanceof(File, { message: "Logo is required" })
+        .refine((file) => file instanceof File, "Logo is required")
+        .refine(
+          (file) => file.size <= MAX_FILE_SIZE,
+          "File size must be less than 5MB"
+        )
+        .refine(
+          (file) => ACCEPTED_FILE_TYPES.includes(file.type),
+          "Only .jpg, .jpeg, .png, and .webp formats are supported"
+        ),
 });
 
 const defaultValues = {

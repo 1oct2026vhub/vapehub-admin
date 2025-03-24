@@ -34,6 +34,7 @@ import FuseSvgIcon from "../FuseSvgIcon";
 import AppButton from "@/components/Shared/AppButton";
 import { useRoles } from "@/hooks/roleFetch";
 import { useSnackbar } from "@/contexts/SnackbarContext";
+import { formatDate } from "@/utils/actions";
 
 export type UserType = {
   id: number;
@@ -131,11 +132,26 @@ const UserTable = () => {
 
       mutate(["userList", queryParams]);
     } catch (error) {
-      console.error("Delete error:", error);
+      if (error?.errors) {
+        showSnackbar(error?.errors[0]?.msg, "error");
+      } else {
+        const errorMessage = error?.message || "An unexpected error occurred";
+        showSnackbar(errorMessage, "error");
+      }
 
-      // Show Snackbar for error
-      showSnackbar("An error occurred while processing the request.", "error");
-    }
+      const errorData = error || error; // Handle both API and unexpected errors
+      if (errorData?.error && typeof errorData.error === "object") {
+        Object.entries(errorData.error).forEach(([field, message]) => {
+          if (typeof message === "string") {
+            // setError(field, { type: 'manual', message });
+            showSnackbar(` ${message}`, "error");
+          }
+        });
+      } else {
+        // setError('root', { type: 'manual', message: errorMessage });
+      }
+      return false;
+    } 
   };
 
   // const handleEdit = (user: UserType) => {
@@ -165,20 +181,20 @@ const UserTable = () => {
       { accessorKey: "first_name", header: "First Name" },
       { accessorKey: "last_name", header: "Last Name" },
       { accessorKey: "email", header: "Email" },
-      {
-        accessorKey: "createdAt",
-        header: "Created At",
-        Cell: ({ row }) =>
-          new Date(row.original.createdAt).toLocaleDateString("en-GB"),
-      },
+     
+        {
+          accessorKey: "createdAt",
+          header: "Created At",
+          Cell: ({ row }) => formatDate(row.original.createdAt),
+        },
+     
       { accessorKey: "role", header: "Role" },
       { accessorKey: "phone", header: "Contact" },
       { accessorKey: "gender", header: "Gender" },
       {
         accessorKey: "dob",
         header: "Date of Birth",
-        Cell: ({ row }) =>
-          new Date(row.original.dob).toLocaleDateString("en-GB"),
+          Cell: ({ row }) => formatDate(row.original.dob),
       },
       {
         accessorKey: "status",
@@ -313,20 +329,20 @@ const UserTable = () => {
             </Select>
 
             <Select
-              value={deleted === null ? "all" : deleted ? "deleted" : "active"}
+              value={deleted === null ? "active" : deleted ? "deleted" : "active"}
               onChange={(e) =>
                 setDeleted(
-                  e.target.value === "all"
+                  e.target.value === "active"
                     ? null
                     : e.target.value === "deleted",
                 )
               }
               size="small"
             >
-              <MenuItem value="all">All Users</MenuItem>
-              <MenuItem value="active">Active</MenuItem>
-              <MenuItem value="deleted">InActive</MenuItem>
-            </Select>
+            {/* <MenuItem value="all">All Brands</MenuItem> */}
+            <MenuItem value="active">Active</MenuItem>
+            <MenuItem value="deleted">Deleted</MenuItem>
+          </Select>
             <Select
               value={order}
               onChange={(e) => setOrder(e.target.value as "ASC" | "DESC")}

@@ -39,6 +39,7 @@ import AppButton from "@/components/Shared/AppButton";
 import FuseSvgIcon from "@fuse/core/FuseSvgIcon";
 import axiosInstance from "@/utils/axiosApi";
 import { useSnackbar } from "@/contexts/SnackbarContext";
+import { formatDate } from "@/utils/actions";
 
 // // Add delete and restore functions
 // const deleteAttributeTerm = async (id: number) => {
@@ -144,23 +145,26 @@ const AttributeTermTable = ({ attributeId }: AttributeTermTableProps) => {
       // Update the server data
       await mutate(["attributeTerms", queryParams]);
     } catch (error: any) {
-      // Revert local state on error
-      if (data?.data?.terms) {
-        setLocalTerms(data.data.terms);
+      if (error?.errors) {
+        showSnackbar(error?.errors[0]?.msg, "error");
+      } else {
+        const errorMessage = error?.message || "An unexpected error occurred";
+        showSnackbar(errorMessage, "error");
       }
-      if( error?.error){
-      showSnackbar(
-        error?.error?.message || "An error occurred while processing your request",
-        "error"
-      );
-    }
-    else{
-      showSnackbar(
-        error?.message || "An error occurred while processing your request",
-        "error"
-      );
-    }
-    }
+
+      const errorData = error || error; // Handle both API and unexpected errors
+      if (errorData?.error && typeof errorData.error === "object") {
+        Object.entries(errorData.error).forEach(([field, message]) => {
+          if (typeof message === "string") {
+            // setError(field, { type: 'manual', message });
+            showSnackbar(` ${message}`, "error");
+          }
+        });
+      } else {
+        // setError('root', { type: 'manual', message: errorMessage });
+      }
+      return false;
+    } 
   };
 
   const handleEdit = (term: AttributeTerm) => {
@@ -180,8 +184,7 @@ const AttributeTermTable = ({ attributeId }: AttributeTermTableProps) => {
       {
         accessorKey: "created_at",
         header: "Created At",
-        Cell: ({ row }) =>
-          new Date(row.original.created_at).toLocaleDateString(),
+       Cell: ({ row }) => formatDate(row.original.created_at),
       },
     ],
     [],
@@ -299,6 +302,9 @@ const AttributeTermTable = ({ attributeId }: AttributeTermTableProps) => {
           <MenuItem
             key="view-details"
             onClick={() => {
+              router.push(
+                `/apps/attribute-terms/term-detail/${row.original.id}`,
+              );
               closeMenu();
             }}
           >
