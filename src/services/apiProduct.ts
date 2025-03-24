@@ -210,7 +210,7 @@ export interface ProductVariant {
   height?: number;
   barcode?: string;
   description?: string;
-  status: boolean;
+  status: "active" | "inactive";
   attributes: {
     attribute_id: number;
     term_id: number;
@@ -235,6 +235,71 @@ export const createProductVariants = async (
 export const deleteProductVariant = async (variant_id: number) => {
   const response = await axiosInstance.delete(
     `/api/admin/product-variants/variants/${variant_id}`,
+  );
+  return response.data;
+};
+
+// New update functions for unified form handling
+
+export const updateProduct = async (id: number, data: CreateProductData) => {
+  const response = await axiosInstance.put(`/api/admin/products/${id}`, data);
+  return response.data;
+};
+
+export interface UpdateProductAttributesRequest {
+  attributes: Array<{
+    attribute_id: number;
+    term_id?: number;
+    term_ids?: number[];
+    is_visible_page: boolean;
+    used_in_variation: boolean;
+  }>;
+}
+
+export const updateProductAttributes = async (
+  productId: number,
+  data: UpdateProductAttributesRequest
+) => {
+  const response = await axiosInstance.put(
+    `/api/admin/product-variants/product/${productId}/attributes`,
+    data
+  );
+  return response.data;
+};
+
+export interface UpdateProductVariantRequest {
+  slug: string;
+  price: number;
+  discount_price?: number;
+  purchase_price?: number;
+  stock: number;
+  low_stock_threshold?: number;
+  weight?: number;
+  length?: number;
+  width?: number;
+  height?: number;
+  barcode?: string;
+  attributes: Array<{
+    attribute_id: number;
+    term_id: number;
+  }>;
+}
+
+export const updateProductVariant = async (
+  productId: number,
+  variantId: number,
+  data: UpdateProductVariantRequest
+) => {
+  const response = await axiosInstance.put(
+    `/api/admin/product-variants/product/${productId}/variants/${variantId}`,
+    data
+  );
+  return response.data;
+};
+
+export const deleteProductImage = async (productId: number, imageId: number) => {
+  const response = await axiosInstance.delete(
+    `/api/admin/products/${productId}/image/${imageId}`,
   );
   return response.data;
 };

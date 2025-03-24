@@ -308,7 +308,8 @@ const ProductListTable = () => {
             <MenuItem
               key="edit"
               onClick={() => {
-                router.push(`/apps/product/edit/${row.original.id}`);
+                router.push(`/apps/product/edit?productId=${row.original.id}`);
+                // router.push(`/apps/product/${row.original.id}`);
                 closeMenu();
               }}
             >

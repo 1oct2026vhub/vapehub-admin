@@ -13,7 +13,7 @@ import { useProductForm } from "../ProductFormContext";
 import { useFetch } from "@/hooks/useFetch";
 import { listAttributes } from "@/services/apiAttribute";
 import { listAttributeTerms } from "@/services/apiAttributeTerm";
-import { addProductAttributes, getProduct } from "@/services/apiProduct";
+import { addProductAttributes, getProduct, updateProductAttributes } from "@/services/apiProduct";
 import DeleteIcon from "@mui/icons-material/Delete";
 import AddIcon from "@mui/icons-material/Add";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -58,8 +58,11 @@ function AttributesTab() {
   const fetchedRef = useRef(false);
   const productIdRef = useRef<number | null>(null);
 
-  // Get productId from URL or formData
+  // Get productId from URL or formData and ensure it's a number
   const productId = formData.productId || (searchParams.get("productId") ? Number(searchParams.get("productId")) : null);
+
+  // Determine if we're in edit mode based on existing attributes
+  const isEditMode = Boolean(formData.attributes && formData.attributes.length > 0);
 
   const { data: attributes } = useFetch(
     ["attributeList", {}],
@@ -78,15 +81,17 @@ function AttributesTab() {
     mode: "all",
     resolver: zodResolver(attributeSchema),
     defaultValues: {
-      attributes: [
-        {
-          attribute_id: 0,
-          term_ids: [],
-          is_visible_page: true,
-          used_in_variation: false,
-          default_value: '',
-        },
-      ],
+      attributes: formData.attributes && formData.attributes.length > 0
+        ? formData.attributes
+        : [
+            {
+              attribute_id: 0,
+              term_ids: [],
+              is_visible_page: true,
+              used_in_variation: false,
+              default_value: '',
+            },
+          ],
     },
   });
 
@@ -277,7 +282,6 @@ function AttributesTab() {
     setIsSubmitting(true);
     try {
       // Transform the data to match the API requirements
-      // Create a flat list of attributes, one for each term
       const transformedData = {
         attributes: data.attributes.flatMap((attr) => 
           attr.term_ids.map((term_id) => ({
@@ -285,41 +289,55 @@ function AttributesTab() {
             term_id: term_id,
             is_visible_page: attr.is_visible_page,
             used_in_variation: attr.used_in_variation,
-            default_value: attr.default_value || '',
           }))
         ),
       };
 
       console.log("Submitting attribute data:", transformedData);
 
-      // Save attributes to the product using the API function
-      const response = await addProductAttributes(
-        Number(productId),
-        transformedData,
-      );
+      let response;
+      if (isEditMode) {
+        // Update existing attributes
+        response = await updateProductAttributes(Number(productId), transformedData);
+        showSnackbar("Product attributes updated successfully", "success");
+        
+        // Update form data and stay on the same page
+        updateFormData({
+          attributes: data.attributes.map(attr => ({
+            attribute_id: attr.attribute_id,
+            term_ids: attr.term_ids,
+            is_visible_page: attr.is_visible_page,
+            used_in_variation: attr.used_in_variation,
+          })),
+          attributesResponse: response.data,
+          hasErrors: false,
+        });
+      } else {
+        // Create new attributes
+        response = await addProductAttributes(Number(productId), transformedData);
+        showSnackbar("Product attributes saved successfully", "success");
+        
+        // Update form data and move to next step
+        updateFormData({
+          attributes: data.attributes.map(attr => ({
+            attribute_id: attr.attribute_id,
+            term_ids: attr.term_ids,
+            is_visible_page: attr.is_visible_page,
+            used_in_variation: attr.used_in_variation,
+          })),
+          attributesResponse: response.data,
+          hasErrors: false,
+        });
 
-      console.log("API response:", response.data);
+        // Move to next step only for new products
+        nextStep();
+      }
 
-      // Store both the form data and API response data
-      updateFormData({
-        attributes: data.attributes.map(attr => ({
-          attribute_id: attr.attribute_id,
-          term_ids: attr.term_ids,
-          is_visible_page: attr.is_visible_page,
-          used_in_variation: attr.used_in_variation,
-          default_value: attr.default_value || '',
-        })) as ProductAttribute[],
-        attributesResponse: response.data, // Store the API response
-        hasErrors: false,
-      });
-
-      showSnackbar("Product attributes saved successfully", "success");
       markStepAsCompleted(2);
       
       // Reset fetch status to allow re-fetching if needed
       fetchedRef.current = false;
       
-      nextStep();
     } catch (error) {
       console.error("Error saving product attributes:", error);
       updateFormData({ hasErrors: true });
@@ -492,7 +510,7 @@ function AttributesTab() {
           disabled={isSubmitting}
         />
         <AppButton
-          label="Next"
+          label={isEditMode ? "Update" : "Next"}
           type="submit"
           loading={isSubmitting}
           disabled={!isValid || isSubmitting}

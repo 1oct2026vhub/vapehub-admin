@@ -36,7 +36,7 @@ export interface ProductFormData {
     slug: string;
     price: number;
     stock: number;
-    status: boolean;
+    status: "active" | "inactive";
     discount_price: number | null;
     purchase_price: number | null;
     low_stock_threshold: number | null;
