@@ -61,7 +61,7 @@ export interface ProductVariantListResponse {
 //   return response.data;
 // };
 
-export const listProducts = async (params = {}) => {
+export const listProductVariants = async (params = {}) => {
   const response = await axiosInstance.get("/api/admin/product-variants", { params });
   return response.data;
 };
