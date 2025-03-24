@@ -65,7 +65,7 @@ export default function ProductDetailTable() {
   const columns: MRT_ColumnDef<ProductType>[] = [
     { accessorKey: "id", header: "Id" },
     { accessorKey: "name", header: "Product Name" },
-    { accessorKey: "description", header: "Description" },
+    // { accessorKey: "description", header: "Description" },
     { accessorKey: "price", header: "Price ($)" },
     { accessorKey: "stock_quantity", header: "Stock Quantity" },
     { accessorKey: "brand_name", header: "Brand" },

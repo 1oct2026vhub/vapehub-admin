@@ -160,7 +160,7 @@ const ProductListTable = () => {
     () => [
       { accessorKey: "id", header: "ID" },
       { accessorKey: "name", header: "Name" },
-      // { accessorKey: "description", header: "Description" },
+      { accessorKey: "slug", header: "Slug" },
       {
         accessorKey: "price",
         header: "Price",
