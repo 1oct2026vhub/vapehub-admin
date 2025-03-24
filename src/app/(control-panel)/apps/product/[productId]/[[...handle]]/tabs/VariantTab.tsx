@@ -66,18 +66,120 @@ const schema = z.object({
     z.object({
       id: z.number().optional(),
       slug: z.string().min(1, "Slug is required"),
-      price: z.number().min(0, "Price must be greater than or equal to 0"),
-      stock: z.number().min(0, "Stock must be greater than or equal to 0"),
-      status: z.enum(["active", "inactive"]).default("active"),
-      discount_price: z.number().nullable(),
-      purchase_price: z.number().nullable(),
-      low_stock_threshold: z.number().nullable(),
-      weight: z.number().nullable(),
-      length: z.number().nullable(),
-      width: z.number().nullable(),
-      height: z.number().nullable(),
-      barcode: z.string().nullable(),
-      description: z.string().nullable(),
+      // price: z.number().min(0, "Price must be greater than or equal to 0"),
+      // stock: z.number().min(0, "Stock must be greater than or equal to 0"),
+      // status: z.enum(["active", "inactive"]).default("active"),
+      // discount_price: z.number().nullable(),
+      // purchase_price: z.number().nullable(),
+      // low_stock_threshold: z.number().nullable(),
+      // weight: z.number().nullable(),
+      // length: z.number().nullable(),
+      // width: z.number().nullable(),
+      // height: z.number().nullable(),
+      // barcode: z.string().nullable(),
+      // description: z.string().nullable(),
+      price: z.preprocess(
+        (val) => (val === "" ? null : Number(val)),
+        z
+          .number({
+            required_error: "Price is required",
+            invalid_type_error: "Price must be a number",
+          })
+          .min(1, "Price must be greater than 0")
+          .max(1000000, "Price exceeds the limit")
+          .refine((val) => /^\d+(\.\d{1,2})?$/.test(val.toString()), {
+            message: "Only two decimal places allowed",
+          })
+      ),
+      stock: z.preprocess(
+        (val) => (val === "" ? null : Number(val)),
+        z
+          .number({
+            required_error: "Stock is required",
+            invalid_type_error: "Stock must be a number",
+          })
+          .min(0, "Stock must be >= 0")
+      ),
+      status: z.boolean(),
+      discount_price: z.preprocess(
+        (val) => (val === "" ? null : Number(val)),
+        z.number({
+          required_error: "Discount price is required",
+          invalid_type_error: "Discount price must be a number",
+        })
+        .min(1, "Discount price must be greater than 0")
+        .max(1000000, "Discount price exceeds the limit")
+        .refine((val) => /^\d+(\.\d{1,2})?$/.test(val.toString()), {
+          message: "Only two decimal places allowed",
+        })
+      ),
+      purchase_price: z.preprocess(
+        (val) => (val === "" ? null : Number(val)),
+        z.number({
+          required_error: "Purchase price is required",
+          invalid_type_error: "Purchase price must be a number",
+        })
+        .min(1, "Purchase price must be greater than 0")
+        .max(1000000, "Purchase price exceeds the limit")
+        .refine((val) => /^\d+(\.\d{1,2})?$/.test(val.toString()), {
+          message: "Only two decimal places allowed",
+        })
+      ),
+      low_stock_threshold: z.preprocess(
+        (val) => (val === "" ? null : Number(val)),
+        z.number({
+          required_error: "Low stock threshold is required",
+          invalid_type_error: "Low stock threshold must be a number",
+        })
+      ),
+      weight: z.preprocess(
+        (val) => (val === "" ? null : Number(val)),
+        z.number({
+          required_error: "Weight is required",
+          invalid_type_error: "Weight must be a number",
+        })
+        .min(1, "Weight must be greater than 0")
+        .max(1000000, "Weight exceeds the limit")
+        .refine((val) => /^\d+(\.\d{1,2})?$/.test(val.toString()), {
+          message: "Only two decimal places allowed",
+        })
+      ),
+      length: z.preprocess(
+        (val) => (val === "" ? null : Number(val)),
+        z.number({
+          required_error: "Length is required",
+          invalid_type_error: "Length price must be a number",
+        })
+        .min(1, "Length must be greater than 0")
+        .max(1000000, "Length exceeds the limit")
+        .refine((val) => /^\d+(\.\d{1,2})?$/.test(val.toString()), {
+          message: "Only two decimal places allowed",
+        })
+      ),
+      width: z.preprocess(
+        (val) => (val === "" ? null : Number(val)),
+        z.number({
+          required_error: "Width is required",
+          invalid_type_error: "Width must be a number",
+        })
+        .min(1, "Width must be greater than 0")
+        .max(1000000, "Width exceeds the limit")
+        .refine((val) => /^\d+(\.\d{1,2})?$/.test(val.toString()), {
+          message: "Only two decimal places allowed",
+        })
+      ),
+      height: z.preprocess(
+        (val) => (val === "" ? null : Number(val)),
+        z.number({
+          required_error: "Height is required",
+          invalid_type_error: "Height must be a number",
+        })
+        .min(1, "Height must be greater than 0")
+        .max(1000000, "Height exceeds the limit")
+        .refine((val) => /^\d+(\.\d{1,2})?$/.test(val.toString()), {
+          message: "Only two decimal places allowed",
+        })
+      ),
       attributes: z.array(
         z.object({
           attribute_id: z.number().min(1, "Attribute is required"),

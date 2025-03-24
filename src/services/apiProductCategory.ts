@@ -27,7 +27,7 @@ export const listProductCategory = (params = {}) =>
 // export const updateCategory = (id, categoryData) => updater(`/api/admin/category/${id}`, categoryData);
 export const updateCategory = (id, categoryData) => {
   return axiosInstance
-    .put(`/api/admin/brand/${id}`, categoryData, {
+    .put(`/api/admin/category/${id}`, categoryData, {
       headers: {
         "Content-Type": "multipart/form-data", // ✅ Ensure correct Content-Type
       },

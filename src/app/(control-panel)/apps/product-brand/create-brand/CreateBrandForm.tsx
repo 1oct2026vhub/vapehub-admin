@@ -21,22 +21,28 @@ const ACCEPTED_FILE_TYPES = [
 ];
 
 const schema = z.object({
-  name: z.string().min(1, "Brand Name is required")
-  .max(50, "Brand Name must not exceed 50 characters"),
-  slug: z.string().min(1, "Slug is required"),
+  name: z.string()
+    .min(1, "Brand Name is required")
+    .max(50, "Brand Name must not exceed 50 characters"),
+  
+  slug: z.string()
+    .min(1, "Slug is required")
+    .max(50, "Slug must be at most 50 characters")
+    .regex(/^[a-z0-9-]+$/, "Slug must be a valid URL-friendly string (lowercase letters, numbers, and hyphens only)"),
+
   description: z.string().optional(),
-  logo: z
-    .instanceof(File)
-    .refine((file) => file instanceof File, "Logo is required")
-    .refine(
-      (file) => file.size <= MAX_FILE_SIZE,
-      "File size must be less than 5MB",
-    )
-    .refine(
-      (file) => ACCEPTED_FILE_TYPES.includes(file.type),
-      "Only .jpg, .jpeg, .png and .webp formats are supported",
-    )
-    .optional(),
+
+   logo: z
+      .instanceof(File, { message: "Logo is required" })
+      .refine((file) => file instanceof File, "Logo is required")
+      .refine(
+        (file) => file.size <= MAX_FILE_SIZE,
+        "File size must be less than 5MB"
+      )
+      .refine(
+        (file) => ACCEPTED_FILE_TYPES.includes(file.type),
+        "Only .jpg, .jpeg, .png, and .webp formats are supported"
+      ),
 });
 
 const defaultValues = {
@@ -71,25 +77,39 @@ function CreateBrandForm() {
     try {
       const formDataObj = new FormData();
 
-      Object.entries(formData).forEach(([key, value]) => {
-        if (value) {
-          if (key === "slug" && typeof value === "string") {
-            value = value.toLowerCase();
-          }
+      // Append name and slug
+      formDataObj.append("name", formData.name.trim());
+      formDataObj.append("slug", formData.slug.toLowerCase());
 
-          if (key === "logo" && value instanceof File) {
-            formDataObj.append("logo", value, value.name);
-          } else if (typeof value === "string") {
-            formDataObj.append(key, value);
-          }
-        }
-      });
+      // Append description if it exists
+      if (formData.description) {
+        formDataObj.append("description", formData.description);
+      }
+
+      // Only append logo if it's a File instance
+      if (formData.logo instanceof File) {
+        formDataObj.append("logo", formData.logo);
+      }
 
       await triggerCreateBrand(formDataObj);
       showSnackbar("Brand created successfully!", "success");
       router.push("/apps/product-brand");
     } catch (error) {
-      showSnackbar(error?.message || "An unexpected error occurred", "error");
+      if (error?.errors) {
+        showSnackbar(error?.errors[0]?.msg, "error");
+      } else {
+        const errorMessage = error?.message || "An unexpected error occurred";
+        showSnackbar(errorMessage, "error");
+      }
+
+      const errorData = error || error;
+      if (errorData?.error && typeof errorData.error === "object") {
+        Object.entries(errorData.error).forEach(([field, message]) => {
+          if (typeof message === "string") {
+            showSnackbar(message, "error");
+          }
+        });
+      }
     } finally {
       setIsLoading(false);
     }
@@ -140,6 +160,7 @@ function CreateBrandForm() {
             control={control}
             label="Brand Logo"
             setValue={setValue}
+            onDelete={() => setValue("logo", undefined)}
           />
 
           <AppButton

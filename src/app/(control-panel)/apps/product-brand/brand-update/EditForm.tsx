@@ -16,23 +16,31 @@ import axiosInstance from "@/utils/axiosApi";
 
 const schema = z.object({
   name: z.string().min(1, "Brand Name is required").max(50, "Name must be less than 50 characters"),
-  slug: z.string().min(1, "Slug is required"),
+   slug: z.string()
+      .min(1, "Slug is required")
+      .max(50, "Slug must be at most 50 characters")
+      .regex(/^[a-z0-9-]+$/, "Slug must be a valid URL-friendly string (lowercase letters, numbers, and hyphens only)"),
   description: z.string().optional(),
-  logo: z.instanceof(File).optional(),
+  logo: z.union([
+    z.instanceof(File),
+    z.string().optional(),
+    z.null(),
+    z.undefined()
+  ]).optional(),
 });
 
 const defaultValues = {
   name: "",
   slug: "",
   description: "",
-  logo: null,
+  logo: undefined,
 };
 
 export type FormType = {
   name: string;
   slug: string;
   description?: string;
-  logo?: File;
+  logo?: File | string | null | undefined;
   logo_url?: string;
 };
 
@@ -65,57 +73,12 @@ const EditBrandForm = ({ brand }: { brand: FormType }) => {
       setValue("name", brand.name);
       setValue("slug", brand.slug);
       setValue("description", brand.description || "");
+      // Set the logo field with the existing logo URL
+      if (brand.logo_url) {
+        setValue("logo", brand.logo_url);
+      }
     }
   }, [brand, setValue]);
-
-  // async function onSubmit(formData: FormType) {
-  //     setIsLoading(true);
-
-  //     try {
-  //         const formDataObj = new FormData();
-
-  //         // Ensure required fields are present and properly formatted
-  //         if (!formData.name || !formData.slug) {
-  //             throw new Error('Name and slug are required fields');
-  //         }
-
-  //         // Append each field to FormData
-  //         formDataObj.append('name', formData.name.trim());
-  //         formDataObj.append('slug', formData.slug.toLowerCase().replace(/\s+/g, '-'));
-
-  //         if (formData.description) {
-  //             formDataObj.append('description', formData.description);
-  //         }
-
-  //         if (formData.logo instanceof File) {
-  //             formDataObj.append('logo', formData.logo);
-  //         }
-
-  //         // Log the form data for debugging
-  //         for (let [key, value] of formDataObj.entries()) {
-  //             console.log(`${key}:`, value);
-  //         }
-
-  //         // Make the API call with proper configuration
-  //         const response = await axiosInstance.put(`/api/admin/brand/${id}`, formDataObj, {
-  //             headers: {
-  //                 'Content-Type': 'multipart/form-data',
-  //             },
-  //         });
-
-  //         if (response.data.success) {
-  //             showSnackbar('Brand updated successfully!', 'success');
-  //             router.push('/apps/product-brand');
-  //         } else {
-  //             throw new Error(response.data.message || 'Failed to update brand');
-  //         }
-  //     } catch (error) {
-  //         console.error('Update error:', error);
-  //         showSnackbar(error?.message || 'An unexpected error occurred', 'error');
-  //     } finally {
-  //         setIsLoading(false);
-  //     }
-  // }
 
   const onSubmit = async (formData: FormType) => {
     setIsLoading(true);
@@ -139,6 +102,7 @@ const EditBrandForm = ({ brand }: { brand: FormType }) => {
         formDataObj.append("description", formData.description);
       }
 
+      // Only append logo if it's a File instance
       if (formData.logo instanceof File) {
         formDataObj.append("logo", formData.logo);
       }
@@ -154,12 +118,26 @@ const EditBrandForm = ({ brand }: { brand: FormType }) => {
       showSnackbar("Brand updated successfully!", "success");
       router.push("/apps/product-brand");
     } catch (error) {
-      console.error("Update error:", error);
-      showSnackbar(error || "An unexpected error occurred", "error");
+      if (error?.errors) {
+        showSnackbar(error?.errors[0]?.msg, "error");
+      } else {
+        const errorMessage = error?.message || "An unexpected error occurred";
+        showSnackbar(errorMessage, "error");
+      }
+
+      const errorData = error || error;
+      if (errorData?.error && typeof errorData.error === "object") {
+        Object.entries(errorData.error).forEach(([field, message]) => {
+          if (typeof message === "string") {
+            showSnackbar(message, "error");
+          }
+        });
+      }
     } finally {
       setIsLoading(false);
     }
-  };
+  }
+
 
   return (
     <div className="md:px-64 p-4">
@@ -211,6 +189,7 @@ const EditBrandForm = ({ brand }: { brand: FormType }) => {
             label="Brand Logo"
             setValue={setValue}
             existingImage={brand?.logo_url}
+            onDelete={() => setValue("logo", undefined)}
           />
 
           <AppButton

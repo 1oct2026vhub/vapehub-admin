@@ -29,22 +29,28 @@ const ACCEPTED_FILE_TYPES = [
 ];
 
 const schema = z.object({
-  name: z.string().min(1, "Category Name is required")
-  .max(50, "Category Name must not exceed 50 characters"),
-  slug: z.string().min(1, "Slug is required"),
+  name: z.string()
+    .min(1, "Category Name is required")
+    .max(50, "Category Name must not exceed 50 characters"),
+  
+  slug: z.string()
+    .min(1, "Slug is required")
+    .max(50, "Slug must be at most 50 characters")
+    .regex(/^[a-z0-9-]+$/, "Slug must be a valid URL-friendly string (lowercase letters, numbers, and hyphens only)"),
+
   description: z.string().optional(),
+
   logo: z
-    .instanceof(File)
+    .instanceof(File, { message: "Logo is required" })
     .refine((file) => file instanceof File, "Logo is required")
     .refine(
       (file) => file.size <= MAX_FILE_SIZE,
-      "File size must be less than 5MB",
+      "File size must be less than 5MB"
     )
     .refine(
       (file) => ACCEPTED_FILE_TYPES.includes(file.type),
-      "Only .jpg, .jpeg, .png and .webp formats are supported",
-    )
-    .optional(),
+      "Only .jpg, .jpeg, .png, and .webp formats are supported"
+    ),
     parent_id: z.string().optional().nullable(),
 });
 
@@ -110,7 +116,21 @@ function CreateCategoryForm() {
       showSnackbar("Category created successfully!", "success");
       router.push("/apps/product-category");
     } catch (error) {
-      showSnackbar(error?.message || "An unexpected error occurred", "error");
+      if (error?.errors) {
+        showSnackbar(error?.errors[0]?.msg, "error");
+      } else {
+        const errorMessage = error?.message || "An unexpected error occurred";
+        showSnackbar(errorMessage, "error");
+      }
+
+      const errorData = error || error;
+      if (errorData?.error && typeof errorData.error === "object") {
+        Object.entries(errorData.error).forEach(([field, message]) => {
+          if (typeof message === "string") {
+            showSnackbar(message, "error");
+          }
+        });
+      }
     } finally {
       setIsLoading(false);
     }
@@ -156,14 +176,14 @@ function CreateCategoryForm() {
         <FormFileUpload
           name="logo"
           control={control}
-          label="Logo (optional)"
+          label="Logo"
           setValue={setValue}
         />
         <div className="mt-6">
         <FormInputField
           name="parent_id"
           control={control}
-          label="Parent ID (optional)"
+          label="Parent ID"
           type="text"
         />
         </div>

@@ -25,7 +25,10 @@ import FormCKEditor from '@/components/Shared/FormCKEditor';
 const schema = z.object({
   name: z.string().min(1, "Name is required")
     .max(50, "Name must not exceed 50 characters"),
-  slug: z.string().min(1, "Slug is required"),
+    slug: z.string()
+    .min(1, "Slug is required")
+    .max(50, "Slug must be at most 50 characters")
+    .regex(/^[a-z0-9-]+$/, "Slug must be a valid URL-friendly string (lowercase letters, numbers, and hyphens only)"),
   description: z.string().optional().default(""),
   category_id: z.number().min(1, "Category is required"),
   brand_id: z.number().min(1, "Brand is required"),
@@ -200,34 +203,53 @@ function BasicInfoTab() {
       console.log("Product saved successfully with ID:", response.data.id);
 
     } catch (error: any) {
-      console.error("Detailed error in BasicInfoTab:", {
-        error,
-        message: error.message,
-        response: error.response,
-        request: error.request,
-        config: error.config,
-        stack: error.stack,
-      });
 
-      updateFormData({ hasErrors: true });
-
-      // Show more specific error messages
-      if (error.message === "Authentication required. Please login again.") {
-        showSnackbar(error.message, "error");
-        window.location.href = "/sign-in";
-      } else if (error.message) {
-        showSnackbar(error.message, "error");
-      } else if (error.response?.data?.message) {
-        showSnackbar(error.response.data.message, "error");
+      if (error?.errors) {
+        showSnackbar(error?.errors[0]?.msg, "error");
       } else {
-        showSnackbar(
-          "Failed to save product details. Please try again.",
-          "error",
-        );
+        const errorMessage = error?.message || "An unexpected error occurred";
+        showSnackbar(errorMessage, "error");
+      }
+
+      const errorData = error || error;
+      if (errorData?.error && typeof errorData.error === "object") {
+        Object.entries(errorData.error).forEach(([field, message]) => {
+          if (typeof message === "string") {
+            showSnackbar(message, "error");
+          }
+        });
       }
     } finally {
       setIsLoading(false);
     }
+    //   console.error("Detailed error in BasicInfoTab:", {
+    //     error,
+    //     message: error.message,
+    //     response: error.response,
+    //     request: error.request,
+    //     config: error.config,
+    //     stack: error.stack,
+    //   });
+
+    //   updateFormData({ hasErrors: true });
+
+    //   // Show more specific error messages
+    //   if (error.message === "Authentication required. Please login again.") {
+    //     showSnackbar(error.message, "error");
+    //     window.location.href = "/sign-in";
+    //   } else if (error.message) {
+    //     showSnackbar(error.message, "error");
+    //   } else if (error.response?.data?.message) {
+    //     showSnackbar(error.response.data.message, "error");
+    //   } else {
+    //     showSnackbar(
+    //       "Failed to save product details. Please try again.",
+    //       "error",
+    //     );
+    //   }
+    // } finally {
+    //   setIsLoading(false);
+    // }
   };
 
   return (

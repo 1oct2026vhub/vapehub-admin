@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Controller } from "react-hook-form";
+import { Controller, Control, UseFormSetValue } from "react-hook-form";
 import { Button, Typography, Box, IconButton } from "@mui/material";
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -16,10 +16,11 @@ const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 
 interface FormFileUploadProps {
   name: string;
-  control: any;
+  control: Control<any>;
   label: string;
-  setValue: any;
+  setValue: UseFormSetValue<any>;
   existingImage?: string;
+  onDelete?: () => void;
 }
 
 function FormFileUpload({
@@ -28,6 +29,7 @@ function FormFileUpload({
   label,
   setValue,
   existingImage,
+  onDelete
 }: FormFileUploadProps) {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -82,16 +84,21 @@ function FormFileUpload({
     setValue(name, null, { shouldValidate: true });
   };
 
-    return (
-        <Controller
-            name={name}
-            control={control}
+  const handleDelete = () => {
+    setValue(name, undefined);
+    onDelete?.();
+  };
+
+  return (
+    <Controller
+      name={name}
+      control={control}
       render={({
         field: { onChange, value },
         fieldState: { error: fieldError },
       }) => (
         <Box className="flex flex-col space-y-4">
-                    <Typography>{label}</Typography>
+          <Typography>{label}</Typography>
 
           {/* Preview Area */}
           {previewUrl && (
@@ -101,9 +108,9 @@ function FormFileUpload({
                 alt="Preview"
                 className="w-full h-full object-contain"
               />
-              <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-40 transition-all flex items-center justify-center opacity-0 group-hover:opacity-100">
+              <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                 <IconButton
-                  className="bg-white hover:bg-gray-100"
+                  className="bg-white hover:bg-gray-100 shadow-md"
                   size="small"
                   onClick={() => handleRemove(onChange)}
                 >
@@ -116,14 +123,14 @@ function FormFileUpload({
           {/* Upload Button */}
           {!previewUrl && (
             <>
-                    <input
-                        type="file"
+              <input
+                type="file"
                 accept={ACCEPTED_FILE_TYPES.join(",")}
                 onChange={(e) => handleFileChange(e, onChange)}
-                        hidden
-                        id={name}
-                    />
-                    <label htmlFor={name}>
+                hidden
+                id={name}
+              />
+              <label htmlFor={name}>
                 <Box
                   className="border-2 border-dashed border-gray-300 rounded-lg p-6 cursor-pointer hover:border-[#2E9970] transition-colors"
                   sx={{
@@ -147,7 +154,7 @@ function FormFileUpload({
                     </Typography>
                   </div>
                 </Box>
-                    </label>
+              </label>
             </>
           )}
 
@@ -158,9 +165,9 @@ function FormFileUpload({
             </Typography>
           )}
         </Box>
-            )}
-        />
-    );
+      )}
+    />
+  );
 }
 
 export default FormFileUpload;
