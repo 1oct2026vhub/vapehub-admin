@@ -292,17 +292,16 @@ const ProductListTable = () => {
             </Select>
 
             <Select
-              value={deleted === null ? "all" : deleted ? "deleted" : "active"}
+              value={deleted === null ? "active" : deleted ? "deleted" : "active"}
               onChange={(e) =>
                 setDeleted(
-                  e.target.value === "all"
+                  e.target.value === "active"
                     ? null
                     : e.target.value === "deleted",
                 )
               }
               size="small"
             >
-              <MenuItem value="all">All Status</MenuItem>
               <MenuItem value="active">Active</MenuItem>
               <MenuItem value="deleted">Deleted</MenuItem>
             </Select>

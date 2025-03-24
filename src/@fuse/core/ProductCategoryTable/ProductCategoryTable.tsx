@@ -200,16 +200,17 @@ const ProductCategoryTable = () => {
         />
 
         <div className="flex gap-2">
-          <Select
-            value={deleted === null ? "all" : deleted ? "deleted" : "active"}
-            onChange={(e) =>
-              setDeleted(
-                e.target.value === "all" ? null : e.target.value === "deleted",
-              )
-            }
-            size="small"
-          >
-            <MenuItem value="all">All Categories</MenuItem>
+        <Select
+              value={deleted === null ? "active" : deleted ? "deleted" : "active"}
+              onChange={(e) =>
+                setDeleted(
+                  e.target.value === "active"
+                    ? null
+                    : e.target.value === "deleted",
+                )
+              }
+              size="small"
+            >
             <MenuItem value="active">Active</MenuItem>
             <MenuItem value="deleted">Deleted</MenuItem>
           </Select>

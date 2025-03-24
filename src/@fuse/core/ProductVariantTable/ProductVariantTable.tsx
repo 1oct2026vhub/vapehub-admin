@@ -75,7 +75,7 @@ const ProductVariantTable = () => {
   const [sortBy, setSortBy] = useState<string>("id");
   const [deleted, setDeleted] = useState<boolean | null>(null);
   const [isNew, setIsNew] = useState<boolean | null>(null);  const [priceRange, setPriceRange] = useState<string>("");
-  const [stockStatus, setStockStatus] = useState("");
+  const [stockStatus, setStockStatus] = useState<string>("in_stock");;
   const [productId, setProductId] = useState<string>("");
   const [openDrawer, setOpenDrawer] = useState(false);
   const [page, setPage] = useState(0);
@@ -248,7 +248,6 @@ const ProductVariantTable = () => {
             </Select>
 
             <Select value={stockStatus} onChange={(e) => setStockStatus(e.target.value)} size="small">
-              <MenuItem value="">All Status</MenuItem>
               <MenuItem value="in_stock">In Stock</MenuItem>
               <MenuItem value="low_stock">Low Stock</MenuItem>
               <MenuItem value="out_of_stock">Out of Stock</MenuItem>
