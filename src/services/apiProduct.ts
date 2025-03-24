@@ -307,3 +307,10 @@ export const deleteProductImage = async (productId: number, imageId: number) => 
   );
   return response.data;
 };
+
+export const deleteProductAttributeTerm = async (productId: number, attributeTermId: number) => {
+  const response = await axiosInstance.delete(
+    `/api/admin/product-variants/product/${productId}/attributes/${attributeTermId}`,
+  );
+  return response.data;
+};

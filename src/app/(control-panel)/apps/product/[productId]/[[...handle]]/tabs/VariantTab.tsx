@@ -61,6 +61,25 @@ interface FormData {
   }>;
 }
 
+interface VariationAttribute {
+  attribute_id: number;
+  used_in_variation: boolean;
+  allTerms: Array<{
+    value: number;
+    label: string;
+  }>;
+}
+
+interface ProductAttributeTerm {
+  attribute_id: number;
+  term_id: number;
+  used_in_variation: boolean;
+  term: {
+    id: number;
+    name: string;
+  };
+}
+
 const schema = z.object({
   variants: z.array(
     z.object({
@@ -436,7 +455,8 @@ function VariantTab() {
     return getAvailableTermsForAttribute(attributeId, variantIndex).length > 0;
   };
 
-  const handleDeleteVariant = async (variantId: number, index: number) => {
+  const handleDeleteVariant = async (variantId: number | undefined, index: number) => {
+    console.log('handleDeleteVariant called with:', { variantId, index });
     try {
       setIsLoading(true);
 
@@ -445,17 +465,24 @@ function VariantTab() {
         return;
       }
 
+      // Only call the API if we have a valid variantId (for existing variants)
       if (variantId) {
+        console.log("Calling delete API for variant ID:", variantId);
         await deleteProductVariant(variantId);
+        console.log("API delete successful for variant ID:", variantId);
+        showSnackbar("Variant deleted successfully", "success");
       }
 
+      // Remove the variant from the form fields
       remove(index);
+      console.log("Removed variant from form fields at index:", index);
 
+      // Update the form data context
       const updatedVariants = [...(formData.variants || [])];
       updatedVariants.splice(index, 1);
       updateFormData({ variants: updatedVariants });
+      console.log("Updated form data context with remaining variants:", updatedVariants);
 
-      showSnackbar("Variant deleted successfully", "success");
     } catch (error) {
       console.error("Error deleting variant:", error);
       showSnackbar("Failed to delete variant", "error");
@@ -798,13 +825,66 @@ function VariantTab() {
     console.log("Form validation state:", validationState);
   }, [watch, errors, isValid, isLoading]);
 
+  // Update the helper function with proper types
+  const hasEnoughTermsForNewVariant = (
+    variationAttributes: VariationAttribute[],
+    usedTerms: Record<number, Set<number>>,
+    formData: {
+      attributesResponse?: {
+        productAttributeTerms?: ProductAttributeTerm[];
+      };
+    }
+  ): boolean => {
+    // If no variation attributes, can't create variants
+    if (!variationAttributes || variationAttributes.length === 0) {
+      console.log("No variation attributes available");
+      return false;
+    }
+
+    // Check each variation attribute that is used for variations
+    const canCreateNewVariant = variationAttributes.some(attr => {
+      if (!attr.used_in_variation) {
+        console.log(`Attribute ${attr.attribute_id} is not used for variations`);
+        return false;
+      }
+
+      // Get all available terms for this attribute
+      const allTerms = (formData.attributesResponse?.productAttributeTerms || [])
+        .filter(term => 
+          term.attribute_id === attr.attribute_id && 
+          term.used_in_variation
+        );
+
+      console.log(`Attribute ${attr.attribute_id} has ${allTerms.length} terms`);
+
+      // If there's only one or no terms, can't create more variants
+      if (allTerms.length <= 1) {
+        console.log(`Attribute ${attr.attribute_id} has insufficient terms (${allTerms.length})`);
+        return false;
+      }
+
+      // Get used terms for this attribute
+      const usedTermsForAttr = usedTerms[attr.attribute_id] || new Set();
+      console.log(`Attribute ${attr.attribute_id} has ${usedTermsForAttr.size} used terms`);
+
+      // Check if there are unused terms available
+      const hasUnusedTerms = allTerms.some(term => !usedTermsForAttr.has(term.term_id));
+      console.log(`Attribute ${attr.attribute_id} ${hasUnusedTerms ? 'has' : 'does not have'} unused terms`);
+
+      return hasUnusedTerms;
+    });
+
+    console.log(`Can create new variant: ${canCreateNewVariant}`);
+    return canCreateNewVariant;
+  };
+
   return (
     <form
       onSubmit={handleSubmit(handleFormSubmit)}
       className="flex w-full flex-col justify-center space-y-4"
     >
       {fields.map((field, index) => (
-        <Paper key={field.id || index} className="p-4 relative">
+        <Paper key={field.id} className="p-4 relative">
           <Grid container spacing={2}>
             {variationAttributes.map((attr, attrIndex) => {
               // Skip rendering if this attribute has no available terms for this variant
@@ -1001,13 +1081,17 @@ function VariantTab() {
           {/* Delete Variant Button - Only show for non-default variants */}
           {fields.length > 1 && (
             <IconButton
-              onClick={() =>
-                handleDeleteVariant(field.id ? Number(field.id) : 0, index)
-              }
+              onClick={(e) => {
+                e.preventDefault(); // Prevent form submission
+                const variantId = formData.variants?.[index]?.id;
+                console.log('Deleting variant:', { variantId, index });
+                handleDeleteVariant(variantId, index);
+              }}
               disabled={isLoading}
               className="absolute top-2 right-2"
               color="error"
               size="small"
+              type="button" // Explicitly set type to button
             >
               <DeleteIcon />
             </IconButton>
@@ -1022,7 +1106,10 @@ function VariantTab() {
           onClick={handleAddVariant}
           variant="outlined"
           type="button"
-          disabled={isLoading || !hasUnusedTerms}
+          disabled={
+            isLoading || 
+            !hasEnoughTermsForNewVariant(variationAttributes, usedTerms, formData)
+          }
         />
       </div>
 
