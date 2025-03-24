@@ -66,120 +66,71 @@ const schema = z.object({
     z.object({
       id: z.number().optional(),
       slug: z.string().min(1, "Slug is required"),
-      // price: z.number().min(0, "Price must be greater than or equal to 0"),
-      // stock: z.number().min(0, "Stock must be greater than or equal to 0"),
-      // status: z.enum(["active", "inactive"]).default("active"),
-      // discount_price: z.number().nullable(),
-      // purchase_price: z.number().nullable(),
-      // low_stock_threshold: z.number().nullable(),
-      // weight: z.number().nullable(),
-      // length: z.number().nullable(),
-      // width: z.number().nullable(),
-      // height: z.number().nullable(),
-      // barcode: z.string().nullable(),
-      // description: z.string().nullable(),
       price: z.preprocess(
         (val) => (val === "" ? null : Number(val)),
-        z
-          .number({
-            required_error: "Price is required",
-            invalid_type_error: "Price must be a number",
-          })
-          .min(1, "Price must be greater than 0")
-          .max(1000000, "Price exceeds the limit")
-          .refine((val) => /^\d+(\.\d{1,2})?$/.test(val.toString()), {
-            message: "Only two decimal places allowed",
-          })
+        z.number({
+          required_error: "Price is required",
+          invalid_type_error: "Price must be a number",
+        })
+        .min(0, "Price must be greater than or equal to 0")
+        .max(1000000, "Price exceeds the limit")
+        .refine((val) => /^\d+(\.\d{1,2})?$/.test(val.toString()), {
+          message: "Only two decimal places allowed",
+        })
       ),
       stock: z.preprocess(
         (val) => (val === "" ? null : Number(val)),
-        z
-          .number({
-            required_error: "Stock is required",
-            invalid_type_error: "Stock must be a number",
-          })
-          .min(0, "Stock must be >= 0")
+        z.number({
+          required_error: "Stock is required",
+          invalid_type_error: "Stock must be a number",
+        })
+        .min(0, "Stock must be >= 0")
       ),
-      status: z.boolean(),
+      status: z.enum(["active", "inactive"]).default("active"),
       discount_price: z.preprocess(
         (val) => (val === "" ? null : Number(val)),
-        z.number({
-          required_error: "Discount price is required",
-          invalid_type_error: "Discount price must be a number",
-        })
-        .min(1, "Discount price must be greater than 0")
-        .max(1000000, "Discount price exceeds the limit")
-        .refine((val) => /^\d+(\.\d{1,2})?$/.test(val.toString()), {
-          message: "Only two decimal places allowed",
-        })
+        z.number()
+          .nullable()
+          .refine((val) => val === null || val <= 1000000, {
+            message: "Discount price exceeds the limit",
+          })
+          .refine((val) => val === null || /^\d+(\.\d{1,2})?$/.test(val.toString()), {
+            message: "Only two decimal places allowed",
+          })
       ),
       purchase_price: z.preprocess(
         (val) => (val === "" ? null : Number(val)),
-        z.number({
-          required_error: "Purchase price is required",
-          invalid_type_error: "Purchase price must be a number",
-        })
-        .min(1, "Purchase price must be greater than 0")
-        .max(1000000, "Purchase price exceeds the limit")
-        .refine((val) => /^\d+(\.\d{1,2})?$/.test(val.toString()), {
-          message: "Only two decimal places allowed",
-        })
+        z.number()
+          .nullable()
+          .refine((val) => val === null || val <= 1000000, {
+            message: "Purchase price exceeds the limit",
+          })
+          .refine((val) => val === null || /^\d+(\.\d{1,2})?$/.test(val.toString()), {
+            message: "Only two decimal places allowed",
+          })
       ),
       low_stock_threshold: z.preprocess(
         (val) => (val === "" ? null : Number(val)),
-        z.number({
-          required_error: "Low stock threshold is required",
-          invalid_type_error: "Low stock threshold must be a number",
-        })
+        z.number().nullable()
       ),
       weight: z.preprocess(
         (val) => (val === "" ? null : Number(val)),
-        z.number({
-          required_error: "Weight is required",
-          invalid_type_error: "Weight must be a number",
-        })
-        .min(1, "Weight must be greater than 0")
-        .max(1000000, "Weight exceeds the limit")
-        .refine((val) => /^\d+(\.\d{1,2})?$/.test(val.toString()), {
-          message: "Only two decimal places allowed",
-        })
+        z.number().nullable()
       ),
       length: z.preprocess(
         (val) => (val === "" ? null : Number(val)),
-        z.number({
-          required_error: "Length is required",
-          invalid_type_error: "Length price must be a number",
-        })
-        .min(1, "Length must be greater than 0")
-        .max(1000000, "Length exceeds the limit")
-        .refine((val) => /^\d+(\.\d{1,2})?$/.test(val.toString()), {
-          message: "Only two decimal places allowed",
-        })
+        z.number().nullable()
       ),
       width: z.preprocess(
         (val) => (val === "" ? null : Number(val)),
-        z.number({
-          required_error: "Width is required",
-          invalid_type_error: "Width must be a number",
-        })
-        .min(1, "Width must be greater than 0")
-        .max(1000000, "Width exceeds the limit")
-        .refine((val) => /^\d+(\.\d{1,2})?$/.test(val.toString()), {
-          message: "Only two decimal places allowed",
-        })
+        z.number().nullable()
       ),
       height: z.preprocess(
         (val) => (val === "" ? null : Number(val)),
-        z.number({
-          required_error: "Height is required",
-          invalid_type_error: "Height must be a number",
-        })
-        .min(1, "Height must be greater than 0")
-        .max(1000000, "Height exceeds the limit")
-        .refine((val) => /^\d+(\.\d{1,2})?$/.test(val.toString()), {
-          message: "Only two decimal places allowed",
-        })
+        z.number().nullable()
       ),
+      barcode: z.string().nullable(),
+      description: z.string().nullable(),
       attributes: z.array(
         z.object({
           attribute_id: z.number().min(1, "Attribute is required"),
@@ -275,10 +226,11 @@ function VariantTab() {
     control,
     register,
     handleSubmit,
-    formState: { errors, isValid, dirtyFields },
+    formState: { errors, isValid },
     watch,
     setValue,
     reset,
+    trigger,
   } = useForm<FormData>({
     defaultValues: {
       variants: formData.variants && formData.variants.length > 0 
@@ -589,32 +541,44 @@ function VariantTab() {
     return term?.term?.name || `Term ${termId}`;
   };
 
-  // Update the areRequiredFieldsFilled function with more precise checks
+  // Update the areRequiredFieldsFilled function
   const areRequiredFieldsFilled = (variant: FormData['variants'][0]) => {
-    const isValid = Boolean(
-      variant.slug?.trim() && // Check slug is not empty
-      typeof variant.price === 'number' && variant.price >= 0 && // Check price is valid
-      typeof variant.stock === 'number' && variant.stock >= 0 && // Check stock is valid
-      variant.attributes?.every(attr => 
-        typeof attr.attribute_id === 'number' && attr.attribute_id > 0 && // Check attribute_id
-        typeof attr.term_id === 'number' && attr.term_id > 0 // Check term_id
+    if (!variant) return false;
+
+    const requiredFields = {
+      slug: Boolean(variant.slug?.trim()),
+      price: typeof variant.price === 'number' && variant.price >= 0,
+      stock: typeof variant.stock === 'number' && variant.stock >= 0,
+      attributes: variant.attributes?.every(attr => 
+        typeof attr.attribute_id === 'number' && 
+        attr.attribute_id > 0 && 
+        typeof attr.term_id === 'number' && 
+        attr.term_id > 0
       )
-    );
-    
-    console.log("Variant validation:", {
-      variant,
-      isValid,
-      hasSlug: Boolean(variant.slug?.trim()),
-      validPrice: typeof variant.price === 'number' && variant.price >= 0,
-      validStock: typeof variant.stock === 'number' && variant.stock >= 0,
-      validAttributes: variant.attributes?.every(attr => 
-        typeof attr.attribute_id === 'number' && attr.attribute_id > 0 &&
-        typeof attr.term_id === 'number' && attr.term_id > 0
-      )
-    });
-    
-    return isValid;
+    };
+
+    return Object.values(requiredFields).every(Boolean);
   };
+
+  // Update the areAllVariantsValid function
+  const areAllVariantsValid = useCallback(() => {
+    const currentVariants = watch("variants");
+    if (!currentVariants || currentVariants.length === 0) return false;
+
+    const isValid = currentVariants.every((variant, index) => {
+      const variantValid = areRequiredFieldsFilled(variant);
+      console.log(`Variant ${index} validation:`, { variant, isValid: variantValid });
+      return variantValid;
+    });
+
+    console.log('Form validation:', {
+      isValid,
+      hasErrors: Object.keys(errors).length > 0,
+      variants: currentVariants
+    });
+
+    return isValid && Object.keys(errors).length === 0;
+  }, [watch, errors]);
 
   // Update the transformVariantData function to ensure correct status type
   const transformVariantData = (variant: FormData['variants'][0]): ProductVariant => {
@@ -653,15 +617,22 @@ function VariantTab() {
     };
   };
 
-  // Update the onSubmit function to use the transformVariantData function
+  // Update the onSubmit function
   const onSubmit = async (data: FormData) => {
+    console.log('Form submission data:', data);
+
     if (!productId) {
       showSnackbar("Please complete the previous steps first", "error");
       return;
     }
 
-    setIsLoading(true);
+    if (!areAllVariantsValid()) {
+      showSnackbar("Please fill all required fields", "error");
+      return;
+    }
+
     try {
+      setIsLoading(true);
       // Transform the data to match the API requirements
       const transformedData: CreateProductVariantsRequest = {
         variants: data.variants.map(transformVariantData),
@@ -669,7 +640,6 @@ function VariantTab() {
 
       console.log("Submitting variant data:", transformedData);
 
-      let response;
       if (isEditMode) {
         // Update existing variants
         const updatePromises = transformedData.variants.map((variant, index) => {
@@ -679,41 +649,58 @@ function VariantTab() {
           }
           return updateProductVariant(Number(productId), variantId, variant);
         });
-        response = await Promise.all(updatePromises);
+        await Promise.all(updatePromises);
         showSnackbar("Product variants updated successfully", "success");
       } else {
         // Create new variants
-        response = await createProductVariants(Number(productId), transformedData);
+        const response = await createProductVariants(Number(productId), transformedData);
+        console.log("API response:", response);
         showSnackbar("Product variants saved successfully", "success");
-      }
 
-      console.log("API response:", response);
+        // Update form data with new variants
+        updateFormData({
+          variants: data.variants,
+          hasErrors: false,
+        });
 
-      // Store both the form data and API response data
-      updateFormData({
-        variants: data.variants.map((variant, index) => ({
-          ...variant,
-          id: isEditMode ? formData.variants?.[index]?.id : response[index]?.id,
-        })),
-        hasErrors: false,
-      });
-
-      markStepAsCompleted(3);
-      
-      // Reset fetch status to allow re-fetching if needed
-      fetchedRef.current = false;
-      
-      // Only move to next step if we're not in edit mode
-      if (!isEditMode) {
+        markStepAsCompleted(3);
         nextStep();
       }
     } catch (error) {
-      console.error("Error saving product variants:", error);
-      updateFormData({ hasErrors: true });
-      showSnackbar("Failed to save product variants", "error");
+      if (error?.errors) {
+        showSnackbar(error?.errors[0]?.msg, "error");
+      } else {
+        const errorMessage = error?.message || "An unexpected error occurred";
+        showSnackbar(errorMessage, "error");
+      }
+
+      const errorData = error || error;
+      if (errorData?.error && typeof errorData.error === "object") {
+        Object.entries(errorData.error).forEach(([field, message]) => {
+          if (typeof message === "string") {
+            showSnackbar(message, "error");
+          }
+        });
+      }
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // Update the handleFormSubmit function
+  const handleFormSubmit = async (data: FormData) => {
+    console.log("Form submission triggered", data);
+    
+    // Validate all fields
+    const isFormValid = await trigger();
+    console.log("Form validation result:", isFormValid);
+
+    if (!isFormValid) {
+      showSnackbar("Please fill all required fields correctly", "error");
+      return;
+    }
+
+    await onSubmit(data);
   };
 
   // Update the effect that handles variant data formatting
@@ -798,7 +785,6 @@ function VariantTab() {
       variants: currentVariants,
       errors,
       isValid,
-      dirtyFields,
       hasErrors: Object.keys(errors).length > 0,
       areAllVariantsFilled: currentVariants?.every(areRequiredFieldsFilled),
       buttonShouldBeEnabled: Boolean(
@@ -810,11 +796,11 @@ function VariantTab() {
       )
     };
     console.log("Form validation state:", validationState);
-  }, [watch, errors, isValid, dirtyFields, isLoading]);
+  }, [watch, errors, isValid, isLoading]);
 
   return (
     <form
-      onSubmit={handleSubmit(onSubmit)}
+      onSubmit={handleSubmit(handleFormSubmit)}
       className="flex w-full flex-col justify-center space-y-4"
     >
       {fields.map((field, index) => (
@@ -1051,13 +1037,7 @@ function VariantTab() {
           label={isEditMode ? "Update" : "Next"}
           type="submit"
           loading={isLoading}
-          disabled={
-            isLoading || 
-            !variants.length || // Check if there are variants
-            !variants.every(areRequiredFieldsFilled) || // Check if all variants are filled
-            Object.keys(errors).length > 0 || // Check for any validation errors
-            !isValid // Check overall form validity
-          }
+          disabled={!isValid}
         />
       </div>
     </form>
