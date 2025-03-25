@@ -100,17 +100,18 @@ import { categoryDetails } from "@/services/apiProductCategory";
 import { useFetch } from "@/hooks/useFetch";
 import FuseLoading from "@fuse/core/FuseLoading";
 import { useEffect, useState } from "react";
+import PageBreadcrumb from "@/components/PageBreadcrumb";
 
 export type CategoryType = {
   id: number;
   name: string;
-  description: string | null;
+  // description: string | null;
   logo_url: string | null;
   slug: string;
-  parent_id: number | null;
+  // parent_id: number | null;
   createdAt: string;
-  updatedAt: string;
-  updated_by: number;
+  // updatedAt: string;
+  // updated_by: number;
 };
 
 export default function CategoryDetailTable() {
@@ -144,12 +145,12 @@ export default function CategoryDetailTable() {
 
   const columns: MRT_ColumnDef<CategoryType>[] = [
     { accessorKey: "name", header: "Category Name" },
-    { accessorKey: "description", header: "Description" },
+    // { accessorKey: "description", header: "Description" },
     { accessorKey: "slug", header: "Slug" },
-    { accessorKey: "parent_id", header: "Parent ID" },
-    { accessorKey: "updated_by", header: "Updated By" },
-    { accessorKey: "updatedAt", header: "Last Updated" },
+    // { accessorKey: "parent_id", header: "Parent ID" },
     { accessorKey: "createdAt", header: "Created At" },
+    // { accessorKey: "updated_by", header: "Updated By" },
+    // { accessorKey: "updatedAt", header: "Last Updated" },
     {
       accessorKey: "logo_url",
       header: "Logo",
@@ -169,13 +170,13 @@ export default function CategoryDetailTable() {
   const categoryDetailData: CategoryType = {
     id: categoryDetail.id,
     name: categoryDetail.name,
-    description: categoryDetail.description || "N/A",
+    // description: categoryDetail.description || "N/A",
     slug: categoryDetail.slug,
-    parent_id: categoryDetail.parent_id || null,
-    updated_by: categoryDetail.updated_by,
-    updatedAt: new Date(categoryDetail.updatedAt)
-      .toLocaleDateString("en-GB")
-      .replace(/\//g, "-"),
+    // parent_id: categoryDetail.parent_id || null,
+    // updated_by: categoryDetail.updated_by,
+    // updatedAt: new Date(categoryDetail.updatedAt)
+    //   .toLocaleDateString("en-GB")
+    //   .replace(/\//g, "-"),
     createdAt: new Date(categoryDetail.createdAt)
       .toLocaleDateString("en-GB")
       .replace(/\//g, "-"),
@@ -184,9 +185,12 @@ export default function CategoryDetailTable() {
 
   return (
     <div className="mt-10">
-      <Typography className="text-4xl font-extrabold leading-none tracking-tight mb-4">
-        Category Details
-      </Typography>
+      <div>
+        <PageBreadcrumb className="mt-8" />
+        <Typography className="text-4xl font-extrabold leading-none tracking-tight mb-4 mt-8">
+          Category Details
+        </Typography>
+      </div>
       <Paper
         className="flex flex-col flex-auto shadow-1 rounded-lg overflow-hidden w-full h-full p-4"
         elevation={1}

@@ -13,24 +13,43 @@ import { usePost, useFetch } from "@/hooks/useFetch";
 import { updateCategory, categoryDetails } from "@/services/apiProductCategory";
 import { useSnackbar } from "@/contexts/SnackbarContext";
 import axiosInstance from "@/utils/axiosApi";
+import PageBreadcrumb from "@/components/PageBreadcrumb";
+
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+const ACCEPTED_FILE_TYPES = [
+  "image/png",
+  "image/jpeg",
+  "image/jpg",
+  "image/webp",
+];
 
 const schema = z.object({
   name: z.string().min(1, "Category Name is required").max(50, "Name must be less than 50 characters"),
   slug: z.string()
-  .min(1, "Slug is required")
-  .max(50, "Slug must be at most 50 characters")
-  .regex(/^[a-z0-9-]+$/, "Slug must be a valid URL-friendly string (lowercase letters, numbers, and hyphens only)"),  description: z.string().optional(),
+    .min(1, "Slug is required")
+    .max(50, "Slug must be at most 50 characters")
+    .regex(/^[a-z0-9-]+$/, "Slug must be a valid URL-friendly string (lowercase letters, numbers, and hyphens only)"),
+  description: z.string().optional(),
   logo: z.union([
-    z.instanceof(File),
-    z.string(),
+    z.undefined(),
     z.null(),
-    z.undefined()
-  ]).optional(),
+    z.string(),  // For existing logo URLs
+    z.instanceof(File)
+      .refine(
+        (file) => file.size <= MAX_FILE_SIZE,
+        "File size must be less than 5MB"
+      )
+      .refine(
+        (file) => ACCEPTED_FILE_TYPES.includes(file.type),
+        "Only .jpg, .jpeg, .png, and .webp formats are supported"
+      )
+  ]).optional().nullable(),
   parent_id: z.union([
     z.number(),
+    z.string().transform((val) => (val === "" ? null : Number(val))),
     z.null(),
     z.undefined()
-  ]).optional(),
+  ]).optional().nullable(),
 });
 
 const defaultValues = {
@@ -134,6 +153,9 @@ const EditCategoryForm = ({ category }: { category: FormType }) => {
       // Only append logo if it's a File instance
       if (formData.logo instanceof File) {
         formDataObj.append("logo", formData.logo);
+      } else if (formData.logo === null) {
+        // If logo is explicitly set to null, it means we want to remove it
+        formDataObj.append("logo", "");
       }
 
       // Debugging: Log form data
@@ -144,7 +166,7 @@ const EditCategoryForm = ({ category }: { category: FormType }) => {
       // Get the category ID from the URL params
       // const params = new URLSearchParams(window.location.search);
       // const categoryId = params.get('id');
-      
+
       // if (!categoryId) {
       //   throw new Error("Category ID is required");
       // }
@@ -177,9 +199,12 @@ const EditCategoryForm = ({ category }: { category: FormType }) => {
 
   return (
     <div className="md:px-64 p-4">
-      <Typography className="text-4xl font-extrabold leading-none tracking-tight mb-8 mt-8">
-        Edit Category
-      </Typography>
+      <div>
+        <PageBreadcrumb className="mt-8" />
+        <Typography className="text-4xl font-extrabold leading-none tracking-tight mb-4 mt-8">
+          Edit Category
+        </Typography>
+      </div>
 
       {isLoading && <p>Loading category data...</p>}
 
@@ -231,7 +256,7 @@ const EditCategoryForm = ({ category }: { category: FormType }) => {
             label="Category Logo"
             setValue={setValue}
             existingImage={category?.logo_url}
-            onDelete={() => setValue("logo", undefined)}
+            onDelete={() => setValue("logo", null, { shouldValidate: true })}
           />
 
           <AppButton

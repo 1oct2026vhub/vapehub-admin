@@ -8,15 +8,17 @@ import { useFetch } from "@/hooks/useFetch";
 import FuseLoading from "@fuse/core/FuseLoading";
 import { useEffect, useState } from "react";
 import { ProductVariant } from "@/services/apiProductVariant";
+import PageBreadcrumb from "@/components/PageBreadcrumb";
+import { formatDate } from "@/utils/actions";
 
 export type VariantDetailType = {
   id: number;
   product_id: number;
-  sku: string;
+  slug: string;
   barcode: string;
   price: number;
-  stock_quantity: number;
-  stock_status: string;
+  stock: number;
+  status: string;
   created_at: string;
   updated_at: string;
 };
@@ -61,9 +63,9 @@ export default function VariantDetailTable() {
         return `$${price.toFixed(2)}`;
       },
     },
-    { accessorKey: "stock_quantity", header: "Stock Quantity" },
+    { accessorKey: "stock", header: "Stock Quantity" },
     {
-      accessorKey: "stock_status",
+      accessorKey: "status",
       header: "Stock Status",
       Cell: ({ row }) => {
         const statusMap = {
@@ -72,41 +74,42 @@ export default function VariantDetailTable() {
           low_stock: "Low Stock",
         };
         return (
-          statusMap[row.original.stock_status] || row.original.stock_status
+          statusMap[row.original.status] || row.original.status
         );
       },
     },
     {
       accessorKey: "created_at",
       header: "Created At",
-      Cell: ({ row }) =>
-        new Date(row.original.created_at).toLocaleDateString("en-GB"),
+        Cell: ({ row }) => formatDate(row.original.created_at),
     },
     {
       accessorKey: "updated_at",
       header: "Updated At",
-      Cell: ({ row }) =>
-        new Date(row.original.updated_at).toLocaleDateString("en-GB"),
+      Cell: ({ row }) => formatDate(row.original.updated_at),
     },
   ];
 
   const variantDetailData: VariantDetailType = {
     id: variantDetail.id,
     product_id: variantDetail.product_id,
-    sku: variantDetail.sku,
+    slug: variantDetail.slug,
     barcode: variantDetail.barcode,
     price: variantDetail.price,
-    stock_quantity: variantDetail.stock_quantity,
-    stock_status: variantDetail.stock_status,
+    stock: variantDetail.stock,
+    status: variantDetail.status,
     created_at: variantDetail.created_at,
     updated_at: variantDetail.updated_at,
   };
 
   return (
     <div className="mt-10">
-      <Typography className="text-4xl font-extrabold leading-none tracking-tight mb-4">
-        Variant Details
-      </Typography>
+      <div>
+        <PageBreadcrumb className="mt-8" />
+        <Typography className="text-4xl font-extrabold leading-none tracking-tight mb-4 mt-8">
+          Variant Details
+        </Typography>
+      </div>
       <Paper
         className="flex flex-col flex-auto shadow-1 rounded-lg overflow-hidden w-full h-full p-4"
         elevation={1}

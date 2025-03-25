@@ -11,6 +11,7 @@ import { createCategory } from "@/services/apiProductCategory";
 import { useSnackbar } from "@/contexts/SnackbarContext";
 import FormFileUpload from "@/components/Shared/FormFileUpload";
 import { useState } from "react";
+import PageBreadcrumb from "@/components/PageBreadcrumb";
 
 // const schema = z.object({
 //   name: z.string().min(1, "Brand Name is required"),
@@ -32,7 +33,7 @@ const schema = z.object({
   name: z.string()
     .min(1, "Category Name is required")
     .max(50, "Category Name must not exceed 50 characters"),
-  
+
   slug: z.string()
     .min(1, "Slug is required")
     .max(50, "Slug must be at most 50 characters")
@@ -40,18 +41,26 @@ const schema = z.object({
 
   description: z.string().optional(),
 
-  logo: z
-    .instanceof(File, { message: "Logo is required" })
-    .refine((file) => file instanceof File, "Logo is required")
-    .refine(
-      (file) => file.size <= MAX_FILE_SIZE,
-      "File size must be less than 5MB"
-    )
-    .refine(
-      (file) => ACCEPTED_FILE_TYPES.includes(file.type),
-      "Only .jpg, .jpeg, .png, and .webp formats are supported"
-    ),
-    parent_id: z.string().optional().nullable(),
+  logo: z.union([
+    z.undefined(),
+    z.null(),
+    z.instanceof(File)
+      .refine(
+        (file) => file.size <= MAX_FILE_SIZE,
+        "File size must be less than 5MB"
+      )
+      .refine(
+        (file) => ACCEPTED_FILE_TYPES.includes(file.type),
+        "Only .jpg, .jpeg, .png, and .webp formats are supported"
+      )
+  ]).optional().nullable(),
+  
+  parent_id: z.union([
+    z.number(),
+    z.string().transform((val) => (val === "" ? null : Number(val))),
+    z.null(),
+    z.undefined()
+  ]).optional().nullable(),
 });
 
 const defaultValues = {
@@ -59,7 +68,7 @@ const defaultValues = {
   slug: "",
   description: "",
   logo: null,
-  parent_id: null, // ✅ Ensure default is null
+  parent_id: null,
 };
 
 export type FormType = {
@@ -67,7 +76,7 @@ export type FormType = {
   slug: string;
   description?: string;
   logo?: File;
-  parent_id?: string | null;
+  parent_id?: number | null;
 };
 
 function CreateCategoryForm() {
@@ -138,9 +147,12 @@ function CreateCategoryForm() {
 
   return (
     <div className="md:px-64 p-4">
-      <Typography className="text-4xl font-extrabold leading-none tracking-tight mb-8 mt-8">
-        New Category
-      </Typography>
+      <div>
+        <PageBreadcrumb className="mt-8" />
+        <Typography className="text-4xl font-extrabold leading-none tracking-tight mb-4 mt-8">
+          New Category
+        </Typography>
+      </div>
       <form
         name="categoryForm"
         noValidate
@@ -178,14 +190,15 @@ function CreateCategoryForm() {
           control={control}
           label="Logo"
           setValue={setValue}
+          onDelete={() => setValue("logo", null, { shouldValidate: true })}
         />
         <div className="mt-6">
-        <FormInputField
-          name="parent_id"
-          control={control}
-          label="Parent ID"
-          type="text"
-        />
+          <FormInputField
+            name="parent_id"
+            control={control}
+            label="Parent ID"
+            type="number"
+          />
         </div>
 
         <AppButton

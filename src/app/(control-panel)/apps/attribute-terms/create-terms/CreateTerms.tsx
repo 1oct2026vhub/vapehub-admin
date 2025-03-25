@@ -207,6 +207,7 @@ import { listAttributes } from "@/services/apiAttribute";
 import { createAttributeTerm } from "@/services/apiAttributeTerm";
 import { useSnackbar } from "@/contexts/SnackbarContext";
 import { useState } from "react";
+import PageBreadcrumb from "@/components/PageBreadcrumb";
 
 const schema = z.object({
   // attribute_id: z.coerce
@@ -226,7 +227,7 @@ const schema = z.object({
     .min(1, "Term Name is required")
     .max(50, "Term Name must be at most 50 characters")
     .regex(/^[a-zA-Z0-9\s]+$/, "Only alphanumeric characters and spaces allowed"),
-    slug: z.string()
+  slug: z.string()
     .min(1, "Slug is required")
     .max(50, "Slug must be at most 50 characters")
     .regex(/^[a-z0-9-]+$/, "Slug must be a valid URL-friendly string (lowercase letters, numbers, and hyphens only)"),
@@ -300,10 +301,12 @@ function CreateTerms() {
 
   return (
     <div className="md:px-64 p-4">
-      <Typography className="text-4xl font-extrabold leading-none tracking-tight mb-8 mt-8">
-        New Attribute Term
-      </Typography>
-
+      <div>
+        <PageBreadcrumb className="mt-8" />
+        <Typography className="text-4xl font-extrabold leading-none tracking-tight mb-4 mt-8">
+          New Attribute Term
+        </Typography>
+      </div>
       <form
         name="termForm"
         noValidate

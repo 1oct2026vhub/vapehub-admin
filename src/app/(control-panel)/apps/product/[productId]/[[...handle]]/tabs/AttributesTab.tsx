@@ -26,6 +26,7 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import AddIcon from "@mui/icons-material/Add";
 import { useRouter, useSearchParams } from "next/navigation";
 import FuseLoading from "@fuse/core/FuseLoading";
+import PageBreadcrumb from "src/components/PageBreadcrumb";
 
 interface AttributeTerm {
   id: number;
@@ -536,150 +537,155 @@ function AttributesTab() {
   }
 
   return (
-    <form
-      onSubmit={handleSubmit(onSubmit)}
-      className="flex w-full flex-col justify-center space-y-4"
-    >
-      {fields.map((field, index) => (
-        <Paper key={field.id} className="p-4 relative">
-          <div className="grid grid-cols-2 gap-4">
-            <FormSelectField
-              name={`attributes.${index}.attribute_id`}
-              control={control}
-              label="Attribute"
-              options={
-                // Combine existing productAttributeTerms with available attributes
-                [
-                  // First, add existing product attributes
-                  ...(formData.attributesResponse?.productAttributeTerms
-                    ? Object.values(
-                        formData.attributesResponse.productAttributeTerms.reduce((acc, attr) => {
-                          if (!acc[attr.attribute_id]) {
-                            acc[attr.attribute_id] = {
-                              value: attr.attribute_id,
-                              label: attr.attribute.name,
-                            };
-                          }
-                          return acc;
-                        }, {} as Record<number, { value: number; label: string }>)
-                      )
-                    : []),
-                  
-                  // Then add available attributes from listAttributes
-                  ...getAvailableAttributes(index).map((attr) => ({
-                    value: attr.id,
-                    label: attr.name,
-                  })),
-                ]
-              }
-              onChange={(e) => {
-                const attributeId = Number(e.target.value);
-                handleAttributeChange(index, attributeId);
-              }}
-              required
-            />
-            <FormSelectField
-              name={`attributes.${index}.term_ids`}
-              control={control}
-              label="Terms"
-              options={getUniqueTermOptions(
-                formData.attributesResponse?.productAttributeTerms || [],
-                terms?.[index]?.data?.terms || [],
-                field.attribute_id
-              )}
-              required
-              isMulti
-              onTermRemove={(termId) => handleTermRemove(index, termId)}
-            />
-            {/* <TextField
-              fullWidth
-              label="Default Value"
-              variant="outlined"
-              value={watch(`attributes.${index}.default_value`) || ''}
-              onChange={(e) => {
-                setValue(`attributes.${index}.default_value`, e.target.value, {
-                  shouldValidate: true,
-                  shouldDirty: true,
-                });
-              }}
-              placeholder="Enter default value for selected terms"
-            /> */}
-            <FormCheckboxField
-              name={`attributes.${index}.is_visible_page`}
-              control={control}
-              label="Visible on product page"
-            />
-            <FormCheckboxField
-              name={`attributes.${index}.used_in_variation`}
-              control={control}
-              label="Used for variations"
-            />
-          </div>
-          {fields.length > 1 && (
-            <IconButton
-              onClick={(e) => {
-                e.preventDefault(); // Prevent form submission
-                console.log('Deleting attribute at index:', index);
-                handleDeleteAttribute(index);
-              }}
-              className="absolute top-2 right-2"
-              size="small"
-              disabled={isLoading}
-              type="button"
-              sx={{ 
-                color: 'error.main',
-                '&:hover': {
-                  backgroundColor: 'error.light',
+    <div className="w-full">
+      <div className="mb-4">
+        <PageBreadcrumb />
+      </div>
+      <form
+        onSubmit={handleSubmit(onSubmit)}
+        className="flex w-full flex-col justify-center space-y-4"
+      >
+        {fields.map((field, index) => (
+          <Paper key={field.id} className="p-4 relative">
+            <div className="grid grid-cols-2 gap-4">
+              <FormSelectField
+                name={`attributes.${index}.attribute_id`}
+                control={control}
+                label="Attribute"
+                options={
+                  // Combine existing productAttributeTerms with available attributes
+                  [
+                    // First, add existing product attributes
+                    ...(formData.attributesResponse?.productAttributeTerms
+                      ? Object.values(
+                          formData.attributesResponse.productAttributeTerms.reduce((acc, attr) => {
+                            if (!acc[attr.attribute_id]) {
+                              acc[attr.attribute_id] = {
+                                value: attr.attribute_id,
+                                label: attr.attribute.name,
+                              };
+                            }
+                            return acc;
+                          }, {} as Record<number, { value: number; label: string }>)
+                        )
+                      : []),
+                    
+                    // Then add available attributes from listAttributes
+                    ...getAvailableAttributes(index).map((attr) => ({
+                      value: attr.id,
+                      label: attr.name,
+                    })),
+                  ]
+                }
+                onChange={(e) => {
+                  const attributeId = Number(e.target.value);
+                  handleAttributeChange(index, attributeId);
+                }}
+                required
+              />
+              <FormSelectField
+                name={`attributes.${index}.term_ids`}
+                control={control}
+                label="Terms"
+                options={getUniqueTermOptions(
+                  formData.attributesResponse?.productAttributeTerms || [],
+                  terms?.[index]?.data?.terms || [],
+                  field.attribute_id
+                )}
+                required
+                isMulti
+                onTermRemove={(termId) => handleTermRemove(index, termId)}
+              />
+              {/* <TextField
+                fullWidth
+                label="Default Value"
+                variant="outlined"
+                value={watch(`attributes.${index}.default_value`) || ''}
+                onChange={(e) => {
+                  setValue(`attributes.${index}.default_value`, e.target.value, {
+                    shouldValidate: true,
+                    shouldDirty: true,
+                  });
+                }}
+                placeholder="Enter default value for selected terms"
+              /> */}
+              <FormCheckboxField
+                name={`attributes.${index}.is_visible_page`}
+                control={control}
+                label="Visible on product page"
+              />
+              <FormCheckboxField
+                name={`attributes.${index}.used_in_variation`}
+                control={control}
+                label="Used for variations"
+              />
+            </div>
+            {fields.length > 1 && (
+              <IconButton
+                onClick={(e) => {
+                  e.preventDefault(); // Prevent form submission
+                  console.log('Deleting attribute at index:', index);
+                  handleDeleteAttribute(index);
+                }}
+                className="absolute top-2 right-2"
+                size="small"
+                disabled={isLoading}
+                type="button"
+                sx={{ 
                   color: 'error.main',
-                },
-                '&.Mui-disabled': {
-                  color: 'error.light',
-                },
-              }}
-            >
-              <DeleteIcon />
-            </IconButton>
-          )}
-        </Paper>
-      ))}
+                  '&:hover': {
+                    backgroundColor: 'error.light',
+                    color: 'error.main',
+                  },
+                  '&.Mui-disabled': {
+                    color: 'error.light',
+                  },
+                }}
+              >
+                <DeleteIcon />
+              </IconButton>
+            )}
+          </Paper>
+        ))}
 
-      <div className="flex justify-center">
-        <AppButton
-          label={
-            <>
-              <AddIcon className="mr-2" />
-              Add Attribute
-            </>
-          }
-          type="button"
-          variant="outlined"
-          onClick={() =>
-            append({
-              attribute_id: 0,
-              term_ids: [],
-              is_visible_page: true,
-              used_in_variation: false,
-              default_value: '',
-            })
-          }
-        />
-      </div>
+        <div className="flex justify-center">
+          <AppButton
+            label={
+              <>
+                <AddIcon className="mr-2" />
+                Add Attribute
+              </>
+            }
+            type="button"
+            variant="outlined"
+            onClick={() =>
+              append({
+                attribute_id: 0,
+                term_ids: [],
+                is_visible_page: true,
+                used_in_variation: false,
+                default_value: '',
+              })
+            }
+          />
+        </div>
 
-      <div className="flex justify-between mt-4">
-        <AppButton
-          label="Previous"
-          onClick={previousStep}
-          variant="outlined"
-          disabled={isSubmitting}
-        />
-        <AppButton
-          label={isEditMode ? "Update" : "Next"}
-          type="submit"
-          loading={isSubmitting}
-          disabled={!isValid || isSubmitting}
-        />
-      </div>
-    </form>
+        <div className="flex justify-between mt-4">
+          <AppButton
+            label="Previous"
+            onClick={previousStep}
+            variant="outlined"
+            disabled={isSubmitting}
+          />
+          <AppButton
+            label={isEditMode ? "Update" : "Next"}
+            type="submit"
+            loading={isSubmitting}
+            disabled={!isValid || isSubmitting}
+          />
+        </div>
+      </form>
+    </div>
   );
 }
 

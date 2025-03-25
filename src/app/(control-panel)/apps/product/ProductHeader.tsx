@@ -253,6 +253,7 @@ import { downloadSampleExcel, bulkUpdateProducts } from "@/services/apiProduct";
 import { useSnackbar } from "@/contexts/SnackbarContext";
 import { useState, useRef } from "react";
 import { Menu, MenuItem, ListItemIcon, ListItemText } from "@mui/material";
+import PageBreadcrumb from "@/components/PageBreadcrumb";
 
 /**
  * The products header.
@@ -323,7 +324,7 @@ function ProductHeader() {
         animate={{ x: 0, transition: { delay: 0.2 } }}
       >
         <div>
-          {/* <PageBreadcrumb className="mb-2" /> */}
+          <PageBreadcrumb className="mb-2" />
           <Typography className="text-4xl font-extrabold leading-none tracking-tight">
             Products
           </Typography>
