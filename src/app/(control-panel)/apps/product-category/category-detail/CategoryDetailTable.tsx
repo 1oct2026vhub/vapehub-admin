@@ -105,13 +105,13 @@ import PageBreadcrumb from "@/components/PageBreadcrumb";
 export type CategoryType = {
   id: number;
   name: string;
-  description: string | null;
+  // description: string | null;
   logo_url: string | null;
   slug: string;
-  parent_id: number | null;
+  // parent_id: number | null;
   createdAt: string;
-  updatedAt: string;
-  updated_by: number;
+  // updatedAt: string;
+  // updated_by: number;
 };
 
 export default function CategoryDetailTable() {
@@ -145,12 +145,12 @@ export default function CategoryDetailTable() {
 
   const columns: MRT_ColumnDef<CategoryType>[] = [
     { accessorKey: "name", header: "Category Name" },
-    { accessorKey: "description", header: "Description" },
+    // { accessorKey: "description", header: "Description" },
     { accessorKey: "slug", header: "Slug" },
-    { accessorKey: "parent_id", header: "Parent ID" },
-    { accessorKey: "updated_by", header: "Updated By" },
-    { accessorKey: "updatedAt", header: "Last Updated" },
+    // { accessorKey: "parent_id", header: "Parent ID" },
     { accessorKey: "createdAt", header: "Created At" },
+    // { accessorKey: "updated_by", header: "Updated By" },
+    // { accessorKey: "updatedAt", header: "Last Updated" },
     {
       accessorKey: "logo_url",
       header: "Logo",
@@ -170,13 +170,13 @@ export default function CategoryDetailTable() {
   const categoryDetailData: CategoryType = {
     id: categoryDetail.id,
     name: categoryDetail.name,
-    description: categoryDetail.description || "N/A",
+    // description: categoryDetail.description || "N/A",
     slug: categoryDetail.slug,
-    parent_id: categoryDetail.parent_id || null,
-    updated_by: categoryDetail.updated_by,
-    updatedAt: new Date(categoryDetail.updatedAt)
-      .toLocaleDateString("en-GB")
-      .replace(/\//g, "-"),
+    // parent_id: categoryDetail.parent_id || null,
+    // updated_by: categoryDetail.updated_by,
+    // updatedAt: new Date(categoryDetail.updatedAt)
+    //   .toLocaleDateString("en-GB")
+    //   .replace(/\//g, "-"),
     createdAt: new Date(categoryDetail.createdAt)
       .toLocaleDateString("en-GB")
       .replace(/\//g, "-"),

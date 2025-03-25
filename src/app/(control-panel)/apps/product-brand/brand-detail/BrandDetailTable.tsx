@@ -105,7 +105,7 @@ import PageBreadcrumb from "@/components/PageBreadcrumb";
 export type BrandType = {
   id: number;
   name: string;
-  description: string | null;
+  // description: string | null;
   logoUrl: string | null;
   slug: string | null;
   createdAt?: string | null;
@@ -140,7 +140,7 @@ export default function BrandDetailTable() {
 
   const columns: MRT_ColumnDef<BrandType>[] = [
     { accessorKey: "name", header: "Brand Name" },
-    { accessorKey: "description", header: "Description" },
+    // { accessorKey: "description", header: "Description" },
     { accessorKey: "slug", header: "Slug" },
     { accessorKey: "createdAt", header: "Created At" },
   ];
@@ -148,7 +148,7 @@ export default function BrandDetailTable() {
   const brandDetailData: BrandType = {
     id: brandDetail.id,
     name: brandDetail.name,
-    description: brandDetail.description,
+    // description: brandDetail.description,
     logoUrl: brandDetail.logoUrl,
     slug: brandDetail.slug,
     createdAt: brandDetail.createdAt
