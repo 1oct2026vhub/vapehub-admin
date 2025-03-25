@@ -42,6 +42,7 @@ import {
   deleteVariant,
   restoreVariant,
 } from "@/services/apiProductVariant";
+import { formatDate } from "@/utils/actions";
 
 // Extend the base ProductVariant type
 interface ProductVariant extends BaseProductVariant {
@@ -55,7 +56,7 @@ export type ProductType = {
   name: string;
   description: string;
   price: number | string;
-  stock_quantity: number;
+  // stock_quantity: number;
   category_id: number;
   brand_id: number;
   category_name: string;
@@ -147,7 +148,7 @@ const ProductVariantTable = () => {
           return `$${Number(price).toFixed(2)}`;
         },
       },
-      { accessorKey: "stock_quantity", header: "Stock" },
+      // { accessorKey: "stock_quantity", header: "Stock" },
       {
         accessorKey: "deleted_at",
         header: "Status",
@@ -161,7 +162,7 @@ const ProductVariantTable = () => {
       {
         accessorKey: "created_at",
         header: "Created At",
-        Cell: ({ row }) => new Date(row.original.created_at).toLocaleDateString("en-GB"),
+         Cell: ({ row }) => formatDate(row.original.created_at),
       },
     ],
     []

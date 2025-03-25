@@ -100,11 +100,12 @@ import { brandDetails } from "@/services/apiProductBrand";
 import { useFetch } from "@/hooks/useFetch";
 import FuseLoading from "@fuse/core/FuseLoading";
 import { useEffect, useState } from "react";
+import PageBreadcrumb from "@/components/PageBreadcrumb";
 
 export type BrandType = {
   id: number;
   name: string;
-  description: string | null;
+  // description: string | null;
   logoUrl: string | null;
   slug: string | null;
   createdAt?: string | null;
@@ -139,7 +140,7 @@ export default function BrandDetailTable() {
 
   const columns: MRT_ColumnDef<BrandType>[] = [
     { accessorKey: "name", header: "Brand Name" },
-    { accessorKey: "description", header: "Description" },
+    // { accessorKey: "description", header: "Description" },
     { accessorKey: "slug", header: "Slug" },
     { accessorKey: "createdAt", header: "Created At" },
   ];
@@ -147,21 +148,24 @@ export default function BrandDetailTable() {
   const brandDetailData: BrandType = {
     id: brandDetail.id,
     name: brandDetail.name,
-    description: brandDetail.description,
+    // description: brandDetail.description,
     logoUrl: brandDetail.logoUrl,
     slug: brandDetail.slug,
     createdAt: brandDetail.createdAt
       ? new Date(brandDetail.createdAt)
-          .toLocaleDateString("en-GB")
-          .replace(/\//g, "-")
+        .toLocaleDateString("en-GB")
+        .replace(/\//g, "-")
       : "",
   };
 
   return (
     <div className="mt-10">
-      <Typography className="text-4xl font-extrabold leading-none tracking-tight mb-4">
-        Brand Details
-      </Typography>
+      <div>
+        <PageBreadcrumb className="mt-8" />
+        <Typography className="text-4xl font-extrabold leading-none tracking-tight mb-4 mt-8">
+          Brand Details
+        </Typography>
+      </div>
       <Paper
         className="flex flex-col flex-auto shadow-1 rounded-lg overflow-hidden w-full h-full p-4"
         elevation={1}

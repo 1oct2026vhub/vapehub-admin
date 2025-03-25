@@ -14,13 +14,14 @@ import {
 } from "@/services/apiAttributeTerm";
 import { useSnackbar } from "@/contexts/SnackbarContext";
 import { useEffect, useState } from "react";
+import PageBreadcrumb from "@/components/PageBreadcrumb";
 
 const schema = z.object({
   name: z.string().min(1, "Term Name is required").max(50, "Term Name must be 50 characters or less"),
   slug: z.string()
-      .min(1, "Slug is required")
-      .max(50, "Slug  must be at most 50 characters")
-      .regex(/^[a-z0-9-]+$/, "Slug must be a valid URL-friendly string (lowercase letters, numbers, and hyphens only)"),
+    .min(1, "Slug is required")
+    .max(50, "Slug  must be at most 50 characters")
+    .regex(/^[a-z0-9-]+$/, "Slug must be a valid URL-friendly string (lowercase letters, numbers, and hyphens only)"),
   description: z.string().optional(),
 });
 
@@ -84,7 +85,7 @@ function EditTerm() {
   const onSubmit = async (formData: FormType) => {
     try {
       setIsLoading(true);
-      
+
       // Validate id parameter
       if (!id) {
         throw new Error("Term ID is missing");
@@ -97,16 +98,16 @@ function EditTerm() {
 
       // Make sure id is a valid number or string
       const termId = typeof id === 'object' ? id.toString() : id;
-      
+
       const termData = {
         name: formData.name.trim(),
         slug: formData.slug.toLowerCase().replace(/\s+/g, "-"),
         description: formData.description || '',
       };
-      
+
       // Pass termId and termData as separate arguments
       await triggerUpdateTerm([termId, termData]);
-      
+
       showSnackbar("Term updated successfully!", "success");
       router.push("/apps/attribute-terms");
     } catch (error: any) {
@@ -140,9 +141,13 @@ function EditTerm() {
 
   return (
     <div className="md:px-64 p-4">
-      <Typography className="text-4xl font-extrabold leading-none tracking-tight mb-8 mt-8">
-        Edit Term
-      </Typography>
+      <div>
+        <PageBreadcrumb className="mt-8" />
+        <Typography className="text-4xl font-extrabold leading-none tracking-tight mb-4 mt-8">
+          Edit Term
+        </Typography>
+      </div>
+
 
       <form
         name="termForm"

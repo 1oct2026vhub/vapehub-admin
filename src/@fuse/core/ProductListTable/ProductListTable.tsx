@@ -50,6 +50,22 @@ export type ProductType = {
   is_new: boolean;
   deletedAt: string | null;
   createdAt: string;
+  // Add Brand and Category properties
+  Brand?: {      
+    id: number;
+    name: string;
+    slug: string;
+    logo_url?: string;
+    description?: string;
+  };
+  
+  Category?: {
+    id: number;
+    name: string;
+    slug: string;
+    description?: string;
+    logo_url?: string | null;
+  };
 };
 
 const ProductListTable = () => {
@@ -230,8 +246,16 @@ const ProductListTable = () => {
         },
       },
       { accessorKey: "stock_quantity", header: "Stock" },
-      { accessorKey: "category_name", header: "Category" },
-      { accessorKey: "brand_name", header: "Brand" },
+      {
+        accessorKey: "category_name",
+        header: "Category",
+        Cell: ({ row }) => row.original.Category?.name || "N/A",
+      },
+      {
+        accessorKey: "brand_name",
+        header: "Brand",
+        Cell: ({ row }) => row.original.Brand?.name || "N/A",
+      },
       {
         accessorKey: "is_new",
         header: "Status",

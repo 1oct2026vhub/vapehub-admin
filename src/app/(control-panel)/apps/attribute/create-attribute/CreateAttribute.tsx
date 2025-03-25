@@ -562,6 +562,7 @@ import { createAttribute } from "@/services/apiAttribute";
 import { useSnackbar } from "@/contexts/SnackbarContext";
 import { useState } from "react";
 import FormSelectField from "@/components/Shared/SelectField";
+import PageBreadcrumb from "@/components/PageBreadcrumb";
 
 // ✅ Schema with strict validation rules
 const schema = z.object({
@@ -661,9 +662,12 @@ function CreateAttribute() {
 
   return (
     <div className="md:px-64 p-4">
-      <Typography className="text-4xl font-extrabold leading-none tracking-tight mb-8 mt-8">
-        New Attribute
-      </Typography>
+      <div>
+        <PageBreadcrumb className="mt-8" />
+        <Typography className="text-4xl font-extrabold leading-none tracking-tight mb-4 mt-8">
+          New Attribute
+        </Typography>
+      </div>
 
       <form
         name="attributeForm"

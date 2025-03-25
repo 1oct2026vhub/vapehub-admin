@@ -174,7 +174,7 @@ function AttributeHeader() {
         animate={{ x: 0, transition: { delay: 0.2 } }}
       >
         <div>
-          {/* <PageBreadcrumb className="mb-2" /> */}
+          <PageBreadcrumb className="mb-2" />
           <Typography className="text-4xl font-extrabold leading-none tracking-tight">
             Attributes
           </Typography>

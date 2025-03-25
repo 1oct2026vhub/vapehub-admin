@@ -9,6 +9,7 @@ import DataTable from "@/components/data-table/DataTable";
 import type { MRT_ColumnDef } from "material-react-table";
 import { useParams } from "next/navigation";
 import { formatDate } from "@/utils/actions";
+import PageBreadcrumb from "@/components/PageBreadcrumb";
 
 interface TermDetailProps {
   id: string;
@@ -16,12 +17,12 @@ interface TermDetailProps {
 
 const TermDetail = () => {
   const params = useParams();
-    const id = params?.id;
-    const { data, error, isLoading } = useFetch(
-      ["termDetail", id],
-      () => getAttributeTermDetails(id as string), // ✅ Explicitly cast as string
-      { revalidateOnFocus: false },
-    );
+  const id = params?.id;
+  const { data, error, isLoading } = useFetch(
+    ["termDetail", id],
+    () => getAttributeTermDetails(id as string), // ✅ Explicitly cast as string
+    { revalidateOnFocus: false },
+  );
 
   const term = data?.data;
 
@@ -34,7 +35,7 @@ const TermDetail = () => {
       {
         accessorKey: "created_at",
         header: "Created At",
-           Cell: ({ row }) => formatDate(row.original.created_at),
+        Cell: ({ row }) => formatDate(row.original.created_at),
       },
       {
         accessorKey: "status",
@@ -65,10 +66,12 @@ const TermDetail = () => {
 
   return (
     <div className="mt-10">
-      <Typography className="text-4xl font-extrabold leading-none tracking-tight mb-4">
-        Term Details
-      </Typography>
-
+      <div>
+        <PageBreadcrumb className="mt-8" />
+        <Typography className="text-4xl font-extrabold leading-none tracking-tight mb-4 mt-8">
+          Term Details
+        </Typography>
+      </div>
       <Paper
         className="flex flex-col flex-auto shadow-1 rounded-lg overflow-hidden w-full h-full p-4"
         elevation={1}
