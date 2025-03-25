@@ -161,12 +161,18 @@ const ProductCategoryTable = () => {
         accessorKey: "logo_url",
         header: "Logo",
         Cell: ({ row }) => (
-          <img
-            src={row.original.logo_url}
-            alt={row.original.name}
-            width={50}
-            height={50}
-          />
+          row.original.logo_url ? (
+            <img
+              src={row.original.logo_url}
+              alt={row.original.name}
+              width={50}
+              height={50}
+              className="object-contain"
+              onError={(e) => {
+                e.currentTarget.style.display = 'none';
+              }}
+            />
+          ) : null
         ),
       },
     ],

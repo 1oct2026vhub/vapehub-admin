@@ -189,15 +189,21 @@ const ProductBrandTable = () => {
     {
       accessorKey: "logo_url",
       header: "Logo",
-        Cell: ({ row }) => (
+      Cell: ({ row }) => (
+        row.original.logo_url ? (
           <img
             src={row.original.logo_url}
             alt={row.original.name}
             width={50}
             height={50}
+            className="object-contain"
+            onError={(e) => {
+              e.currentTarget.style.display = 'none';
+            }}
           />
-        ),
-      },
+        ) : null
+      ),
+    },
     ],
     [],
   );
