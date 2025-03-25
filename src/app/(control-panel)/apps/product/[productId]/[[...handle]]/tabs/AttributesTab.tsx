@@ -110,7 +110,7 @@ function AttributesTab() {
         ? formData.attributes
         : [
             {
-              attribute_id: 0,
+              attribute_id: null,
               term_ids: [],
               is_visible_page: true,
               used_in_variation: false,
@@ -660,7 +660,7 @@ function AttributesTab() {
             variant="outlined"
             onClick={() =>
               append({
-                attribute_id: 0,
+                attribute_id: null,
                 term_ids: [],
                 is_visible_page: true,
                 used_in_variation: false,

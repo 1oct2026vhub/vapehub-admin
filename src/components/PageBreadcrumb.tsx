@@ -49,7 +49,11 @@ function PageBreadcrumb(props: PageBreadcrumbProps) {
         const navItem = getNavigationItem(url, navigation);
         const title = navItem?.title || part;
 
-        acc.push({ title, url });
+        // If no navigation item is found or it's a dynamic segment (like an ID),
+        // use the current pathname as the URL
+        const crumbUrl = navItem?.url || pathname;
+
+        acc.push({ title, url: crumbUrl });
         return acc;
       },
       skipHome ? [] : [{ title: "Home", url: "/" }],
@@ -65,7 +69,7 @@ function PageBreadcrumb(props: PageBreadcrumbProps) {
     >
       {crumbs.map((item, index) => (
         <Typography
-          component={item.url ? Link : "span"}
+          component={index === crumbs.length - 1 ? "span" : Link}
           to={item.url}
           key={index}
           className="block font-medium tracking-tight capitalize max-w-32 truncate"
