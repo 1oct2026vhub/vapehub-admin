@@ -52,6 +52,7 @@ const FormCKEditor = ({ name, control, label, defaultValue = "" }: FormCKEditorP
         editorInstance = (window as any).CKEDITOR.replace(uniqueId.current, {
           height: 300,
           width: '100%',
+          versionCheck: false,
           toolbarGroups: [
             { name: 'document', groups: [ 'mode', 'document', 'doctools' ] },
             { name: 'clipboard', groups: [ 'clipboard', 'undo' ] },

@@ -50,6 +50,7 @@ export type ProductType = {
   is_new: boolean;
   deletedAt: string | null;
   createdAt: string;
+  updatedAt: string;
   // Add Brand and Category properties
   Brand?: {      
     id: number;
@@ -259,7 +260,7 @@ const ProductListTable = () => {
       {
         accessorKey: "is_new",
         header: "Status",
-    Cell: ({ row }) => (
+        Cell: ({ row }) => (
           <Chip
             label={row.original.is_new ? "New" : "Regular"}
             color={row.original.is_new ? "success" : "default"}
@@ -271,8 +272,24 @@ const ProductListTable = () => {
         header: "Created At",
          Cell: ({ row }) => formatDate(row.original.createdAt),
       },
+      {
+        accessorKey: "updatedAt",
+        header: "Last Updated",
+        Cell: ({ row }) => formatDate(row.original.updatedAt),
+      },
+      // Only add the deletedAt column when viewing deleted products
+      ...(deleted === true ? [
+        {
+          accessorKey: "deletedAt",
+          header: "Deleted At",
+          Cell: ({ row }) => formatDate(row.original.deletedAt || ""),
+          enableColumnFilter: false,
+          enableSorting: true,
+          size: 150,
+        },
+      ] : []),
     ],
-    [router],
+    [router, deleted],
   );
 
   if (isLoading) return <FuseLoading />;
@@ -365,6 +382,50 @@ const ProductListTable = () => {
               <MenuItem value="active">Active</MenuItem>
               <MenuItem value="deleted">Deleted</MenuItem>
             </Select>
+
+            <TextField
+              label="Categories"
+              placeholder="e.g. 1,2,3"
+              variant="outlined"
+              value={categories}
+              onChange={(e) => setCategories(e.target.value)}
+              size="small"
+              sx={{
+                minWidth: '120px',
+                width: '120px',
+                "& .MuiOutlinedInput-root": {
+                  "&.Mui-focused fieldset": {
+                    borderColor: "#2E9970",
+                    borderWidth: "2px",
+                  },
+                },
+                "& .MuiInputLabel-root.Mui-focused": {
+                  color: "#2E9970",
+                },
+              }}
+            />
+
+            <TextField
+              label="Brands"
+              placeholder="e.g. 1,2,3"
+              variant="outlined"
+              value={brands}
+              onChange={(e) => setBrands(e.target.value)}
+              size="small"
+              sx={{
+                minWidth: '120px',
+                width: '120px',
+                "& .MuiOutlinedInput-root": {
+                  "&.Mui-focused fieldset": {
+                    borderColor: "#2E9970",
+                    borderWidth: "2px",
+                  },
+                },
+                "& .MuiInputLabel-root.Mui-focused": {
+                  color: "#2E9970",
+                },
+              }}
+            />
           </div>
         </div>
 
@@ -527,6 +588,28 @@ const ProductListTable = () => {
               <MenuItem value="active">Active</MenuItem>
               <MenuItem value="deleted">Deleted</MenuItem>
             </Select>
+          </ListItem>
+          <ListItem>
+            <TextField
+              label="Categories (IDs)"
+              placeholder="e.g. 1,2,3"
+              value={categories}
+              onChange={(e) => setCategories(e.target.value)}
+              fullWidth
+              size="small"
+              helperText="Comma-separated category IDs"
+            />
+          </ListItem>
+          <ListItem>
+            <TextField
+              label="Brands (IDs)"
+              placeholder="e.g. 1,2,3"
+              value={brands}
+              onChange={(e) => setBrands(e.target.value)}
+              fullWidth
+              size="small"
+              helperText="Comma-separated brand IDs"
+            />
           </ListItem>
           <ListItem>
             <Button
