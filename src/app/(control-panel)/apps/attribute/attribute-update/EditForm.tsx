@@ -35,13 +35,14 @@ const defaultValues = {
 const typeOptions = [
   { label: "Select", value: "select" },
   { label: "Radio", value: "radio" },
-  { label: "Checkbox", value: "checkbox" },
+  { label: "Text", value: "text" },
+  { label: "Image", value: "image" },
 ];
 
 const sortOrderOptions = [
   { label: "Custom", value: "custom" },
   { label: "Name", value: "name" },
-  { label: "Name (Numeric)", value: "name_numeric" },
+  { label: "Id", value: "id" },
 ];
 
 export type FormType = {

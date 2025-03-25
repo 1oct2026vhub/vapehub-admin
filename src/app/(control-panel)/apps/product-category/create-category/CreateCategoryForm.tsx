@@ -41,18 +41,26 @@ const schema = z.object({
 
   description: z.string().optional(),
 
-  logo: z
-    .instanceof(File, { message: "Logo is required" })
-    .refine((file) => file instanceof File, "Logo is required")
-    .refine(
-      (file) => file.size <= MAX_FILE_SIZE,
-      "File size must be less than 5MB"
-    )
-    .refine(
-      (file) => ACCEPTED_FILE_TYPES.includes(file.type),
-      "Only .jpg, .jpeg, .png, and .webp formats are supported"
-    ),
-  parent_id: z.string().optional().nullable(),
+  logo: z.union([
+    z.undefined(),
+    z.null(),
+    z.instanceof(File)
+      .refine(
+        (file) => file.size <= MAX_FILE_SIZE,
+        "File size must be less than 5MB"
+      )
+      .refine(
+        (file) => ACCEPTED_FILE_TYPES.includes(file.type),
+        "Only .jpg, .jpeg, .png, and .webp formats are supported"
+      )
+  ]).optional().nullable(),
+  
+  parent_id: z.union([
+    z.number(),
+    z.string().transform((val) => (val === "" ? null : Number(val))),
+    z.null(),
+    z.undefined()
+  ]).optional().nullable(),
 });
 
 const defaultValues = {
@@ -60,7 +68,7 @@ const defaultValues = {
   slug: "",
   description: "",
   logo: null,
-  parent_id: null, // ✅ Ensure default is null
+  parent_id: null,
 };
 
 export type FormType = {
@@ -68,7 +76,7 @@ export type FormType = {
   slug: string;
   description?: string;
   logo?: File;
-  parent_id?: string | null;
+  parent_id?: number | null;
 };
 
 function CreateCategoryForm() {
@@ -182,13 +190,14 @@ function CreateCategoryForm() {
           control={control}
           label="Logo"
           setValue={setValue}
+          onDelete={() => setValue("logo", null, { shouldValidate: true })}
         />
         <div className="mt-6">
           <FormInputField
             name="parent_id"
             control={control}
             label="Parent ID"
-            type="text"
+            type="number"
           />
         </div>
 

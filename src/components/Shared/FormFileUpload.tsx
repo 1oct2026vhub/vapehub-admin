@@ -110,9 +110,19 @@ function FormFileUpload({
               />
               <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                 <IconButton
-                  className="bg-white hover:bg-gray-100 shadow-md"
+                  className="bg-white hover:bg-red-50 shadow-md"
                   size="small"
                   onClick={() => handleRemove(onChange)}
+                  sx={{
+                    '& .MuiSvgIcon-root': {
+                      color: '#ef4444', // Red color
+                    },
+                    '&:hover': {
+                      '& .MuiSvgIcon-root': {
+                        color: '#dc2626', // Darker red on hover
+                      }
+                    }
+                  }}
                 >
                   <DeleteIcon />
                 </IconButton>

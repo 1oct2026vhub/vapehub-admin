@@ -30,17 +30,20 @@ const schema = z.object({
     .max(50, "Slug must be at most 50 characters")
     .regex(/^[a-z0-9-]+$/, "Slug must be a valid URL-friendly string (lowercase letters, numbers, and hyphens only)"),
   description: z.string().optional(),
-  logo: z
-    .instanceof(File, { message: "Logo is required" })
-    .refine((file) => file instanceof File, "Logo is required")
-    .refine(
-      (file) => file.size <= MAX_FILE_SIZE,
-      "File size must be less than 5MB"
-    )
-    .refine(
-      (file) => ACCEPTED_FILE_TYPES.includes(file.type),
-      "Only .jpg, .jpeg, .png, and .webp formats are supported"
-    ),
+  logo: z.union([
+    z.undefined(),
+    z.null(),
+    z.string(),  // For existing logo URLs
+    z.instanceof(File)
+      .refine(
+        (file) => file.size <= MAX_FILE_SIZE,
+        "File size must be less than 5MB"
+      )
+      .refine(
+        (file) => ACCEPTED_FILE_TYPES.includes(file.type),
+        "Only .jpg, .jpeg, .png, and .webp formats are supported"
+      )
+  ]).optional().nullable(),
 });
 
 const defaultValues = {
@@ -119,11 +122,9 @@ const EditBrandForm = ({ brand }: { brand: FormType }) => {
       // Only append logo if it's a File instance
       if (formData.logo instanceof File) {
         formDataObj.append("logo", formData.logo);
-      }
-
-      // Debugging: Log form data
-      for (let [key, value] of formDataObj.entries()) {
-        console.log(`${key}:`, value);
+      } else if (formData.logo === null) {
+        // If logo is explicitly set to null, it means we want to remove it
+        formDataObj.append("logo", "");
       }
 
       // ✅ Use the API service function instead of direct API call
@@ -206,7 +207,9 @@ const EditBrandForm = ({ brand }: { brand: FormType }) => {
             label="Brand Logo"
             setValue={setValue}
             existingImage={brand?.logo_url}
-            onDelete={() => setValue("logo", undefined)}
+            onDelete={() => {
+              setValue("logo", null, { shouldValidate: true });
+            }}
           />
 
           <AppButton

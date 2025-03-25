@@ -33,9 +33,10 @@ const schema = z.object({
 
   description: z.string().optional(),
 
-   logo: z
-      .instanceof(File, { message: "Logo is required" })
-      .refine((file) => file instanceof File, "Logo is required")
+  logo: z.union([
+    z.undefined(),
+    z.null(),
+    z.instanceof(File)
       .refine(
         (file) => file.size <= MAX_FILE_SIZE,
         "File size must be less than 5MB"
@@ -43,7 +44,8 @@ const schema = z.object({
       .refine(
         (file) => ACCEPTED_FILE_TYPES.includes(file.type),
         "Only .jpg, .jpeg, .png, and .webp formats are supported"
-      ),
+      )
+  ]).optional().nullable(),
 });
 
 const defaultValues = {
