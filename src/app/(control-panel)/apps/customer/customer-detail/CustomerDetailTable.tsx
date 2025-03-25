@@ -7,6 +7,7 @@ import { customerDetails } from "@/services/apiService";
 import { useFetch } from "@/hooks/useFetch";
 import FuseLoading from "@fuse/core/FuseLoading";
 import { useEffect, useState } from "react";
+import PageBreadcrumb from "@/components/PageBreadcrumb";
 
 export type UserType = {
   id: number;
@@ -69,8 +70,8 @@ export default function CustomerDetailsPage() {
     email: customerDetail.email,
     createdAt: customerDetail.createdAt
       ? new Date(customerDetail.createdAt)
-          .toLocaleDateString("en-GB")
-          .replace(/\//g, "-")
+        .toLocaleDateString("en-GB")
+        .replace(/\//g, "-")
       : "",
     phone: customerDetail.phone,
     gender: customerDetail.gender,
@@ -82,9 +83,13 @@ export default function CustomerDetailsPage() {
 
   return (
     <div className="mt-10">
-      <Typography className="text-4xl font-extrabold leading-none tracking-tight mb-4">
-        Customer Details
-      </Typography>
+      <div>
+        <PageBreadcrumb className="mt-8" />
+        <Typography className="text-4xl font-extrabold leading-none tracking-tight mb-4 mt-8">
+          Customer Details
+        </Typography>
+      </div>
+
       <Paper
         className="flex flex-col flex-auto shadow-1 rounded-lg overflow-hidden w-full h-full p-4"
         elevation={1}

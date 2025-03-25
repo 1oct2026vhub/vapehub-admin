@@ -12,13 +12,14 @@ import { usePost } from "@/hooks/useFetch";
 import { updateAttribute } from "@/services/apiAttribute";
 import { useSnackbar } from "@/contexts/SnackbarContext";
 import FormSelectField from "@/components/Shared/SelectField";
+import PageBreadcrumb from "@/components/PageBreadcrumb";
 
 const schema = z.object({
   name: z.string().min(1, "Attribute Name is required").max(50, "Name must be less than 50 characters"),
- slug: z.string()
+  slug: z.string()
     .min(1, "Slug is required")
     .max(50, "Slug must be at most 50 characters")
-    .regex(/^[a-z0-9-]+$/, "Slug must be a valid URL-friendly string (lowercase letters, numbers, and hyphens only)"),  description: z.string().optional(),
+    .regex(/^[a-z0-9-]+$/, "Slug must be a valid URL-friendly string (lowercase letters, numbers, and hyphens only)"), description: z.string().optional(),
   type: z.string().min(1, "Type is required"),
   sort_order: z.string().min(1, "Sort order is required"),
 });
@@ -143,10 +144,12 @@ const EditAttributeForm = ({ attribute }: { attribute: FormType }) => {
 
   return (
     <div className="md:px-64 p-4">
-      <Typography className="text-4xl font-extrabold leading-none tracking-tight mb-8 mt-8">
-        Edit Attribute
-      </Typography>
-
+      <div>
+        <PageBreadcrumb className="mt-8" />
+        <Typography className="text-4xl font-extrabold leading-none tracking-tight mb-4 mt-8">
+          Edit Attribute
+        </Typography>
+      </div>
       {isLoading && <p>Loading attribute data...</p>}
 
       {!isLoading && (
@@ -162,56 +165,56 @@ const EditAttributeForm = ({ attribute }: { attribute: FormType }) => {
             </Alert>
           )}
 
-            <FormInputField
-              name="name"
-              control={control}
-              label="Attribute Name"
-              type="text"
-              required
-            />
-            <div className="text-xs text-gray-500 -mt-3 mb-4">
-              {nameLength} / 50 characters used {nameRemaining < 0 ? "(exceeded maximum)" : ""}
-            </div>
-            <FormInputField
-              name="slug"
-              control={control}
-              label="Slug"
+          <FormInputField
+            name="name"
+            control={control}
+            label="Attribute Name"
             type="text"
             required
-            />
-            <FormInputField
-              name="description"
-              control={control}
-              label="Description"
+          />
+          <div className="text-xs text-gray-500 -mt-3 mb-4">
+            {nameLength} / 50 characters used {nameRemaining < 0 ? "(exceeded maximum)" : ""}
+          </div>
+          <FormInputField
+            name="slug"
+            control={control}
+            label="Slug"
             type="text"
-            />
-            <FormSelectField
-              name="type"
-              control={control}
-              label="Type"
-              options={typeOptions}
             required
-            />
-            <FormSelectField
-              name="sort_order"
-              control={control}
-              label="Sort Order"
-              options={sortOrderOptions}
+          />
+          <FormInputField
+            name="description"
+            control={control}
+            label="Description"
+            type="text"
+          />
+          <FormSelectField
+            name="type"
+            control={control}
+            label="Type"
+            options={typeOptions}
             required
-            />
+          />
+          <FormSelectField
+            name="sort_order"
+            control={control}
+            label="Sort Order"
+            options={sortOrderOptions}
+            required
+          />
 
-            <AppButton
-              label="Update"
+          <AppButton
+            label="Update"
             loading={isLoading}
-              type="submit"
-              fullWidth
-              size="large"
+            type="submit"
+            fullWidth
+            size="large"
             // disabled={!isValid || isMutating}
-              className="mt-4 w-full"
-            />
-          </form>
+            className="mt-4 w-full"
+          />
+        </form>
       )}
-        </div>
+    </div>
   );
 };
 

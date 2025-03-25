@@ -13,13 +13,14 @@ import { usePost, useFetch } from "@/hooks/useFetch";
 import { updateCategory, categoryDetails } from "@/services/apiProductCategory";
 import { useSnackbar } from "@/contexts/SnackbarContext";
 import axiosInstance from "@/utils/axiosApi";
+import PageBreadcrumb from "@/components/PageBreadcrumb";
 
 const schema = z.object({
   name: z.string().min(1, "Category Name is required").max(50, "Name must be less than 50 characters"),
   slug: z.string()
-  .min(1, "Slug is required")
-  .max(50, "Slug must be at most 50 characters")
-  .regex(/^[a-z0-9-]+$/, "Slug must be a valid URL-friendly string (lowercase letters, numbers, and hyphens only)"),  description: z.string().optional(),
+    .min(1, "Slug is required")
+    .max(50, "Slug must be at most 50 characters")
+    .regex(/^[a-z0-9-]+$/, "Slug must be a valid URL-friendly string (lowercase letters, numbers, and hyphens only)"), description: z.string().optional(),
   logo: z.union([
     z.instanceof(File),
     z.string(),
@@ -144,7 +145,7 @@ const EditCategoryForm = ({ category }: { category: FormType }) => {
       // Get the category ID from the URL params
       // const params = new URLSearchParams(window.location.search);
       // const categoryId = params.get('id');
-      
+
       // if (!categoryId) {
       //   throw new Error("Category ID is required");
       // }
@@ -177,9 +178,12 @@ const EditCategoryForm = ({ category }: { category: FormType }) => {
 
   return (
     <div className="md:px-64 p-4">
-      <Typography className="text-4xl font-extrabold leading-none tracking-tight mb-8 mt-8">
-        Edit Category
-      </Typography>
+      <div>
+        <PageBreadcrumb className="mt-8" />
+        <Typography className="text-4xl font-extrabold leading-none tracking-tight mb-4 mt-8">
+          Edit Category
+        </Typography>
+      </div>
 
       {isLoading && <p>Loading category data...</p>}
 

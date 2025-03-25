@@ -53,7 +53,18 @@ function ProjectDashboardAppHeader() {
   }
 
   return (
-    <div className="flex flex-col w-full px-6 sm:px-8">
+    <div className="flex w-full items-center justify-between p-24 sm:p-32">
+      <div className="flex flex-col">
+        <PageBreadcrumb className="mb-2" />
+        <div className="flex items-center">
+          <Typography
+            component="h2"
+            className="text-2xl md:text-3xl font-semibold tracking-tight leading-7 md:leading-snug truncate"
+          >
+            Welcome back{user?.displayName ? `, ${user.displayName}` : ''}!
+          </Typography>
+        </div>
+      </div>
       <div className="flex flex-col sm:flex-row flex-auto sm:items-center min-w-0 my-8 sm:my-12">
         <div className="flex flex-auto items-start min-w-0">
           <Avatar

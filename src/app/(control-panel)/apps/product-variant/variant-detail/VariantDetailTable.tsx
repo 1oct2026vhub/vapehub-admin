@@ -8,6 +8,7 @@ import { useFetch } from "@/hooks/useFetch";
 import FuseLoading from "@fuse/core/FuseLoading";
 import { useEffect, useState } from "react";
 import { ProductVariant } from "@/services/apiProductVariant";
+import PageBreadcrumb from "@/components/PageBreadcrumb";
 
 export type VariantDetailType = {
   id: number;
@@ -104,9 +105,12 @@ export default function VariantDetailTable() {
 
   return (
     <div className="mt-10">
-      <Typography className="text-4xl font-extrabold leading-none tracking-tight mb-4">
-        Variant Details
-      </Typography>
+      <div>
+        <PageBreadcrumb className="mt-8" />
+        <Typography className="text-4xl font-extrabold leading-none tracking-tight mb-4 mt-8">
+          Variant Details
+        </Typography>
+      </div>
       <Paper
         className="flex flex-col flex-auto shadow-1 rounded-lg overflow-hidden w-full h-full p-4"
         elevation={1}

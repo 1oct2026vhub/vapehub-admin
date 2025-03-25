@@ -11,6 +11,7 @@ import { createBrand } from "@/services/apiProductBrand";
 import { useSnackbar } from "@/contexts/SnackbarContext";
 import FormFileUpload from "@/components/Shared/FormFileUpload";
 import { useState } from "react";
+import PageBreadcrumb from "@/components/PageBreadcrumb";
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const ACCEPTED_FILE_TYPES = [
@@ -117,9 +118,12 @@ function CreateBrandForm() {
 
   return (
     <div className="md:px-64 p-4">
-      <Typography className="text-4xl font-extrabold leading-none tracking-tight mb-8 mt-8">
+      <div>
+        <PageBreadcrumb className="mt-8" />
+        <Typography className="text-4xl font-extrabold leading-none tracking-tight mb-4 mt-8">
         New Brand
-      </Typography>
+        </Typography>
+      </div>
       <form
         name="brandForm"
         noValidate

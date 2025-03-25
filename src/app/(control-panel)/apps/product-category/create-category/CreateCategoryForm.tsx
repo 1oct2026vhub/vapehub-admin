@@ -11,6 +11,7 @@ import { createCategory } from "@/services/apiProductCategory";
 import { useSnackbar } from "@/contexts/SnackbarContext";
 import FormFileUpload from "@/components/Shared/FormFileUpload";
 import { useState } from "react";
+import PageBreadcrumb from "@/components/PageBreadcrumb";
 
 // const schema = z.object({
 //   name: z.string().min(1, "Brand Name is required"),
@@ -32,7 +33,7 @@ const schema = z.object({
   name: z.string()
     .min(1, "Category Name is required")
     .max(50, "Category Name must not exceed 50 characters"),
-  
+
   slug: z.string()
     .min(1, "Slug is required")
     .max(50, "Slug must be at most 50 characters")
@@ -51,7 +52,7 @@ const schema = z.object({
       (file) => ACCEPTED_FILE_TYPES.includes(file.type),
       "Only .jpg, .jpeg, .png, and .webp formats are supported"
     ),
-    parent_id: z.string().optional().nullable(),
+  parent_id: z.string().optional().nullable(),
 });
 
 const defaultValues = {
@@ -138,9 +139,12 @@ function CreateCategoryForm() {
 
   return (
     <div className="md:px-64 p-4">
-      <Typography className="text-4xl font-extrabold leading-none tracking-tight mb-8 mt-8">
-        New Category
-      </Typography>
+      <div>
+        <PageBreadcrumb className="mt-8" />
+        <Typography className="text-4xl font-extrabold leading-none tracking-tight mb-4 mt-8">
+          New Category
+        </Typography>
+      </div>
       <form
         name="categoryForm"
         noValidate
@@ -180,12 +184,12 @@ function CreateCategoryForm() {
           setValue={setValue}
         />
         <div className="mt-6">
-        <FormInputField
-          name="parent_id"
-          control={control}
-          label="Parent ID"
-          type="text"
-        />
+          <FormInputField
+            name="parent_id"
+            control={control}
+            label="Parent ID"
+            type="text"
+          />
         </div>
 
         <AppButton

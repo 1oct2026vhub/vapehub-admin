@@ -13,6 +13,7 @@ import { usePost, useFetch } from "@/hooks/useFetch";
 import { updateBrand, brandDetails } from "@/services/apiProductBrand";
 import { useSnackbar } from "@/contexts/SnackbarContext";
 import axiosInstance from "@/utils/axiosApi";
+import PageBreadcrumb from "@/components/PageBreadcrumb";
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const ACCEPTED_FILE_TYPES = [
@@ -24,22 +25,22 @@ const ACCEPTED_FILE_TYPES = [
 
 const schema = z.object({
   name: z.string().min(1, "Brand Name is required").max(50, "Name must be less than 50 characters"),
-   slug: z.string()
-      .min(1, "Slug is required")
-      .max(50, "Slug must be at most 50 characters")
-      .regex(/^[a-z0-9-]+$/, "Slug must be a valid URL-friendly string (lowercase letters, numbers, and hyphens only)"),
+  slug: z.string()
+    .min(1, "Slug is required")
+    .max(50, "Slug must be at most 50 characters")
+    .regex(/^[a-z0-9-]+$/, "Slug must be a valid URL-friendly string (lowercase letters, numbers, and hyphens only)"),
   description: z.string().optional(),
-   logo: z
-        .instanceof(File, { message: "Logo is required" })
-        .refine((file) => file instanceof File, "Logo is required")
-        .refine(
-          (file) => file.size <= MAX_FILE_SIZE,
-          "File size must be less than 5MB"
-        )
-        .refine(
-          (file) => ACCEPTED_FILE_TYPES.includes(file.type),
-          "Only .jpg, .jpeg, .png, and .webp formats are supported"
-        ),
+  logo: z
+    .instanceof(File, { message: "Logo is required" })
+    .refine((file) => file instanceof File, "Logo is required")
+    .refine(
+      (file) => file.size <= MAX_FILE_SIZE,
+      "File size must be less than 5MB"
+    )
+    .refine(
+      (file) => ACCEPTED_FILE_TYPES.includes(file.type),
+      "Only .jpg, .jpeg, .png, and .webp formats are supported"
+    ),
 });
 
 const defaultValues = {
@@ -154,9 +155,12 @@ const EditBrandForm = ({ brand }: { brand: FormType }) => {
 
   return (
     <div className="md:px-64 p-4">
-      <Typography className="text-4xl font-extrabold leading-none tracking-tight mb-8 mt-8">
-        Edit Brand
-      </Typography>
+      <div>
+        <PageBreadcrumb className="mt-8" />
+        <Typography className="text-4xl font-extrabold leading-none tracking-tight mb-4 mt-8">
+          Edit Brand
+        </Typography>
+      </div>
 
       {isLoading && <p>Loading brand data...</p>}
 
