@@ -110,7 +110,7 @@ function AttributesTab() {
         ? formData.attributes
         : [
             {
-              attribute_id: 0,
+              attribute_id: null,
               term_ids: [],
               is_visible_page: true,
               used_in_variation: false,
@@ -538,9 +538,6 @@ function AttributesTab() {
 
   return (
     <div className="w-full">
-      <div className="mb-4">
-        <PageBreadcrumb />
-      </div>
       <form
         onSubmit={handleSubmit(onSubmit)}
         className="flex w-full flex-col justify-center space-y-4"
@@ -660,7 +657,7 @@ function AttributesTab() {
             variant="outlined"
             onClick={() =>
               append({
-                attribute_id: 0,
+                attribute_id: null,
                 term_ids: [],
                 is_visible_page: true,
                 used_in_variation: false,

@@ -208,8 +208,8 @@ function VariantTab() {
   // Update the createDefaultVariant function to accept and use specific terms
   const createDefaultVariant = (isNewVariant: boolean = false, presetTerms?: Array<{ attribute_id: number; term_id: number }>) => ({
     slug: "",
-    price: 0,
-    stock: 0,
+    price: null,
+    stock: null,
     status: "active" as const,
     discount_price: null,
     purchase_price: null,
