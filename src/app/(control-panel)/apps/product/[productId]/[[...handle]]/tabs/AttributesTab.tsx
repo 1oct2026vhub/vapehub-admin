@@ -538,9 +538,6 @@ function AttributesTab() {
 
   return (
     <div className="w-full">
-      <div className="mb-4">
-        <PageBreadcrumb />
-      </div>
       <form
         onSubmit={handleSubmit(onSubmit)}
         className="flex w-full flex-col justify-center space-y-4"
