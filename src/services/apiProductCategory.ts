@@ -39,6 +39,10 @@ export const deleteCategory = (id) => deleter(`/api/admin/category/${id}`);
 export const restoreCategory = (id) =>
   updater(`/api/admin/category/${id}/restore`, {});
 
+// Function to remove category image
+export const removeCategoryImage = (id) =>
+  deleter(`/api/admin/category/${id}/remove-image`);
+
 // Download sample Excel file
 export const downloadSampleExcel = () => {
   return axiosInstance
@@ -69,7 +73,7 @@ export const bulkUpdateCategory = async (file: File) => {
       headers: {
         "Content-Type": "multipart/form-data",
       },
-    },
+    }
   );
   return response.data;
 };

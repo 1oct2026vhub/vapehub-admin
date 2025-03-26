@@ -13,14 +13,14 @@ import { useProductForm } from "../ProductFormContext";
 import { useFetch } from "@/hooks/useFetch";
 import { listAttributes } from "@/services/apiAttribute";
 import { listAttributeTerms } from "@/services/apiAttributeTerm";
-import { 
-  addProductAttributes, 
-  getProduct, 
+import {
+  addProductAttributes,
+  getProduct,
   updateProductAttributes,
   deleteProductAttributeTerm,
   type AddProductAttributesRequest,
   type UpdateProductAttributesRequest,
-  type ProductAttribute as ApiProductAttribute 
+  type ProductAttribute as ApiProductAttribute,
 } from "@/services/apiProduct";
 import DeleteIcon from "@mui/icons-material/Delete";
 import AddIcon from "@mui/icons-material/Add";
@@ -38,6 +38,10 @@ interface ProductAttributeTerm {
   attribute_id: number;
   term_id: number;
   term: {
+    id: number;
+    name: string;
+  };
+  attribute?: {
     id: number;
     name: string;
   };
@@ -59,7 +63,7 @@ const attributeSchema = z.object({
       is_visible_page: z.boolean(),
       used_in_variation: z.boolean(),
       default_value: z.string().optional(),
-    }),
+    })
   ),
 });
 
@@ -84,15 +88,21 @@ function AttributesTab() {
   const productIdRef = useRef<number | null>(null);
 
   // Get productId from URL or formData and ensure it's a number
-  const productId = formData.productId || (searchParams.get("productId") ? Number(searchParams.get("productId")) : null);
+  const productId =
+    formData.productId ||
+    (searchParams.get("productId")
+      ? Number(searchParams.get("productId"))
+      : null);
 
   // Determine if we're in edit mode based on existing attributes
-  const isEditMode = Boolean(formData.attributes && formData.attributes.length > 0);
+  const isEditMode = Boolean(
+    formData.attributes && formData.attributes.length > 0
+  );
 
   const { data: attributes } = useFetch(
     ["attributeList", {}],
     listAttributes,
-    {},
+    {}
   );
 
   const {
@@ -106,17 +116,18 @@ function AttributesTab() {
     mode: "all",
     resolver: zodResolver(attributeSchema),
     defaultValues: {
-      attributes: formData.attributes && formData.attributes.length > 0
-        ? formData.attributes
-        : [
-            {
-              attribute_id: null,
-              term_ids: [],
-              is_visible_page: true,
-              used_in_variation: false,
-              default_value: '',
-            },
-          ],
+      attributes:
+        formData.attributes && formData.attributes.length > 0
+          ? formData.attributes
+          : [
+              {
+                attribute_id: null,
+                term_ids: [],
+                is_visible_page: true,
+                used_in_variation: false,
+                default_value: "",
+              },
+            ],
     },
   });
 
@@ -137,10 +148,10 @@ function AttributesTab() {
         attributeIds.map((id) =>
           id
             ? listAttributeTerms({ attribute_id: id })
-            : Promise.resolve({ data: { terms: [] } }),
-        ),
+            : Promise.resolve({ data: { terms: [] } })
+        )
       ),
-    { enabled: attributeIds.some((id) => id > 0) },
+    { enabled: attributeIds.some((id) => id > 0) }
   );
 
   // Fetch product data including attributes
@@ -149,22 +160,22 @@ function AttributesTab() {
       setIsLoading(false);
       return;
     }
-    
+
     // Skip if we've already fetched data for this product ID
     if (fetchedRef.current && productIdRef.current === productId) {
       setIsLoading(false);
       return;
     }
-    
+
     // Update refs to track current fetch state
     productIdRef.current = productId;
-    
+
     setIsLoading(true);
     try {
       console.log("Fetching product data for ID:", productId);
       const response = await getProduct(Number(productId));
       console.log("Product data received:", response?.data);
-      
+
       // Update the form data with product ID if not already set
       if (!formData.productId) {
         updateFormData({
@@ -173,9 +184,15 @@ function AttributesTab() {
       }
 
       // Check if the API response contains product attribute data
-      if (response?.data?.productAttributeTerms && response.data.productAttributeTerms.length > 0) {
-        console.log("Product attributes found:", response.data.productAttributeTerms);
-        
+      if (
+        response?.data?.productAttributeTerms &&
+        response.data.productAttributeTerms.length > 0
+      ) {
+        console.log(
+          "Product attributes found:",
+          response.data.productAttributeTerms
+        );
+
         // Group terms by attribute_id
         const attributeGroups: FormProductAttribute[] = Object.values(
           response.data.productAttributeTerms.reduce((acc, attr) => {
@@ -186,64 +203,74 @@ function AttributesTab() {
                 term_ids: [Number(attr.term_id)],
                 is_visible_page: Boolean(attr.is_visible_page),
                 used_in_variation: Boolean(attr.used_in_variation),
-                default_value: '', // Initialize with empty default value
+                default_value: "", // Initialize with empty default value
               };
             } else {
               // Add term_id to existing attribute group if not already present
-              if (!acc[attr.attribute_id].term_ids.includes(Number(attr.term_id))) {
+              if (
+                !acc[attr.attribute_id].term_ids.includes(Number(attr.term_id))
+              ) {
                 acc[attr.attribute_id].term_ids.push(Number(attr.term_id));
               }
             }
-            
+
             return acc;
           }, {} as Record<number, FormProductAttribute>)
         );
-        
+
         console.log("Grouped attribute data:", attributeGroups);
-        
+
         // Update form with the loaded attribute data
         replace(attributeGroups);
-        
+
         // Update form context data
         updateFormData({
           attributes: attributeGroups,
           attributesResponse: {
-            productAttributeTerms: response.data.productAttributeTerms
-          }
+            productAttributeTerms: response.data.productAttributeTerms,
+          },
         });
-        
+
         markStepAsCompleted(2);
       } else if (formData.attributes && formData.attributes.length > 0) {
         // If no API data but we have attributes in form context, use those
         // Ensure all attribute_id values are numbers
-        const attributesWithNumberIds = formData.attributes.map(attr => ({
+        const attributesWithNumberIds = formData.attributes.map((attr) => ({
           ...attr,
           attribute_id: Number(attr.attribute_id),
-          term_ids: attr.term_ids.map(id => Number(id))
+          term_ids: attr.term_ids.map((id) => Number(id)),
         }));
         replace(attributesWithNumberIds);
       }
-      
+
       // Mark fetch as completed
       fetchedRef.current = true;
     } catch (error) {
       console.error("Error fetching product data:", error);
       showSnackbar("Failed to load product data", "error");
-      
+
       // If API fails but we have attributes in form context, use those
       if (formData.attributes && formData.attributes.length > 0) {
         // Ensure all attribute_id values are numbers
-        const attributesWithNumberIds = formData.attributes.map(attr => ({
+        const attributesWithNumberIds = formData.attributes.map((attr) => ({
           ...attr,
           attribute_id: Number(attr.attribute_id),
-          term_ids: attr.term_ids.map(id => Number(id))
+          term_ids: attr.term_ids.map((id) => Number(id)),
         }));
         replace(attributesWithNumberIds);
       }
     } finally {
       setIsLoading(false);
     }
-  }, [productId, formData.attributes, formData.productId, replace, updateFormData, markStepAsCompleted, showSnackbar]);
+  }, [
+    productId,
+    formData.attributes,
+    formData.productId,
+    replace,
+    updateFormData,
+    markStepAsCompleted,
+    showSnackbar,
+  ]);
 
   // Fetch product data on component mount
   useEffect(() => {
@@ -259,16 +286,9 @@ function AttributesTab() {
       .map((attr, index) => (index !== currentIndex ? attr.attribute_id : 0))
       .filter((id) => id !== 0);
 
-    // Combine existing product attributes with available attributes
-    const existingAttributeIds = formData.attributesResponse?.productAttributeTerms
-      ? formData.attributesResponse.productAttributeTerms.map(attr => attr.attribute_id)
-      : [];
-
-    // Filter out already selected attributes
+    // Filter out already selected attributes, but keep the current attribute
     return attributes.data.attributes.filter(
-      (attr) => 
-        !selectedAttributeIds.includes(attr.id) && 
-        !existingAttributeIds.includes(attr.id)
+      (attr) => !selectedAttributeIds.includes(attr.id)
     );
   };
 
@@ -293,8 +313,8 @@ function AttributesTab() {
 
   // Add this helper function to deduplicate terms
   const getUniqueTermOptions = (
-    existingTerms: ProductAttributeTerm[] = [], 
-    fetchedTerms: AttributeTerm[] = [], 
+    existingTerms: ProductAttributeTerm[] = [],
+    fetchedTerms: AttributeTerm[] = [],
     attributeId: number
   ): Array<{ value: number; label: string }> => {
     // Create a Set to track unique term IDs
@@ -339,9 +359,14 @@ function AttributesTab() {
     }
 
     // Check if at least one attribute is used in variation
-    const hasVariationAttribute = data.attributes.some(attr => attr.used_in_variation);
+    const hasVariationAttribute = data.attributes.some(
+      (attr) => attr.used_in_variation
+    );
     if (!hasVariationAttribute) {
-      showSnackbar("Please choose at least one attribute with 'Used in Variation' enabled", "error");
+      showSnackbar(
+        "Please choose at least one attribute with 'Used in Variation' enabled",
+        "error"
+      );
       return;
     }
 
@@ -349,7 +374,7 @@ function AttributesTab() {
     try {
       // Transform the data to match the API requirements
       const transformedData: UpdateProductAttributesRequest = {
-        attributes: data.attributes.map(attr => {
+        attributes: data.attributes.map((attr) => {
           const request = {
             attribute_id: attr.attribute_id,
             is_visible_page: attr.is_visible_page,
@@ -376,13 +401,16 @@ function AttributesTab() {
       let response;
       if (isEditMode) {
         // Update existing attributes
-        response = await updateProductAttributes(Number(productId), transformedData);
+        response = await updateProductAttributes(
+          Number(productId),
+          transformedData
+        );
         showSnackbar("Product attributes updated successfully", "success");
       } else {
         // For new products, we need to convert the request to match AddProductAttributesRequest
         const addRequest: AddProductAttributesRequest = {
-          attributes: data.attributes.flatMap(attr => 
-            attr.term_ids.map(termId => ({
+          attributes: data.attributes.flatMap((attr) =>
+            attr.term_ids.map((termId) => ({
               attribute_id: attr.attribute_id,
               term_id: termId,
               is_visible_page: attr.is_visible_page,
@@ -390,15 +418,15 @@ function AttributesTab() {
             }))
           ),
         };
-        
+
         response = await addProductAttributes(Number(productId), addRequest);
         showSnackbar("Product attributes saved successfully", "success");
         nextStep();
       }
-      
+
       // Update form data
       updateFormData({
-        attributes: data.attributes.map(attr => ({
+        attributes: data.attributes.map((attr) => ({
           attribute_id: attr.attribute_id,
           term_ids: attr.term_ids,
           is_visible_page: attr.is_visible_page,
@@ -410,12 +438,17 @@ function AttributesTab() {
 
       markStepAsCompleted(2);
       fetchedRef.current = false;
-      
     } catch (error) {
       console.error("Error submitting attributes:", error);
-      
-      if (error?.type === "unique violation" || error?.message?.includes("unique")) {
-        showSnackbar("Each term can only be used once per attribute. Please check for duplicate terms.", "error");
+
+      if (
+        error?.type === "unique violation" ||
+        error?.message?.includes("unique")
+      ) {
+        showSnackbar(
+          "Each term can only be used once per attribute. Please check for duplicate terms.",
+          "error"
+        );
       } else if (error?.errors) {
         showSnackbar(error?.errors[0]?.msg, "error");
       } else {
@@ -458,7 +491,8 @@ function AttributesTab() {
     try {
       setIsLoading(true);
       const attributeToDelete = fields[index];
-      const productAttributeTerms = formData.attributesResponse?.productAttributeTerms;
+      const productAttributeTerms =
+        formData.attributesResponse?.productAttributeTerms;
 
       if (!productId) {
         showSnackbar("Product ID not found", "error");
@@ -473,17 +507,22 @@ function AttributesTab() {
       // If this is an existing attribute (has matching terms in productAttributeTerms)
       if (productAttributeTerms && attributeToDelete.attribute_id) {
         const attributeTerms = productAttributeTerms.filter(
-          term => term.attribute_id === attributeToDelete.attribute_id
+          (term) => term.attribute_id === attributeToDelete.attribute_id
         );
 
         // Delete each attribute term
         for (const term of attributeTerms) {
-          console.log(`Deleting attribute term ID: ${term.id} for product ${productId}`);
+          console.log(
+            `Deleting attribute term ID: ${term.id} for product ${productId}`
+          );
           try {
             await deleteProductAttributeTerm(Number(productId), term.id);
             console.log(`Successfully deleted attribute term ID: ${term.id}`);
           } catch (error) {
-            console.error(`Error deleting attribute term ID: ${term.id}:`, error);
+            console.error(
+              `Error deleting attribute term ID: ${term.id}:`,
+              error
+            );
             throw error; // Re-throw to trigger the outer catch block
           }
         }
@@ -496,16 +535,16 @@ function AttributesTab() {
       // Update form data context
       const updatedAttributes = [...(formData.attributes || [])];
       updatedAttributes.splice(index, 1);
-      updateFormData({ 
+      updateFormData({
         attributes: updatedAttributes,
         attributesResponse: {
           ...formData.attributesResponse,
-          productAttributeTerms: formData.attributesResponse?.productAttributeTerms?.filter(
-            term => term.attribute_id !== attributeToDelete.attribute_id
-          )
-        }
+          productAttributeTerms:
+            formData.attributesResponse?.productAttributeTerms?.filter(
+              (term) => term.attribute_id !== attributeToDelete.attribute_id
+            ),
+        },
       });
-
     } catch (error) {
       if (error?.errors) {
         showSnackbar(error?.errors[0]?.msg, "error");
@@ -530,7 +569,7 @@ function AttributesTab() {
   if (isLoading) {
     return (
       <div className="flex justify-center items-center p-10">
-        <FuseLoading/>
+        <FuseLoading />
         {/* <CircularProgress /> */}
       </div>
     );
@@ -549,31 +588,48 @@ function AttributesTab() {
                 name={`attributes.${index}.attribute_id`}
                 control={control}
                 label="Attribute"
-                options={
-                  // Combine existing productAttributeTerms with available attributes
-                  [
-                    // First, add existing product attributes
-                    ...(formData.attributesResponse?.productAttributeTerms
-                      ? Object.values(
-                          formData.attributesResponse.productAttributeTerms.reduce((acc, attr) => {
-                            if (!acc[attr.attribute_id]) {
-                              acc[attr.attribute_id] = {
-                                value: attr.attribute_id,
-                                label: attr.attribute.name,
-                              };
-                            }
-                            return acc;
-                          }, {} as Record<number, { value: number; label: string }>)
-                        )
-                      : []),
-                    
-                    // Then add available attributes from listAttributes
-                    ...getAvailableAttributes(index).map((attr) => ({
-                      value: attr.id,
-                      label: attr.name,
-                    })),
-                  ]
-                }
+                options={(() => {
+                  // Create a map to store unique attributes by ID
+                  const uniqueAttributes = new Map();
+
+                  // Get the current attribute ID for this row
+                  const currentAttributeId =
+                    attributeSelections[index]?.attribute_id;
+
+                  // For updating existing attributes, only add the current attribute from response data
+                  if (
+                    isEditMode &&
+                    formData.attributesResponse?.productAttributeTerms &&
+                    currentAttributeId
+                  ) {
+                    // Find the current attribute in productAttributeTerms
+                    const currentAttr =
+                      formData.attributesResponse.productAttributeTerms.find(
+                        (attr) => attr.attribute_id === currentAttributeId
+                      );
+
+                    if (currentAttr?.attribute) {
+                      uniqueAttributes.set(currentAttributeId, {
+                        value: currentAttributeId,
+                        label: currentAttr.attribute.name,
+                      });
+                    }
+                  }
+
+                  // Then add available attributes from listAttributes
+                  // In both create and update case, we need to show available attributes
+                  getAvailableAttributes(index).forEach((attr) => {
+                    if (!uniqueAttributes.has(attr.id)) {
+                      uniqueAttributes.set(attr.id, {
+                        value: attr.id,
+                        label: attr.name,
+                      });
+                    }
+                  });
+
+                  // Convert map to array
+                  return Array.from(uniqueAttributes.values());
+                })()}
                 onChange={(e) => {
                   const attributeId = Number(e.target.value);
                   handleAttributeChange(index, attributeId);
@@ -621,21 +677,21 @@ function AttributesTab() {
               <IconButton
                 onClick={(e) => {
                   e.preventDefault(); // Prevent form submission
-                  console.log('Deleting attribute at index:', index);
+                  console.log("Deleting attribute at index:", index);
                   handleDeleteAttribute(index);
                 }}
                 className="absolute top-2 right-2"
                 size="small"
                 disabled={isLoading}
                 type="button"
-                sx={{ 
-                  color: 'error.main',
-                  '&:hover': {
-                    backgroundColor: 'error.light',
-                    color: 'error.main',
+                sx={{
+                  color: "error.main",
+                  "&:hover": {
+                    backgroundColor: "error.light",
+                    color: "error.main",
                   },
-                  '&.Mui-disabled': {
-                    color: 'error.light',
+                  "&.Mui-disabled": {
+                    color: "error.light",
                   },
                 }}
               >
@@ -661,7 +717,7 @@ function AttributesTab() {
                 term_ids: [],
                 is_visible_page: true,
                 used_in_variation: false,
-                default_value: '',
+                default_value: "",
               })
             }
           />
@@ -687,9 +743,3 @@ function AttributesTab() {
 }
 
 export default AttributesTab;
-
-
-
-
-
-
