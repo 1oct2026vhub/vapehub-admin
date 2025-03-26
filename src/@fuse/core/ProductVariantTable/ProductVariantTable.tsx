@@ -130,7 +130,7 @@ const ProductVariantTable = () => {
   // Table columns
   const columns = useMemo<MRT_ColumnDef<ProductVariant>[]>(
     () => [
-      { accessorKey: "id", header: "ID" },
+    { accessorKey: "id", header: "ID" },
       
       {
         accessorKey: "name",
@@ -138,30 +138,30 @@ const ProductVariantTable = () => {
         Cell: ({ row }) => row.original.product?.name || "N/A",
       },
       { accessorKey: "slug", header: "Slug" },
-      { 
-        accessorKey: "price", 
-        header: "Price",
-        Cell: ({ row }) => {
+    { 
+      accessorKey: "price", 
+      header: "Price",
+      Cell: ({ row }) => {
           const price = typeof row.original.price === "string"
-            ? parseFloat(row.original.price) 
-            : row.original.price;
-          return `$${Number(price).toFixed(2)}`;
+          ? parseFloat(row.original.price) 
+          : row.original.price;
+        return `$${Number(price).toFixed(2)}`;
         },
-      },
+    },
       // { accessorKey: "stock_quantity", header: "Stock" },
-      {
+    {
         accessorKey: "deleted_at",
-        header: "Status",
-        Cell: ({ row }) => (
-          <Chip 
+      header: "Status",
+      Cell: ({ row }) => (
+        <Chip 
             label={row.original.deleted_at ? "Deleted" : "Active"} 
             color={row.original.deleted_at ? "error" : "success"} 
-          />
-        ),
-      },
-      {
+        />
+      ),
+    },
+    {
         accessorKey: "created_at",
-        header: "Created At",
+      header: "Created At",
          Cell: ({ row }) => formatDate(row.original.created_at),
       },
     ],

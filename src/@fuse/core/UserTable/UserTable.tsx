@@ -221,8 +221,13 @@ const UserTable = () => {
           );
         },
       },
+      ...(deleted ? [{
+        accessorKey: "deletedAt",
+        header: "Deleted At",
+        Cell: ({ row }) => formatDate(row.original.deletedAt || ''),
+      }] : []),
     ],
-    [],
+    [deleted],
   );
 
   if (isLoading) return <FuseLoading />;
