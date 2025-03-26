@@ -213,7 +213,8 @@ const schema = z
         /[@$!%*?&]/,
         "Password must contain at least one special character",
       ),
-    confirm: z.string().min(8, "Confirm password is required"),
+    confirm: z.string().min(1, "Password is required") // Ensures the field is required
+    .min(8, "Password must be at least 8 characters long")
   })
   .refine((data) => data.password === data.confirm, {
     message: "Passwords do not match",

@@ -175,8 +175,18 @@ const AttributeTable = () => {
         header: "Created At",
         Cell: ({ row }) => formatDate(row.original.created_at),
       },
+      {
+        accessorKey: "updated_at",
+        header: "Last Updated",
+        Cell: ({ row }) => formatDate(row.original.updated_at),
+      },
+      ...(showDeleted ? [{
+        accessorKey: "deleted_at",
+        header: "Deleted At",
+        Cell: ({ row }) => formatDate(row.original.deleted_at || ''),
+      }] : []),
     ],
-    [],
+    [showDeleted],
   );
 
   if (isLoading) return <FuseLoading />;
