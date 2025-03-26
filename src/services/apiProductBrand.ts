@@ -39,6 +39,10 @@ export const deleteBrand = (id) => deleter(`/api/admin/brand/${id}`);
 export const restoreBrand = (id) =>
   updater(`/api/admin/brand/${id}/restore`, {});
 
+// Function to remove brand image
+export const removeBrandImage = (id) =>
+  deleter(`/api/admin/brand/${id}/remove-image`);
+
 // Download sample Excel file
 export const downloadSampleExcel = () => {
   return axiosInstance
@@ -69,7 +73,7 @@ export const bulkUpdateBrands = async (file: File) => {
       headers: {
         "Content-Type": "multipart/form-data",
       },
-    },
+    }
   );
   return response.data;
 };

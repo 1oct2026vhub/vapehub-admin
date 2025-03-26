@@ -3,14 +3,18 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { Alert, Typography } from "@mui/material";
 import AppButton from "@/components/Shared/AppButton";
 import FormInputField from "@/components/Shared/FormInputField";
 import FormFileUpload from "@/components/Shared/FormFileUpload";
 import { usePost, useFetch } from "@/hooks/useFetch";
-import { updateCategory, categoryDetails } from "@/services/apiProductCategory";
+import {
+  updateCategory,
+  categoryDetails,
+  removeCategoryImage,
+} from "@/services/apiProductCategory";
 import { useSnackbar } from "@/contexts/SnackbarContext";
 import axiosInstance from "@/utils/axiosApi";
 import PageBreadcrumb from "@/components/PageBreadcrumb";
@@ -24,32 +28,46 @@ const ACCEPTED_FILE_TYPES = [
 ];
 
 const schema = z.object({
-  name: z.string().min(1, "Category Name is required").max(50, "Name must be less than 50 characters"),
-  slug: z.string()
+  name: z
+    .string()
+    .min(1, "Category Name is required")
+    .max(50, "Name must be less than 50 characters"),
+  slug: z
+    .string()
     .min(1, "Slug is required")
     .max(50, "Slug must be at most 50 characters")
-    .regex(/^[a-z0-9-]+$/, "Slug must be a valid URL-friendly string (lowercase letters, numbers, and hyphens only)"),
+    .regex(
+      /^[a-z0-9-]+$/,
+      "Slug must be a valid URL-friendly string (lowercase letters, numbers, and hyphens only)"
+    ),
   description: z.string().optional(),
-  logo: z.union([
-    z.undefined(),
-    z.null(),
-    z.string(),  // For existing logo URLs
-    z.instanceof(File)
-      .refine(
-        (file) => file.size <= MAX_FILE_SIZE,
-        "File size must be less than 5MB"
-      )
-      .refine(
-        (file) => ACCEPTED_FILE_TYPES.includes(file.type),
-        "Only .jpg, .jpeg, .png, and .webp formats are supported"
-      )
-  ]).optional().nullable(),
-  parent_id: z.union([
-    z.number(),
-    z.string().transform((val) => (val === "" ? null : Number(val))),
-    z.null(),
-    z.undefined()
-  ]).optional().nullable(),
+  logo: z
+    .union([
+      z.undefined(),
+      z.null(),
+      z.string(), // For existing logo URLs
+      z
+        .instanceof(File)
+        .refine(
+          (file) => file.size <= MAX_FILE_SIZE,
+          "File size must be less than 5MB"
+        )
+        .refine(
+          (file) => ACCEPTED_FILE_TYPES.includes(file.type),
+          "Only .jpg, .jpeg, .png, and .webp formats are supported"
+        ),
+    ])
+    .optional()
+    .nullable(),
+  parent_id: z
+    .union([
+      z.number(),
+      z.string().transform((val) => (val === "" ? null : Number(val))),
+      z.null(),
+      z.undefined(),
+    ])
+    .optional()
+    .nullable(),
 });
 
 const defaultValues = {
@@ -69,11 +87,19 @@ export type FormType = {
   parent_id?: number | null;
 };
 
-const EditCategoryForm = ({ category }: { category: FormType }) => {
+const EditCategoryForm = ({
+  category: initialCategory,
+}: {
+  category: FormType;
+}) => {
   const router = useRouter();
   const { id } = useParams();
   const { showSnackbar } = useSnackbar();
   const [isLoading, setIsLoading] = useState(false);
+  const [isImageDeleting, setIsImageDeleting] = useState(false);
+
+  // Use ref to maintain a mutable reference to the category data
+  const categoryRef = useRef<FormType>(initialCategory);
 
   const { control, formState, handleSubmit, setValue, watch } = useForm({
     mode: "onChange",
@@ -89,7 +115,7 @@ const EditCategoryForm = ({ category }: { category: FormType }) => {
   const { isValid, errors, dirtyFields } = formState;
   const { trigger: triggerUpdateCategory, isMutating } = usePost(
     "updateCategory",
-    updateCategory,
+    updateCategory
   );
 
   // Check if required fields are filled
@@ -104,22 +130,26 @@ const EditCategoryForm = ({ category }: { category: FormType }) => {
 
   // Prefill form when category data is available
   useEffect(() => {
-    if (category) {
-      setValue("name", category.name);
-      setValue("slug", category.slug);
-      setValue("description", category.description || "");
+    if (initialCategory) {
+      categoryRef.current = initialCategory;
+      setValue("name", initialCategory.name);
+      setValue("slug", initialCategory.slug);
+      setValue("description", initialCategory.description || "");
       // Handle parent_id properly
-      if (category.parent_id !== undefined && category.parent_id !== null) {
-        setValue("parent_id", Number(category.parent_id));
+      if (
+        initialCategory.parent_id !== undefined &&
+        initialCategory.parent_id !== null
+      ) {
+        setValue("parent_id", Number(initialCategory.parent_id));
       } else {
         setValue("parent_id", null);
       }
       // Set the logo field with the existing logo URL
-      if (category.logo_url) {
-        setValue("logo", category.logo_url);
+      if (initialCategory.logo_url) {
+        setValue("logo", initialCategory.logo_url);
       }
     }
-  }, [category, setValue]);
+  }, [initialCategory, setValue]);
 
   const onSubmit = async (formData: FormType) => {
     setIsLoading(true);
@@ -136,7 +166,7 @@ const EditCategoryForm = ({ category }: { category: FormType }) => {
       formDataObj.append("name", formData.name.trim());
       formDataObj.append(
         "slug",
-        formData.slug.toLowerCase().replace(/\s+/g, "-"),
+        formData.slug.toLowerCase().replace(/\s+/g, "-")
       );
 
       if (formData.description) {
@@ -197,6 +227,34 @@ const EditCategoryForm = ({ category }: { category: FormType }) => {
     }
   };
 
+  // Handler to delete category image
+  const handleImageDelete = async () => {
+    try {
+      setIsImageDeleting(true);
+
+      // Call the API first
+      await removeCategoryImage(id);
+
+      // Only update the UI after successful API call
+      setValue("logo", null, { shouldValidate: true });
+
+      // Update the category object to reflect the removal of the image
+      if (categoryRef.current) {
+        categoryRef.current.logo_url = null;
+        categoryRef.current.logo = null;
+      }
+
+      showSnackbar("Category image removed successfully", "success");
+    } catch (error) {
+      console.error("Error removing category image:", error);
+      showSnackbar("Failed to remove category image", "error");
+
+      // No need to restore anything since we didn't change the form state yet
+    } finally {
+      setIsImageDeleting(false);
+    }
+  };
+
   return (
     <div className="md:px-64 p-4">
       <div>
@@ -229,7 +287,8 @@ const EditCategoryForm = ({ category }: { category: FormType }) => {
             required
           />
           <div className="text-xs text-gray-500 -mt-3 mb-4">
-            {nameLength} / 50 characters used {nameRemaining < 0 ? "(exceeded maximum)" : ""}
+            {nameLength} / 50 characters used{" "}
+            {nameRemaining < 0 ? "(exceeded maximum)" : ""}
           </div>
           <FormInputField
             name="slug"
@@ -255,8 +314,9 @@ const EditCategoryForm = ({ category }: { category: FormType }) => {
             control={control}
             label="Category Logo"
             setValue={setValue}
-            existingImage={category?.logo_url}
-            onDelete={() => setValue("logo", null, { shouldValidate: true })}
+            existingImage={categoryRef.current?.logo_url}
+            onDelete={handleImageDelete}
+            isDeleting={isImageDeleting}
           />
 
           <AppButton
