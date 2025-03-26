@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useCallback } from "react";
 import { type MRT_ColumnDef } from "material-react-table";
 import DataTable from "@/components/data-table/DataTable";
 import FuseLoading from "@fuse/core/FuseLoading";
@@ -50,7 +50,13 @@ const SORT_FIELDS = [
   { value: "updated_at", label: "Updated At" },
 ] as const;
 
-const AttributeTable = () => {
+interface AttributeTableProps {
+  refreshData?: (fn: () => Promise<void>) => void;
+}
+
+const AttributeTable = ({
+  refreshData: setExternalRefreshFn,
+}: AttributeTableProps) => {
   const router = useRouter();
   const { showSnackbar } = useSnackbar();
   const [page, setPage] = useState(1);
@@ -62,8 +68,12 @@ const AttributeTable = () => {
     useState<AttributeListParams["sort_by"]>("created_at");
   const [order, setOrder] = useState<"ASC" | "DESC">("DESC");
   const [openDialog, setOpenDialog] = useState(false);
-  const [selectedAttribute, setSelectedAttribute] = useState<Attribute | null>(null);
+  const [selectedAttribute, setSelectedAttribute] = useState<Attribute | null>(
+    null
+  );
   const [localAttributes, setLocalAttributes] = useState<Attribute[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [manuallyRefreshing, setManuallyRefreshing] = useState(false);
 
   // Debounce search input
   useEffect(() => {
@@ -82,13 +92,17 @@ const AttributeTable = () => {
       keyword: debouncedSearch,
       show_deleted: showDeleted,
     }),
-    [sortBy, order, pageSize, page, debouncedSearch, showDeleted],
+    [sortBy, order, pageSize, page, debouncedSearch, showDeleted]
   );
 
-  const { data, error, isLoading } = useFetch(
+  const {
+    data,
+    error,
+    isLoading: fetchLoading,
+  } = useFetch(
     ["attributeList", queryParams],
     () => listAttributes(queryParams),
-    { keepPreviousData: true },
+    { keepPreviousData: true }
   );
 
   // Update localAttributes when data changes
@@ -96,7 +110,49 @@ const AttributeTable = () => {
     if (data?.data?.attributes) {
       setLocalAttributes(data.data.attributes);
     }
-  }, [data?.data?.attributes]);
+    setIsLoading(
+      (fetchLoading && localAttributes.length === 0) || manuallyRefreshing
+    );
+  }, [
+    data?.data?.attributes,
+    fetchLoading,
+    localAttributes.length,
+    manuallyRefreshing,
+  ]);
+
+  // Function to manually refresh data by making a direct API call
+  const refreshData = useCallback(async () => {
+    try {
+      setManuallyRefreshing(true);
+      setIsLoading(true);
+      // Clear current data to show loading state
+      setLocalAttributes([]);
+
+      // Call the API directly
+      const freshData = await listAttributes(queryParams);
+
+      // Update the local state with fresh data
+      if (freshData?.data?.attributes) {
+        setLocalAttributes(freshData.data.attributes);
+      }
+
+      // Also update the SWR cache
+      await mutate(["attributeList", queryParams]);
+    } catch (error) {
+      console.error("Failed to refresh attribute data:", error);
+      showSnackbar("Failed to refresh attribute data", "error");
+    } finally {
+      setIsLoading(false);
+      setManuallyRefreshing(false);
+    }
+  }, [queryParams, showSnackbar]);
+
+  // Provide the refresh function to the parent component
+  useEffect(() => {
+    if (setExternalRefreshFn) {
+      setExternalRefreshFn(refreshData);
+    }
+  }, [setExternalRefreshFn, refreshData]);
 
   const handleDeleteClick = (attribute: Attribute) => {
     setSelectedAttribute(attribute);
@@ -110,7 +166,7 @@ const AttributeTable = () => {
     try {
       // Immediately update local state
       const updatedAttributes = localAttributes.filter(
-        attr => attr.id !== selectedAttribute.id
+        (attr) => attr.id !== selectedAttribute.id
       );
       setLocalAttributes(updatedAttributes);
 
@@ -139,26 +195,18 @@ const AttributeTable = () => {
         showSnackbar(errorMessage, "error");
       }
 
-      const errorData = error || error; // Handle both API and unexpected errors
-      if (errorData?.error && typeof errorData.error === "object") {
-        Object.entries(errorData.error).forEach(([field, message]) => {
-          if (typeof message === "string") {
-            // setError(field, { type: 'manual', message });
-            showSnackbar(` ${message}`, "error");
-          }
-        });
-      } else {
-        // setError('root', { type: 'manual', message: errorMessage });
-      }
+      // Rollback the optimistic update on error
+      refreshData();
+
       return false;
-    } 
+    }
   };
 
   const handleEdit = (attribute: Attribute) => {
     router.push(
-      `/apps/attribute/attribute-update/${attribute.id}?attributeData=${encodeURIComponent(
-        JSON.stringify(attribute),
-      )}`,
+      `/apps/attribute/attribute-update/${
+        attribute.id
+      }?attributeData=${encodeURIComponent(JSON.stringify(attribute))}`
     );
   };
 
@@ -169,7 +217,6 @@ const AttributeTable = () => {
       { accessorKey: "slug", header: "Slug" },
       { accessorKey: "type", header: "Type" },
       { accessorKey: "sort_order", header: "Sort Order" },
-      // { accessorKey: "description", header: "Description" },
       {
         accessorKey: "created_at",
         header: "Created At",
@@ -180,13 +227,17 @@ const AttributeTable = () => {
         header: "Last Updated",
         Cell: ({ row }) => formatDate(row.original.updated_at),
       },
-      ...(showDeleted ? [{
-        accessorKey: "deleted_at",
-        header: "Deleted At",
-        Cell: ({ row }) => formatDate(row.original.deleted_at || ''),
-      }] : []),
+      ...(showDeleted
+        ? [
+            {
+              accessorKey: "deleted_at",
+              header: "Deleted At",
+              Cell: ({ row }) => formatDate(row.original.deleted_at || ""),
+            },
+          ]
+        : []),
     ],
-    [showDeleted],
+    [showDeleted]
   );
 
   if (isLoading) return <FuseLoading />;
@@ -231,12 +282,12 @@ const AttributeTable = () => {
                 checked={showDeleted}
                 onChange={(e) => setShowDeleted(e.target.checked)}
                 sx={{
-                  '& .MuiSwitch-switchBase.Mui-checked': {
-                    color: '#2E9970', // Thumb color when checked
+                  "& .MuiSwitch-switchBase.Mui-checked": {
+                    color: "#2E9970", // Thumb color when checked
                   },
-                  '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
-                    backgroundColor: '#2E9970', // Track color when checked
-                  }
+                  "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track": {
+                    backgroundColor: "#2E9970", // Track color when checked
+                  },
                 }}
               />
             }
@@ -292,7 +343,7 @@ const AttributeTable = () => {
               key="view-details"
               onClick={() => {
                 router.push(
-                  `/apps/attribute/attribute-detail/${row.original.id}`,
+                  `/apps/attribute/attribute-detail/${row.original.id}`
                 );
                 closeMenu();
               }}
@@ -303,7 +354,8 @@ const AttributeTable = () => {
                 </FuseSvgIcon>
               </ListItemIcon>
               View Details
-            </MenuItem>),
+            </MenuItem>
+          ),
 
           !row.original.deleted_at && (
             <MenuItem
@@ -373,12 +425,6 @@ const AttributeTable = () => {
             Are you sure you want to{" "}
             {selectedAttribute?.deleted_at ? "restore" : "delete"}{" "}
             <strong>{selectedAttribute?.name}</strong>?
-            {/* {!selectedAttribute?.deleted_at && (
-              <Typography color="warning.main" sx={{ mt: 1 }}>
-                Note: This action will only succeed if the attribute is not
-                being used in any product variants and has no terms.
-              </Typography>
-            )} */}
           </Typography>
         </DialogContent>
         <DialogActions>

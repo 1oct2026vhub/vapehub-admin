@@ -12,14 +12,22 @@ import {
 import { useSnackbar } from "@/contexts/SnackbarContext";
 import { useState, useRef } from "react";
 import { Menu, MenuItem, ListItemIcon, ListItemText } from "@mui/material";
+import { mutate } from "swr";
+
+// Add prop for queryParams
+interface BrandHeaderProps {
+  queryParams?: Record<string, any>;
+  refreshData?: () => void;
+}
 
 /**
  * The products header.
  */
-function BrandHeader() {
+function BrandHeader({ queryParams = {}, refreshData }: BrandHeaderProps) {
   const isMobile = useThemeMediaQuery((theme) => theme.breakpoints.down("lg"));
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   const { showSnackbar } = useSnackbar();
 
@@ -47,7 +55,7 @@ function BrandHeader() {
   };
 
   const handleFileChange = async (
-    event: React.ChangeEvent<HTMLInputElement>,
+    event: React.ChangeEvent<HTMLInputElement>
   ) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -62,11 +70,21 @@ function BrandHeader() {
       return;
     }
 
+    setIsUploading(true);
     try {
-      await bulkUpdateBrands(file);
+      const result = await bulkUpdateBrands(file);
       showSnackbar("Brands updated successfully", "success");
+
+      // Directly call the refreshData function to fetch fresh data
+      if (refreshData) {
+        setTimeout(() => {
+          refreshData(); // Call with a slight delay to ensure server has processed the data
+        }, 500);
+      }
     } catch (error) {
       showSnackbar("Failed to update brands", "error");
+    } finally {
+      setIsUploading(false);
     }
 
     // Reset file input
@@ -106,15 +124,14 @@ function BrandHeader() {
           <AppButton
             label={
               <>
-                {/* <FuseSvgIcon size={20}>
-                  heroicons-outline:arrow-down-tray
-                </FuseSvgIcon> */}
                 <span className="w-full">Bulk Update</span>
               </>
             }
             variant="outlined"
             size={isMobile ? "small" : "medium"}
             onClick={handleMenuClick}
+            loading={isUploading}
+            disabled={isUploading}
           />
 
           <Menu
@@ -130,7 +147,7 @@ function BrandHeader() {
               horizontal: "right",
             }}
           >
-            <MenuItem onClick={handleFileUploadClick}>
+            <MenuItem onClick={handleFileUploadClick} disabled={isUploading}>
               <ListItemIcon>
                 <FuseSvgIcon size={20}>
                   heroicons-outline:arrow-up-on-square
@@ -138,7 +155,7 @@ function BrandHeader() {
               </ListItemIcon>
               <ListItemText>Upload Excel File</ListItemText>
             </MenuItem>
-            <MenuItem onClick={handleDownloadSample}>
+            <MenuItem onClick={handleDownloadSample} disabled={isUploading}>
               <ListItemIcon>
                 <FuseSvgIcon size={20}>
                   heroicons-outline:arrow-down-tray
@@ -156,8 +173,6 @@ function BrandHeader() {
               </>
             }
             type="submit"
-            // color="secondary"
-            // fullWidth
             className=""
             variant="contained"
             component={NavLinkAdapter}

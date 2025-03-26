@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useCallback } from "react";
 import { type MRT_ColumnDef } from "material-react-table";
 import DataTable from "@/components/data-table/DataTable";
 import FuseLoading from "@fuse/core/FuseLoading";
@@ -45,17 +45,27 @@ export type CategoryType = {
   deletedAt: string | null;
 };
 
-const ProductCategoryTable = () => {
+interface ProductCategoryTableProps {
+  refreshData?: (fn: () => Promise<void>) => void;
+}
+
+const ProductCategoryTable = ({
+  refreshData: setExternalRefreshFn,
+}: ProductCategoryTableProps) => {
   const router = useRouter();
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [deleted, setDeleted] = useState<boolean | null>(null);
   const [openDialog, setOpenDialog] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState<CategoryType | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<CategoryType | null>(
+    null
+  );
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
   const { showSnackbar } = useSnackbar();
   const [localCategories, setLocalCategories] = useState<CategoryType[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [manuallyRefreshing, setManuallyRefreshing] = useState(false);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -71,14 +81,52 @@ const ProductCategoryTable = () => {
       limit,
       ...(deleted !== null && { deleted }),
     }),
-    [debouncedSearch, deleted, page, limit],
+    [debouncedSearch, deleted, page, limit]
   );
 
-  const { data, error, isLoading } = useFetch(
+  const {
+    data,
+    error,
+    isLoading: apiLoading,
+  } = useFetch(
     ["productCategoryList", queryParams],
     listProductCategory,
-    queryParams,
+    queryParams
   );
+
+  // Function to manually refresh data by making a direct API call
+  const refreshData = useCallback(async () => {
+    try {
+      // Show loading state
+      setLocalCategories([]); // Clear current data to show loading state
+      setIsLoading(true); // Set loading state to true
+      setManuallyRefreshing(true); // Set manual refresh indicator
+
+      // Call the API directly
+      const freshData = await listProductCategory(queryParams);
+
+      // Update the local state with fresh data
+      if (freshData?.data?.categories) {
+        setLocalCategories(freshData.data.categories);
+      }
+
+      // Also update the SWR cache
+      await mutate(["productCategoryList", queryParams]);
+    } catch (error) {
+      console.error("Failed to refresh category data:", error);
+      showSnackbar("Failed to refresh categories", "error");
+    } finally {
+      setIsLoading(false); // Reset loading state
+      setManuallyRefreshing(false); // Reset manual refresh indicator
+    }
+  }, [queryParams, showSnackbar]);
+
+  // Provide the refresh function to the parent component
+  useEffect(() => {
+    if (setExternalRefreshFn) {
+      setExternalRefreshFn(refreshData);
+    }
+  }, [setExternalRefreshFn, refreshData]);
 
   useEffect(() => {
     if (data?.data?.categories) {
@@ -97,7 +145,7 @@ const ProductCategoryTable = () => {
 
     try {
       const updatedCategories = localCategories.filter(
-        cat => cat.id !== selectedCategory.id
+        (cat) => cat.id !== selectedCategory.id
       );
       setLocalCategories(updatedCategories);
 
@@ -135,14 +183,14 @@ const ProductCategoryTable = () => {
         // setError('root', { type: 'manual', message: errorMessage });
       }
       return false;
-    } 
+    }
   };
 
   const handleEdit = (category: CategoryType) => {
     router.push(
-      `/apps/product-category/category-update/${category.id}?categoryData=${encodeURIComponent(
-        JSON.stringify(category),
-      )}`,
+      `/apps/product-category/category-update/${
+        category.id
+      }?categoryData=${encodeURIComponent(JSON.stringify(category))}`
     );
   };
 
@@ -160,7 +208,7 @@ const ProductCategoryTable = () => {
       {
         accessorKey: "logo_url",
         header: "Logo",
-        Cell: ({ row }) => (
+        Cell: ({ row }) =>
           row.original.logo_url ? (
             <img
               src={row.original.logo_url}
@@ -169,24 +217,45 @@ const ProductCategoryTable = () => {
               height={50}
               className="object-contain"
               onError={(e) => {
-                e.currentTarget.style.display = 'none';
+                e.currentTarget.style.display = "none";
               }}
             />
-          ) : <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="gray" className="size-10">
-          <path stroke-linecap="round" stroke-linejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 0 0 1.5-1.5V6a1.5 1.5 0 0 0-1.5-1.5H3.75A1.5 1.5 0 0 0 2.25 6v12a1.5 1.5 0 0 0 1.5 1.5Zm10.5-11.25h.008v.008h-.008V8.25Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" />
-        </svg>
-        ),
+          ) : (
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke-width="1.5"
+              stroke="gray"
+              className="size-10"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 0 0 1.5-1.5V6a1.5 1.5 0 0 0-1.5-1.5H3.75A1.5 1.5 0 0 0 2.25 6v12a1.5 1.5 0 0 0 1.5 1.5Zm10.5-11.25h.008v.008h-.008V8.25Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z"
+              />
+            </svg>
+          ),
       },
-      ...(deleted ? [{
-        accessorKey: "deletedAt",
-        header: "Deleted At",
-        Cell: ({ row }) => formatDate(row.original.deletedAt || ''),
-      }] : []),
+      ...(deleted
+        ? [
+            {
+              accessorKey: "deletedAt",
+              header: "Deleted At",
+              Cell: ({ row }) => formatDate(row.original.deletedAt || ""),
+            },
+          ]
+        : []),
     ],
-    [deleted],
+    [deleted]
   );
 
-  if (isLoading) return <FuseLoading />;
+  if (
+    isLoading ||
+    manuallyRefreshing ||
+    (apiLoading && localCategories.length === 0)
+  )
+    return <FuseLoading />;
   if (error) return <p>Failed to load categories</p>;
 
   return (
@@ -222,17 +291,17 @@ const ProductCategoryTable = () => {
         />
 
         <div className="flex gap-2">
-        <Select
-              value={deleted === null ? "active" : deleted ? "deleted" : "active"}
-              onChange={(e) =>
-                setDeleted(
-                  e.target.value === "active"
-                    ? null
-                    : e.target.value === "deleted",
-                )
-              }
-              size="small"
-            >
+          <Select
+            value={deleted === null ? "active" : deleted ? "deleted" : "active"}
+            onChange={(e) =>
+              setDeleted(
+                e.target.value === "active"
+                  ? null
+                  : e.target.value === "deleted"
+              )
+            }
+            size="small"
+          >
             <MenuItem value="active">Active</MenuItem>
             <MenuItem value="deleted">Deleted</MenuItem>
           </Select>
@@ -246,7 +315,10 @@ const ProductCategoryTable = () => {
         manualPagination
         state={{ pagination: { pageIndex: page - 1, pageSize: limit } }}
         onPaginationChange={(updater: any) => {
-          const newPagination = updater({ pageIndex: page - 1, pageSize: limit });
+          const newPagination = updater({
+            pageIndex: page - 1,
+            pageSize: limit,
+          });
           setPage(newPagination.pageIndex + 1);
           setLimit(newPagination.pageSize);
         }}
@@ -254,22 +326,23 @@ const ProductCategoryTable = () => {
         renderRowActionMenuItems={({ closeMenu, row }) => {
           return [
             !row.original.deletedAt && (
-            <MenuItem
-              key="view-details"
-              onClick={() => {
-                router.push(
-                  `/apps/product-category/category-detail/${row.original.id}`,
-                );
-                closeMenu();
-              }}
-            >
-              <ListItemIcon>
-                <FuseSvgIcon>
-                  heroicons-outline:arrow-top-right-on-square
-                </FuseSvgIcon>
-              </ListItemIcon>
-              View Details
-            </MenuItem>),
+              <MenuItem
+                key="view-details"
+                onClick={() => {
+                  router.push(
+                    `/apps/product-category/category-detail/${row.original.id}`
+                  );
+                  closeMenu();
+                }}
+              >
+                <ListItemIcon>
+                  <FuseSvgIcon>
+                    heroicons-outline:arrow-top-right-on-square
+                  </FuseSvgIcon>
+                </ListItemIcon>
+                View Details
+              </MenuItem>
+            ),
 
             !row.original.deletedAt && (
               <MenuItem
@@ -282,8 +355,8 @@ const ProductCategoryTable = () => {
                 <ListItemIcon>
                   <FuseSvgIcon>heroicons-outline:pencil-square</FuseSvgIcon>
                 </ListItemIcon>
-              Edit
-            </MenuItem>
+                Edit
+              </MenuItem>
             ),
 
             <MenuItem
