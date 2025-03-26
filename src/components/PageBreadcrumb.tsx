@@ -40,24 +40,35 @@ function PageBreadcrumb(props: PageBreadcrumbProps) {
   const pathname = usePathname();
   const { navigation } = useNavigation();
 
-  const crumbs = pathname
-    .split("/")
-    .filter(Boolean)
-    .reduce(
-      (acc: { title: string; url: string }[], part, index, array) => {
-        const url = `/${array.slice(0, index + 1).join("/")}`;
-        const navItem = getNavigationItem(url, navigation);
-        const title = navItem?.title || part;
-
-        // If no navigation item is found or it's a dynamic segment (like an ID),
-        // use the current pathname as the URL
-        const crumbUrl = navItem?.url || pathname;
-
-        acc.push({ title, url: crumbUrl });
+  // Split the path and filter out empty parts
+  const pathParts = pathname.split("/").filter(Boolean);
+  
+  // Create breadcrumbs without "apps" in the titles
+  const crumbs = pathParts.reduce(
+    (acc: { title: string; url: string }[], part, index) => {
+      // Skip "apps" in the breadcrumb display
+      if (part === "apps") {
         return acc;
-      },
-      skipHome ? [] : [{ title: "Home", url: "/" }],
-    );
+      }
+      
+      // Build the current URL including all parts up to this one
+      // This ensures correct navigation even though we're not showing "apps"
+      const urlParts = pathParts.slice(0, index + 1);
+      const url = `/${urlParts.join("/")}`;
+      
+      // Get the nav item for proper title
+      const navItem = getNavigationItem(url, navigation);
+      const title = navItem?.title || part;
+      
+      // If the part is a dynamic route segment (likely an ID), don't make it clickable
+      const isDynamicSegment = part.match(/^\d+$/) || part.match(/^\[.*\]$/);
+      const crumbUrl = isDynamicSegment ? pathname : url;
+      
+      acc.push({ title, url: crumbUrl });
+      return acc;
+    },
+    skipHome ? [] : [{ title: "Home", url: "/" }]
+  );
 
   return (
     <Breadcrumbs
