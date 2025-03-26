@@ -385,7 +385,7 @@ const ProductListTable = () => {
 
             <TextField
               label="Categories"
-              placeholder="e.g. 1,2,3"
+              placeholder="Category Id"
               variant="outlined"
               value={categories}
               onChange={(e) => setCategories(e.target.value)}
@@ -407,7 +407,7 @@ const ProductListTable = () => {
 
             <TextField
               label="Brands"
-              placeholder="e.g. 1,2,3"
+              placeholder="Brand Id"
               variant="outlined"
               value={brands}
               onChange={(e) => setBrands(e.target.value)}
