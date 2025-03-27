@@ -1,5 +1,5 @@
 // import DataTable from './DataTable';
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useCallback } from "react";
 import { type MRT_ColumnDef } from "material-react-table";
 import DataTable from "@/components/data-table/DataTable";
 import FuseLoading from "@fuse/core/FuseLoading";
@@ -26,8 +26,13 @@ import {
   Pagination,
   PaginationItem,
   Chip,
+  FormControl,
+  InputLabel,
+  Autocomplete,
 } from "@mui/material";
 import { listProducts } from "@/services/apiProduct";
+import { listProductCategory } from "@/services/apiProductCategory";
+import { listProductBrand } from "@/services/apiProductBrand";
 import { useFetch } from "@/hooks/useFetch";
 import { mutate } from "swr";
 import { useRouter } from "next/navigation";
@@ -52,14 +57,14 @@ export type ProductType = {
   createdAt: string;
   updatedAt: string;
   // Add Brand and Category properties
-  Brand?: {      
+  Brand?: {
     id: number;
     name: string;
     slug: string;
     logo_url?: string;
     description?: string;
   };
-  
+
   Category?: {
     id: number;
     name: string;
@@ -69,7 +74,24 @@ export type ProductType = {
   };
 };
 
-const ProductListTable = () => {
+interface ProductListTableProps {
+  refreshData?: (fn: () => Promise<void>) => void;
+}
+
+// Define interfaces for category and brand data
+interface CategoryType {
+  id: number;
+  name: string;
+}
+
+interface BrandType {
+  id: number;
+  name: string;
+}
+
+const ProductListTable = ({
+  refreshData: setExternalRefreshFn,
+}: ProductListTableProps) => {
   const router = useRouter();
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -80,6 +102,10 @@ const ProductListTable = () => {
   const [priceRange, setPriceRange] = useState<string>("");
   const [categories, setCategories] = useState<string>("");
   const [brands, setBrands] = useState<string>("");
+  const [selectedCategory, setSelectedCategory] = useState<CategoryType | null>(
+    null
+  );
+  const [selectedBrand, setSelectedBrand] = useState<BrandType | null>(null);
   const [openDrawer, setOpenDrawer] = useState(false);
   const [page, setPage] = useState(1);
   const [limit] = useState(10);
@@ -87,11 +113,69 @@ const ProductListTable = () => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [restoreDialogOpen, setRestoreDialogOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<ProductType | null>(
-    null,
+    null
   );
   const [products, setProducts] = useState<ProductType[]>([]);
   const [totalRecords, setTotalRecords] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
+  const [manuallyRefreshing, setManuallyRefreshing] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Fetch categories and brands
+  const { data: categoriesData } = useFetch("categories", listProductCategory, {
+    limit: 1000, // Request a high limit to get all categories
+  });
+  const { data: brandsData } = useFetch("brands", listProductBrand, {
+    limit: 1000, // Request a high limit to get all brands
+  });
+
+  // Process categories and brands for dropdown select
+  const categoryOptions = useMemo(() => {
+    if (!categoriesData?.data?.categories) return [];
+    // Filter out duplicates by creating a map keyed by ID
+    const uniqueCategories = new Map();
+    categoriesData.data.categories.forEach((category: CategoryType) => {
+      uniqueCategories.set(category.id, category);
+    });
+    // Convert back to array
+    return Array.from(uniqueCategories.values()).map(
+      (category: CategoryType) => ({
+        id: category.id,
+        name: category.name,
+      })
+    );
+  }, [categoriesData]);
+
+  const brandOptions = useMemo(() => {
+    if (!brandsData?.data?.brands) return [];
+    // Filter out duplicates by creating a map keyed by ID
+    const uniqueBrands = new Map();
+    brandsData.data.brands.forEach((brand: BrandType) => {
+      uniqueBrands.set(brand.id, brand);
+    });
+    // Convert back to array
+    return Array.from(uniqueBrands.values()).map((brand: BrandType) => ({
+      id: brand.id,
+      name: brand.name,
+    }));
+  }, [brandsData]);
+
+  // Update categories and brands when selections change
+  useEffect(() => {
+    if (selectedCategory) {
+      setCategories(selectedCategory.id.toString());
+    } else {
+      setCategories("");
+    }
+  }, [selectedCategory]);
+
+  useEffect(() => {
+    if (selectedBrand) {
+      setBrands(selectedBrand.id.toString());
+    } else {
+      setBrands("");
+    }
+  }, [selectedBrand]);
 
   // Debounce search input
   useEffect(() => {
@@ -125,20 +209,60 @@ const ProductListTable = () => {
       brands,
       page,
       limit,
-    ],
+    ]
   );
 
-  const { data, error, isLoading } = useFetch(
-    ["productList", queryParams],
-    listProducts,
-    queryParams,
-  );
+  const {
+    data,
+    error,
+    isLoading: apiLoading,
+  } = useFetch(["productList", queryParams], listProducts, queryParams);
+
+  // Function to manually refresh data by making a direct API call
+  const refreshData = useCallback(async () => {
+    try {
+      // Show loading state
+      setProducts([]); // Clear current data to show loading state
+      setIsLoading(true); // Set loading state to true
+      setManuallyRefreshing(true); // Set manual refresh indicator
+
+      // Call the API directly
+      const freshData = await listProducts(queryParams);
+
+      // Update the local state with fresh data
+      if (freshData?.data) {
+        setProducts(freshData.data.products || []);
+        setTotalRecords(freshData.data.pagination?.total_count || 0);
+        setTotalPages(
+          Math.ceil((freshData.data.pagination?.total_count || 0) / limit)
+        );
+      }
+
+      // Also update the SWR cache
+      await mutate(["productList", queryParams]);
+    } catch (error) {
+      console.error("Failed to refresh product data:", error);
+      showSnackbar("Failed to refresh products", "error");
+    } finally {
+      setIsLoading(false); // Reset loading state
+      setManuallyRefreshing(false); // Reset manual refresh indicator
+    }
+  }, [queryParams, showSnackbar, limit]);
+
+  // Provide the refresh function to the parent component
+  useEffect(() => {
+    if (setExternalRefreshFn) {
+      setExternalRefreshFn(refreshData);
+    }
+  }, [setExternalRefreshFn, refreshData]);
 
   useEffect(() => {
     if (data?.data) {
       setProducts(data.data.products || []);
       setTotalRecords(data.data.pagination?.total_count || 0);
-      setTotalPages(Math.ceil((data.data.pagination?.total_count || 0) / limit));
+      setTotalPages(
+        Math.ceil((data.data.pagination?.total_count || 0) / limit)
+      );
     }
   }, [data, limit]);
 
@@ -161,12 +285,12 @@ const ProductListTable = () => {
     try {
       await deleteProduct(selectedProduct.id);
       showSnackbar("Product deleted successfully", "success");
-      
+
       // Update local state without reloading
-      setProducts(prevProducts => 
-        prevProducts.filter(product => product.id !== selectedProduct.id)
+      setProducts((prevProducts) =>
+        prevProducts.filter((product) => product.id !== selectedProduct.id)
       );
-      setTotalRecords(prev => prev - 1);
+      setTotalRecords((prev) => prev - 1);
       setTotalPages(Math.ceil((totalRecords - 1) / limit));
     } catch (error) {
       if (error?.errors) {
@@ -188,7 +312,7 @@ const ProductListTable = () => {
         // setError('root', { type: 'manual', message: errorMessage });
       }
       return false;
-    } 
+    }
     setDeleteDialogOpen(false);
     setSelectedProduct(null);
   };
@@ -198,12 +322,12 @@ const ProductListTable = () => {
     try {
       await restoreProduct(selectedProduct.id);
       showSnackbar("Product restored successfully", "success");
-      
+
       // Update local state without reloading
-      setProducts(prevProducts => 
-        prevProducts.filter(product => product.id !== selectedProduct.id)
+      setProducts((prevProducts) =>
+        prevProducts.filter((product) => product.id !== selectedProduct.id)
       );
-      setTotalRecords(prev => prev - 1);
+      setTotalRecords((prev) => prev - 1);
       setTotalPages(Math.ceil((totalRecords - 1) / limit));
     } catch (error) {
       if (error?.errors) {
@@ -246,7 +370,7 @@ const ProductListTable = () => {
           return `$${Number(price).toFixed(2)}`;
         },
       },
-      { accessorKey: "stock_quantity", header: "Stock" },
+      // { accessorKey: "stock_quantity", header: "Stock" },
       {
         accessorKey: "category_name",
         header: "Category",
@@ -270,7 +394,7 @@ const ProductListTable = () => {
       {
         accessorKey: "createdAt",
         header: "Created At",
-         Cell: ({ row }) => formatDate(row.original.createdAt),
+        Cell: ({ row }) => formatDate(row.original.createdAt),
       },
       {
         accessorKey: "updatedAt",
@@ -278,21 +402,24 @@ const ProductListTable = () => {
         Cell: ({ row }) => formatDate(row.original.updatedAt),
       },
       // Only add the deletedAt column when viewing deleted products
-      ...(deleted === true ? [
-        {
-          accessorKey: "deletedAt",
-          header: "Deleted At",
-          Cell: ({ row }) => formatDate(row.original.deletedAt || ""),
-          enableColumnFilter: false,
-          enableSorting: true,
-          size: 150,
-        },
-      ] : []),
+      ...(deleted === true
+        ? [
+            {
+              accessorKey: "deletedAt",
+              header: "Deleted At",
+              Cell: ({ row }) => formatDate(row.original.deletedAt || ""),
+              enableColumnFilter: false,
+              enableSorting: true,
+              size: 150,
+            },
+          ]
+        : []),
     ],
-    [router, deleted],
+    [router, deleted]
   );
 
-  if (isLoading) return <FuseLoading />;
+  if (isLoading || manuallyRefreshing || (apiLoading && products.length === 0))
+    return <FuseLoading />;
   if (error) return <p>Failed to load products</p>;
 
   return (
@@ -358,7 +485,7 @@ const ProductListTable = () => {
               value={isNew === null ? "all" : isNew ? "new" : "regular"}
               onChange={(e) =>
                 setIsNew(
-                  e.target.value === "all" ? null : e.target.value === "new",
+                  e.target.value === "all" ? null : e.target.value === "new"
                 )
               }
               size="small"
@@ -369,12 +496,14 @@ const ProductListTable = () => {
             </Select>
 
             <Select
-              value={deleted === null ? "active" : deleted ? "deleted" : "active"}
+              value={
+                deleted === null ? "active" : deleted ? "deleted" : "active"
+              }
               onChange={(e) =>
                 setDeleted(
                   e.target.value === "active"
                     ? null
-                    : e.target.value === "deleted",
+                    : e.target.value === "deleted"
                 )
               }
               size="small"
@@ -383,49 +512,69 @@ const ProductListTable = () => {
               <MenuItem value="deleted">Deleted</MenuItem>
             </Select>
 
-            <TextField
-              label="Categories"
-              placeholder="Category Id"
-              variant="outlined"
-              value={categories}
-              onChange={(e) => setCategories(e.target.value)}
-              size="small"
-              sx={{
-                minWidth: '120px',
-                width: '120px',
-                "& .MuiOutlinedInput-root": {
-                  "&.Mui-focused fieldset": {
-                    borderColor: "#2E9970",
-                    borderWidth: "2px",
+            <FormControl sx={{ minWidth: 180 }} size="small">
+              <Autocomplete
+                options={categoryOptions}
+                getOptionLabel={(option) => option.name}
+                value={selectedCategory}
+                onChange={(event, newValue) => {
+                  setSelectedCategory(newValue);
+                }}
+                isOptionEqualToValue={(option, value) => option.id === value.id}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Category"
+                    variant="outlined"
+                    size="small"
+                  />
+                )}
+                size="small"
+                sx={{
+                  "& .MuiOutlinedInput-root": {
+                    "&.Mui-focused fieldset": {
+                      borderColor: "#2E9970",
+                      borderWidth: "2px",
+                    },
                   },
-                },
-                "& .MuiInputLabel-root.Mui-focused": {
-                  color: "#2E9970",
-                },
-              }}
-            />
+                  "& .MuiInputLabel-root.Mui-focused": {
+                    color: "#2E9970",
+                  },
+                }}
+              />
+            </FormControl>
 
-            <TextField
-              label="Brands"
-              placeholder="Brand Id"
-              variant="outlined"
-              value={brands}
-              onChange={(e) => setBrands(e.target.value)}
-              size="small"
-              sx={{
-                minWidth: '120px',
-                width: '120px',
-                "& .MuiOutlinedInput-root": {
-                  "&.Mui-focused fieldset": {
-                    borderColor: "#2E9970",
-                    borderWidth: "2px",
+            <FormControl sx={{ minWidth: 180 }} size="small">
+              <Autocomplete
+                options={brandOptions}
+                getOptionLabel={(option) => option.name}
+                value={selectedBrand}
+                onChange={(event, newValue) => {
+                  setSelectedBrand(newValue);
+                }}
+                isOptionEqualToValue={(option, value) => option.id === value.id}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Brand"
+                    variant="outlined"
+                    size="small"
+                  />
+                )}
+                size="small"
+                sx={{
+                  "& .MuiOutlinedInput-root": {
+                    "&.Mui-focused fieldset": {
+                      borderColor: "#2E9970",
+                      borderWidth: "2px",
+                    },
                   },
-                },
-                "& .MuiInputLabel-root.Mui-focused": {
-                  color: "#2E9970",
-                },
-              }}
-            />
+                  "& .MuiInputLabel-root.Mui-focused": {
+                    color: "#2E9970",
+                  },
+                }}
+              />
+            </FormControl>
           </div>
         </div>
 
@@ -560,7 +709,7 @@ const ProductListTable = () => {
               value={isNew === null ? "all" : isNew ? "new" : "regular"}
               onChange={(e) =>
                 setIsNew(
-                  e.target.value === "all" ? null : e.target.value === "new",
+                  e.target.value === "all" ? null : e.target.value === "new"
                 )
               }
               fullWidth
@@ -576,9 +725,7 @@ const ProductListTable = () => {
               value={deleted === null ? "all" : deleted ? "deleted" : "active"}
               onChange={(e) =>
                 setDeleted(
-                  e.target.value === "all"
-                    ? null
-                    : e.target.value === "deleted",
+                  e.target.value === "all" ? null : e.target.value === "deleted"
                 )
               }
               fullWidth
@@ -590,25 +737,38 @@ const ProductListTable = () => {
             </Select>
           </ListItem>
           <ListItem>
-            <TextField
-              label="Categories (IDs)"
-              placeholder="e.g. 1,2,3"
-              value={categories}
-              onChange={(e) => setCategories(e.target.value)}
+            <Autocomplete
+              options={categoryOptions}
+              getOptionLabel={(option) => option.name}
+              value={selectedCategory}
+              onChange={(event, newValue) => {
+                setSelectedCategory(newValue);
+              }}
+              isOptionEqualToValue={(option, value) => option.id === value.id}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label="Category"
+                  fullWidth
+                  size="small"
+                />
+              )}
               fullWidth
-              size="small"
-              helperText="Comma-separated category IDs"
             />
           </ListItem>
           <ListItem>
-            <TextField
-              label="Brands (IDs)"
-              placeholder="e.g. 1,2,3"
-              value={brands}
-              onChange={(e) => setBrands(e.target.value)}
+            <Autocomplete
+              options={brandOptions}
+              getOptionLabel={(option) => option.name}
+              value={selectedBrand}
+              onChange={(event, newValue) => {
+                setSelectedBrand(newValue);
+              }}
+              isOptionEqualToValue={(option, value) => option.id === value.id}
+              renderInput={(params) => (
+                <TextField {...params} label="Brand" fullWidth size="small" />
+              )}
               fullWidth
-              size="small"
-              helperText="Comma-separated brand IDs"
             />
           </ListItem>
           <ListItem>

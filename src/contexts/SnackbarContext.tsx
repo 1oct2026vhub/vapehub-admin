@@ -10,12 +10,12 @@ import { Snackbar, Alert, AlertColor } from "@mui/material";
 
 // Define Context Type
 interface SnackbarContextType {
-  showSnackbar: (message: string, severity?: AlertColor) => void;
+  showSnackbar: (message: string, severity?: AlertColor | string) => void;
 }
 
 // Create Context
 const SnackbarContext = createContext<SnackbarContextType | undefined>(
-  undefined,
+  undefined
 );
 
 // Define Snackbar State Type
@@ -42,10 +42,20 @@ export const SnackbarProvider: React.FC<SnackbarProviderProps> = ({
 
   // Show Snackbar Function
   const showSnackbar = useCallback(
-    (message: string, severity: AlertColor = "info") => {
-      setSnackbar({ open: true, message, severity });
+    (message: string, severity: AlertColor | string = "info") => {
+      // Ensure severity is a valid AlertColor
+      let validSeverity: AlertColor = "info";
+      if (
+        severity === "success" ||
+        severity === "error" ||
+        severity === "warning" ||
+        severity === "info"
+      ) {
+        validSeverity = severity;
+      }
+      setSnackbar({ open: true, message, severity: validSeverity });
     },
-    [],
+    []
   );
 
   // Close Snackbar

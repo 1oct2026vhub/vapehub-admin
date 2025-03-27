@@ -20,15 +20,21 @@ import FormInputField from "@/components/Shared/FormInputField";
 import { useProductForm } from "../ProductFormContext";
 import { getAuthToken } from "@/utils/auth";
 import FormSearchableSelectField from "@/components/Shared/FormSearchableSelectField";
-import FormCKEditor from '@/components/Shared/FormCKEditor';
+import FormCKEditor from "@/components/Shared/FormCKEditor";
 
 const schema = z.object({
-  name: z.string().min(1, "Name is required")
+  name: z
+    .string()
+    .min(1, "Name is required")
     .max(50, "Name must not exceed 50 characters"),
-    slug: z.string()
+  slug: z
+    .string()
     .min(1, "Slug is required")
     .max(50, "Slug must be at most 50 characters")
-    .regex(/^[a-z0-9-]+$/, "Slug must be a valid URL-friendly string (lowercase letters, numbers, and hyphens only)"),
+    .regex(
+      /^[a-z0-9-]+$/,
+      "Slug must be a valid URL-friendly string (lowercase letters, numbers, and hyphens only)"
+    ),
   description: z.string().optional().default(""),
   category_id: z.number().min(1, "Category is required"),
   brand_id: z.number().min(1, "Brand is required"),
@@ -44,12 +50,12 @@ function BasicInfoTab() {
   const { data: categories } = useFetch(
     ["productCategoryList", {}],
     listProductCategory,
-    {},
+    {}
   );
   const { data: brands } = useFetch(
     ["productBrandList", {}],
     listProductBrand,
-    {},
+    {}
   );
   const [isLoading, setIsLoading] = useState(false);
   const { formData, updateFormData, nextStep, markStepAsCompleted } =
@@ -74,13 +80,12 @@ function BasicInfoTab() {
       description: formData.description || "",
       category_id: formData.category_id || 0,
       brand_id: formData.brand_id || 0,
-      is_new: formData.is_new ?? true,
+      // is_new: formData.is_new ?? true,
     },
     resolver: zodResolver(schema),
   });
 
-  console.log("productId",productId);
-  
+  console.log("productId", productId);
 
   // Fetch product data when component mounts or productId changes
   useEffect(() => {
@@ -96,7 +101,7 @@ function BasicInfoTab() {
 
           if (response?.data) {
             const productData = response.data;
-            
+
             // Update form with fetched data
             setValue("name", productData.name || "");
             setValue("slug", productData.slug || "");
@@ -167,7 +172,7 @@ function BasicInfoTab() {
         console.log("Updating existing product with ID:", productId);
         response = await updateProduct(Number(productId), productData);
         showSnackbar("Product updated successfully", "success");
-        
+
         // Update form data and stay on the same page
         updateFormData({
           ...data,
@@ -179,17 +184,17 @@ function BasicInfoTab() {
         console.log("Creating new product");
         response = await createProduct(productData);
         showSnackbar("Product created successfully", "success");
-        
+
         // Update form data and move to next step
         updateFormData({
           ...data,
           productId: response.data.id,
           hasErrors: false,
         });
-        
+
         // Update URL with the new product ID
         router.push(`/apps/product/edit?productId=${response.data.id}`);
-        
+
         // Move to next step only for new products
         nextStep();
       }
@@ -201,9 +206,7 @@ function BasicInfoTab() {
       }
 
       console.log("Product saved successfully with ID:", response.data.id);
-
     } catch (error: any) {
-
       if (error?.errors) {
         showSnackbar(error?.errors[0]?.msg, "error");
       } else {
@@ -258,8 +261,11 @@ function BasicInfoTab() {
       className="flex w-full flex-col justify-center"
       onKeyDown={(e) => {
         // Prevent form submission on Enter key unless it's inside a button
-        if (e.key === 'Enter' && (e.target as HTMLElement).tagName !== 'BUTTON') {
-          console.log('Preventing form submission from Enter key');
+        if (
+          e.key === "Enter" &&
+          (e.target as HTMLElement).tagName !== "BUTTON"
+        ) {
+          console.log("Preventing form submission from Enter key");
           e.preventDefault();
           return false;
         }
@@ -284,7 +290,6 @@ function BasicInfoTab() {
         control={control}
         label="Description"
         defaultValue={formData.description || ""}
-
       />
       <FormSearchableSelectField
         name="category_id"

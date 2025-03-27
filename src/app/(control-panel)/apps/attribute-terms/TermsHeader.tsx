@@ -105,13 +105,19 @@ import { useSnackbar } from "@/contexts/SnackbarContext";
 import { useState, useRef } from "react";
 import { Menu, MenuItem, ListItemIcon, ListItemText } from "@mui/material";
 
+// Add props interface
+interface TermsHeaderProps {
+  refreshData?: () => void;
+}
+
 /**
  * The products header.
  */
-function TermHeader() {
+function TermHeader({ refreshData }: TermsHeaderProps) {
   const isMobile = useThemeMediaQuery((theme) => theme.breakpoints.down("lg"));
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   const { showSnackbar } = useSnackbar();
 
@@ -139,7 +145,7 @@ function TermHeader() {
   };
 
   const handleFileChange = async (
-    event: React.ChangeEvent<HTMLInputElement>,
+    event: React.ChangeEvent<HTMLInputElement>
   ) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -154,11 +160,21 @@ function TermHeader() {
       return;
     }
 
+    setIsUploading(true);
     try {
       await bulkUpdateAttributeTerm(file);
       showSnackbar("Attribute Terms updated successfully", "success");
+
+      // Refresh data after successful upload
+      if (refreshData) {
+        setTimeout(() => {
+          refreshData(); // Call with a slight delay to ensure server has processed the data
+        }, 500);
+      }
     } catch (error) {
       showSnackbar("Failed to update attribute terms", "error");
+    } finally {
+      setIsUploading(false);
     }
 
     // Reset file input
@@ -204,6 +220,8 @@ function TermHeader() {
             variant="outlined"
             size={isMobile ? "small" : "medium"}
             onClick={handleMenuClick}
+            loading={isUploading}
+            disabled={isUploading}
           />
 
           <Menu
@@ -219,7 +237,7 @@ function TermHeader() {
               horizontal: "right",
             }}
           >
-            <MenuItem onClick={handleFileUploadClick}>
+            <MenuItem onClick={handleFileUploadClick} disabled={isUploading}>
               <ListItemIcon>
                 <FuseSvgIcon size={20}>
                   heroicons-outline:arrow-up-on-square
@@ -227,7 +245,7 @@ function TermHeader() {
               </ListItemIcon>
               <ListItemText>Upload Excel File</ListItemText>
             </MenuItem>
-            <MenuItem onClick={handleDownloadSample}>
+            <MenuItem onClick={handleDownloadSample} disabled={isUploading}>
               <ListItemIcon>
                 <FuseSvgIcon size={20}>
                   heroicons-outline:arrow-down-tray

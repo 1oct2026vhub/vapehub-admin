@@ -1,11 +1,18 @@
 "use client";
 
 import { useSnackbar } from "@/contexts/SnackbarContext";
-import { useForm, useFieldArray } from "react-hook-form";
+import { useForm, useFieldArray, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useState, useEffect, useCallback, useRef } from "react";
-import { IconButton, Paper, CircularProgress, TextField } from "@mui/material";
+import {
+  IconButton,
+  Paper,
+  CircularProgress,
+  TextField,
+  Autocomplete,
+  FormControl,
+} from "@mui/material";
 import AppButton from "@/components/Shared/AppButton";
 import FormSelectField from "@/components/Shared/SelectField";
 import FormCheckboxField from "@/components/Shared/FormCheckboxField";
@@ -99,10 +106,16 @@ function AttributesTab() {
     formData.attributes && formData.attributes.length > 0
   );
 
+  // const { data: attributes } = useFetch(
+  //   ["attributeList", {}],
+  //   listAttributes,
+  //   {}
+  // );
+
   const { data: attributes } = useFetch(
-    ["attributeList", {}],
+    ["attributeList", { limit: 100 }], // Include limit in the query key
     listAttributes,
-    {}
+    { limit: 100 } // Pass limit as a query parameter
   );
 
   const {
@@ -283,13 +296,16 @@ function AttributesTab() {
 
     // Get all selected attribute IDs except the current row
     const selectedAttributeIds = attributeSelections
-      .map((attr, index) => (index !== currentIndex ? attr.attribute_id : 0))
-      .filter((id) => id !== 0);
+      .map((attr, index) => (index !== currentIndex ? attr.attribute_id : null))
+      .filter((id) => id !== null);
 
     // Filter out already selected attributes, but keep the current attribute
-    return attributes.data.attributes.filter(
-      (attr) => !selectedAttributeIds.includes(attr.id)
-    );
+    return attributes.data.attributes
+      .filter((attr) => !selectedAttributeIds.includes(attr.id))
+      .map((attr) => ({
+        value: attr.id,
+        label: attr.name,
+      }));
   };
 
   // Function to handle attribute change and fetch corresponding terms
@@ -584,58 +600,76 @@ function AttributesTab() {
         {fields.map((field, index) => (
           <Paper key={field.id} className="p-4 relative">
             <div className="grid grid-cols-2 gap-4">
-              <FormSelectField
-                name={`attributes.${index}.attribute_id`}
-                control={control}
-                label="Attribute"
-                options={(() => {
-                  // Create a map to store unique attributes by ID
-                  const uniqueAttributes = new Map();
+              <FormControl sx={{ minWidth: 180 }} size="small">
+                <Controller
+                  name={`attributes.${index}.attribute_id`}
+                  control={control}
+                  rules={{ required: "Please select an attribute" }}
+                  render={({
+                    field: { onChange, value },
+                    fieldState: { error },
+                  }) => (
+                    <Autocomplete
+                      options={getAvailableAttributes(index)}
+                      getOptionLabel={(option) => option.label}
+                      value={
+                        attributes?.data?.attributes?.find(
+                          (attr) => attr.id === value
+                        )
+                          ? {
+                              value,
+                              label: attributes.data.attributes.find(
+                                (attr) => attr.id === value
+                              ).name,
+                            }
+                          : null
+                      }
+                      onChange={(event, newValue) => {
+                        onChange(newValue ? newValue.value : null);
+                        handleAttributeChange(
+                          index,
+                          newValue ? Number(newValue.value) : null
+                        );
+                      }}
+                      renderInput={(params) => (
+                        <TextField
+                          {...params}
+                          label="Attribute"
+                          variant="outlined"
+                          size="small"
+                          error={!!error}
+                          required
+                          helperText={error?.message}
+                          sx={{
+                            "& .MuiOutlinedInput-root": {
+                              "&.Mui-focused fieldset": {
+                                borderColor: "#2E9970",
+                                borderWidth: "2px",
+                              },
+                            },
+                            "& .MuiInputLabel-root.Mui-focused": {
+                              color: "#2E9970",
+                            },
+                          }}
+                        />
+                      )}
+                      size="small"
+                      sx={{
+                        "& .MuiOutlinedInput-root": {
+                          "&.Mui-focused fieldset": {
+                            borderColor: "#2E9970",
+                            borderWidth: "2px",
+                          },
+                        },
+                        "& .MuiInputLabel-root.Mui-focused": {
+                          color: "#2E9970",
+                        },
+                      }}
+                    />
+                  )}
+                />
+              </FormControl>
 
-                  // Get the current attribute ID for this row
-                  const currentAttributeId =
-                    attributeSelections[index]?.attribute_id;
-
-                  // For updating existing attributes, only add the current attribute from response data
-                  if (
-                    isEditMode &&
-                    formData.attributesResponse?.productAttributeTerms &&
-                    currentAttributeId
-                  ) {
-                    // Find the current attribute in productAttributeTerms
-                    const currentAttr =
-                      formData.attributesResponse.productAttributeTerms.find(
-                        (attr) => attr.attribute_id === currentAttributeId
-                      );
-
-                    if (currentAttr?.attribute) {
-                      uniqueAttributes.set(currentAttributeId, {
-                        value: currentAttributeId,
-                        label: currentAttr.attribute.name,
-                      });
-                    }
-                  }
-
-                  // Then add available attributes from listAttributes
-                  // In both create and update case, we need to show available attributes
-                  getAvailableAttributes(index).forEach((attr) => {
-                    if (!uniqueAttributes.has(attr.id)) {
-                      uniqueAttributes.set(attr.id, {
-                        value: attr.id,
-                        label: attr.name,
-                      });
-                    }
-                  });
-
-                  // Convert map to array
-                  return Array.from(uniqueAttributes.values());
-                })()}
-                onChange={(e) => {
-                  const attributeId = Number(e.target.value);
-                  handleAttributeChange(index, attributeId);
-                }}
-                required
-              />
               <FormSelectField
                 name={`attributes.${index}.term_ids`}
                 control={control}
@@ -649,19 +683,7 @@ function AttributesTab() {
                 isMulti
                 onTermRemove={(termId) => handleTermRemove(index, termId)}
               />
-              {/* <TextField
-                fullWidth
-                label="Default Value"
-                variant="outlined"
-                value={watch(`attributes.${index}.default_value`) || ''}
-                onChange={(e) => {
-                  setValue(`attributes.${index}.default_value`, e.target.value, {
-                    shouldValidate: true,
-                    shouldDirty: true,
-                  });
-                }}
-                placeholder="Enter default value for selected terms"
-              /> */}
+
               <FormCheckboxField
                 name={`attributes.${index}.is_visible_page`}
                 control={control}
@@ -675,11 +697,7 @@ function AttributesTab() {
             </div>
             {fields.length > 1 && (
               <IconButton
-                onClick={(e) => {
-                  e.preventDefault(); // Prevent form submission
-                  console.log("Deleting attribute at index:", index);
-                  handleDeleteAttribute(index);
-                }}
+                onClick={() => handleDeleteAttribute(index)}
                 className="absolute top-2 right-2"
                 size="small"
                 disabled={isLoading}
