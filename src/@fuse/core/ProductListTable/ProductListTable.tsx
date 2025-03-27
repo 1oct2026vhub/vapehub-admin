@@ -26,8 +26,13 @@ import {
   Pagination,
   PaginationItem,
   Chip,
+  FormControl,
+  InputLabel,
+  Autocomplete,
 } from "@mui/material";
 import { listProducts } from "@/services/apiProduct";
+import { listProductCategory } from "@/services/apiProductCategory";
+import { listProductBrand } from "@/services/apiProductBrand";
 import { useFetch } from "@/hooks/useFetch";
 import { mutate } from "swr";
 import { useRouter } from "next/navigation";
@@ -73,6 +78,17 @@ interface ProductListTableProps {
   refreshData?: (fn: () => Promise<void>) => void;
 }
 
+// Define interfaces for category and brand data
+interface CategoryType {
+  id: number;
+  name: string;
+}
+
+interface BrandType {
+  id: number;
+  name: string;
+}
+
 const ProductListTable = ({
   refreshData: setExternalRefreshFn,
 }: ProductListTableProps) => {
@@ -86,6 +102,10 @@ const ProductListTable = ({
   const [priceRange, setPriceRange] = useState<string>("");
   const [categories, setCategories] = useState<string>("");
   const [brands, setBrands] = useState<string>("");
+  const [selectedCategory, setSelectedCategory] = useState<CategoryType | null>(
+    null
+  );
+  const [selectedBrand, setSelectedBrand] = useState<BrandType | null>(null);
   const [openDrawer, setOpenDrawer] = useState(false);
   const [page, setPage] = useState(1);
   const [limit] = useState(10);
@@ -100,6 +120,62 @@ const ProductListTable = ({
   const [totalPages, setTotalPages] = useState(0);
   const [manuallyRefreshing, setManuallyRefreshing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+
+  // Fetch categories and brands
+  const { data: categoriesData } = useFetch("categories", listProductCategory, {
+    limit: 1000, // Request a high limit to get all categories
+  });
+  const { data: brandsData } = useFetch("brands", listProductBrand, {
+    limit: 1000, // Request a high limit to get all brands
+  });
+
+  // Process categories and brands for dropdown select
+  const categoryOptions = useMemo(() => {
+    if (!categoriesData?.data?.categories) return [];
+    // Filter out duplicates by creating a map keyed by ID
+    const uniqueCategories = new Map();
+    categoriesData.data.categories.forEach((category: CategoryType) => {
+      uniqueCategories.set(category.id, category);
+    });
+    // Convert back to array
+    return Array.from(uniqueCategories.values()).map(
+      (category: CategoryType) => ({
+        id: category.id,
+        name: category.name,
+      })
+    );
+  }, [categoriesData]);
+
+  const brandOptions = useMemo(() => {
+    if (!brandsData?.data?.brands) return [];
+    // Filter out duplicates by creating a map keyed by ID
+    const uniqueBrands = new Map();
+    brandsData.data.brands.forEach((brand: BrandType) => {
+      uniqueBrands.set(brand.id, brand);
+    });
+    // Convert back to array
+    return Array.from(uniqueBrands.values()).map((brand: BrandType) => ({
+      id: brand.id,
+      name: brand.name,
+    }));
+  }, [brandsData]);
+
+  // Update categories and brands when selections change
+  useEffect(() => {
+    if (selectedCategory) {
+      setCategories(selectedCategory.id.toString());
+    } else {
+      setCategories("");
+    }
+  }, [selectedCategory]);
+
+  useEffect(() => {
+    if (selectedBrand) {
+      setBrands(selectedBrand.id.toString());
+    } else {
+      setBrands("");
+    }
+  }, [selectedBrand]);
 
   // Debounce search input
   useEffect(() => {
@@ -294,7 +370,7 @@ const ProductListTable = ({
           return `$${Number(price).toFixed(2)}`;
         },
       },
-      { accessorKey: "stock_quantity", header: "Stock" },
+      // { accessorKey: "stock_quantity", header: "Stock" },
       {
         accessorKey: "category_name",
         header: "Category",
@@ -436,49 +512,69 @@ const ProductListTable = ({
               <MenuItem value="deleted">Deleted</MenuItem>
             </Select>
 
-            <TextField
-              label="Categories"
-              placeholder="Category Id"
-              variant="outlined"
-              value={categories}
-              onChange={(e) => setCategories(e.target.value)}
-              size="small"
-              sx={{
-                minWidth: "120px",
-                width: "120px",
-                "& .MuiOutlinedInput-root": {
-                  "&.Mui-focused fieldset": {
-                    borderColor: "#2E9970",
-                    borderWidth: "2px",
+            <FormControl sx={{ minWidth: 180 }} size="small">
+              <Autocomplete
+                options={categoryOptions}
+                getOptionLabel={(option) => option.name}
+                value={selectedCategory}
+                onChange={(event, newValue) => {
+                  setSelectedCategory(newValue);
+                }}
+                isOptionEqualToValue={(option, value) => option.id === value.id}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Category"
+                    variant="outlined"
+                    size="small"
+                  />
+                )}
+                size="small"
+                sx={{
+                  "& .MuiOutlinedInput-root": {
+                    "&.Mui-focused fieldset": {
+                      borderColor: "#2E9970",
+                      borderWidth: "2px",
+                    },
                   },
-                },
-                "& .MuiInputLabel-root.Mui-focused": {
-                  color: "#2E9970",
-                },
-              }}
-            />
+                  "& .MuiInputLabel-root.Mui-focused": {
+                    color: "#2E9970",
+                  },
+                }}
+              />
+            </FormControl>
 
-            <TextField
-              label="Brands"
-              placeholder="Brand Id"
-              variant="outlined"
-              value={brands}
-              onChange={(e) => setBrands(e.target.value)}
-              size="small"
-              sx={{
-                minWidth: "120px",
-                width: "120px",
-                "& .MuiOutlinedInput-root": {
-                  "&.Mui-focused fieldset": {
-                    borderColor: "#2E9970",
-                    borderWidth: "2px",
+            <FormControl sx={{ minWidth: 180 }} size="small">
+              <Autocomplete
+                options={brandOptions}
+                getOptionLabel={(option) => option.name}
+                value={selectedBrand}
+                onChange={(event, newValue) => {
+                  setSelectedBrand(newValue);
+                }}
+                isOptionEqualToValue={(option, value) => option.id === value.id}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Brand"
+                    variant="outlined"
+                    size="small"
+                  />
+                )}
+                size="small"
+                sx={{
+                  "& .MuiOutlinedInput-root": {
+                    "&.Mui-focused fieldset": {
+                      borderColor: "#2E9970",
+                      borderWidth: "2px",
+                    },
                   },
-                },
-                "& .MuiInputLabel-root.Mui-focused": {
-                  color: "#2E9970",
-                },
-              }}
-            />
+                  "& .MuiInputLabel-root.Mui-focused": {
+                    color: "#2E9970",
+                  },
+                }}
+              />
+            </FormControl>
           </div>
         </div>
 
@@ -641,25 +737,38 @@ const ProductListTable = ({
             </Select>
           </ListItem>
           <ListItem>
-            <TextField
-              label="Categories (IDs)"
-              placeholder="e.g. 1,2,3"
-              value={categories}
-              onChange={(e) => setCategories(e.target.value)}
+            <Autocomplete
+              options={categoryOptions}
+              getOptionLabel={(option) => option.name}
+              value={selectedCategory}
+              onChange={(event, newValue) => {
+                setSelectedCategory(newValue);
+              }}
+              isOptionEqualToValue={(option, value) => option.id === value.id}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label="Category"
+                  fullWidth
+                  size="small"
+                />
+              )}
               fullWidth
-              size="small"
-              helperText="Comma-separated category IDs"
             />
           </ListItem>
           <ListItem>
-            <TextField
-              label="Brands (IDs)"
-              placeholder="e.g. 1,2,3"
-              value={brands}
-              onChange={(e) => setBrands(e.target.value)}
+            <Autocomplete
+              options={brandOptions}
+              getOptionLabel={(option) => option.name}
+              value={selectedBrand}
+              onChange={(event, newValue) => {
+                setSelectedBrand(newValue);
+              }}
+              isOptionEqualToValue={(option, value) => option.id === value.id}
+              renderInput={(params) => (
+                <TextField {...params} label="Brand" fullWidth size="small" />
+              )}
               fullWidth
-              size="small"
-              helperText="Comma-separated brand IDs"
             />
           </ListItem>
           <ListItem>

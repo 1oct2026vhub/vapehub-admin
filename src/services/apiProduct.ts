@@ -321,65 +321,87 @@ export const deleteProductAttributeTerm = async (
 
 // Upload images for a product variant
 export const uploadVariantImages = async (
+  productId: string,
   variantId: string,
   formData: FormData
-) => {
-  const response = await axiosInstance.post(
-    `/api/admin/product-variants/variants/${variantId}/images`,
-    formData,
-    {
-      headers: {
-        "Content-Type": "multipart/form-data",
-      },
+): Promise<any> => {
+  try {
+    const { data } = await axiosInstance.post(
+      `/api/admin/product-variants/product/${productId}/variants/${variantId}/images`,
+      formData,
+      {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      }
+    );
+
+    console.warn("Image upload response:", data);
+
+    // If data is an array, return it directly
+    if (Array.isArray(data)) {
+      return data;
     }
-  );
 
-  // Process response based on structure
-  if (Array.isArray(response.data)) {
-    return response.data;
-  } else if (response.data?.images && Array.isArray(response.data.images)) {
-    return response.data.images;
-  } else if (response.data?.data && Array.isArray(response.data.data)) {
-    return response.data.data;
-  } else if (typeof response.data === "object" && response.data !== null) {
-    // Try to extract images from other possible response structures
-    const possibleImageKeys = ["variantImages", "variant_images", "result"];
+    // If data.images exists and is an array, return it
+    if (data.images && Array.isArray(data.images)) {
+      return data.images;
+    }
 
-    for (const key of possibleImageKeys) {
-      if (response.data[key] && Array.isArray(response.data[key])) {
-        return response.data[key];
+    // Try to extract images from different possible response structures
+    // This helps with API inconsistencies
+    console.warn(
+      "Could not extract images array directly, trying alternative paths:",
+      data
+    );
+    const possibleKeys = ["variantImages", "variant_images", "data", "result"];
+    for (const key of possibleKeys) {
+      if (data[key] && Array.isArray(data[key])) {
+        return data[key];
+      }
+      if (data[key]?.images && Array.isArray(data[key].images)) {
+        return data[key].images;
       }
     }
+
+    // If we couldn't extract images, return the raw data
+    return data;
+  } catch (error) {
+    console.error("Error uploading variant images:", error);
+    throw error;
   }
-
-  // If we can't extract images, return the raw response
-  console.warn(
-    "Could not extract images from response, returning raw data:",
-    response.data
-  );
-  return response.data;
 };
 
-// Set variant image as primary
-export const setVariantPrimaryImage = async (
-  productId: number | string,
-  variantId: number | string,
-  imageId: number | string
-) => {
-  const response = await axiosInstance.put(
-    `/api/admin/product-variants/product/${productId}/variants/${variantId}/images/${imageId}/primary`
-  );
-  return response.data;
-};
-
-// Delete variant image
+// Delete a variant image
 export const deleteVariantImage = async (
-  productId: number | string,
-  variantId: number | string,
-  imageId: number | string
-) => {
-  const response = await axiosInstance.delete(
-    `/api/admin/product-variants/product/${productId}/variants/${variantId}/images/${imageId}`
-  );
-  return response.data;
+  productId: string,
+  variantId: string,
+  imageId: string
+): Promise<any> => {
+  try {
+    const { data } = await axiosInstance.delete(
+      `/api/admin/product-variants/product/${productId}/variants/${variantId}/images/${imageId}`
+    );
+    return data;
+  } catch (error) {
+    console.error("Error deleting variant image:", error);
+    throw error;
+  }
+};
+
+// Set a variant image as primary
+export const setVariantPrimaryImage = async (
+  productId: string,
+  variantId: string,
+  imageId: string
+): Promise<any> => {
+  try {
+    const { data } = await axiosInstance.put(
+      `/api/admin/product-variants/product/${productId}/variants/${variantId}/images/${imageId}/primary`
+    );
+    return data;
+  } catch (error) {
+    console.error("Error setting primary variant image:", error);
+    throw error;
+  }
 };

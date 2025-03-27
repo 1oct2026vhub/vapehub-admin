@@ -78,7 +78,7 @@ const ProductVariantTable = ({
 
   // State management
   const [search, setSearch] = useState("");
-  const [order, setOrder] = useState<"ASC" | "DESC">("ASC");
+  const [order, setOrder] = useState<"ASC" | "DESC">("DESC");
   const [sortBy, setSortBy] = useState<string>("id");
   const [deleted, setDeleted] = useState<boolean | null>(null);
   const [isNew, setIsNew] = useState<boolean | null>(null);

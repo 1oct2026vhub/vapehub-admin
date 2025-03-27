@@ -1454,6 +1454,12 @@ function VariantTab() {
         return;
       }
 
+      // Get the product ID from the context or URL
+      if (!productId) {
+        showSnackbar("Product ID is missing", "error");
+        return;
+      }
+
       const files = Array.from(event.target.files);
 
       // Validate file types (only accept image files)
@@ -1470,67 +1476,156 @@ function VariantTab() {
         return;
       }
 
-      const formData = new FormData();
+      if (validFiles.length === 0) {
+        showSnackbar("Please select at least one image to upload", "warning");
+        return;
+      }
+
+      // Find the actual numeric variant ID from the form data context
+      const foundVariant = formData.variants?.find(
+        (v) =>
+          v.id === variantId ||
+          (v.id !== undefined &&
+            variantId !== undefined &&
+            String(v.id) === String(variantId))
+      );
+
+      if (!foundVariant || foundVariant.id === undefined) {
+        showSnackbar(
+          "Cannot find variant information. Please save the variant first.",
+          "warning"
+        );
+        return;
+      }
+
+      // Ensure we're using the correct numeric ID that the API expects
+      const numericVariantId =
+        typeof foundVariant.id === "number"
+          ? foundVariant.id
+          : parseInt(String(foundVariant.id), 10);
+
+      if (isNaN(numericVariantId)) {
+        showSnackbar(
+          "Invalid variant ID. The API requires a numeric ID.",
+          "error"
+        );
+        return;
+      }
+
+      console.log("Found numeric variant ID for upload:", numericVariantId);
+
+      // Create FormData object and append files
+      const formDataObj = new FormData();
       validFiles.forEach((file) => {
-        formData.append("files", file);
+        formDataObj.append("files", file);
       });
 
       try {
         console.log(
-          `Uploading ${validFiles.length} images for variant ${variantId}`
+          `Uploading ${validFiles.length} images for product ${productId}, variant ${numericVariantId}`
         );
 
-        // Set loading state if needed
+        // Set loading state
         setUploading((prevState) => ({
           ...prevState,
           [variantId]: true,
         }));
 
-        const response = await uploadVariantImages(String(variantId), formData);
+        // Call API with proper parameters
+        const response = await uploadVariantImages(
+          String(productId),
+          String(numericVariantId),
+          formDataObj
+        );
+
         console.log("Upload response:", response);
 
-        // Get existing images for this variant
-        const existingImages = variantImages[variantId] || [];
-
-        // Extract new images from the response based on its structure
+        // Properly process the response to extract images with IDs
         let newImages = [];
 
+        // First check if response is directly an array of images
         if (Array.isArray(response)) {
-          // If response is already an array of images
-          newImages = response;
-        } else if (response && typeof response === "object") {
-          // Try to extract images from various possible response structures
-          if (Array.isArray(response.images)) {
-            newImages = response.images;
-          } else if (response.data && Array.isArray(response.data)) {
-            newImages = response.data;
-          } else if (response.result && Array.isArray(response.result)) {
-            newImages = response.result;
-          } else if (
-            response.variantImages &&
-            Array.isArray(response.variantImages)
+          newImages = response.map((img) => ({
+            id: img.id || img.image_id,
+            image_url: img.image_url || img.url,
+            is_primary: !!img.is_primary,
+          }));
+        }
+        // Handle nested response structures
+        else if (response && typeof response === "object") {
+          // Try different possible response structures
+          if (
+            response.data?.variant?.variantImages &&
+            Array.isArray(response.data.variant.variantImages)
           ) {
-            newImages = response.variantImages;
+            newImages = response.data.variant.variantImages;
+          } else if (
+            response.variant?.variantImages &&
+            Array.isArray(response.variant.variantImages)
+          ) {
+            newImages = response.variant.variantImages;
+          } else if (
+            response.data?.variantImages &&
+            Array.isArray(response.data.variantImages)
+          ) {
+            newImages = response.data.variantImages;
+          } else if (
+            response.data?.variant_images &&
+            Array.isArray(response.data.variant_images)
+          ) {
+            newImages = response.data.variant_images;
           } else if (
             response.variant_images &&
             Array.isArray(response.variant_images)
           ) {
             newImages = response.variant_images;
-          } else {
-            console.warn("Unexpected response structure:", response);
-            // Attempt to use the entire response if nothing else works
-            newImages = [response];
+          } else if (
+            response.variantImages &&
+            Array.isArray(response.variantImages)
+          ) {
+            newImages = response.variantImages;
+          } else if (response.images && Array.isArray(response.images)) {
+            newImages = response.images;
+          } else if (response.data && Array.isArray(response.data)) {
+            newImages = response.data;
+          } else if (response.result && Array.isArray(response.result)) {
+            newImages = response.result;
           }
         }
 
-        console.log("Extracted new images:", newImages);
+        // Ensure all images have the expected properties
+        const processedImages = newImages.map((img) => ({
+          id: img.id || img.image_id,
+          image_url: img.image_url || img.url,
+          is_primary: !!img.is_primary,
+        }));
 
-        // Update the state with the new images using a functional update
+        console.log("Processed images with IDs:", processedImages);
+
+        if (processedImages.length === 0) {
+          console.warn("Could not extract images from response:", response);
+          showSnackbar(
+            "Images uploaded but response format was unexpected",
+            "warning"
+          );
+        }
+
+        // Update the state with the new images
         setVariantImages((prevImages) => {
+          // First get any existing images
+          const existingImages = prevImages[variantId] || [];
+
+          // Ensure we don't add duplicates by checking IDs
+          const existingIds = new Set(existingImages.map((img) => img.id));
+          const uniqueNewImages = processedImages.filter(
+            (img) => !existingIds.has(img.id)
+          );
+
           const updatedImages = {
             ...prevImages,
-            [variantId]: [...(prevImages[variantId] || []), ...newImages],
+            [variantId]: [...existingImages, ...uniqueNewImages],
           };
+
           console.log("Updated variant images state:", updatedImages);
           return updatedImages;
         });
@@ -1541,11 +1636,10 @@ function VariantTab() {
         }
 
         // Force a validation to trigger re-render
-        // Use a safer way to trigger validation that doesn't use string interpolation
         trigger();
 
         showSnackbar(
-          `Successfully uploaded ${validFiles.length} images`,
+          `Successfully uploaded ${processedImages.length} images`,
           "success"
         );
       } catch (error) {
@@ -1559,7 +1653,7 @@ function VariantTab() {
         }));
       }
     },
-    [showSnackbar, trigger, uploadVariantImages, variantImages]
+    [formData.variants, productId, showSnackbar, trigger, variantImages]
   );
 
   const handleDeleteImage = useCallback(
@@ -1568,25 +1662,74 @@ function VariantTab() {
 
       try {
         // Get the product ID from the context or URL
-        const productIdParam =
-          formData.productId || searchParams.get("productId");
-        if (!productIdParam) {
+        if (!productId) {
           showSnackbar("Product ID is missing", "error");
           return;
         }
 
-        await deleteVariantImage(
-          productIdParam,
-          String(variantId),
-          String(imageId)
+        // Find the actual numeric variant ID from the form data
+        const foundVariant = formData.variants?.find(
+          (v) =>
+            v.id === variantId ||
+            (v.id !== undefined &&
+              variantId !== undefined &&
+              String(v.id) === String(variantId))
         );
 
-        // Update state
+        if (!foundVariant || foundVariant.id === undefined) {
+          showSnackbar(
+            "Cannot find variant information. Please save the variant first.",
+            "warning"
+          );
+          return;
+        }
+
+        // Ensure we're using the correct numeric ID that the API expects
+        const numericVariantId =
+          typeof foundVariant.id === "number"
+            ? foundVariant.id
+            : parseInt(String(foundVariant.id), 10);
+
+        if (isNaN(numericVariantId)) {
+          showSnackbar(
+            "Invalid variant ID. The API requires a numeric ID.",
+            "error"
+          );
+          return;
+        }
+
+        // Convert image ID to numeric if needed
+        const numericImageId =
+          typeof imageId === "number" ? imageId : parseInt(String(imageId), 10);
+
+        if (isNaN(numericImageId)) {
+          showSnackbar("Invalid image ID.", "error");
+          return;
+        }
+
+        console.log(
+          "Deleting image:",
+          numericImageId,
+          "from variant:",
+          numericVariantId
+        );
+
+        // Call API with proper parameters
+        const response = await deleteVariantImage(
+          String(productId),
+          String(numericVariantId),
+          String(numericImageId)
+        );
+
+        console.log("Delete image response:", response);
+
+        // Update state to remove the deleted image
         setVariantImages((prev) => {
           const updatedImages = { ...prev };
           if (updatedImages[variantId]) {
             updatedImages[variantId] = updatedImages[variantId].filter(
-              (img) => img.id !== imageId && img.id !== Number(imageId)
+              (img) =>
+                img.id !== numericImageId && img.id !== Number(numericImageId)
             );
           }
           return updatedImages;
@@ -1598,33 +1741,82 @@ function VariantTab() {
         showSnackbar("Failed to delete image", "error");
       }
     },
-    [formData.productId, searchParams, showSnackbar]
+    [formData.variants, productId, showSnackbar]
   );
 
   const handleSetPrimary = useCallback(
     async (variantId: string | number, imageId: string | number) => {
       try {
         // Get the product ID from the context or URL
-        const productIdParam =
-          formData.productId || searchParams.get("productId");
-        if (!productIdParam) {
+        if (!productId) {
           showSnackbar("Product ID is missing", "error");
           return;
         }
 
-        await setVariantPrimaryImage(
-          productIdParam,
-          String(variantId),
-          String(imageId)
+        // Find the actual numeric variant ID from the form data
+        const foundVariant = formData.variants?.find(
+          (v) =>
+            v.id === variantId ||
+            (v.id !== undefined &&
+              variantId !== undefined &&
+              String(v.id) === String(variantId))
         );
 
-        // Update state to reflect the change
+        if (!foundVariant || foundVariant.id === undefined) {
+          showSnackbar(
+            "Cannot find variant information. Please save the variant first.",
+            "warning"
+          );
+          return;
+        }
+
+        // Ensure we're using the correct numeric ID that the API expects
+        const numericVariantId =
+          typeof foundVariant.id === "number"
+            ? foundVariant.id
+            : parseInt(String(foundVariant.id), 10);
+
+        if (isNaN(numericVariantId)) {
+          showSnackbar(
+            "Invalid variant ID. The API requires a numeric ID.",
+            "error"
+          );
+          return;
+        }
+
+        // Convert image ID to numeric if needed
+        const numericImageId =
+          typeof imageId === "number" ? imageId : parseInt(String(imageId), 10);
+
+        if (isNaN(numericImageId)) {
+          showSnackbar("Invalid image ID.", "error");
+          return;
+        }
+
+        console.log(
+          "Setting image:",
+          numericImageId,
+          "as primary for variant:",
+          numericVariantId
+        );
+
+        // Call API with proper parameters
+        const response = await setVariantPrimaryImage(
+          String(productId),
+          String(numericVariantId),
+          String(numericImageId)
+        );
+
+        console.log("Set primary image response:", response);
+
+        // Update state to reflect primary status change
         setVariantImages((prev) => {
           const updatedImages = { ...prev };
           if (updatedImages[variantId]) {
             updatedImages[variantId] = updatedImages[variantId].map((img) => ({
               ...img,
-              is_primary: img.id === imageId || img.id === Number(imageId),
+              is_primary:
+                img.id === numericImageId || img.id === Number(numericImageId),
             }));
           }
           return updatedImages;
@@ -1636,7 +1828,7 @@ function VariantTab() {
         showSnackbar("Failed to set primary image", "error");
       }
     },
-    [formData.productId, searchParams, showSnackbar]
+    [formData.variants, productId, showSnackbar]
   );
 
   return (

@@ -199,7 +199,7 @@ const AttributeTable = ({
       refreshData();
 
       return false;
-    }
+    } 
   };
 
   const handleEdit = (attribute: Attribute) => {
@@ -230,8 +230,8 @@ const AttributeTable = ({
       ...(showDeleted
         ? [
             {
-              accessorKey: "deleted_at",
-              header: "Deleted At",
+        accessorKey: "deleted_at",
+        header: "Deleted At",
               Cell: ({ row }) => formatDate(row.original.deleted_at || ""),
             },
           ]
