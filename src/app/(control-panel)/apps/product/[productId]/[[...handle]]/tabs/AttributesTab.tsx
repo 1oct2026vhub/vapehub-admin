@@ -20,9 +20,9 @@ import { useProductForm } from "../ProductFormContext";
 import { useFetch } from "@/hooks/useFetch";
 import { listAttributes } from "@/services/apiAttribute";
 import { listAttributeTerms } from "@/services/apiAttributeTerm";
-import { 
-  addProductAttributes, 
-  getProduct, 
+import {
+  addProductAttributes,
+  getProduct,
   updateProductAttributes,
   deleteProductAttributeTerm,
   type AddProductAttributesRequest,
@@ -106,10 +106,16 @@ function AttributesTab() {
     formData.attributes && formData.attributes.length > 0
   );
 
+  // const { data: attributes } = useFetch(
+  //   ["attributeList", {}],
+  //   listAttributes,
+  //   {}
+  // );
+
   const { data: attributes } = useFetch(
-    ["attributeList", {}],
+    ["attributeList", { limit: 100 }], // Include limit in the query key
     listAttributes,
-    {}
+    { limit: 100 } // Pass limit as a query parameter
   );
 
   const {
@@ -125,16 +131,16 @@ function AttributesTab() {
     defaultValues: {
       attributes:
         formData.attributes && formData.attributes.length > 0
-        ? formData.attributes
-        : [
-            {
-              attribute_id: null,
-              term_ids: [],
-              is_visible_page: true,
-              used_in_variation: false,
+          ? formData.attributes
+          : [
+              {
+                attribute_id: null,
+                term_ids: [],
+                is_visible_page: true,
+                used_in_variation: false,
                 default_value: "",
-            },
-          ],
+              },
+            ],
     },
   });
 
@@ -167,22 +173,22 @@ function AttributesTab() {
       setIsLoading(false);
       return;
     }
-    
+
     // Skip if we've already fetched data for this product ID
     if (fetchedRef.current && productIdRef.current === productId) {
       setIsLoading(false);
       return;
     }
-    
+
     // Update refs to track current fetch state
     productIdRef.current = productId;
-    
+
     setIsLoading(true);
     try {
       console.log("Fetching product data for ID:", productId);
       const response = await getProduct(Number(productId));
       console.log("Product data received:", response?.data);
-      
+
       // Update the form data with product ID if not already set
       if (!formData.productId) {
         updateFormData({
@@ -199,7 +205,7 @@ function AttributesTab() {
           "Product attributes found:",
           response.data.productAttributeTerms
         );
-        
+
         // Group terms by attribute_id
         const attributeGroups: FormProductAttribute[] = Object.values(
           response.data.productAttributeTerms.reduce((acc, attr) => {
@@ -220,16 +226,16 @@ function AttributesTab() {
                 acc[attr.attribute_id].term_ids.push(Number(attr.term_id));
               }
             }
-            
+
             return acc;
           }, {} as Record<number, FormProductAttribute>)
         );
-        
+
         console.log("Grouped attribute data:", attributeGroups);
-        
+
         // Update form with the loaded attribute data
         replace(attributeGroups);
-        
+
         // Update form context data
         updateFormData({
           attributes: attributeGroups,
@@ -237,7 +243,7 @@ function AttributesTab() {
             productAttributeTerms: response.data.productAttributeTerms,
           },
         });
-        
+
         markStepAsCompleted(2);
       } else if (formData.attributes && formData.attributes.length > 0) {
         // If no API data but we have attributes in form context, use those
@@ -249,13 +255,13 @@ function AttributesTab() {
         }));
         replace(attributesWithNumberIds);
       }
-      
+
       // Mark fetch as completed
       fetchedRef.current = true;
     } catch (error) {
       console.error("Error fetching product data:", error);
       showSnackbar("Failed to load product data", "error");
-      
+
       // If API fails but we have attributes in form context, use those
       if (formData.attributes && formData.attributes.length > 0) {
         // Ensure all attribute_id values are numbers
@@ -323,8 +329,8 @@ function AttributesTab() {
 
   // Add this helper function to deduplicate terms
   const getUniqueTermOptions = (
-    existingTerms: ProductAttributeTerm[] = [], 
-    fetchedTerms: AttributeTerm[] = [], 
+    existingTerms: ProductAttributeTerm[] = [],
+    fetchedTerms: AttributeTerm[] = [],
     attributeId: number
   ): Array<{ value: number; label: string }> => {
     // Create a Set to track unique term IDs
@@ -428,12 +434,12 @@ function AttributesTab() {
             }))
           ),
         };
-        
+
         response = await addProductAttributes(Number(productId), addRequest);
         showSnackbar("Product attributes saved successfully", "success");
         nextStep();
       }
-      
+
       // Update form data
       updateFormData({
         attributes: data.attributes.map((attr) => ({
@@ -450,7 +456,7 @@ function AttributesTab() {
       fetchedRef.current = false;
     } catch (error) {
       console.error("Error submitting attributes:", error);
-      
+
       if (
         error?.type === "unique violation" ||
         error?.message?.includes("unique")
@@ -545,7 +551,7 @@ function AttributesTab() {
       // Update form data context
       const updatedAttributes = [...(formData.attributes || [])];
       updatedAttributes.splice(index, 1);
-      updateFormData({ 
+      updateFormData({
         attributes: updatedAttributes,
         attributesResponse: {
           ...formData.attributesResponse,
@@ -596,8 +602,8 @@ function AttributesTab() {
             <div className="grid grid-cols-2 gap-4">
               <FormControl sx={{ minWidth: 180 }} size="small">
                 <Controller
-                name={`attributes.${index}.attribute_id`}
-                control={control}
+                  name={`attributes.${index}.attribute_id`}
+                  control={control}
                   rules={{ required: "Please select an attribute" }}
                   render={({
                     field: { onChange, value },
@@ -632,7 +638,7 @@ function AttributesTab() {
                           variant="outlined"
                           size="small"
                           error={!!error}
-                required
+                          required
                           helperText={error?.message}
                           sx={{
                             "& .MuiOutlinedInput-root": {
@@ -696,7 +702,7 @@ function AttributesTab() {
                 size="small"
                 disabled={isLoading}
                 type="button"
-                sx={{ 
+                sx={{
                   color: "error.main",
                   "&:hover": {
                     backgroundColor: "error.light",

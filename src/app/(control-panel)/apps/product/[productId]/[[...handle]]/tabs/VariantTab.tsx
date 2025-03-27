@@ -14,6 +14,10 @@ import {
   FormControlLabel,
   Checkbox,
   CircularProgress,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from "@mui/material";
 import AppButton from "@/components/Shared/AppButton";
 import FormCheckboxField from "@/components/Shared/FormCheckboxField";
@@ -34,7 +38,7 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import { z } from "zod";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import CloseIcon from "@mui/icons-material/Close";
 
@@ -130,7 +134,7 @@ const schema = z.object({
         if (val === "" || val === null || val === undefined) return null;
         const parsed = Number(val);
         return isNaN(parsed) ? "NaN" : parsed;
-      }, z.union([z.literal("NaN").refine(() => false, "Please enter a valid number"), z.number().min(0, "Stock must be a non-negative number"), z.null().refine(() => false, "Stock is required")])),
+      }, z.union([z.literal("NaN").refine(() => false, "Please enter a valid number"), z.number().int("Stock must be a whole number").min(0, "Stock must be a non-negative number"), z.null().refine(() => false, "Stock is required")])),
       status: z.enum(["active", "inactive"]),
       discount_price: z.preprocess(
         (val) => {
@@ -190,7 +194,7 @@ const schema = z.object({
         if (val === "" || val === null || val === undefined) return null;
         const parsed = Number(val);
         return isNaN(parsed) ? "NaN" : parsed;
-      }, z.union([z.literal("NaN").refine(() => false, "Please enter a valid number for low stock threshold"), z.number().min(0, "Low stock threshold must be a non-negative number"), z.null()])),
+      }, z.union([z.literal("NaN").refine(() => false, "Please enter a valid number for low stock threshold"), z.number().int("Low stock threshold must be a whole number").min(0, "Low stock threshold must be a non-negative number"), z.null()])),
       weight: z.preprocess((val) => {
         if (val === "" || val === null || val === undefined) return null;
         const parsed = Number(val);
@@ -233,6 +237,7 @@ interface VariantImage {
 }
 
 function VariantTab() {
+  const router = useRouter();
   const { showSnackbar } = useSnackbar();
   const {
     formData,
@@ -859,11 +864,14 @@ function VariantTab() {
     return getAvailableTermsForAttribute(attributeId, variantIndex).length > 0;
   };
 
-  const handleDeleteVariant = async (
-    variantId: number | undefined,
-    index: number
-  ) => {
-    console.log("handleDeleteVariant called with:", { variantId, index });
+  const handleDeleteClick = (variantId: number | undefined, index: number) => {
+    setVariantToDelete({ id: variantId, index });
+    setDeleteModalOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!variantToDelete) return;
+
     try {
       setIsLoading(true);
 
@@ -873,20 +881,26 @@ function VariantTab() {
       }
 
       // Only call the API if we have a valid variantId (for existing variants)
-      if (variantId) {
-        console.log("Calling delete API for variant ID:", variantId);
-        await deleteProductVariant(variantId);
-        console.log("API delete successful for variant ID:", variantId);
+      if (variantToDelete.id) {
+        console.log("Calling delete API for variant ID:", variantToDelete.id);
+        await deleteProductVariant(variantToDelete.id);
+        console.log(
+          "API delete successful for variant ID:",
+          variantToDelete.id
+        );
         showSnackbar("Variant deleted successfully", "success");
       }
 
       // Remove the variant from the form fields
-      remove(index);
-      console.log("Removed variant from form fields at index:", index);
+      remove(variantToDelete.index);
+      console.log(
+        "Removed variant from form fields at index:",
+        variantToDelete.index
+      );
 
       // Update the form data context
       const updatedVariants = [...(formData.variants || [])];
-      updatedVariants.splice(index, 1);
+      updatedVariants.splice(variantToDelete.index, 1);
       updateFormData({ variants: updatedVariants });
       console.log(
         "Updated form data context with remaining variants:",
@@ -897,7 +911,14 @@ function VariantTab() {
       showSnackbar("Failed to delete variant", "error");
     } finally {
       setIsLoading(false);
+      setDeleteModalOpen(false);
+      setVariantToDelete(null);
     }
+  };
+
+  const handleDeleteCancel = () => {
+    setDeleteModalOpen(false);
+    setVariantToDelete(null);
   };
 
   // Update the areRequiredFieldsFilled function
@@ -1191,6 +1212,9 @@ function VariantTab() {
 
         markStepAsCompleted(3);
         nextStep();
+
+        // Redirect to product list
+        router.push("/apps/product/");
       }
     } catch (error) {
       console.error("Error saving variants:", error);
@@ -1831,527 +1855,735 @@ function VariantTab() {
     [formData.variants, productId, showSnackbar]
   );
 
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [variantToDelete, setVariantToDelete] = useState<{
+    id?: number;
+    index: number;
+  } | null>(null);
+
+  const [deleteImageModalOpen, setDeleteImageModalOpen] = useState(false);
+  const [imageToDelete, setImageToDelete] = useState<{
+    variantId: string | number;
+    imageId: string | number;
+  } | null>(null);
+
+  const handleDeleteImageClick = (
+    variantId: string | number,
+    imageId: string | number
+  ) => {
+    setImageToDelete({ variantId, imageId });
+    setDeleteImageModalOpen(true);
+  };
+
+  const handleDeleteImageConfirm = async () => {
+    if (!imageToDelete) return;
+
+    try {
+      // Get the product ID from the context or URL
+      if (!productId) {
+        showSnackbar("Product ID is missing", "error");
+        return;
+      }
+
+      // Find the actual numeric variant ID from the form data
+      const foundVariant = formData.variants?.find(
+        (v) =>
+          v.id === imageToDelete.variantId ||
+          (v.id !== undefined &&
+            imageToDelete.variantId !== undefined &&
+            String(v.id) === String(imageToDelete.variantId))
+      );
+
+      if (!foundVariant || foundVariant.id === undefined) {
+        showSnackbar(
+          "Cannot find variant information. Please save the variant first.",
+          "warning"
+        );
+        return;
+      }
+
+      // Ensure we're using the correct numeric ID that the API expects
+      const numericVariantId =
+        typeof foundVariant.id === "number"
+          ? foundVariant.id
+          : parseInt(String(foundVariant.id), 10);
+
+      if (isNaN(numericVariantId)) {
+        showSnackbar(
+          "Invalid variant ID. The API requires a numeric ID.",
+          "error"
+        );
+        return;
+      }
+
+      // Convert image ID to numeric if needed
+      const numericImageId =
+        typeof imageToDelete.imageId === "number"
+          ? imageToDelete.imageId
+          : parseInt(String(imageToDelete.imageId), 10);
+
+      if (isNaN(numericImageId)) {
+        showSnackbar("Invalid image ID.", "error");
+        return;
+      }
+
+      console.log(
+        "Deleting image:",
+        numericImageId,
+        "from variant:",
+        numericVariantId
+      );
+
+      // Call API with proper parameters
+      const response = await deleteVariantImage(
+        String(productId),
+        String(numericVariantId),
+        String(numericImageId)
+      );
+
+      console.log("Delete image response:", response);
+
+      // Update state to remove the deleted image
+      setVariantImages((prev) => {
+        const updatedImages = { ...prev };
+        if (updatedImages[imageToDelete.variantId]) {
+          updatedImages[imageToDelete.variantId] = updatedImages[
+            imageToDelete.variantId
+          ].filter(
+            (img) =>
+              img.id !== numericImageId && img.id !== Number(numericImageId)
+          );
+        }
+        return updatedImages;
+      });
+
+      showSnackbar("Image deleted successfully", "success");
+    } catch (error) {
+      console.error("Error deleting image:", error);
+      showSnackbar("Failed to delete image", "error");
+    } finally {
+      setDeleteImageModalOpen(false);
+      setImageToDelete(null);
+    }
+  };
+
+  const handleDeleteImageCancel = () => {
+    setDeleteImageModalOpen(false);
+    setImageToDelete(null);
+  };
+
   return (
-    <form
-      id="variantForm"
-      ref={formRef}
-      onSubmit={handleSubmit(handleFormSubmit)}
-      className="flex w-full flex-col justify-center space-y-4"
-    >
-      {fields.map((field, index) => {
-        const variantId = watch(`variants.${index}.id`);
-        const variantImages_ = variantId ? variantImages[variantId] || [] : [];
-        const isUploading = variantId ? uploading[variantId] || false : false;
+    <>
+      <form
+        id="variantForm"
+        ref={formRef}
+        onSubmit={handleSubmit(handleFormSubmit)}
+        className="flex w-full flex-col justify-center space-y-4"
+      >
+        {fields.map((field, index) => {
+          const variantId = watch(`variants.${index}.id`);
+          const variantImages_ = variantId
+            ? variantImages[variantId] || []
+            : [];
+          const isUploading = variantId ? uploading[variantId] || false : false;
 
-        return (
-          <Paper key={field.id} className="p-4 relative">
-            <Grid container spacing={2}>
-              {variationAttributes.map((attr, attrIndex) => (
-                <Grid item xs={12} sm={6} key={attr.attribute_id}>
-                  <FormSelectField
-                    name={`variants.${index}.attributes.${attrIndex}.term_id`}
-                    control={control}
-                    label={getAttributeName(attr.attribute_id)}
-                    options={getAllTermsForAttribute(attr.attribute_id).map(
-                      (term) => ({
-                        value: term.value,
-                        label: term.label,
-                      })
-                    )}
-                    required
-                    onChange={(event: SelectChangeEvent<unknown>) =>
-                      handleTermChange(event, index, attrIndex)
-                    }
-                  />
+          return (
+            <Paper key={field.id} className="p-4 relative">
+              <Grid container spacing={2}>
+                {variationAttributes.map((attr, attrIndex) => (
+                  <Grid item xs={12} sm={6} key={attr.attribute_id}>
+                    <FormSelectField
+                      name={`variants.${index}.attributes.${attrIndex}.term_id`}
+                      control={control}
+                      label={getAttributeName(attr.attribute_id)}
+                      options={getAllTermsForAttribute(attr.attribute_id).map(
+                        (term) => ({
+                          value: term.value,
+                          label: term.label,
+                        })
+                      )}
+                      required
+                      onChange={(event: SelectChangeEvent<unknown>) =>
+                        handleTermChange(event, index, attrIndex)
+                      }
+                    />
 
-                  {/* Set attribute_id as hidden field */}
-                  <input
-                    type="hidden"
-                    {...register(
-                      `variants.${index}.attributes.${attrIndex}.attribute_id`
-                    )}
-                    defaultValue={Number(attr.attribute_id)}
-                  />
-                </Grid>
-              ))}
+                    {/* Set attribute_id as hidden field */}
+                    <input
+                      type="hidden"
+                      {...register(
+                        `variants.${index}.attributes.${attrIndex}.attribute_id`
+                      )}
+                      defaultValue={Number(attr.attribute_id)}
+                    />
+                  </Grid>
+                ))}
 
-              {/* Add visual separator between attributes and product details */}
-              <Grid item xs={12}>
-                <Box
-                  sx={{
-                    borderBottom: "1px solid #e0e0e0",
-                    my: 2,
-                    position: "relative",
-                  }}
-                >
-                  <Typography
-                    variant="caption"
+                {/* Add visual separator between attributes and product details */}
+                <Grid item xs={12}>
+                  <Box
                     sx={{
-                      position: "absolute",
-                      top: "-10px",
-                      left: "20px",
-                      backgroundColor: "white",
-                      padding: "0 8px",
-                      color: "text.secondary",
+                      borderBottom: "1px solid #e0e0e0",
+                      my: 2,
+                      position: "relative",
                     }}
                   >
-                    Variant Details
-                  </Typography>
-                </Box>
-              </Grid>
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        position: "absolute",
+                        top: "-10px",
+                        left: "20px",
+                        backgroundColor: "white",
+                        padding: "0 8px",
+                        color: "text.secondary",
+                      }}
+                    >
+                      Variant Details
+                    </Typography>
+                  </Box>
+                </Grid>
 
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  {...register(`variants.${index}.slug`)}
-                  fullWidth
-                  label="Variant Slug"
-                  error={!!errors.variants?.[index]?.slug}
-                  helperText={errors.variants?.[index]?.slug?.message}
-                  required
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  {...register(`variants.${index}.price`, {
-                    valueAsNumber: true,
-                  })}
-                  fullWidth
-                  label="Price"
-                  type="number"
-                  error={!!errors.variants?.[index]?.price}
-                  helperText={errors.variants?.[index]?.price?.message}
-                  required
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  {...register(`variants.${index}.discount_price`, {
-                    valueAsNumber: true,
-                  })}
-                  fullWidth
-                  label="Discount Price"
-                  type="number"
-                  error={!!errors.variants?.[index]?.discount_price}
-                  helperText={errors.variants?.[index]?.discount_price?.message}
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  {...register(`variants.${index}.purchase_price`, {
-                    valueAsNumber: true,
-                  })}
-                  fullWidth
-                  label="Purchase Price"
-                  type="number"
-                  error={!!errors.variants?.[index]?.purchase_price}
-                  helperText={errors.variants?.[index]?.purchase_price?.message}
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  {...register(`variants.${index}.stock`, {
-                    valueAsNumber: true,
-                  })}
-                  fullWidth
-                  label="Stock"
-                  type="number"
-                  error={!!errors.variants?.[index]?.stock}
-                  helperText={errors.variants?.[index]?.stock?.message}
-                  required
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  {...register(`variants.${index}.low_stock_threshold`, {
-                    valueAsNumber: true,
-                  })}
-                  fullWidth
-                  label="Low Stock Threshold"
-                  type="number"
-                  error={!!errors.variants?.[index]?.low_stock_threshold}
-                  helperText={
-                    errors.variants?.[index]?.low_stock_threshold?.message
-                  }
-                />
-              </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    {...register(`variants.${index}.slug`)}
+                    fullWidth
+                    label="Variant Slug"
+                    error={!!errors.variants?.[index]?.slug}
+                    helperText={errors.variants?.[index]?.slug?.message}
+                    required
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    {...register(`variants.${index}.price`, {
+                      valueAsNumber: true,
+                    })}
+                    fullWidth
+                    label="Price"
+                    type="number"
+                    error={!!errors.variants?.[index]?.price}
+                    helperText={errors.variants?.[index]?.price?.message}
+                    required
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    {...register(`variants.${index}.discount_price`, {
+                      valueAsNumber: true,
+                    })}
+                    fullWidth
+                    label="Discount Price"
+                    type="number"
+                    error={!!errors.variants?.[index]?.discount_price}
+                    helperText={
+                      errors.variants?.[index]?.discount_price?.message
+                    }
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    {...register(`variants.${index}.purchase_price`, {
+                      valueAsNumber: true,
+                    })}
+                    fullWidth
+                    label="Purchase Price"
+                    type="number"
+                    error={!!errors.variants?.[index]?.purchase_price}
+                    helperText={
+                      errors.variants?.[index]?.purchase_price?.message
+                    }
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    {...register(`variants.${index}.stock`, {
+                      valueAsNumber: true,
+                    })}
+                    fullWidth
+                    label="Stock"
+                    type="number"
+                    error={!!errors.variants?.[index]?.stock}
+                    helperText={errors.variants?.[index]?.stock?.message}
+                    required
+                    inputProps={{
+                      step: "1",
+                      min: "0",
+                      onKeyDown: (e) => {
+                        if (e.key === "." || e.key === ",") {
+                          e.preventDefault();
+                        }
+                      },
+                    }}
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    {...register(`variants.${index}.low_stock_threshold`, {
+                      valueAsNumber: true,
+                    })}
+                    fullWidth
+                    label="Low Stock Threshold"
+                    type="number"
+                    error={!!errors.variants?.[index]?.low_stock_threshold}
+                    helperText={
+                      errors.variants?.[index]?.low_stock_threshold?.message
+                    }
+                    inputProps={{
+                      step: "1",
+                      min: "0",
+                      onKeyDown: (e) => {
+                        if (e.key === "." || e.key === ",") {
+                          e.preventDefault();
+                        }
+                      },
+                    }}
+                  />
+                </Grid>
 
-              {/* Group dimensions and weight in a single row */}
-              <Grid item xs={12}>
-                <Box sx={{ borderBottom: "1px dashed #eee", mb: 2, pb: 1 }}>
-                  <Typography variant="caption" color="text.secondary">
-                    Dimensions & Weight
-                  </Typography>
-                </Box>
-                <Grid container spacing={2}>
-                  <Grid item xs={6} sm={3}>
-                    <TextField
-                      {...register(`variants.${index}.weight`, {
-                        valueAsNumber: true,
-                      })}
-                      fullWidth
-                      label="Weight"
-                      type="number"
-                      error={!!errors.variants?.[index]?.weight}
-                      helperText={errors.variants?.[index]?.weight?.message}
-                      InputProps={{
-                        endAdornment: (
-                          <Typography variant="caption">g</Typography>
-                        ),
-                      }}
-                    />
-                  </Grid>
-                  <Grid item xs={6} sm={3}>
-                    <TextField
-                      {...register(`variants.${index}.length`, {
-                        valueAsNumber: true,
-                      })}
-                      fullWidth
-                      label="Length"
-                      type="number"
-                      error={!!errors.variants?.[index]?.length}
-                      helperText={errors.variants?.[index]?.length?.message}
-                      InputProps={{
-                        endAdornment: (
-                          <Typography variant="caption">cm</Typography>
-                        ),
-                      }}
-                    />
-                  </Grid>
-                  <Grid item xs={6} sm={3}>
-                    <TextField
-                      {...register(`variants.${index}.width`, {
-                        valueAsNumber: true,
-                      })}
-                      fullWidth
-                      label="Width"
-                      type="number"
-                      error={!!errors.variants?.[index]?.width}
-                      helperText={errors.variants?.[index]?.width?.message}
-                      InputProps={{
-                        endAdornment: (
-                          <Typography variant="caption">cm</Typography>
-                        ),
-                      }}
-                    />
-                  </Grid>
-                  <Grid item xs={6} sm={3}>
-                    <TextField
-                      {...register(`variants.${index}.height`, {
-                        valueAsNumber: true,
-                      })}
-                      fullWidth
-                      label="Height"
-                      type="number"
-                      error={!!errors.variants?.[index]?.height}
-                      helperText={errors.variants?.[index]?.height?.message}
-                      InputProps={{
-                        endAdornment: (
-                          <Typography variant="caption">cm</Typography>
-                        ),
-                      }}
-                    />
+                {/* Group dimensions and weight in a single row */}
+                <Grid item xs={12}>
+                  <Box sx={{ borderBottom: "1px dashed #eee", mb: 2, pb: 1 }}>
+                    <Typography variant="caption" color="text.secondary">
+                      Dimensions & Weight
+                    </Typography>
+                  </Box>
+                  <Grid container spacing={2}>
+                    <Grid item xs={6} sm={3}>
+                      <TextField
+                        {...register(`variants.${index}.weight`, {
+                          valueAsNumber: true,
+                        })}
+                        fullWidth
+                        label="Weight"
+                        type="number"
+                        error={!!errors.variants?.[index]?.weight}
+                        helperText={errors.variants?.[index]?.weight?.message}
+                        InputProps={{
+                          endAdornment: (
+                            <Typography variant="caption">g</Typography>
+                          ),
+                        }}
+                      />
+                    </Grid>
+                    <Grid item xs={6} sm={3}>
+                      <TextField
+                        {...register(`variants.${index}.length`, {
+                          valueAsNumber: true,
+                        })}
+                        fullWidth
+                        label="Length"
+                        type="number"
+                        error={!!errors.variants?.[index]?.length}
+                        helperText={errors.variants?.[index]?.length?.message}
+                        InputProps={{
+                          endAdornment: (
+                            <Typography variant="caption">cm</Typography>
+                          ),
+                        }}
+                      />
+                    </Grid>
+                    <Grid item xs={6} sm={3}>
+                      <TextField
+                        {...register(`variants.${index}.width`, {
+                          valueAsNumber: true,
+                        })}
+                        fullWidth
+                        label="Width"
+                        type="number"
+                        error={!!errors.variants?.[index]?.width}
+                        helperText={errors.variants?.[index]?.width?.message}
+                        InputProps={{
+                          endAdornment: (
+                            <Typography variant="caption">cm</Typography>
+                          ),
+                        }}
+                      />
+                    </Grid>
+                    <Grid item xs={6} sm={3}>
+                      <TextField
+                        {...register(`variants.${index}.height`, {
+                          valueAsNumber: true,
+                        })}
+                        fullWidth
+                        label="Height"
+                        type="number"
+                        error={!!errors.variants?.[index]?.height}
+                        helperText={errors.variants?.[index]?.height?.message}
+                        InputProps={{
+                          endAdornment: (
+                            <Typography variant="caption">cm</Typography>
+                          ),
+                        }}
+                      />
+                    </Grid>
                   </Grid>
                 </Grid>
-              </Grid>
-              <Grid item xs={12}>
-                <TextField
-                  {...register(`variants.${index}.barcode`)}
-                  fullWidth
-                  label="Barcode"
-                  error={!!errors.variants?.[index]?.barcode}
-                  helperText={errors.variants?.[index]?.barcode?.message}
-                />
-              </Grid>
-              <Grid item xs={12}>
-                <TextField
-                  {...register(`variants.${index}.description`)}
-                  fullWidth
-                  label="Description"
-                  multiline
-                  rows={3}
-                  error={!!errors.variants?.[index]?.description}
-                  helperText={errors.variants?.[index]?.description?.message}
-                />
-              </Grid>
+                <Grid item xs={12}>
+                  <TextField
+                    {...register(`variants.${index}.barcode`)}
+                    fullWidth
+                    label="Barcode"
+                    error={!!errors.variants?.[index]?.barcode}
+                    helperText={errors.variants?.[index]?.barcode?.message}
+                  />
+                </Grid>
+                <Grid item xs={12}>
+                  <TextField
+                    {...register(`variants.${index}.description`)}
+                    fullWidth
+                    label="Description"
+                    multiline
+                    rows={3}
+                    error={!!errors.variants?.[index]?.description}
+                    helperText={errors.variants?.[index]?.description?.message}
+                  />
+                </Grid>
 
-              {/* Show variant images if they exist */}
-              <Grid item xs={12}>
-                <Box
-                  sx={{
-                    marginBottom: 2,
-                    padding: 2,
-                    border: "1px dashed #ccc",
-                    borderRadius: 1,
-                  }}
-                >
-                  <Typography variant="subtitle1" gutterBottom>
-                    Images
-                  </Typography>
+                {/* Show variant images if they exist */}
+                <Grid item xs={12}>
+                  <Box
+                    sx={{
+                      marginBottom: 2,
+                      padding: 2,
+                      border: "1px dashed #ccc",
+                      borderRadius: 1,
+                    }}
+                  >
+                    <Typography variant="subtitle1" gutterBottom>
+                      Images
+                    </Typography>
 
-                  {variantId && isUploading[variantId] && (
-                    <Box
-                      display="flex"
-                      justifyContent="center"
-                      alignItems="center"
-                      p={2}
-                    >
-                      <CircularProgress size={24} sx={{ mr: 1 }} />
-                      <Typography>Uploading images...</Typography>
-                    </Box>
-                  )}
-
-                  {variantId && !isUploading[variantId] && (
-                    <>
+                    {variantId && isUploading[variantId] && (
                       <Box
-                        sx={{
-                          display: "flex",
-                          flexWrap: "wrap",
-                          gap: 1,
-                          marginBottom: 2,
-                        }}
+                        display="flex"
+                        justifyContent="center"
+                        alignItems="center"
+                        p={2}
                       >
-                        {variantImages[variantId] &&
-                        variantImages[variantId].length > 0 ? (
-                          variantImages[variantId].map((image, imgIndex) => (
-                            <Box
-                              key={image.id || imgIndex}
-                              sx={{
-                                position: "relative",
-                                width: 100,
-                                height: 100,
-                                border: (theme) =>
-                                  image.is_primary
-                                    ? `2px solid ${theme.palette.primary.main}`
-                                    : "1px solid #ddd",
-                                borderRadius: 1,
-                                overflow: "hidden",
-                              }}
-                            >
-                              <img
-                                src={
-                                  typeof image.url === "string"
-                                    ? image.url
-                                    : typeof image.image_url === "string"
-                                    ? image.image_url
-                                    : ""
-                                }
-                                alt={`Variant ${variantId} image ${imgIndex}`}
-                                style={{
-                                  width: "100%",
-                                  height: "100%",
-                                  objectFit: "cover",
-                                }}
-                                onError={(e) => {
-                                  console.error("Image failed to load:", image);
-                                  e.currentTarget.src =
-                                    "https://via.placeholder.com/100?text=Image+Error";
-                                }}
-                              />
+                        <CircularProgress size={24} sx={{ mr: 1 }} />
+                        <Typography>Uploading images...</Typography>
+                      </Box>
+                    )}
+
+                    {variantId && !isUploading[variantId] && (
+                      <>
+                        <Box
+                          sx={{
+                            display: "flex",
+                            flexWrap: "wrap",
+                            gap: 1,
+                            marginBottom: 2,
+                          }}
+                        >
+                          {variantImages[variantId] &&
+                          variantImages[variantId].length > 0 ? (
+                            variantImages[variantId].map((image, imgIndex) => (
                               <Box
+                                key={image.id || imgIndex}
                                 sx={{
-                                  position: "absolute",
-                                  top: 0,
-                                  right: 0,
-                                  display: "flex",
-                                  flexDirection: "column",
-                                  bgcolor: "rgba(255,255,255,0.8)",
+                                  position: "relative",
+                                  width: 100,
+                                  height: 100,
+                                  border: (theme) =>
+                                    image.is_primary
+                                      ? `2px solid ${theme.palette.primary.main}`
+                                      : "1px solid #ddd",
+                                  borderRadius: 1,
+                                  overflow: "hidden",
                                 }}
                               >
-                                <IconButton
-                                  size="small"
-                                  onClick={() =>
-                                    handleDeleteImage(
-                                      variantId,
-                                      image.id ? image.id.toString() : ""
-                                    )
+                                <img
+                                  src={
+                                    typeof image.url === "string"
+                                      ? image.url
+                                      : typeof image.image_url === "string"
+                                      ? image.image_url
+                                      : ""
                                   }
-                                  disabled={
-                                    variantId ? isUploading[variantId] : false
-                                  }
-                                  color="error"
+                                  alt={`Variant ${variantId} image ${imgIndex}`}
+                                  style={{
+                                    width: "100%",
+                                    height: "100%",
+                                    objectFit: "cover",
+                                  }}
+                                  onError={(e) => {
+                                    console.error(
+                                      "Image failed to load:",
+                                      image
+                                    );
+                                    e.currentTarget.src =
+                                      "https://via.placeholder.com/100?text=Image+Error";
+                                  }}
+                                />
+                                <Box
+                                  sx={{
+                                    position: "absolute",
+                                    top: 0,
+                                    right: 0,
+                                    display: "flex",
+                                    flexDirection: "column",
+                                    bgcolor: "rgba(255,255,255,0.8)",
+                                  }}
                                 >
-                                  <DeleteIcon
-                                    fontSize="small"
-                                    sx={{ color: "error.main" }}
-                                  />
-                                </IconButton>
-                                <Box sx={{ px: 0.5 }}>
-                                  <Checkbox
-                                    checked={image.is_primary}
-                                    onChange={() =>
-                                      handleSetPrimary(
+                                  <IconButton
+                                    size="small"
+                                    onClick={() =>
+                                      handleDeleteImageClick(
                                         variantId,
                                         image.id ? image.id.toString() : ""
                                       )
                                     }
                                     disabled={
-                                      (variantId
-                                        ? isUploading[variantId]
-                                        : false) || image.is_primary
+                                      variantId ? isUploading[variantId] : false
                                     }
-                                  />
+                                    color="error"
+                                  >
+                                    <DeleteIcon
+                                      fontSize="small"
+                                      sx={{ color: "error.main" }}
+                                    />
+                                  </IconButton>
+                                  <Box sx={{ px: 0.5 }}>
+                                    <Checkbox
+                                      checked={image.is_primary}
+                                      onChange={() =>
+                                        handleSetPrimary(
+                                          variantId,
+                                          image.id ? image.id.toString() : ""
+                                        )
+                                      }
+                                      disabled={
+                                        (variantId
+                                          ? isUploading[variantId]
+                                          : false) || image.is_primary
+                                      }
+                                    />
+                                  </Box>
                                 </Box>
                               </Box>
-                            </Box>
-                          ))
-                        ) : (
-                          <Typography color="text.secondary">
-                            No images uploaded. Click "Upload Images" to add
-                            images for this variant.
-                          </Typography>
+                            ))
+                          ) : (
+                            <Typography color="text.secondary">
+                              No images uploaded. Click "Upload Images" to add
+                              images for this variant.
+                            </Typography>
+                          )}
+                        </Box>
+
+                        {variantId && (
+                          <>
+                            <input
+                              type="file"
+                              multiple
+                              onChange={(event) =>
+                                handleFileSelect(event, variantId)
+                              }
+                              ref={(el) => {
+                                if (el && variantId)
+                                  fileInputRefs.current[variantId] = el;
+                              }}
+                              style={{ display: "none" }}
+                              accept="image/jpeg,image/png,image/webp"
+                            />
+                            <Button
+                              variant="outlined"
+                              startIcon={<CloudUploadIcon />}
+                              onClick={() =>
+                                variantId &&
+                                fileInputRefs.current[variantId]?.click()
+                              }
+                              disabled={
+                                variantId ? isUploading[variantId] : false
+                              }
+                            >
+                              Upload Images
+                            </Button>
+                          </>
                         )}
-                      </Box>
-
-                      {variantId && (
-                        <>
-                          <input
-                            type="file"
-                            multiple
-                            onChange={(event) =>
-                              handleFileSelect(event, variantId)
-                            }
-                            ref={(el) => {
-                              if (el && variantId)
-                                fileInputRefs.current[variantId] = el;
-                            }}
-                            style={{ display: "none" }}
-                            accept="image/jpeg,image/png,image/webp"
-                          />
-                          <Button
-                            variant="outlined"
-                            startIcon={<CloudUploadIcon />}
-                            onClick={() =>
-                              variantId &&
-                              fileInputRefs.current[variantId]?.click()
-                            }
-                            disabled={
-                              variantId ? isUploading[variantId] : false
-                            }
-                          >
-                            Upload Images
-                          </Button>
-                        </>
-                      )}
-                    </>
-                  )}
-                </Box>
+                      </>
+                    )}
+                  </Box>
+                </Grid>
               </Grid>
-            </Grid>
 
-            {/* Delete Variant Button - Only show for non-default variants */}
-            {fields.length > 1 && (
-              <IconButton
-                onClick={(e) => {
-                  e.preventDefault(); // Prevent form submission
-                  const variantId = formData.variants?.[index]?.id;
-                  console.log("Deleting variant:", { variantId, index });
-                  handleDeleteVariant(variantId, index);
-                }}
-                disabled={isLoading}
-                className="absolute top-2 right-2"
-                color="error"
-                size="small"
-                type="button" // Explicitly set type to button
-                sx={{
-                  position: "absolute",
-                  top: "12px",
-                  right: "12px",
-                  margin: "0",
-                  zIndex: 2,
-                  "&:hover": {
-                    backgroundColor: "rgba(211, 47, 47, 0.04)",
-                  },
-                }}
-              >
-                <DeleteIcon />
-              </IconButton>
-            )}
-          </Paper>
-        );
-      })}
+              {/* Delete Variant Button - Only show for non-default variants */}
+              {fields.length > 1 && (
+                <IconButton
+                  onClick={(e) => {
+                    e.preventDefault();
+                    const variantId = formData.variants?.[index]?.id;
+                    console.log("Deleting variant:", { variantId, index });
+                    handleDeleteClick(variantId, index);
+                  }}
+                  disabled={isLoading}
+                  className="absolute top-2 right-2"
+                  color="error"
+                  size="small"
+                  type="button"
+                  sx={{
+                    position: "absolute",
+                    top: "12px",
+                    right: "12px",
+                    margin: "0",
+                    zIndex: 2,
+                    "&:hover": {
+                      backgroundColor: "rgba(211, 47, 47, 0.04)",
+                    },
+                  }}
+                >
+                  <DeleteIcon />
+                </IconButton>
+              )}
+            </Paper>
+          );
+        })}
 
-      {/* Add New Variant Button - Only show if not all combinations are used */}
-      {!areAllCombinationsUsed() ? (
-        <div className="flex justify-center">
+        {/* Add New Variant Button - Only show if not all combinations are used */}
+        {!areAllCombinationsUsed() ? (
+          <div className="flex justify-center">
+            <AppButton
+              label="Add Variant"
+              onClick={handleAddVariant}
+              variant="outlined"
+              type="button"
+              disabled={isLoading}
+            />
+          </div>
+        ) : (
+          <div className="flex justify-center p-3 bg-green-50 border border-green-200 rounded-md">
+            <div className="text-green-600 flex items-center">
+              <span className="mr-2">✓</span>
+              <span>
+                All combinations have been added. You can proceed to the next
+                step.
+              </span>
+            </div>
+          </div>
+        )}
+
+        <div className="flex justify-between mt-4">
           <AppButton
-            label="Add Variant"
-            onClick={handleAddVariant}
+            label="Previous"
+            onClick={previousStep}
             variant="outlined"
-            type="button"
             disabled={isLoading}
+            type="button"
           />
-        </div>
-      ) : (
-        <div className="flex justify-center p-3 bg-green-50 border border-green-200 rounded-md">
-          <div className="text-green-600 flex items-center">
-            <span className="mr-2">✓</span>
-            <span>
-              All combinations have been added. You can proceed to the next
-              step.
-            </span>
+          <div className="flex gap-2">
+            <AppButton
+              label={isEditMode ? "Update" : "Next"}
+              type="button"
+              loading={isLoading}
+              disabled={isLoading}
+              onClick={() => {
+                console.log("=== NEXT/UPDATE BUTTON CLICKED ===");
+
+                // Get current form data
+                const formValues = watch();
+                console.log("Direct submission values:", formValues);
+
+                // Do a quick check for attribute term_id values
+                let hasAttributeErrors = false;
+
+                formValues.variants.forEach((variant, index) => {
+                  if (variant.attributes) {
+                    variant.attributes.forEach((attr, attrIndex) => {
+                      if (!attr.term_id || attr.term_id <= 0) {
+                        const attributeName = getAttributeName(
+                          attr.attribute_id
+                        );
+                        showSnackbar(
+                          `Select a value for ${attributeName} in variant ${
+                            index + 1
+                          }`,
+                          "error"
+                        );
+                        hasAttributeErrors = true;
+                      }
+                    });
+                  }
+                });
+
+                if (!hasAttributeErrors || isEditMode) {
+                  // If not in edit mode, check if all combinations are added
+                  if (!isEditMode) {
+                    const allCombinations = generateAllAttributeCombinations();
+                    if (allCombinations.length > formValues.variants.length) {
+                      showSnackbar("Please add all combinations", "warning");
+                      return;
+                    }
+                  }
+
+                  // If we're in edit mode or no errors, proceed
+                  onSubmit(formValues);
+                }
+              }}
+            />
           </div>
         </div>
-      )}
+      </form>
 
-      <div className="flex justify-between mt-4">
-        <AppButton
-          label="Previous"
-          onClick={previousStep}
-          variant="outlined"
-          disabled={isLoading}
-          type="button"
-        />
-        <div className="flex gap-2">
-          <AppButton
-            label={isEditMode ? "Update" : "Next"}
-            type="button"
-            loading={isLoading}
+      {/* Add the confirmation modal */}
+      <Dialog
+        open={deleteModalOpen}
+        onClose={handleDeleteCancel}
+        aria-labelledby="delete-dialog-title"
+        aria-describedby="delete-dialog-description"
+      >
+        <DialogTitle id="delete-dialog-title">Confirm Delete</DialogTitle>
+        <DialogContent>
+          <Typography id="delete-dialog-description">
+            Are you sure you want to delete this variant? This action cannot be
+            undone.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleDeleteCancel} color="primary">
+            Cancel
+          </Button>
+          <Button
+            onClick={handleDeleteConfirm}
+            color="error"
+            variant="contained"
             disabled={isLoading}
-            onClick={() => {
-              console.log("=== NEXT/UPDATE BUTTON CLICKED ===");
+          >
+            {isLoading ? "Deleting..." : "Delete"}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
-              // Get current form data
-              const formValues = watch();
-              console.log("Direct submission values:", formValues);
-
-              // Do a quick check for attribute term_id values
-              let hasAttributeErrors = false;
-
-              formValues.variants.forEach((variant, index) => {
-                if (variant.attributes) {
-                  variant.attributes.forEach((attr, attrIndex) => {
-                    if (!attr.term_id || attr.term_id <= 0) {
-                      const attributeName = getAttributeName(attr.attribute_id);
-                      showSnackbar(
-                        `Select a value for ${attributeName} in variant ${
-                          index + 1
-                        }`,
-                        "error"
-                      );
-                      hasAttributeErrors = true;
-                    }
-                  });
-                }
-              });
-
-              if (!hasAttributeErrors || isEditMode) {
-                // If not in edit mode, check if all combinations are added
-                if (!isEditMode) {
-                  const allCombinations = generateAllAttributeCombinations();
-                  if (allCombinations.length > formValues.variants.length) {
-                    showSnackbar("Please add all combinations", "warning");
-                    return;
-                  }
-                }
-
-                // If we're in edit mode or no errors, proceed
-                onSubmit(formValues);
-              }
-            }}
-          />
-        </div>
-      </div>
-    </form>
+      {/* Add the image deletion confirmation modal */}
+      <Dialog
+        open={deleteImageModalOpen}
+        onClose={handleDeleteImageCancel}
+        aria-labelledby="delete-image-dialog-title"
+        aria-describedby="delete-image-dialog-description"
+      >
+        <DialogTitle id="delete-image-dialog-title">
+          Confirm Delete Image
+        </DialogTitle>
+        <DialogContent>
+          <Typography id="delete-image-dialog-description">
+            Are you sure you want to delete this image? This action cannot be
+            undone.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleDeleteImageCancel} color="primary">
+            Cancel
+          </Button>
+          <Button
+            onClick={handleDeleteImageConfirm}
+            color="error"
+            variant="contained"
+            disabled={isLoading}
+          >
+            {isLoading ? "Deleting..." : "Delete"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </>
   );
 }
 
