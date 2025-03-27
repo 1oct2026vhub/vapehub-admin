@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useCallback } from "react";
 import { type MRT_ColumnDef } from "material-react-table";
 import DataTable from "@/components/data-table/DataTable";
 import FuseLoading from "@fuse/core/FuseLoading";
@@ -62,9 +62,13 @@ const SORT_FIELDS = [
 
 interface AttributeTermTableProps {
   attributeId?: number;
+  refreshData?: (fn: () => Promise<void>) => void;
 }
 
-const AttributeTermTable = ({ attributeId }: AttributeTermTableProps) => {
+const AttributeTermTable = ({
+  attributeId,
+  refreshData: setExternalRefreshFn,
+}: AttributeTermTableProps) => {
   const router = useRouter();
   const { showSnackbar } = useSnackbar();
   const [page, setPage] = useState(0);
@@ -78,6 +82,8 @@ const AttributeTermTable = ({ attributeId }: AttributeTermTableProps) => {
   const [openDialog, setOpenDialog] = useState(false);
   const [selectedTerm, setSelectedTerm] = useState<AttributeTerm | null>(null);
   const [localTerms, setLocalTerms] = useState<AttributeTerm[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [manuallyRefreshing, setManuallyRefreshing] = useState(false);
 
   // Debounce search input
   useEffect(() => {
@@ -97,13 +103,51 @@ const AttributeTermTable = ({ attributeId }: AttributeTermTableProps) => {
       keyword: debouncedSearch,
       show_deleted: showDeleted,
     }),
-    [attributeId, sortBy, order, pageSize, page, debouncedSearch, showDeleted],
+    [attributeId, sortBy, order, pageSize, page, debouncedSearch, showDeleted]
   );
 
-  const { data, error, isLoading } = useFetch(
+  // Function to manually refresh data by making a direct API call
+  const refreshData = useCallback(async () => {
+    try {
+      setManuallyRefreshing(true);
+      setIsLoading(true);
+      // Show loading state
+      setLocalTerms([]); // Clear current data to show loading state
+
+      // Call the API directly
+      const freshData = await listAttributeTerms(queryParams);
+
+      // Update the local state with fresh data
+      if (freshData?.data?.terms) {
+        setLocalTerms(freshData.data.terms);
+      }
+
+      // Also update the SWR cache
+      await mutate(["attributeTerms", queryParams]);
+    } catch (error) {
+      console.error("Failed to refresh attribute term data:", error);
+      showSnackbar("Failed to refresh attribute term data", "error");
+    } finally {
+      setIsLoading(false);
+      setManuallyRefreshing(false);
+    }
+  }, [queryParams, showSnackbar]);
+
+  // Provide the refresh function to the parent component
+  useEffect(() => {
+    if (setExternalRefreshFn) {
+      setExternalRefreshFn(refreshData);
+    }
+  }, [setExternalRefreshFn, refreshData]);
+
+  const {
+    data,
+    error,
+    isLoading: fetchLoading,
+  } = useFetch(
     ["attributeTerms", queryParams],
     () => listAttributeTerms(queryParams),
-    { keepPreviousData: true },
+    { keepPreviousData: true }
   );
 
   // Update localTerms when data changes
@@ -111,13 +155,13 @@ const AttributeTermTable = ({ attributeId }: AttributeTermTableProps) => {
     if (data?.data?.terms) {
       setLocalTerms(data.data.terms);
     }
-  }, [data?.data?.terms]);
+    setIsLoading(
+      (fetchLoading && localTerms.length === 0) || manuallyRefreshing
+    );
+  }, [data?.data?.terms, fetchLoading, localTerms.length, manuallyRefreshing]);
 
-  const terms: AttributeTerm[] = data?.data?.terms || [];
   const totalRecords = data?.data?.pagination?.total || 0;
   const totalPages = Math.ceil(totalRecords / pageSize);
-
-  const deletedTerm = terms?.find((term) => term.deleted_at !== null);
 
   const handleDeleteClick = (term: AttributeTerm) => {
     setSelectedTerm(term);
@@ -130,7 +174,9 @@ const AttributeTermTable = ({ attributeId }: AttributeTermTableProps) => {
 
     try {
       // Immediately update local state
-      const updatedTerms = localTerms.filter(term => term.id !== selectedTerm.id);
+      const updatedTerms = localTerms.filter(
+        (term) => term.id !== selectedTerm.id
+      );
       setLocalTerms(updatedTerms);
 
       // Perform the actual API call
@@ -152,26 +198,18 @@ const AttributeTermTable = ({ attributeId }: AttributeTermTableProps) => {
         showSnackbar(errorMessage, "error");
       }
 
-      const errorData = error || error; // Handle both API and unexpected errors
-      if (errorData?.error && typeof errorData.error === "object") {
-        Object.entries(errorData.error).forEach(([field, message]) => {
-          if (typeof message === "string") {
-            // setError(field, { type: 'manual', message });
-            showSnackbar(` ${message}`, "error");
-          }
-        });
-      } else {
-        // setError('root', { type: 'manual', message: errorMessage });
-      }
+      // Rollback the optimistic update on error
+      refreshData();
+
       return false;
-    } 
+    }
   };
 
   const handleEdit = (term: AttributeTerm) => {
     router.push(
-      `/apps/attribute-terms/term-update/${term.id}?termData=${encodeURIComponent(
-        JSON.stringify(term),
-      )}`,
+      `/apps/attribute-terms/terms-update/${
+        term.id
+      }?termData=${encodeURIComponent(JSON.stringify(term))}`
     );
   };
 
@@ -180,24 +218,29 @@ const AttributeTermTable = ({ attributeId }: AttributeTermTableProps) => {
       { accessorKey: "id", header: "ID" },
       { accessorKey: "name", header: "Name" },
       { accessorKey: "slug", header: "Slug" },
-      // { accessorKey: "description", header: "Description" },
+      { accessorKey: "value", header: "Value" },
+      { accessorKey: "attribute_name", header: "Attribute" },
       {
         accessorKey: "created_at",
         header: "Created At",
-       Cell: ({ row }) => formatDate(row.original.created_at),
+        Cell: ({ row }) => formatDate(row.original.created_at),
       },
       {
         accessorKey: "updated_at",
         header: "Last Updated",
         Cell: ({ row }) => formatDate(row.original.updated_at),
       },
-      ...(showDeleted ? [{
-        accessorKey: "deleted_at",
-        header: "Deleted At",
-        Cell: ({ row }) => formatDate(row.original.deleted_at || ''),
-      }] : []),
+      ...(showDeleted
+        ? [
+            {
+              accessorKey: "deleted_at",
+              header: "Deleted At",
+              Cell: ({ row }) => formatDate(row.original.deleted_at || ""),
+            },
+          ]
+        : []),
     ],
-    [showDeleted],
+    [showDeleted]
   );
 
   if (isLoading) return <FuseLoading />;
@@ -236,34 +279,23 @@ const AttributeTermTable = ({ attributeId }: AttributeTermTableProps) => {
               },
             }}
           />
-          {/* <FormControlLabel
-            control={
-              <Switch
-                checked={showDeleted}
-                onChange={(e) => setShowDeleted(e.target.checked)}
-              />
-            }
-            label="Show Deleted"
-          /> */}
-
           <FormControlLabel
             control={
               <Switch
                 checked={showDeleted}
                 onChange={(e) => setShowDeleted(e.target.checked)}
                 sx={{
-                  '& .MuiSwitch-switchBase.Mui-checked': {
-                    color: '#2E9970', // Thumb color when checked
+                  "& .MuiSwitch-switchBase.Mui-checked": {
+                    color: "#2E9970", // Thumb color when checked
                   },
-                  '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
-                    backgroundColor: '#2E9970', // Track color when checked
-                  }
+                  "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track": {
+                    backgroundColor: "#2E9970", // Track color when checked
+                  },
                 }}
               />
             }
             label="Show Deleted"
           />
-
         </div>
         <div className="flex items-center gap-4">
           <FormControl size="small" className="min-w-[150px]">
@@ -313,7 +345,7 @@ const AttributeTermTable = ({ attributeId }: AttributeTermTableProps) => {
             key="view-details"
             onClick={() => {
               router.push(
-                `/apps/attribute-terms/term-detail/${row.original.id}`,
+                `/apps/attribute-terms/term-detail/${row.original.id}`
               );
               closeMenu();
             }}

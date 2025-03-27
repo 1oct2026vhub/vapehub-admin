@@ -61,8 +61,6 @@ export const deleter = (url: string) =>
 export const listProducts = (params = {}) =>
   fetcher("/api/admin/products", params);
 
-
-
 export const getProduct = async (id: number) => {
   const response = await axiosInstance.get(`/api/admin/products/fetch/${id}`);
   return response.data;
@@ -84,7 +82,7 @@ export const downloadSampleExcel = async () => {
       "/api/admin/products/download-sample",
       {
         responseType: "blob",
-      },
+      }
     );
 
     // Create a blob from the response data
@@ -124,7 +122,7 @@ export const bulkUpdateProducts = async (file: File) => {
       headers: {
         "Content-Type": "multipart/form-data",
       },
-    },
+    }
   );
   return response.data;
 };
@@ -148,7 +146,7 @@ export const createProduct = async (data: CreateProductData) => {
 
 export const uploadProductImages = async (
   productId: number,
-  images: File[],
+  images: File[]
 ) => {
   const formData = new FormData();
   formData.append("product_id", productId.toString());
@@ -164,7 +162,7 @@ export const uploadProductImages = async (
       headers: {
         "Content-Type": "multipart/form-data",
       },
-    },
+    }
   );
   return response.data;
 };
@@ -182,21 +180,21 @@ export interface AddProductAttributesRequest {
 
 export const addProductAttributes = async (
   productId: number,
-  data: AddProductAttributesRequest,
+  data: AddProductAttributesRequest
 ) => {
   const response = await axiosInstance.post(
     `/api/admin/product-variants/product/${productId}/attributes`,
-    data,
+    data
   );
   return response.data;
 };
 
 export const updatePrimaryImage = async (
   productId: number,
-  imageId: number,
+  imageId: number
 ) => {
   const response = await axiosInstance.put(
-    `/api/admin/products/${productId}/image/${imageId}/primary`,
+    `/api/admin/products/${productId}/image/${imageId}/primary`
   );
   return response.data;
 };
@@ -227,18 +225,18 @@ export interface CreateProductVariantsRequest {
 
 export const createProductVariants = async (
   productId: number,
-  data: CreateProductVariantsRequest,
+  data: CreateProductVariantsRequest
 ) => {
   const response = await axiosInstance.post(
     `/api/admin/product-variants/product/${productId}/variants`,
-    data,
+    data
   );
   return response.data;
 };
 
 export const deleteProductVariant = async (variant_id: number) => {
   const response = await axiosInstance.delete(
-    `/api/admin/product-variants/variants/${variant_id}`,
+    `/api/admin/product-variants/variants/${variant_id}`
   );
   return response.data;
 };
@@ -301,16 +299,109 @@ export const updateProductVariant = async (
   return response.data;
 };
 
-export const deleteProductImage = async (productId: number, imageId: number) => {
+export const deleteProductImage = async (
+  productId: number,
+  imageId: number
+) => {
   const response = await axiosInstance.delete(
-    `/api/admin/products/${productId}/image/${imageId}`,
+    `/api/admin/products/${productId}/image/${imageId}`
   );
   return response.data;
 };
 
-export const deleteProductAttributeTerm = async (productId: number, attributeTermId: number) => {
+export const deleteProductAttributeTerm = async (
+  productId: number,
+  attributeTermId: number
+) => {
   const response = await axiosInstance.delete(
-    `/api/admin/product-variants/product/${productId}/attributes/${attributeTermId}`,
+    `/api/admin/product-variants/product/${productId}/attributes/${attributeTermId}`
   );
   return response.data;
+};
+
+// Upload images for a product variant
+export const uploadVariantImages = async (
+  productId: string,
+  variantId: string,
+  formData: FormData
+): Promise<any> => {
+  try {
+    const { data } = await axiosInstance.post(
+      `/api/admin/product-variants/product/${productId}/variants/${variantId}/images`,
+      formData,
+      {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      }
+    );
+
+    console.warn("Image upload response:", data);
+
+    // If data is an array, return it directly
+    if (Array.isArray(data)) {
+      return data;
+    }
+
+    // If data.images exists and is an array, return it
+    if (data.images && Array.isArray(data.images)) {
+      return data.images;
+    }
+
+    // Try to extract images from different possible response structures
+    // This helps with API inconsistencies
+    console.warn(
+      "Could not extract images array directly, trying alternative paths:",
+      data
+    );
+    const possibleKeys = ["variantImages", "variant_images", "data", "result"];
+    for (const key of possibleKeys) {
+      if (data[key] && Array.isArray(data[key])) {
+        return data[key];
+      }
+      if (data[key]?.images && Array.isArray(data[key].images)) {
+        return data[key].images;
+      }
+    }
+
+    // If we couldn't extract images, return the raw data
+    return data;
+  } catch (error) {
+    console.error("Error uploading variant images:", error);
+    throw error;
+  }
+};
+
+// Delete a variant image
+export const deleteVariantImage = async (
+  productId: string,
+  variantId: string,
+  imageId: string
+): Promise<any> => {
+  try {
+    const { data } = await axiosInstance.delete(
+      `/api/admin/product-variants/product/${productId}/variants/${variantId}/images/${imageId}`
+    );
+    return data;
+  } catch (error) {
+    console.error("Error deleting variant image:", error);
+    throw error;
+  }
+};
+
+// Set a variant image as primary
+export const setVariantPrimaryImage = async (
+  productId: string,
+  variantId: string,
+  imageId: string
+): Promise<any> => {
+  try {
+    const { data } = await axiosInstance.put(
+      `/api/admin/product-variants/product/${productId}/variants/${variantId}/images/${imageId}/primary`
+    );
+    return data;
+  } catch (error) {
+    console.error("Error setting primary variant image:", error);
+    throw error;
+  }
 };

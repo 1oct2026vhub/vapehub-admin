@@ -1,5 +1,5 @@
 // import DataTable from './DataTable';
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useCallback } from "react";
 import { type MRT_ColumnDef } from "material-react-table";
 import DataTable from "@/components/data-table/DataTable";
 import FuseLoading from "@fuse/core/FuseLoading";
@@ -66,17 +66,24 @@ export type ProductType = {
   createdAt: string;
 };
 
-const ProductVariantTable = () => {
+interface ProductVariantTableProps {
+  refreshData?: (fn: () => Promise<void>) => void;
+}
+
+const ProductVariantTable = ({
+  refreshData: setExternalRefreshFn,
+}: ProductVariantTableProps) => {
   const router = useRouter();
   const { showSnackbar } = useSnackbar();
-  
+
   // State management
   const [search, setSearch] = useState("");
-  const [order, setOrder] = useState<"ASC" | "DESC">("ASC");
+  const [order, setOrder] = useState<"ASC" | "DESC">("DESC");
   const [sortBy, setSortBy] = useState<string>("id");
   const [deleted, setDeleted] = useState<boolean | null>(null);
-  const [isNew, setIsNew] = useState<boolean | null>(null);  const [priceRange, setPriceRange] = useState<string>("");
-  const [stockStatus, setStockStatus] = useState<string>("in_stock");;
+  const [isNew, setIsNew] = useState<boolean | null>(null);
+  const [priceRange, setPriceRange] = useState<string>("");
+  const [stockStatus, setStockStatus] = useState<string>("in_stock");
   const [productId, setProductId] = useState<string>("");
   const [openDrawer, setOpenDrawer] = useState(false);
   const [page, setPage] = useState(0);
@@ -84,7 +91,9 @@ const ProductVariantTable = () => {
   const [openDialog, setOpenDialog] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [restoreDialogOpen, setRestoreDialogOpen] = useState(false);
-  const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null);
+  const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(
+    null
+  );
   const [totalRows, setTotalRows] = useState(0);
   const [variants, setVariants] = useState<ProductVariant[]>([]);
   const [loading, setLoading] = useState(false);
@@ -105,8 +114,46 @@ const ProductVariantTable = () => {
       stock_status: stockStatus as any,
       product_id: productId ? parseInt(productId) : undefined,
     }),
-    [sortBy, order, rowsPerPage, page,deleted, debouncedSearch, debouncedPriceRange, stockStatus, productId]
+    [
+      sortBy,
+      order,
+      rowsPerPage,
+      page,
+      deleted,
+      debouncedSearch,
+      debouncedPriceRange,
+      stockStatus,
+      productId,
+    ]
   );
+
+  // Function to manually refresh data by making a direct API call
+  const refreshData = useCallback(async () => {
+    try {
+      // Show loading state
+      setVariants([]); // Clear current data to show loading state
+      setLoading(true);
+
+      // Call the API directly
+      const response = await listProductVariants(queryParams);
+
+      // Update the local state with fresh data
+      setVariants(response.data?.variants || []);
+      setTotalRows(response.data?.pagination?.total_count || 0);
+    } catch (error) {
+      console.error("Failed to refresh variant data:", error);
+      showSnackbar("Failed to refresh variants", "error");
+    } finally {
+      setLoading(false);
+    }
+  }, [queryParams, showSnackbar]);
+
+  // Provide the refresh function to the parent component
+  useEffect(() => {
+    if (setExternalRefreshFn) {
+      setExternalRefreshFn(refreshData);
+    }
+  }, [setExternalRefreshFn, refreshData]);
 
   // Fetch variants
   const fetchVariants = async () => {
@@ -130,39 +177,40 @@ const ProductVariantTable = () => {
   // Table columns
   const columns = useMemo<MRT_ColumnDef<ProductVariant>[]>(
     () => [
-    { accessorKey: "id", header: "ID" },
-      
+      { accessorKey: "id", header: "ID" },
+
       {
         accessorKey: "name",
         header: "Name",
         Cell: ({ row }) => row.original.product?.name || "N/A",
       },
       { accessorKey: "slug", header: "Slug" },
-    { 
-      accessorKey: "price", 
-      header: "Price",
-      Cell: ({ row }) => {
-          const price = typeof row.original.price === "string"
-          ? parseFloat(row.original.price) 
-          : row.original.price;
-        return `$${Number(price).toFixed(2)}`;
+      {
+        accessorKey: "price",
+        header: "Price",
+        Cell: ({ row }) => {
+          const price =
+            typeof row.original.price === "string"
+              ? parseFloat(row.original.price)
+              : row.original.price;
+          return `$${Number(price).toFixed(2)}`;
         },
-    },
+      },
       // { accessorKey: "stock_quantity", header: "Stock" },
-    {
+      {
         accessorKey: "deleted_at",
-      header: "Status",
-      Cell: ({ row }) => (
-        <Chip 
-            label={row.original.deleted_at ? "Deleted" : "Active"} 
-            color={row.original.deleted_at ? "error" : "success"} 
-        />
-      ),
-    },
-    {
+        header: "Status",
+        Cell: ({ row }) => (
+          <Chip
+            label={row.original.deleted_at ? "Deleted" : "Active"}
+            color={row.original.deleted_at ? "error" : "success"}
+          />
+        ),
+      },
+      {
         accessorKey: "created_at",
-      header: "Created At",
-         Cell: ({ row }) => formatDate(row.original.created_at),
+        header: "Created At",
+        Cell: ({ row }) => formatDate(row.original.created_at),
       },
     ],
     []
@@ -188,10 +236,10 @@ const ProductVariantTable = () => {
       }
 
       // Update local state
-      setVariants(prevVariants => 
-        prevVariants.filter(variant => variant.id !== selectedVariant.id)
+      setVariants((prevVariants) =>
+        prevVariants.filter((variant) => variant.id !== selectedVariant.id)
       );
-      setTotalRows(prev => prev - 1);
+      setTotalRows((prev) => prev - 1);
     } catch (error) {
       console.error("Action error:", error);
       showSnackbar("Failed to perform action", "error");
@@ -202,7 +250,10 @@ const ProductVariantTable = () => {
 
   return (
     <>
-      <Paper className="flex flex-col flex-auto shadow-1 overflow-hidden" elevation={0}>
+      <Paper
+        className="flex flex-col flex-auto shadow-1 overflow-hidden"
+        elevation={0}
+      >
         <div className="flex items-center justify-between p-3">
           <IconButton className="md:hidden" onClick={() => setOpenDrawer(true)}>
             <MenuIcon />
@@ -236,19 +287,31 @@ const ProductVariantTable = () => {
           />
 
           <div className="hidden md:flex gap-2">
-            <Select value={sortBy} onChange={(e) => setSortBy(e.target.value)} size="small">
+            <Select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+              size="small"
+            >
               <MenuItem value="id">Sort by ID</MenuItem>
               <MenuItem value="name">Sort by Name</MenuItem>
               <MenuItem value="price">Sort by Price</MenuItem>
               <MenuItem value="stock_quantity">Sort by Stock</MenuItem>
             </Select>
 
-            <Select value={order} onChange={(e) => setOrder(e.target.value as "ASC" | "DESC")} size="small">
+            <Select
+              value={order}
+              onChange={(e) => setOrder(e.target.value as "ASC" | "DESC")}
+              size="small"
+            >
               <MenuItem value="ASC">Ascending</MenuItem>
               <MenuItem value="DESC">Descending</MenuItem>
             </Select>
 
-            <Select value={stockStatus} onChange={(e) => setStockStatus(e.target.value)} size="small">
+            <Select
+              value={stockStatus}
+              onChange={(e) => setStockStatus(e.target.value)}
+              size="small"
+            >
               <MenuItem value="in_stock">In Stock</MenuItem>
               <MenuItem value="low_stock">Low Stock</MenuItem>
               <MenuItem value="out_of_stock">Out of Stock</MenuItem>
@@ -263,7 +326,9 @@ const ProductVariantTable = () => {
             <MenuItem
               key="view"
               onClick={() => {
-                router.push(`/apps/product-variant/variant-detail/${row.original.id}`);
+                router.push(
+                  `/apps/product-variant/variant-detail/${row.original.id}`
+                );
                 closeMenu();
               }}
             >
@@ -299,7 +364,8 @@ const ProductVariantTable = () => {
                 {...item}
                 className="text-gray-600 hover:text-[#2E9970]"
                 sx={{
-                  backgroundColor: item.page === 1 && page === 0 ? "#2E9970" : "transparent",
+                  backgroundColor:
+                    item.page === 1 && page === 0 ? "#2E9970" : "transparent",
                   color: item.page === 1 && page === 0 ? "#fff" : "inherit",
                   "&.Mui-selected": {
                     backgroundColor: "#2E9970",
@@ -315,7 +381,11 @@ const ProductVariantTable = () => {
         </div>
       </Paper>
 
-      <Drawer anchor="left" open={openDrawer} onClose={() => setOpenDrawer(false)}>
+      <Drawer
+        anchor="left"
+        open={openDrawer}
+        onClose={() => setOpenDrawer(false)}
+      >
         <List className="p-4 w-64">
           <ListItem>
             <ListItemText primary="Filters" />
@@ -330,7 +400,12 @@ const ProductVariantTable = () => {
             />
           </ListItem>
           <ListItem>
-            <Select value={sortBy} onChange={(e) => setSortBy(e.target.value)} fullWidth size="small">
+            <Select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+              fullWidth
+              size="small"
+            >
               <MenuItem value="id">Sort by ID</MenuItem>
               <MenuItem value="name">Sort by Name</MenuItem>
               <MenuItem value="price">Sort by Price</MenuItem>
@@ -338,13 +413,23 @@ const ProductVariantTable = () => {
             </Select>
           </ListItem>
           <ListItem>
-            <Select value={order} onChange={(e) => setOrder(e.target.value as "ASC" | "DESC")} fullWidth size="small">
+            <Select
+              value={order}
+              onChange={(e) => setOrder(e.target.value as "ASC" | "DESC")}
+              fullWidth
+              size="small"
+            >
               <MenuItem value="ASC">Ascending</MenuItem>
               <MenuItem value="DESC">Descending</MenuItem>
             </Select>
           </ListItem>
           <ListItem>
-            <Select value={stockStatus} onChange={(e) => setStockStatus(e.target.value)} fullWidth size="small">
+            <Select
+              value={stockStatus}
+              onChange={(e) => setStockStatus(e.target.value)}
+              fullWidth
+              size="small"
+            >
               <MenuItem value="">All Status</MenuItem>
               <MenuItem value="in_stock">In Stock</MenuItem>
               <MenuItem value="low_stock">Low Stock</MenuItem>
@@ -370,7 +455,11 @@ const ProductVariantTable = () => {
             </Select>
           </ListItem> */}
           <ListItem>
-            <Button fullWidth variant="contained" onClick={() => setOpenDrawer(false)}>
+            <Button
+              fullWidth
+              variant="contained"
+              onClick={() => setOpenDrawer(false)}
+            >
               Apply Filters
             </Button>
           </ListItem>
@@ -383,7 +472,8 @@ const ProductVariantTable = () => {
         </DialogTitle>
         <DialogContent>
           <Typography>
-            Are you sure you want to {selectedVariant?.deleted_at ? "Restore" : "Delete"} variant{" "}
+            Are you sure you want to{" "}
+            {selectedVariant?.deleted_at ? "Restore" : "Delete"} variant{" "}
             <strong>{selectedVariant?.sku}</strong>?
           </Typography>
         </DialogContent>

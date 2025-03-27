@@ -13,13 +13,19 @@ import { useSnackbar } from "@/contexts/SnackbarContext";
 import { useState, useRef } from "react";
 import { Menu, MenuItem, ListItemIcon, ListItemText } from "@mui/material";
 
+// Add props interface
+interface CategoryHeaderProps {
+  refreshData?: () => Promise<void>;
+}
+
 /**
  * The products header.
  */
-function CategoryHeader() {
+function CategoryHeader({ refreshData }: CategoryHeaderProps) {
   const isMobile = useThemeMediaQuery((theme) => theme.breakpoints.down("lg"));
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   const { showSnackbar } = useSnackbar();
 
@@ -47,7 +53,7 @@ function CategoryHeader() {
   };
 
   const handleFileChange = async (
-    event: React.ChangeEvent<HTMLInputElement>,
+    event: React.ChangeEvent<HTMLInputElement>
   ) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -62,11 +68,21 @@ function CategoryHeader() {
       return;
     }
 
+    setIsUploading(true);
     try {
       await bulkUpdateCategory(file);
       showSnackbar("Category updated successfully", "success");
+
+      // Refresh data after successful upload
+      if (refreshData) {
+        setTimeout(async () => {
+          await refreshData(); // Call with a slight delay to ensure server has processed the data
+        }, 500);
+      }
     } catch (error) {
-      showSnackbar("Failed to update brands", "error");
+      showSnackbar("Failed to update categories", "error");
+    } finally {
+      setIsUploading(false);
     }
 
     // Reset file input
@@ -112,6 +128,8 @@ function CategoryHeader() {
             variant="outlined"
             size={isMobile ? "small" : "medium"}
             onClick={handleMenuClick}
+            loading={isUploading}
+            disabled={isUploading}
           />
 
           <Menu

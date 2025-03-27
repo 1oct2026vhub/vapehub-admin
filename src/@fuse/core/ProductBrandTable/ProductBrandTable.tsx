@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useCallback } from "react";
 import { type MRT_ColumnDef } from "material-react-table";
 import DataTable from "@/components/data-table/DataTable";
 import FuseLoading from "@fuse/core/FuseLoading";
@@ -44,7 +44,11 @@ export type BrandType = {
   deletedAt: string | null;
 };
 
-const ProductBrandTable = () => {
+interface ProductBrandTableProps {
+  refreshData?: (fn: () => Promise<void>) => void;
+}
+
+const ProductBrandTable = ({ refreshData }: ProductBrandTableProps) => {
   const router = useRouter();
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -54,6 +58,8 @@ const ProductBrandTable = () => {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
   const { showSnackbar } = useSnackbar();
+  const [brands, setBrands] = useState<BrandType[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
 
   // Debounce search input
   useEffect(() => {
@@ -65,21 +71,63 @@ const ProductBrandTable = () => {
 
   const queryParams = useMemo(
     () => ({
-    search: debouncedSearch,
+      search: debouncedSearch,
       page,
       limit,
-    ...(deleted !== null && { deleted }),
+      ...(deleted !== null && { deleted }),
     }),
-    [debouncedSearch, deleted, page, limit],
+    [debouncedSearch, deleted, page, limit]
   );
 
-  const { data, error, isLoading } = useFetch(
+  const {
+    data,
+    error,
+    isLoading: fetchLoading,
+  } = useFetch(
     ["productBrandList", queryParams],
     listProductBrand,
-    queryParams,
+    queryParams
   );
 
-  // const brands: BrandType[] = data?.data?.brands || [];
+  // Update brands when data changes
+  useEffect(() => {
+    if (data?.data?.brands) {
+      setBrands(data.data.brands);
+    }
+  }, [data]);
+
+  // Function to manually refresh data by making a direct API call
+  const refreshDataFn = useCallback(async () => {
+    try {
+      // Show loading state
+      setBrands([]); // Clear current data to show loading state
+      setIsLoading(true);
+
+      // Call the API directly
+      const freshData = await listProductBrand(queryParams);
+
+      // Update the local state with fresh data
+      if (freshData?.data?.brands) {
+        setBrands(freshData.data.brands);
+      }
+
+      // Also update the SWR cache
+      await mutate(["productBrandList", queryParams]);
+    } catch (error) {
+      console.error("Failed to refresh brand data:", error);
+      showSnackbar("Failed to refresh brands", "error");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [queryParams, showSnackbar]);
+
+  // Provide the refresh function to the parent component
+  useEffect(() => {
+    if (refreshData) {
+      refreshData(refreshDataFn);
+    }
+  }, [refreshData, refreshDataFn]);
+
   const totalRecords = data?.data?.total || 0;
   const totalPages = Math.ceil(totalRecords / limit);
 
@@ -87,27 +135,6 @@ const ProductBrandTable = () => {
     setSelectedBrand(brand);
     setOpenDialog(true);
   };
-
-  // const handleConfirmDelete = async () => {
-  //   if (!selectedBrand) return;
-  //   setOpenDialog(false);
-
-  //   try {
-  //     await (selectedBrand.deletedAt ? restoreBrand(selectedBrand.id) : deleteBrand(selectedBrand.id));
-  //     showSnackbar(`Brand ${selectedBrand.deletedAt ? 'restored' : 'deleted'} successfully`, 'success');
-  //     mutate(["productBrandList", queryParams]);
-  //   } catch (error) {
-  //     console.error("Action error:", error);
-  //     showSnackbar(`Failed to ${selectedBrand.deletedAt ? 'restore' : 'delete'} brand`, 'error');
-  //   }
-  // };
-  const [brands, setBrands] = useState<BrandType[]>([]); // Local state to store the brands
-
-  useEffect(() => {
-    if (data?.data?.brands) {
-      setBrands(data.data.brands); // Set local state from API data
-    }
-  }, [data]);
 
   const handleConfirmDelete = async () => {
     if (!selectedBrand) return;
@@ -126,12 +153,14 @@ const ProductBrandTable = () => {
       if (result?.success) {
         // Show success snackbar
         showSnackbar(
-          `Brand ${selectedBrand.deletedAt ? "restored" : "deleted"} successfully`,
-          "success",
+          `Brand ${
+            selectedBrand.deletedAt ? "restored" : "deleted"
+          } successfully`,
+          "success"
         );
 
         // Sync with the server data only if the API call is successful
-      mutate(["productBrandList", queryParams]);
+        mutate(["productBrandList", queryParams]);
       } else {
         throw new Error(result?.message || "Unexpected server response");
       }
@@ -155,12 +184,14 @@ const ProductBrandTable = () => {
         // setError('root', { type: 'manual', message: errorMessage });
       }
       return false;
-    } 
+    }
   };
 
   const handleEdit = (brand: BrandType) => {
     router.push(
-      `/apps/product-brand/brand-update/${brand.id}?brandData=${encodeURIComponent(
+      `/apps/product-brand/brand-update/${
+        brand.id
+      }?brandData=${encodeURIComponent(
         JSON.stringify({
           id: brand.id,
           name: brand.name,
@@ -169,254 +200,274 @@ const ProductBrandTable = () => {
           logo_url: brand.logo_url,
           updatedAt: brand.updatedAt,
           deletedAt: brand.deletedAt,
-        }),
-      )}`,
+        })
+      )}`
     );
   };
 
   const columns = useMemo<MRT_ColumnDef<BrandType>[]>(
     () => [
-    { accessorKey: "id", header: "ID" },
-    { accessorKey: "name", header: "Brand Name" },
-    { accessorKey: "slug", header: "Slug" },
-    // { accessorKey: "description", header: "Description" },
+      { accessorKey: "id", header: "ID" },
+      { accessorKey: "name", header: "Brand Name" },
+      { accessorKey: "slug", header: "Slug" },
+      // { accessorKey: "description", header: "Description" },
       {
         accessorKey: "updatedAt",
         header: "Last Updated",
-       Cell: ({ row }) => formatDate(row.original.updatedAt),
+        Cell: ({ row }) => formatDate(row.original.updatedAt),
       },
       // { accessorKey: "updatedAt", header: "Last Updated" },
-    {
-      accessorKey: "logo_url",
-      header: "Logo",
-      Cell: ({ row }) => (
-        row.original.logo_url ? (
-          <img
-            src={row.original.logo_url}
-            alt={row.original.name}
-            width={50}
-            height={50}
-            className="object-contain"
-            onError={(e) => {
-              e.currentTarget.style.display = 'none';
-            }}
-          />
-        ) : <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="gray" className="size-10">
-        <path stroke-linecap="round" stroke-linejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 0 0 1.5-1.5V6a1.5 1.5 0 0 0-1.5-1.5H3.75A1.5 1.5 0 0 0 2.25 6v12a1.5 1.5 0 0 0 1.5 1.5Zm10.5-11.25h.008v.008h-.008V8.25Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" />
-      </svg>
-      
-      ),
-    },
-    ...(deleted ? [{
-      accessorKey: "deletedAt",
-      header: "Deleted At",
-      Cell: ({ row }) => formatDate(row.original.deletedAt || ''),
-    }] : []),
+      {
+        accessorKey: "logo_url",
+        header: "Logo",
+        Cell: ({ row }) =>
+          row.original.logo_url ? (
+            <img
+              src={row.original.logo_url}
+              alt={row.original.name}
+              width={50}
+              height={50}
+              className="object-contain"
+              onError={(e) => {
+                e.currentTarget.style.display = "none";
+              }}
+            />
+          ) : (
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke-width="1.5"
+              stroke="gray"
+              className="size-10"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 0 0 1.5-1.5V6a1.5 1.5 0 0 0-1.5-1.5H3.75A1.5 1.5 0 0 0 2.25 6v12a1.5 1.5 0 0 0 1.5 1.5Zm10.5-11.25h.008v.008h-.008V8.25Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z"
+              />
+            </svg>
+          ),
+      },
+      ...(deleted
+        ? [
+            {
+              accessorKey: "deletedAt",
+              header: "Deleted At",
+              Cell: ({ row }) => formatDate(row.original.deletedAt || ""),
+            },
+          ]
+        : []),
     ],
-    [deleted],
+    [deleted]
   );
 
-  if (isLoading) return <FuseLoading />;
+  if (isLoading || (fetchLoading && brands.length === 0))
+    return <FuseLoading />;
   if (error) return <p>Failed to load brands</p>;
 
   return (
-    <Paper
-      className="flex flex-col flex-auto shadow-1 overflow-hidden"
-      elevation={0}
-    >
-      <div className="flex items-center justify-between p-3">
-        <TextField
-          label="Search"
-          variant="outlined"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          size="small"
-          InputProps={{
-            endAdornment: (
-              <InputAdornment position="start">
-                <SearchIcon />
-              </InputAdornment>
-            ),
-          }}
-          sx={{
-            "& .MuiOutlinedInput-root": {
-              "&.Mui-focused fieldset": {
-                borderColor: "#2E9970", // Border color on focus (click)
-                borderWidth: "2px", // Optional: increase border thickness on focus
+    <div>
+      <Paper
+        className="flex flex-col flex-auto shadow-1 overflow-hidden"
+        elevation={0}
+      >
+        <div className="flex items-center justify-between p-3">
+          <TextField
+            label="Search"
+            variant="outlined"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            size="small"
+            InputProps={{
+              endAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon />
+                </InputAdornment>
+              ),
+            }}
+            sx={{
+              "& .MuiOutlinedInput-root": {
+                "&.Mui-focused fieldset": {
+                  borderColor: "#2E9970", // Border color on focus (click)
+                  borderWidth: "2px", // Optional: increase border thickness on focus
+                },
               },
-            },
-            "& .MuiInputLabel-root.Mui-focused": {
-              color: "#2E9970", // Label color on focus
-            },
-          }}
-        />
+              "& .MuiInputLabel-root.Mui-focused": {
+                color: "#2E9970", // Label color on focus
+              },
+            }}
+          />
 
-        <div className="flex gap-2">
-        <Select
-              value={deleted === null ? "active" : deleted ? "deleted" : "active"}
+          <div className="flex gap-2">
+            <Select
+              value={
+                deleted === null ? "active" : deleted ? "deleted" : "active"
+              }
               onChange={(e) =>
                 setDeleted(
                   e.target.value === "active"
                     ? null
-                    : e.target.value === "deleted",
+                    : e.target.value === "deleted"
                 )
               }
               size="small"
             >
-            {/* <MenuItem value="all">All Brands</MenuItem> */}
-            <MenuItem value="active">Active</MenuItem>
-            <MenuItem value="deleted">Deleted</MenuItem>
-          </Select>
+              {/* <MenuItem value="all">All Brands</MenuItem> */}
+              <MenuItem value="active">Active</MenuItem>
+              <MenuItem value="deleted">Deleted</MenuItem>
+            </Select>
+          </div>
         </div>
-      </div>
 
-      <DataTable
-        data={brands}
-        columns={columns}
-        // renderRowActionMenuItems={({ closeMenu, row }) => [
-        //   <>
-        //     <MenuItem
-        //       key="view-details"
-        //       onClick={() => {
-        //         router.push(`/apps/product-brand/brand-detail/${row.original.id}`);
-        //         closeMenu();
-        //       }}
-        //     >
-        //       <ListItemIcon>
-        //         <FuseSvgIcon>heroicons-outline:arrow-top-right-on-square</FuseSvgIcon>
-        //       </ListItemIcon>
-        //       View Details
-        //     </MenuItem>
-        //     {!row.original.deletedAt && (
-        //     <MenuItem
-        //       key="edit"
-        //       onClick={() => { handleEdit(row.original); closeMenu(); }}
-        //     >
-        //       <ListItemIcon><FuseSvgIcon>heroicons-outline:pencil-square</FuseSvgIcon></ListItemIcon>
-        //       Edit
-        //     </MenuItem>
-        //     )}
-        //     <MenuItem
-        //       key="delete"
-        //       onClick={() => { handleDeleteClick(row.original); closeMenu(); }}
-        //     >
-        //       <ListItemIcon>
-        //         <FuseSvgIcon>
-        //           {row.original.deletedAt ? "heroicons-outline:arrow-path" : "heroicons-outline:trash"}
-        //         </FuseSvgIcon>
-        //       </ListItemIcon>
-        //       {row.original.deletedAt ? 'Restore' : 'Delete'}
-        //     </MenuItem>
-        //   </>
-        // ]}
-        renderRowActionMenuItems={({ closeMenu, row }) => {
-          const menuItems = [
-            // View Details MenuItem
-            !row.original.deletedAt && (
-            <MenuItem
-              key="view-details"
-              onClick={() => {
-                  router.push(
-                    `/apps/product-brand/brand-detail/${row.original.id}`,
-                  );
-                closeMenu();
-              }}
-            >
-              <ListItemIcon>
-                  <FuseSvgIcon>
-                    heroicons-outline:arrow-top-right-on-square
-                  </FuseSvgIcon>
-              </ListItemIcon>
-              View Details
-            </MenuItem>
-            ),
+        <DataTable
+          data={brands}
+          columns={columns}
+          // renderRowActionMenuItems={({ closeMenu, row }) => [
+          //   <>
+          //     <MenuItem
+          //       key="view-details"
+          //       onClick={() => {
+          //         router.push(`/apps/product-brand/brand-detail/${row.original.id}`);
+          //         closeMenu();
+          //       }}
+          //     >
+          //       <ListItemIcon>
+          //         <FuseSvgIcon>heroicons-outline:arrow-top-right-on-square</FuseSvgIcon>
+          //       </ListItemIcon>
+          //       View Details
+          //     </MenuItem>
+          //     {!row.original.deletedAt && (
+          //     <MenuItem
+          //       key="edit"
+          //       onClick={() => { handleEdit(row.original); closeMenu(); }}
+          //     >
+          //       <ListItemIcon><FuseSvgIcon>heroicons-outline:pencil-square</FuseSvgIcon></ListItemIcon>
+          //       Edit
+          //     </MenuItem>
+          //     )}
+          //     <MenuItem
+          //       key="delete"
+          //       onClick={() => { handleDeleteClick(row.original); closeMenu(); }}
+          //     >
+          //       <ListItemIcon>
+          //         <FuseSvgIcon>
+          //           {row.original.deletedAt ? "heroicons-outline:arrow-path" : "heroicons-outline:trash"}
+          //         </FuseSvgIcon>
+          //       </ListItemIcon>
+          //       {row.original.deletedAt ? 'Restore' : 'Delete'}
+          //     </MenuItem>
+          //   </>
+          // ]}
+          renderRowActionMenuItems={({ closeMenu, row }) => {
+            const menuItems = [
+              // View Details MenuItem
+              !row.original.deletedAt && (
+                <MenuItem
+                  key="view-details"
+                  onClick={() => {
+                    router.push(
+                      `/apps/product-brand/brand-detail/${row.original.id}`
+                    );
+                    closeMenu();
+                  }}
+                >
+                  <ListItemIcon>
+                    <FuseSvgIcon>
+                      heroicons-outline:arrow-top-right-on-square
+                    </FuseSvgIcon>
+                  </ListItemIcon>
+                  View Details
+                </MenuItem>
+              ),
 
-            // Edit MenuItem (conditionally rendered)
-            !row.original.deletedAt && (
-            <MenuItem
-              key="edit"
+              // Edit MenuItem (conditionally rendered)
+              !row.original.deletedAt && (
+                <MenuItem
+                  key="edit"
+                  onClick={() => {
+                    handleEdit(row.original);
+                    closeMenu();
+                  }}
+                >
+                  <ListItemIcon>
+                    <FuseSvgIcon>heroicons-outline:pencil-square</FuseSvgIcon>
+                  </ListItemIcon>
+                  Edit
+                </MenuItem>
+              ),
+
+              // Delete/Restore MenuItem
+              <MenuItem
+                key="delete"
                 onClick={() => {
-                  handleEdit(row.original);
+                  handleDeleteClick(row.original);
                   closeMenu();
                 }}
-            >
+              >
                 <ListItemIcon>
-                  <FuseSvgIcon>heroicons-outline:pencil-square</FuseSvgIcon>
+                  <FuseSvgIcon>
+                    {row.original.deletedAt
+                      ? "heroicons-outline:arrow-path"
+                      : "heroicons-outline:trash"}
+                  </FuseSvgIcon>
                 </ListItemIcon>
-              Edit
-            </MenuItem>
-            ),
+                {row.original.deletedAt ? "Restore" : "Delete"}
+              </MenuItem>,
+            ];
 
-            // Delete/Restore MenuItem
-            <MenuItem
-              key="delete"
-              onClick={() => {
-                handleDeleteClick(row.original);
-                closeMenu();
-              }}
-            >
-              <ListItemIcon>
-                <FuseSvgIcon>
-                  {row.original.deletedAt
-                    ? "heroicons-outline:arrow-path"
-                    : "heroicons-outline:trash"}
-                </FuseSvgIcon>
-              </ListItemIcon>
-              {row.original.deletedAt ? "Restore" : "Delete"}
-            </MenuItem>,
-          ];
-
-          // Filter out `false` values from the array (to handle the conditional rendering of Edit button)
-          return menuItems.filter(Boolean);
-        }}
-      />
-
-      <div className="flex justify-center p-4">
-        <Pagination
-          count={totalPages}
-          page={page}
-          onChange={(_, newPage) => setPage(newPage)}
-          shape="rounded"
-          color="primary"
-          renderItem={(item) => (
-            <PaginationItem
-              {...item}
-              className="text-gray-600 hover:text-[#2E9970]"
-              sx={{
-                "&.Mui-selected": {
-                  backgroundColor: "#2E9970",
-                  color: "#fff",
-                  "&:hover": {
-                    backgroundColor: "#247C5C",
-                  },
-                },
-              }}
-            />
-          )}
+            // Filter out `false` values from the array (to handle the conditional rendering of Edit button)
+            return menuItems.filter(Boolean);
+          }}
         />
-      </div>
 
-      <Dialog open={openDialog} onClose={() => setOpenDialog(false)}>
-        <DialogTitle>
-          Confirm {selectedBrand?.deletedAt ? "Restore" : "Delete"}
-        </DialogTitle>
-        <DialogContent>
-          <Typography>
-            Are you sure you want to{" "}
-            {selectedBrand?.deletedAt ? "restore" : "delete"}{" "}
-            <strong>{selectedBrand?.name}</strong>?
-          </Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setOpenDialog(false)}>Cancel</Button>
-          <AppButton
-            label={selectedBrand?.deletedAt ? "Restore" : "Delete"}
-            type="button"
-            onClick={handleConfirmDelete}
+        <div className="flex justify-center p-4">
+          <Pagination
+            count={totalPages}
+            page={page}
+            onChange={(_, newPage) => setPage(newPage)}
+            shape="rounded"
+            color="primary"
+            renderItem={(item) => (
+              <PaginationItem
+                {...item}
+                className="text-gray-600 hover:text-[#2E9970]"
+                sx={{
+                  "&.Mui-selected": {
+                    backgroundColor: "#2E9970",
+                    color: "#fff",
+                    "&:hover": {
+                      backgroundColor: "#247C5C",
+                    },
+                  },
+                }}
+              />
+            )}
           />
-        </DialogActions>
-      </Dialog>
-    </Paper>
+        </div>
+
+        <Dialog open={openDialog} onClose={() => setOpenDialog(false)}>
+          <DialogTitle>
+            Confirm {selectedBrand?.deletedAt ? "Restore" : "Delete"}
+          </DialogTitle>
+          <DialogContent>
+            <Typography>
+              Are you sure you want to{" "}
+              {selectedBrand?.deletedAt ? "restore" : "delete"}{" "}
+              <strong>{selectedBrand?.name}</strong>?
+            </Typography>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setOpenDialog(false)}>Cancel</Button>
+            <AppButton
+              label={selectedBrand?.deletedAt ? "Restore" : "Delete"}
+              type="button"
+              onClick={handleConfirmDelete}
+            />
+          </DialogActions>
+        </Dialog>
+      </Paper>
+    </div>
   );
 };
 

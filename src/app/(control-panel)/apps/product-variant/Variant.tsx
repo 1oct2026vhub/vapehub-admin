@@ -1,5 +1,6 @@
 "use client";
 
+import { useCallback, useRef } from "react";
 import FusePageSimple from "@fuse/core/FusePageSimple";
 import { styled } from "@mui/material/styles";
 import VariantHeader from "./VariantHeader";
@@ -18,11 +19,26 @@ const Root = styled(FusePageSimple)(({ theme }) => ({
 }));
 
 function Variant() {
+  // Reference to the actual refresh function from the table
+  const refreshFunctionRef = useRef<(() => Promise<void>) | null>(null);
+
+  // Function to be called from the header to refresh the table
+  const refreshData = useCallback(() => {
+    if (refreshFunctionRef.current) {
+      refreshFunctionRef.current();
+    }
+  }, []);
+
+  // Function to store the table's refresh function
+  const setRefreshFunction = useCallback((fn: () => Promise<void>) => {
+    refreshFunctionRef.current = fn;
+  }, []);
+
   return (
     <div className="p-4">
       <br />
-      <VariantHeader />
-      <ProductVariantTable />
+      <VariantHeader refreshData={refreshData} />
+      <ProductVariantTable refreshData={setRefreshFunction} />
     </div>
   );
 }
