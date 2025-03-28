@@ -207,7 +207,7 @@ const AttributeTermTable = ({
 
   const handleEdit = (term: AttributeTerm) => {
     router.push(
-      `/apps/attribute-terms/terms-update/${
+      `/apps/attribute-terms/term-update/${
         term.id
       }?termData=${encodeURIComponent(JSON.stringify(term))}`
     );
@@ -218,8 +218,8 @@ const AttributeTermTable = ({
       { accessorKey: "id", header: "ID" },
       { accessorKey: "name", header: "Name" },
       { accessorKey: "slug", header: "Slug" },
-      { accessorKey: "value", header: "Value" },
-      { accessorKey: "attribute_name", header: "Attribute" },
+      // { accessorKey: "value", header: "Value" },
+      // { accessorKey: "attribute_name", header: "Attribute" },
       {
         accessorKey: "created_at",
         header: "Created At",
