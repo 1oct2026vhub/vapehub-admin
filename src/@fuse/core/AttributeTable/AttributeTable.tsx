@@ -195,11 +195,31 @@ const AttributeTable = ({
         showSnackbar(errorMessage, "error");
       }
 
-      // Rollback the optimistic update on error
-      refreshData();
-
+      const errorData = error || error; // Handle both API and unexpected errors
+      if (errorData?.error && typeof errorData.error === "object") {
+        Object.entries(errorData.error).forEach(([field, message]) => {
+          if (typeof message === "string") {
+            // setError(field, { type: 'manual', message });
+            showSnackbar(` ${message}`, "error");
+          }
+        });
+      } else {
+        // setError('root', { type: 'manual', message: errorMessage });
+      }
       return false;
-    } 
+    }
+    //   if (error?.errors) {
+    //     showSnackbar(error?.errors[0]?.msg, "error");
+    //   } else {
+    //     const errorMessage = error?.message || "An unexpected error occurred";
+    //     showSnackbar(errorMessage, "error");
+    //   }
+
+    //   // Rollback the optimistic update on error
+    //   refreshData();
+
+    //   return false;
+    // } 
   };
 
   const handleEdit = (attribute: Attribute) => {
