@@ -2912,8 +2912,6 @@ function VariantTab() {
             loading={isLoading}
             disabled={isLoading}
             onClick={() => {
-              console.log("=== NEXT/UPDATE BUTTON CLICKED ===");
-
               // Get current form values
               const formValues = watch();
               console.log("Direct submission values:", formValues);
