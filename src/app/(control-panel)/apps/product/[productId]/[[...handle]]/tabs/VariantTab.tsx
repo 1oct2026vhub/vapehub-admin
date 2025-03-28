@@ -15,9 +15,10 @@ import {
   Checkbox,
   CircularProgress,
   Dialog,
-  DialogTitle,
-  DialogContent,
   DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
 } from "@mui/material";
 import AppButton from "@/components/Shared/AppButton";
 import FormCheckboxField from "@/components/Shared/FormCheckboxField";
@@ -263,6 +264,13 @@ function VariantTab() {
   const [usedTerms, setUsedTerms] = useState<Record<number, Set<number>>>({});
   const fetchedRef = useRef(false);
 
+  // Add state for delete confirmation modal
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [imageToDelete, setImageToDelete] = useState<{
+    variantId: string | number;
+    imageId: string | number;
+  } | null>(null);
+
   // Add state for variant images
   const [variantImages, setVariantImages] = useState<
     Record<string | number, any[]>
@@ -273,6 +281,14 @@ function VariantTab() {
   const fileInputRefs = useRef<
     Record<string | number, HTMLInputElement | null>
   >({});
+
+  // Add state for pending images during variant creation
+  const [pendingImages, setPendingImages] = useState<Record<number, File[]>>(
+    {}
+  );
+  const [tempImageUrls, setTempImageUrls] = useState<Record<number, string[]>>(
+    {}
+  );
 
   // Compute available terms for each attribute
   const variationAttributes = (formData.attributes || [])
@@ -585,7 +601,7 @@ function VariantTab() {
     // In edit mode, we don't need to check for combinations
     if (isEditMode) {
       const formValues = watch();
-      onSubmit(formValues);
+      handleFormSubmit(formValues);
       return;
     }
 
@@ -604,7 +620,7 @@ function VariantTab() {
     }
 
     // Proceed with submission
-    onSubmit(formValues);
+    handleFormSubmit(formValues);
   };
 
   // Update the handleAddVariant function
@@ -682,7 +698,7 @@ function VariantTab() {
   // Function to fetch product data including variants
   const fetchProductData = useCallback(
     async (productId: number) => {
-      if (!productId) return;
+      if (!productId) return null;
 
       setIsLoading(true);
       try {
@@ -864,14 +880,11 @@ function VariantTab() {
     return getAvailableTermsForAttribute(attributeId, variantIndex).length > 0;
   };
 
-  const handleDeleteClick = (variantId: number | undefined, index: number) => {
-    setVariantToDelete({ id: variantId, index });
-    setDeleteModalOpen(true);
-  };
-
-  const handleDeleteConfirm = async () => {
-    if (!variantToDelete) return;
-
+  const handleDeleteVariant = async (
+    variantId: number | undefined,
+    index: number
+  ) => {
+    console.log("handleDeleteVariant called with:", { variantId, index });
     try {
       setIsLoading(true);
 
@@ -881,26 +894,20 @@ function VariantTab() {
       }
 
       // Only call the API if we have a valid variantId (for existing variants)
-      if (variantToDelete.id) {
-        console.log("Calling delete API for variant ID:", variantToDelete.id);
-        await deleteProductVariant(variantToDelete.id);
-        console.log(
-          "API delete successful for variant ID:",
-          variantToDelete.id
-        );
+      if (variantId) {
+        console.log("Calling delete API for variant ID:", variantId);
+        await deleteProductVariant(variantId);
+        console.log("API delete successful for variant ID:", variantId);
         showSnackbar("Variant deleted successfully", "success");
       }
 
       // Remove the variant from the form fields
-      remove(variantToDelete.index);
-      console.log(
-        "Removed variant from form fields at index:",
-        variantToDelete.index
-      );
+      remove(index);
+      console.log("Removed variant from form fields at index:", index);
 
       // Update the form data context
       const updatedVariants = [...(formData.variants || [])];
-      updatedVariants.splice(variantToDelete.index, 1);
+      updatedVariants.splice(index, 1);
       updateFormData({ variants: updatedVariants });
       console.log(
         "Updated form data context with remaining variants:",
@@ -911,14 +918,7 @@ function VariantTab() {
       showSnackbar("Failed to delete variant", "error");
     } finally {
       setIsLoading(false);
-      setDeleteModalOpen(false);
-      setVariantToDelete(null);
     }
-  };
-
-  const handleDeleteCancel = () => {
-    setDeleteModalOpen(false);
-    setVariantToDelete(null);
   };
 
   // Update the areRequiredFieldsFilled function
@@ -1094,20 +1094,8 @@ function VariantTab() {
       return;
     }
 
-    // Check if all combinations have been added when not in edit mode
-    if (!isEditMode) {
-      const allCombinations = generateAllAttributeCombinations();
-      const currentVariants = data.variants || [];
-
-      if (allCombinations.length > currentVariants.length) {
-        showSnackbar("Please add all combinations", "warning");
-        return;
-      }
-    }
-
     try {
       setIsLoading(true);
-      // Transform the data to match the API requirements
       const transformedData: CreateProductVariantsRequest = {
         variants: data.variants.map(transformVariantData),
       };
@@ -1116,87 +1104,211 @@ function VariantTab() {
 
       if (isEditMode) {
         console.log("IN EDIT MODE - Processing updates for variants");
-        console.log("Form data variants:", data.variants);
+
         // Get existing variants with IDs from context
         const existingVariants = formData.variants?.filter((v) => v.id) || [];
         console.log("Existing variants with IDs:", existingVariants);
 
-        // For each variant in the form, determine if it needs to be created or updated
-        const updatePromises = data.variants.map(async (variant, index) => {
-          // If the variant has an ID, update it
-          if (variant.id) {
-            console.log(
-              `ATTEMPTING TO UPDATE: Variant with ID ${variant.id}`,
-              variant
-            );
-            try {
+        // Store variant indexes that need image uploads
+        const variantIndexesToUpload = [];
+        data.variants.forEach((variant, index) => {
+          if (pendingImages[index]?.length > 0) {
+            variantIndexesToUpload.push(index);
+          }
+        });
+
+        // 1. Process variant updates/creates first - no image uploads yet
+        for (let index = 0; index < data.variants.length; index++) {
+          const variant = data.variants[index];
+          console.log(`Processing variant at index ${index}:`, variant);
+
+          try {
+            // If variant has ID, update it
+            if (variant.id) {
               console.log(
-                `Calling updateProductVariant API for variant ${variant.id}...`
+                `ATTEMPTING TO UPDATE: Variant with ID ${variant.id}`
               );
               const transformedVariant = transformVariantData(variant);
-              console.log("Transformed variant data:", transformedVariant);
-              const response = await updateProductVariant(
+              await updateProductVariant(
                 Number(productId),
                 variant.id,
                 transformedVariant
               );
-              console.log(
-                `API SUCCESS: Updated variant ${variant.id}`,
-                response
-              );
-              return response;
-            } catch (error) {
-              console.error(
-                `API ERROR: Failed to update variant ${variant.id}:`,
-                error
-              );
-              throw error;
+              console.log(`API SUCCESS: Updated variant ${variant.id}`);
             }
-          }
-          // If it's a new variant but we're in edit mode, create it
-          else {
-            console.log(
-              `ATTEMPTING TO CREATE: New variant in edit mode`,
-              variant
-            );
-            try {
-              console.log(
-                `Calling createProductVariants API for new variant...`
-              );
+            // If it's a new variant, create it
+            else {
+              console.log("ATTEMPTING TO CREATE: New variant in edit mode");
               const transformedVariant = transformVariantData(variant);
-              console.log("Transformed new variant data:", transformedVariant);
-              const createResponse = await createProductVariants(
-                Number(productId),
-                {
-                  variants: [transformedVariant],
-                }
+              await createProductVariants(Number(productId), {
+                variants: [transformedVariant],
+              });
+              console.log("API SUCCESS: Created new variant");
+            }
+          } catch (error) {
+            console.error(
+              `Failed to process variant at index ${index}:`,
+              error
+            );
+            throw error;
+          }
+        }
+
+        // Show success message after all variants are updated
+        console.log("All variants processed. Refreshing product data...");
+        showSnackbar("Product variants updated successfully", "success");
+
+        // 2. Fetch updated product data to get latest variant IDs
+        const updatedProductData = await getProduct(Number(productId));
+        console.log("Updated product data:", updatedProductData.data);
+
+        // Extract variants from the updated product data
+        const updatedVariants = updatedProductData.data.variants || [];
+        console.log("Updated variants:", updatedVariants);
+
+        // 3. Now upload images for each variant that needs it
+        if (variantIndexesToUpload.length > 0) {
+          console.log("Uploading pending images for variants...");
+          let allUploadsSuccessful = true;
+
+          for (const index of variantIndexesToUpload) {
+            const originalVariant = data.variants[index];
+
+            // Find corresponding variant in updated data
+            // If it had an ID, match by ID; otherwise use attributes to match
+            let matchedVariant;
+
+            if (originalVariant.id) {
+              // If it had an ID, match by ID
+              matchedVariant = updatedVariants.find(
+                (v) => v.id === originalVariant.id
               );
-              console.log(`API SUCCESS: Created new variant`, createResponse);
-              return createResponse;
-            } catch (error) {
-              console.error(`API ERROR: Failed to create new variant:`, error);
-              throw error;
+            } else {
+              // For new variants, match by attributes and slug
+              matchedVariant = updatedVariants.find((updatedVariant) => {
+                // Both variant should have same attribute combinations
+                const originalAttrs = originalVariant.attributes || [];
+                const updatedAttrs = updatedVariant.variantAttributes || [];
+
+                // Match by slug as a fallback
+                if (updatedVariant.slug === originalVariant.slug) {
+                  return true;
+                }
+
+                // Try to match by checking all attributes match
+                if (originalAttrs.length !== updatedAttrs.length) {
+                  return false;
+                }
+
+                // Check if all attributes match
+                return originalAttrs.every((originalAttr) => {
+                  return updatedAttrs.some(
+                    (updatedAttr) =>
+                      updatedAttr.attribute_id === originalAttr.attribute_id &&
+                      updatedAttr.term_id === originalAttr.term_id
+                  );
+                });
+              });
+            }
+
+            if (matchedVariant && matchedVariant.id) {
+              console.log(
+                `Found matched variant for index ${index}:`,
+                matchedVariant
+              );
+              try {
+                console.log(
+                  `Uploading ${pendingImages[index].length} images for variant ${matchedVariant.id}`
+                );
+                // Upload and get the results
+                const uploadedImages = await uploadPendingImages(
+                  matchedVariant.id,
+                  index
+                );
+
+                // If we got a response with image data, update the UI immediately
+                if (uploadedImages.length > 0) {
+                  setVariantImages((prev) => {
+                    const updated = { ...prev };
+                    if (updated[matchedVariant.id]) {
+                      // Make sure we don't add duplicate images by checking IDs
+                      const existingIds = new Set(
+                        updated[matchedVariant.id].map((img) => img.id)
+                      );
+                      const uniqueNewImages = uploadedImages.filter(
+                        (img) => !existingIds.has(img.id)
+                      );
+
+                      console.log(
+                        `Adding ${
+                          uniqueNewImages.length
+                        } unique images (filtered out ${
+                          uploadedImages.length - uniqueNewImages.length
+                        } duplicates)`
+                      );
+
+                      updated[matchedVariant.id] = [
+                        ...updated[matchedVariant.id],
+                        ...uniqueNewImages,
+                      ];
+                    } else {
+                      updated[matchedVariant.id] = uploadedImages;
+                    }
+                    return updated;
+                  });
+
+                  showSnackbar(
+                    `Successfully uploaded ${uploadedImages.length} images`,
+                    "success"
+                  );
+                }
+              } catch (error) {
+                console.error(
+                  `Error uploading images for variant ${matchedVariant.id}:`,
+                  error
+                );
+                showSnackbar(
+                  `Failed to upload images for variant ${
+                    matchedVariant.slug || index + 1
+                  }`,
+                  "error"
+                );
+                allUploadsSuccessful = false;
+              }
+            } else {
+              console.warn(
+                `Could not match variant at index ${index} with any updated variant`
+              );
+              showSnackbar(
+                `Could not match variant at index ${
+                  index + 1
+                } for image upload`,
+                "warning"
+              );
+              allUploadsSuccessful = false;
             }
           }
-        });
 
-        try {
-          console.log("Executing all update/create promises...");
-          const results = await Promise.all(updatePromises);
-          console.log("All variants updated/created successfully:", results);
-          showSnackbar("Product variants updated successfully", "success");
-
-          // Refresh variant data to get updated IDs
+          if (allUploadsSuccessful) {
+            console.log("All images uploaded successfully");
+            showSnackbar("All images uploaded successfully", "success");
+          } else {
+            console.warn("Some image uploads failed");
+            showSnackbar("Some image uploads completed with errors", "warning");
+          }
+        } else {
+          // Only fetch product data if there were no image uploads to avoid overwriting our UI state
           fetchedRef.current = false;
-          fetchProductData(Number(productId));
-        } catch (error) {
-          console.error("Error during Promise.all for variants:", error);
-          throw error;
+          await fetchProductData(Number(productId));
         }
+
+        // No need to refresh data again as we've already updated the UI state directly
+        console.log("Update process completed successfully");
       } else {
         // Create new variants
         console.log("CREATING NEW VARIANTS - Not in edit mode");
-        console.log("Calling createProductVariants API...");
+
+        // 1. Create the variants
         const response = await createProductVariants(
           Number(productId),
           transformedData
@@ -1204,17 +1316,145 @@ function VariantTab() {
         console.log("API SUCCESS: Created variants", response);
         showSnackbar("Product variants saved successfully", "success");
 
-        // Update form data with new variants
+        // Update form data
         updateFormData({
           variants: data.variants,
           hasErrors: false,
         });
 
+        // 2. Fetch the updated product data to get variant IDs
+        console.log("Fetching updated product data...");
+        const updatedProductData = await getProduct(Number(productId));
+        console.log("Updated product data:", updatedProductData.data);
+
+        // Extract variants from the updated product data
+        const updatedVariants = updatedProductData.data.variants || [];
+        console.log("Updated variants from product data:", updatedVariants);
+
+        // 3. Upload images for each variant if needed
+        const indexesWithPendingImages = Object.keys(pendingImages)
+          .filter((index) => pendingImages[Number(index)]?.length > 0)
+          .map(Number);
+
+        let allUploadsSuccessful = true;
+
+        if (indexesWithPendingImages.length > 0) {
+          console.log("Indexes with pending images:", indexesWithPendingImages);
+
+          // For each index with pending images, find the corresponding variant
+          for (const index of indexesWithPendingImages) {
+            const originalVariant = data.variants[index];
+
+            // Try to match variants by attributes and slug
+            const matchedVariant = updatedVariants.find((updatedVariant) => {
+              // Both variant should have same attribute combinations
+              const originalAttrs = originalVariant.attributes || [];
+              const updatedAttrs = updatedVariant.variantAttributes || [];
+
+              // Match by slug as a fallback
+              if (updatedVariant.slug === originalVariant.slug) {
+                return true;
+              }
+
+              // Try to match by checking all attributes match
+              if (originalAttrs.length !== updatedAttrs.length) {
+                return false;
+              }
+
+              // Check if all attributes match
+              return originalAttrs.every((originalAttr) => {
+                return updatedAttrs.some(
+                  (updatedAttr) =>
+                    updatedAttr.attribute_id === originalAttr.attribute_id &&
+                    updatedAttr.term_id === originalAttr.term_id
+                );
+              });
+            });
+
+            if (matchedVariant && matchedVariant.id) {
+              console.log(
+                `Found matched variant for index ${index}:`,
+                matchedVariant
+              );
+              try {
+                console.log(
+                  `Uploading ${pendingImages[index].length} images for variant ${matchedVariant.id}`
+                );
+                // Upload and get the results
+                const uploadedImages = await uploadPendingImages(
+                  matchedVariant.id,
+                  index
+                );
+
+                // If we got a response with image data, update the UI immediately
+                if (uploadedImages.length > 0) {
+                  setVariantImages((prev) => {
+                    const updated = { ...prev };
+                    if (updated[matchedVariant.id]) {
+                      // Make sure we don't add duplicate images by checking IDs
+                      const existingIds = new Set(
+                        updated[matchedVariant.id].map((img) => img.id)
+                      );
+                      const uniqueNewImages = uploadedImages.filter(
+                        (img) => !existingIds.has(img.id)
+                      );
+
+                      console.log(
+                        `Adding ${
+                          uniqueNewImages.length
+                        } unique images (filtered out ${
+                          uploadedImages.length - uniqueNewImages.length
+                        } duplicates)`
+                      );
+
+                      updated[matchedVariant.id] = [
+                        ...updated[matchedVariant.id],
+                        ...uniqueNewImages,
+                      ];
+                    } else {
+                      updated[matchedVariant.id] = uploadedImages;
+                    }
+                    return updated;
+                  });
+
+                  showSnackbar(
+                    `Successfully uploaded ${uploadedImages.length} images`,
+                    "success"
+                  );
+                }
+              } catch (error) {
+                console.error(
+                  `Error uploading images for variant ${matchedVariant.id}:`,
+                  error
+                );
+                showSnackbar(
+                  `Failed to upload images for variant ${matchedVariant.slug}`,
+                  "error"
+                );
+                allUploadsSuccessful = false;
+              }
+            } else {
+              console.warn(
+                `Could not match variant at index ${index} with any updated variant`
+              );
+              allUploadsSuccessful = false;
+            }
+          }
+
+          console.log("All image uploads processed");
+        }
+
+        // No need to refresh data again as we've handled image uploads directly
+        console.log("Variant creation completed successfully");
+
+        // 5. Complete the flow
         markStepAsCompleted(3);
         nextStep();
 
-        // Redirect to product list
-        router.push("/apps/product/");
+        // Only redirect if all image uploads were successful
+        if (allUploadsSuccessful) {
+          router.push("/apps/product/");
+        }
       }
     } catch (error) {
       console.error("Error saving variants:", error);
@@ -1223,15 +1463,6 @@ function VariantTab() {
       } else {
         const errorMessage = error?.message || "An unexpected error occurred";
         showSnackbar(errorMessage, "error");
-      }
-
-      const errorData = error || error;
-      if (errorData?.error && typeof errorData.error === "object") {
-        Object.entries(errorData.error).forEach(([field, message]) => {
-          if (typeof message === "string") {
-            showSnackbar(message, "error");
-          }
-        });
       }
     } finally {
       setIsLoading(false);
@@ -1471,16 +1702,11 @@ function VariantTab() {
   const handleFileSelect = useCallback(
     async (
       event: React.ChangeEvent<HTMLInputElement>,
-      variantId: string | number
+      variantId: string | number | undefined,
+      variantIndex: number
     ) => {
       if (!event.target.files || event.target.files.length === 0) {
         console.log("No files selected");
-        return;
-      }
-
-      // Get the product ID from the context or URL
-      if (!productId) {
-        showSnackbar("Product ID is missing", "error");
         return;
       }
 
@@ -1494,8 +1720,8 @@ function VariantTab() {
       if (validFiles.length !== files.length) {
         showSnackbar("Only JPEG, PNG, and WEBP images are allowed", "error");
         // Reset the file input
-        if (fileInputRefs.current[variantId]) {
-          fileInputRefs.current[variantId].value = "";
+        if (fileInputRefs.current[variantId || variantIndex]) {
+          fileInputRefs.current[variantId || variantIndex].value = "";
         }
         return;
       }
@@ -1505,7 +1731,420 @@ function VariantTab() {
         return;
       }
 
-      // Find the actual numeric variant ID from the form data context
+      try {
+        // For existing variants with IDs, upload images immediately
+        if (variantId && typeof variantId !== "undefined" && variantId !== "") {
+          console.log(
+            `Directly uploading images for existing variant ${variantId}`
+          );
+
+          // Set loading state
+          setUploading((prevState) => ({
+            ...prevState,
+            [variantId]: true,
+          }));
+
+          // Create form data for upload
+          const formData = new FormData();
+          validFiles.forEach((file) => {
+            formData.append("files", file);
+          });
+
+          // Upload directly for existing variants
+          try {
+            const response = await uploadVariantImages(
+              String(productId),
+              String(variantId),
+              formData
+            );
+
+            console.log("Direct upload response:", response);
+
+            // Process the response
+            let newImages = [];
+
+            // Handle different possible response structures
+            if (response?.data?.variant?.variantImages) {
+              newImages = response.data.variant.variantImages;
+            } else if (response?.variant?.variantImages) {
+              newImages = response.variant.variantImages;
+            } else if (response?.data?.variantImages) {
+              newImages = response.data.variantImages;
+            } else if (Array.isArray(response)) {
+              newImages = response;
+            } else if (response?.data && Array.isArray(response.data)) {
+              newImages = response.data;
+            }
+
+            // Format images consistently
+            const processedImages = newImages.map((img) => ({
+              id: img.id || img.image_id,
+              image_url: img.image_url || img.url,
+              is_primary: !!img.is_primary,
+            }));
+
+            if (processedImages.length > 0) {
+              // Update the UI state immediately
+              setVariantImages((prev) => {
+                const updated = { ...prev };
+                if (updated[variantId]) {
+                  // Make sure we don't add duplicate images by checking IDs
+                  const existingIds = new Set(
+                    updated[variantId].map((img) => img.id)
+                  );
+                  const uniqueNewImages = processedImages.filter(
+                    (img) => !existingIds.has(img.id)
+                  );
+
+                  console.log(
+                    `Adding ${
+                      uniqueNewImages.length
+                    } unique images (filtered out ${
+                      processedImages.length - uniqueNewImages.length
+                    } duplicates)`
+                  );
+
+                  updated[variantId] = [
+                    ...updated[variantId],
+                    ...uniqueNewImages,
+                  ];
+                } else {
+                  updated[variantId] = processedImages;
+                }
+                return updated;
+              });
+
+              showSnackbar(
+                `Successfully uploaded ${processedImages.length} images`,
+                "success"
+              );
+            } else {
+              showSnackbar("Failed to process uploaded images", "error");
+            }
+          } catch (error) {
+            console.error("Error directly uploading images:", error);
+            showSnackbar("Error uploading images", "error");
+          } finally {
+            // Clear loading state
+            setUploading((prevState) => ({
+              ...prevState,
+              [variantId]: false,
+            }));
+          }
+        } else {
+          // For new variants, store for later upload
+          console.log(
+            `Storing ${validFiles.length} images for variant at index ${variantIndex}`
+          );
+
+          // Create temporary URLs for preview
+          const urls = validFiles.map((file) => URL.createObjectURL(file));
+
+          // Store files and URLs in state
+          setPendingImages((prev) => ({
+            ...prev,
+            [variantIndex]: [...(prev[variantIndex] || []), ...validFiles],
+          }));
+
+          setTempImageUrls((prev) => ({
+            ...prev,
+            [variantIndex]: [...(prev[variantIndex] || []), ...urls],
+          }));
+
+          showSnackbar(
+            `${validFiles.length} images selected. They will be uploaded after saving the variant.`,
+            "success"
+          );
+        }
+
+        // Reset the file input
+        if (fileInputRefs.current[variantId || variantIndex]) {
+          fileInputRefs.current[variantId || variantIndex].value = "";
+        }
+      } catch (error) {
+        console.error("Error handling files:", error);
+        showSnackbar("Error processing images", "error");
+      }
+    },
+    [showSnackbar, productId]
+  );
+
+  // Add a function to upload images for existing variants
+  const uploadImagesForExistingVariant = async (
+    variantId: string | number,
+    files: File[]
+  ) => {
+    if (!productId) {
+      showSnackbar("Product ID is missing", "error");
+      return;
+    }
+
+    // Find the actual numeric variant ID from the form data context
+    const foundVariant = formData.variants?.find(
+      (v) =>
+        v.id === variantId ||
+        (v.id !== undefined &&
+          variantId !== undefined &&
+          String(v.id) === String(variantId))
+    );
+
+    if (!foundVariant || foundVariant.id === undefined) {
+      showSnackbar(
+        "Cannot find variant information. Please save the variant first.",
+        "warning"
+      );
+      return;
+    }
+
+    // Ensure we're using the correct numeric ID that the API expects
+    const numericVariantId =
+      typeof foundVariant.id === "number"
+        ? foundVariant.id
+        : parseInt(String(foundVariant.id), 10);
+
+    if (isNaN(numericVariantId)) {
+      showSnackbar(
+        "Invalid variant ID. The API requires a numeric ID.",
+        "error"
+      );
+      return;
+    }
+
+    console.log("Found numeric variant ID for upload:", numericVariantId);
+
+    // Create FormData object and append files
+    const formDataObj = new FormData();
+    files.forEach((file) => {
+      formDataObj.append("files", file);
+    });
+
+    try {
+      console.log(
+        `Uploading ${files.length} images for product ${productId}, variant ${numericVariantId}`
+      );
+
+      // Set loading state
+      setUploading((prevState) => ({
+        ...prevState,
+        [variantId]: true,
+      }));
+
+      // Call API with proper parameters
+      const response = await uploadVariantImages(
+        String(productId),
+        String(numericVariantId),
+        formDataObj
+      );
+
+      console.log("Upload response:", response);
+
+      // Process the response to extract images
+      let newImages = [];
+
+      // First check if response is directly an array of images
+      if (Array.isArray(response)) {
+        newImages = response.map((img) => ({
+          id: img.id || img.image_id,
+          image_url: img.image_url || img.url,
+          is_primary: !!img.is_primary,
+        }));
+      }
+      // Handle nested response structures
+      else if (response && typeof response === "object") {
+        // Try different possible response structures
+        if (response.data?.variant?.variantImages) {
+          newImages = response.data.variant.variantImages;
+        } else if (response.variant?.variantImages) {
+          newImages = response.variant.variantImages;
+        } else if (response.data?.variantImages) {
+          newImages = response.data.variantImages;
+        } else if (response.data && Array.isArray(response.data)) {
+          newImages = response.data;
+        }
+      }
+
+      // Ensure all images have the expected properties
+      const processedImages = newImages.map((img) => ({
+        id: img.id || img.image_id,
+        image_url: img.image_url || img.url || img.image_url,
+        is_primary: !!img.is_primary,
+      }));
+
+      console.log("Processed images with IDs:", processedImages);
+
+      if (processedImages.length === 0) {
+        console.warn("Could not extract images from response:", response);
+        showSnackbar(
+          "Images uploaded but response format was unexpected",
+          "warning"
+        );
+      }
+
+      // Update the state with the new images
+      setVariantImages((prevImages) => {
+        // First get any existing images
+        const existingImages = prevImages[variantId] || [];
+
+        // Ensure we don't add duplicates by checking IDs
+        const existingIds = new Set(existingImages.map((img) => img.id));
+        const uniqueNewImages = processedImages.filter(
+          (img) => !existingIds.has(img.id)
+        );
+
+        const updatedImages = {
+          ...prevImages,
+          [variantId]: [...existingImages, ...uniqueNewImages],
+        };
+
+        console.log("Updated variant images state:", updatedImages);
+        return updatedImages;
+      });
+
+      showSnackbar(
+        `Successfully uploaded ${processedImages.length} images`,
+        "success"
+      );
+      return processedImages;
+    } catch (error) {
+      console.error("Error uploading images:", error);
+      showSnackbar("Error uploading images", "error");
+      throw error;
+    } finally {
+      // Clear loading state
+      setUploading((prevState) => ({
+        ...prevState,
+        [variantId]: false,
+      }));
+    }
+  };
+
+  // Add a function to upload pending images
+  const uploadPendingImages = async (variantId: number, index: number) => {
+    const files = pendingImages[index];
+    if (!files || files.length === 0) return [];
+
+    try {
+      const formData = new FormData();
+      files.forEach((file) => {
+        formData.append("files", file);
+      });
+
+      console.log(
+        `Uploading images for variant ${variantId}:`,
+        files.length,
+        "files"
+      );
+      const response = await uploadVariantImages(
+        String(productId),
+        String(variantId),
+        formData
+      );
+
+      console.log("Upload response:", response);
+
+      // Process the response and update variantImages state
+      let newImages = [];
+
+      // Handle different possible response structures
+      if (response?.data?.variant?.variantImages) {
+        newImages = response.data.variant.variantImages;
+      } else if (response?.variant?.variantImages) {
+        newImages = response.variant.variantImages;
+      } else if (response?.data?.variantImages) {
+        newImages = response.data.variantImages;
+      } else if (Array.isArray(response)) {
+        newImages = response;
+      } else if (response?.data && Array.isArray(response.data)) {
+        newImages = response.data;
+      }
+
+      // Ensure all images have the required properties
+      const processedImages = newImages.map((img) => ({
+        id: img.id || img.image_id,
+        image_url: img.image_url || img.url,
+        is_primary: !!img.is_primary,
+      }));
+
+      if (processedImages.length === 0) {
+        throw new Error("No images were uploaded successfully");
+      }
+
+      console.log("Processed images:", processedImages);
+
+      // Update variantImages state with the new images
+      setVariantImages((prev) => {
+        const updated = { ...prev };
+        // If there are existing images, append the new ones
+        if (updated[variantId]) {
+          // Make sure we don't add duplicate images by checking IDs
+          const existingIds = new Set(updated[variantId].map((img) => img.id));
+          const uniqueNewImages = processedImages.filter(
+            (img) => !existingIds.has(img.id)
+          );
+
+          console.log(
+            `Adding ${uniqueNewImages.length} unique images (filtered out ${
+              processedImages.length - uniqueNewImages.length
+            } duplicates)`
+          );
+
+          updated[variantId] = [...updated[variantId], ...uniqueNewImages];
+        } else {
+          updated[variantId] = processedImages;
+        }
+        return updated;
+      });
+
+      // Clean up temporary data
+      setPendingImages((prev) => {
+        const updated = { ...prev };
+        delete updated[index];
+        return updated;
+      });
+
+      setTempImageUrls((prev) => {
+        const updated = { ...prev };
+        delete updated[index];
+        return updated;
+      });
+
+      // Clean up object URLs
+      tempImageUrls[index]?.forEach((url) => URL.revokeObjectURL(url));
+
+      console.log(
+        `Successfully uploaded ${processedImages.length} images for variant ${variantId}`
+      );
+
+      return processedImages;
+    } catch (error) {
+      console.error(`Error uploading images for variant ${variantId}:`, error);
+      throw error;
+    }
+  };
+
+  const handleDeleteImage = useCallback(
+    (variantId: string | number, imageId: string | number) => {
+      // Open the confirmation modal instead of using the browser's confirm dialog
+      setImageToDelete({ variantId, imageId });
+      setDeleteModalOpen(true);
+    },
+    []
+  );
+
+  // Function to handle the actual image deletion after confirmation
+  const confirmDeleteImage = useCallback(async () => {
+    if (!imageToDelete) return;
+
+    const { variantId, imageId } = imageToDelete;
+
+    try {
+      // Get the product ID from the context or URL
+      if (!productId) {
+        showSnackbar("Product ID is missing", "error");
+        return;
+      }
+
+      // Find the actual numeric variant ID from the form data
       const foundVariant = formData.variants?.find(
         (v) =>
           v.id === variantId ||
@@ -1536,237 +2175,53 @@ function VariantTab() {
         return;
       }
 
-      console.log("Found numeric variant ID for upload:", numericVariantId);
+      // Convert image ID to numeric if needed
+      const numericImageId =
+        typeof imageId === "number" ? imageId : parseInt(String(imageId), 10);
 
-      // Create FormData object and append files
-      const formDataObj = new FormData();
-      validFiles.forEach((file) => {
-        formDataObj.append("files", file);
+      if (isNaN(numericImageId)) {
+        showSnackbar("Invalid image ID.", "error");
+        return;
+      }
+
+      console.log(
+        "Deleting image:",
+        numericImageId,
+        "from variant:",
+        numericVariantId
+      );
+
+      // Call API with proper parameters
+      const response = await deleteVariantImage(
+        String(productId),
+        String(numericVariantId),
+        String(numericImageId)
+      );
+
+      console.log("Delete image response:", response);
+
+      // Update state to remove the deleted image
+      setVariantImages((prev) => {
+        const updatedImages = { ...prev };
+        if (updatedImages[variantId]) {
+          updatedImages[variantId] = updatedImages[variantId].filter(
+            (img) =>
+              img.id !== numericImageId && img.id !== Number(numericImageId)
+          );
+        }
+        return updatedImages;
       });
 
-      try {
-        console.log(
-          `Uploading ${validFiles.length} images for product ${productId}, variant ${numericVariantId}`
-        );
-
-        // Set loading state
-        setUploading((prevState) => ({
-          ...prevState,
-          [variantId]: true,
-        }));
-
-        // Call API with proper parameters
-        const response = await uploadVariantImages(
-          String(productId),
-          String(numericVariantId),
-          formDataObj
-        );
-
-        console.log("Upload response:", response);
-
-        // Properly process the response to extract images with IDs
-        let newImages = [];
-
-        // First check if response is directly an array of images
-        if (Array.isArray(response)) {
-          newImages = response.map((img) => ({
-            id: img.id || img.image_id,
-            image_url: img.image_url || img.url,
-            is_primary: !!img.is_primary,
-          }));
-        }
-        // Handle nested response structures
-        else if (response && typeof response === "object") {
-          // Try different possible response structures
-          if (
-            response.data?.variant?.variantImages &&
-            Array.isArray(response.data.variant.variantImages)
-          ) {
-            newImages = response.data.variant.variantImages;
-          } else if (
-            response.variant?.variantImages &&
-            Array.isArray(response.variant.variantImages)
-          ) {
-            newImages = response.variant.variantImages;
-          } else if (
-            response.data?.variantImages &&
-            Array.isArray(response.data.variantImages)
-          ) {
-            newImages = response.data.variantImages;
-          } else if (
-            response.data?.variant_images &&
-            Array.isArray(response.data.variant_images)
-          ) {
-            newImages = response.data.variant_images;
-          } else if (
-            response.variant_images &&
-            Array.isArray(response.variant_images)
-          ) {
-            newImages = response.variant_images;
-          } else if (
-            response.variantImages &&
-            Array.isArray(response.variantImages)
-          ) {
-            newImages = response.variantImages;
-          } else if (response.images && Array.isArray(response.images)) {
-            newImages = response.images;
-          } else if (response.data && Array.isArray(response.data)) {
-            newImages = response.data;
-          } else if (response.result && Array.isArray(response.result)) {
-            newImages = response.result;
-          }
-        }
-
-        // Ensure all images have the expected properties
-        const processedImages = newImages.map((img) => ({
-          id: img.id || img.image_id,
-          image_url: img.image_url || img.url,
-          is_primary: !!img.is_primary,
-        }));
-
-        console.log("Processed images with IDs:", processedImages);
-
-        if (processedImages.length === 0) {
-          console.warn("Could not extract images from response:", response);
-          showSnackbar(
-            "Images uploaded but response format was unexpected",
-            "warning"
-          );
-        }
-
-        // Update the state with the new images
-        setVariantImages((prevImages) => {
-          // First get any existing images
-          const existingImages = prevImages[variantId] || [];
-
-          // Ensure we don't add duplicates by checking IDs
-          const existingIds = new Set(existingImages.map((img) => img.id));
-          const uniqueNewImages = processedImages.filter(
-            (img) => !existingIds.has(img.id)
-          );
-
-          const updatedImages = {
-            ...prevImages,
-            [variantId]: [...existingImages, ...uniqueNewImages],
-          };
-
-          console.log("Updated variant images state:", updatedImages);
-          return updatedImages;
-        });
-
-        // Reset the file input
-        if (fileInputRefs.current[variantId]) {
-          fileInputRefs.current[variantId].value = "";
-        }
-
-        // Force a validation to trigger re-render
-        trigger();
-
-        showSnackbar(
-          `Successfully uploaded ${processedImages.length} images`,
-          "success"
-        );
-      } catch (error) {
-        console.error("Error uploading images:", error);
-        showSnackbar("Error uploading images", "error");
-      } finally {
-        // Clear loading state
-        setUploading((prevState) => ({
-          ...prevState,
-          [variantId]: false,
-        }));
-      }
-    },
-    [formData.variants, productId, showSnackbar, trigger, variantImages]
-  );
-
-  const handleDeleteImage = useCallback(
-    async (variantId: string | number, imageId: string | number) => {
-      if (!confirm("Are you sure you want to delete this image?")) return;
-
-      try {
-        // Get the product ID from the context or URL
-        if (!productId) {
-          showSnackbar("Product ID is missing", "error");
-          return;
-        }
-
-        // Find the actual numeric variant ID from the form data
-        const foundVariant = formData.variants?.find(
-          (v) =>
-            v.id === variantId ||
-            (v.id !== undefined &&
-              variantId !== undefined &&
-              String(v.id) === String(variantId))
-        );
-
-        if (!foundVariant || foundVariant.id === undefined) {
-          showSnackbar(
-            "Cannot find variant information. Please save the variant first.",
-            "warning"
-          );
-          return;
-        }
-
-        // Ensure we're using the correct numeric ID that the API expects
-        const numericVariantId =
-          typeof foundVariant.id === "number"
-            ? foundVariant.id
-            : parseInt(String(foundVariant.id), 10);
-
-        if (isNaN(numericVariantId)) {
-          showSnackbar(
-            "Invalid variant ID. The API requires a numeric ID.",
-            "error"
-          );
-          return;
-        }
-
-        // Convert image ID to numeric if needed
-        const numericImageId =
-          typeof imageId === "number" ? imageId : parseInt(String(imageId), 10);
-
-        if (isNaN(numericImageId)) {
-          showSnackbar("Invalid image ID.", "error");
-          return;
-        }
-
-        console.log(
-          "Deleting image:",
-          numericImageId,
-          "from variant:",
-          numericVariantId
-        );
-
-        // Call API with proper parameters
-        const response = await deleteVariantImage(
-          String(productId),
-          String(numericVariantId),
-          String(numericImageId)
-        );
-
-        console.log("Delete image response:", response);
-
-        // Update state to remove the deleted image
-        setVariantImages((prev) => {
-          const updatedImages = { ...prev };
-          if (updatedImages[variantId]) {
-            updatedImages[variantId] = updatedImages[variantId].filter(
-              (img) =>
-                img.id !== numericImageId && img.id !== Number(numericImageId)
-            );
-          }
-          return updatedImages;
-        });
-
-        showSnackbar("Image deleted successfully", "success");
-      } catch (error) {
-        console.error("Error deleting image:", error);
-        showSnackbar("Failed to delete image", "error");
-      }
-    },
-    [formData.variants, productId, showSnackbar]
-  );
+      showSnackbar("Image deleted successfully", "success");
+    } catch (error) {
+      console.error("Error deleting image:", error);
+      showSnackbar("Failed to delete image", "error");
+    } finally {
+      // Close the modal
+      setDeleteModalOpen(false);
+      setImageToDelete(null);
+    }
+  }, [formData.variants, productId, showSnackbar, imageToDelete]);
 
   const handleSetPrimary = useCallback(
     async (variantId: string | number, imageId: string | number) => {
@@ -1855,432 +2310,365 @@ function VariantTab() {
     [formData.variants, productId, showSnackbar]
   );
 
-  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
-  const [variantToDelete, setVariantToDelete] = useState<{
-    id?: number;
-    index: number;
-  } | null>(null);
-
-  const [deleteImageModalOpen, setDeleteImageModalOpen] = useState(false);
-  const [imageToDelete, setImageToDelete] = useState<{
-    variantId: string | number;
-    imageId: string | number;
-  } | null>(null);
-
-  const handleDeleteImageClick = (
-    variantId: string | number,
-    imageId: string | number
-  ) => {
-    setImageToDelete({ variantId, imageId });
-    setDeleteImageModalOpen(true);
-  };
-
-  const handleDeleteImageConfirm = async () => {
-    if (!imageToDelete) return;
-
-    try {
-      // Get the product ID from the context or URL
-      if (!productId) {
-        showSnackbar("Product ID is missing", "error");
-        return;
-      }
-
-      // Find the actual numeric variant ID from the form data
-      const foundVariant = formData.variants?.find(
-        (v) =>
-          v.id === imageToDelete.variantId ||
-          (v.id !== undefined &&
-            imageToDelete.variantId !== undefined &&
-            String(v.id) === String(imageToDelete.variantId))
-      );
-
-      if (!foundVariant || foundVariant.id === undefined) {
-        showSnackbar(
-          "Cannot find variant information. Please save the variant first.",
-          "warning"
-        );
-        return;
-      }
-
-      // Ensure we're using the correct numeric ID that the API expects
-      const numericVariantId =
-        typeof foundVariant.id === "number"
-          ? foundVariant.id
-          : parseInt(String(foundVariant.id), 10);
-
-      if (isNaN(numericVariantId)) {
-        showSnackbar(
-          "Invalid variant ID. The API requires a numeric ID.",
-          "error"
-        );
-        return;
-      }
-
-      // Convert image ID to numeric if needed
-      const numericImageId =
-        typeof imageToDelete.imageId === "number"
-          ? imageToDelete.imageId
-          : parseInt(String(imageToDelete.imageId), 10);
-
-      if (isNaN(numericImageId)) {
-        showSnackbar("Invalid image ID.", "error");
-        return;
-      }
-
-      console.log(
-        "Deleting image:",
-        numericImageId,
-        "from variant:",
-        numericVariantId
-      );
-
-      // Call API with proper parameters
-      const response = await deleteVariantImage(
-        String(productId),
-        String(numericVariantId),
-        String(numericImageId)
-      );
-
-      console.log("Delete image response:", response);
-
-      // Update state to remove the deleted image
-      setVariantImages((prev) => {
-        const updatedImages = { ...prev };
-        if (updatedImages[imageToDelete.variantId]) {
-          updatedImages[imageToDelete.variantId] = updatedImages[
-            imageToDelete.variantId
-          ].filter(
-            (img) =>
-              img.id !== numericImageId && img.id !== Number(numericImageId)
-          );
-        }
-        return updatedImages;
-      });
-
-      showSnackbar("Image deleted successfully", "success");
-    } catch (error) {
-      console.error("Error deleting image:", error);
-      showSnackbar("Failed to delete image", "error");
-    } finally {
-      setDeleteImageModalOpen(false);
-      setImageToDelete(null);
-    }
-  };
-
-  const handleDeleteImageCancel = () => {
-    setDeleteImageModalOpen(false);
-    setImageToDelete(null);
-  };
-
   return (
-    <>
-      <form
-        id="variantForm"
-        ref={formRef}
-        onSubmit={handleSubmit(handleFormSubmit)}
-        className="flex w-full flex-col justify-center space-y-4"
-      >
-        {fields.map((field, index) => {
-          const variantId = watch(`variants.${index}.id`);
-          const variantImages_ = variantId
-            ? variantImages[variantId] || []
-            : [];
-          const isUploading = variantId ? uploading[variantId] || false : false;
+    <form
+      id="variantForm"
+      ref={formRef}
+      onSubmit={handleSubmit(handleFormSubmit)}
+      className="flex w-full flex-col justify-center space-y-4"
+    >
+      {fields.map((field, index) => {
+        const variantId = watch(`variants.${index}.id`);
+        const variantImages_ = variantId ? variantImages[variantId] || [] : [];
+        const isUploading = variantId ? uploading[variantId] || false : false;
+        // Add temporary images for display
+        const hasPendingImages = !!pendingImages[index]?.length;
+        const pendingImageUrls = tempImageUrls[index] || [];
 
-          return (
-            <Paper key={field.id} className="p-4 relative">
-              <Grid container spacing={2}>
-                {variationAttributes.map((attr, attrIndex) => (
-                  <Grid item xs={12} sm={6} key={attr.attribute_id}>
-                    <FormSelectField
-                      name={`variants.${index}.attributes.${attrIndex}.term_id`}
-                      control={control}
-                      label={getAttributeName(attr.attribute_id)}
-                      options={getAllTermsForAttribute(attr.attribute_id).map(
-                        (term) => ({
-                          value: term.value,
-                          label: term.label,
-                        })
-                      )}
-                      required
-                      onChange={(event: SelectChangeEvent<unknown>) =>
-                        handleTermChange(event, index, attrIndex)
-                      }
-                    />
-
-                    {/* Set attribute_id as hidden field */}
-                    <input
-                      type="hidden"
-                      {...register(
-                        `variants.${index}.attributes.${attrIndex}.attribute_id`
-                      )}
-                      defaultValue={Number(attr.attribute_id)}
-                    />
-                  </Grid>
-                ))}
-
-                {/* Add visual separator between attributes and product details */}
-                <Grid item xs={12}>
-                  <Box
-                    sx={{
-                      borderBottom: "1px solid #e0e0e0",
-                      my: 2,
-                      position: "relative",
-                    }}
-                  >
-                    <Typography
-                      variant="caption"
-                      sx={{
-                        position: "absolute",
-                        top: "-10px",
-                        left: "20px",
-                        backgroundColor: "white",
-                        padding: "0 8px",
-                        color: "text.secondary",
-                      }}
-                    >
-                      Variant Details
-                    </Typography>
-                  </Box>
-                </Grid>
-
-                <Grid item xs={12} sm={6}>
-                  <TextField
-                    {...register(`variants.${index}.slug`)}
-                    fullWidth
-                    label="Variant Slug"
-                    error={!!errors.variants?.[index]?.slug}
-                    helperText={errors.variants?.[index]?.slug?.message}
-                    required
-                  />
-                </Grid>
-                <Grid item xs={12} sm={6}>
-                  <TextField
-                    {...register(`variants.${index}.price`, {
-                      valueAsNumber: true,
-                    })}
-                    fullWidth
-                    label="Price"
-                    type="number"
-                    error={!!errors.variants?.[index]?.price}
-                    helperText={errors.variants?.[index]?.price?.message}
-                    required
-                  />
-                </Grid>
-                <Grid item xs={12} sm={6}>
-                  <TextField
-                    {...register(`variants.${index}.discount_price`, {
-                      valueAsNumber: true,
-                    })}
-                    fullWidth
-                    label="Discount Price"
-                    type="number"
-                    error={!!errors.variants?.[index]?.discount_price}
-                    helperText={
-                      errors.variants?.[index]?.discount_price?.message
-                    }
-                  />
-                </Grid>
-                <Grid item xs={12} sm={6}>
-                  <TextField
-                    {...register(`variants.${index}.purchase_price`, {
-                      valueAsNumber: true,
-                    })}
-                    fullWidth
-                    label="Purchase Price"
-                    type="number"
-                    error={!!errors.variants?.[index]?.purchase_price}
-                    helperText={
-                      errors.variants?.[index]?.purchase_price?.message
-                    }
-                  />
-                </Grid>
-                <Grid item xs={12} sm={6}>
-                  <TextField
-                    {...register(`variants.${index}.stock`, {
-                      valueAsNumber: true,
-                    })}
-                    fullWidth
-                    label="Stock"
-                    type="number"
-                    error={!!errors.variants?.[index]?.stock}
-                    helperText={errors.variants?.[index]?.stock?.message}
-                    required
-                    inputProps={{
-                      step: "1",
-                      min: "0",
-                      onKeyDown: (e) => {
-                        if (e.key === "." || e.key === ",") {
-                          e.preventDefault();
-                        }
-                      },
-                    }}
-                  />
-                </Grid>
-                <Grid item xs={12} sm={6}>
-                  <TextField
-                    {...register(`variants.${index}.low_stock_threshold`, {
-                      valueAsNumber: true,
-                    })}
-                    fullWidth
-                    label="Low Stock Threshold"
-                    type="number"
-                    error={!!errors.variants?.[index]?.low_stock_threshold}
-                    helperText={
-                      errors.variants?.[index]?.low_stock_threshold?.message
-                    }
-                    inputProps={{
-                      step: "1",
-                      min: "0",
-                      onKeyDown: (e) => {
-                        if (e.key === "." || e.key === ",") {
-                          e.preventDefault();
-                        }
-                      },
-                    }}
-                  />
-                </Grid>
-
-                {/* Group dimensions and weight in a single row */}
-                <Grid item xs={12}>
-                  <Box sx={{ borderBottom: "1px dashed #eee", mb: 2, pb: 1 }}>
-                    <Typography variant="caption" color="text.secondary">
-                      Dimensions & Weight
-                    </Typography>
-                  </Box>
-                  <Grid container spacing={2}>
-                    <Grid item xs={6} sm={3}>
-                      <TextField
-                        {...register(`variants.${index}.weight`, {
-                          valueAsNumber: true,
-                        })}
-                        fullWidth
-                        label="Weight"
-                        type="number"
-                        error={!!errors.variants?.[index]?.weight}
-                        helperText={errors.variants?.[index]?.weight?.message}
-                        InputProps={{
-                          endAdornment: (
-                            <Typography variant="caption">g</Typography>
-                          ),
-                        }}
-                      />
-                    </Grid>
-                    <Grid item xs={6} sm={3}>
-                      <TextField
-                        {...register(`variants.${index}.length`, {
-                          valueAsNumber: true,
-                        })}
-                        fullWidth
-                        label="Length"
-                        type="number"
-                        error={!!errors.variants?.[index]?.length}
-                        helperText={errors.variants?.[index]?.length?.message}
-                        InputProps={{
-                          endAdornment: (
-                            <Typography variant="caption">cm</Typography>
-                          ),
-                        }}
-                      />
-                    </Grid>
-                    <Grid item xs={6} sm={3}>
-                      <TextField
-                        {...register(`variants.${index}.width`, {
-                          valueAsNumber: true,
-                        })}
-                        fullWidth
-                        label="Width"
-                        type="number"
-                        error={!!errors.variants?.[index]?.width}
-                        helperText={errors.variants?.[index]?.width?.message}
-                        InputProps={{
-                          endAdornment: (
-                            <Typography variant="caption">cm</Typography>
-                          ),
-                        }}
-                      />
-                    </Grid>
-                    <Grid item xs={6} sm={3}>
-                      <TextField
-                        {...register(`variants.${index}.height`, {
-                          valueAsNumber: true,
-                        })}
-                        fullWidth
-                        label="Height"
-                        type="number"
-                        error={!!errors.variants?.[index]?.height}
-                        helperText={errors.variants?.[index]?.height?.message}
-                        InputProps={{
-                          endAdornment: (
-                            <Typography variant="caption">cm</Typography>
-                          ),
-                        }}
-                      />
-                    </Grid>
-                  </Grid>
-                </Grid>
-                <Grid item xs={12}>
-                  <TextField
-                    {...register(`variants.${index}.barcode`)}
-                    fullWidth
-                    label="Barcode"
-                    error={!!errors.variants?.[index]?.barcode}
-                    helperText={errors.variants?.[index]?.barcode?.message}
-                  />
-                </Grid>
-                <Grid item xs={12}>
-                  <TextField
-                    {...register(`variants.${index}.description`)}
-                    fullWidth
-                    label="Description"
-                    multiline
-                    rows={3}
-                    error={!!errors.variants?.[index]?.description}
-                    helperText={errors.variants?.[index]?.description?.message}
-                  />
-                </Grid>
-
-                {/* Show variant images if they exist */}
-                <Grid item xs={12}>
-                  <Box
-                    sx={{
-                      marginBottom: 2,
-                      padding: 2,
-                      border: "1px dashed #ccc",
-                      borderRadius: 1,
-                    }}
-                  >
-                    <Typography variant="subtitle1" gutterBottom>
-                      Images
-                    </Typography>
-
-                    {variantId && isUploading[variantId] && (
-                      <Box
-                        display="flex"
-                        justifyContent="center"
-                        alignItems="center"
-                        p={2}
-                      >
-                        <CircularProgress size={24} sx={{ mr: 1 }} />
-                        <Typography>Uploading images...</Typography>
-                      </Box>
+        return (
+          <Paper key={field.id} className="p-4 relative">
+            <Grid container spacing={2}>
+              {variationAttributes.map((attr, attrIndex) => (
+                <Grid item xs={12} sm={6} key={attr.attribute_id}>
+                  <FormSelectField
+                    name={`variants.${index}.attributes.${attrIndex}.term_id`}
+                    control={control}
+                    label={getAttributeName(attr.attribute_id)}
+                    options={getAllTermsForAttribute(attr.attribute_id).map(
+                      (term) => ({
+                        value: term.value,
+                        label: term.label,
+                      })
                     )}
+                    required
+                    onChange={(event: SelectChangeEvent<unknown>) =>
+                      handleTermChange(event, index, attrIndex)
+                    }
+                  />
 
-                    {variantId && !isUploading[variantId] && (
-                      <>
-                        <Box
-                          sx={{
-                            display: "flex",
-                            flexWrap: "wrap",
-                            gap: 1,
-                            marginBottom: 2,
-                          }}
-                        >
-                          {variantImages[variantId] &&
-                          variantImages[variantId].length > 0 ? (
-                            variantImages[variantId].map((image, imgIndex) => (
+                  {/* Set attribute_id as hidden field */}
+                  <input
+                    type="hidden"
+                    {...register(
+                      `variants.${index}.attributes.${attrIndex}.attribute_id`
+                    )}
+                    defaultValue={Number(attr.attribute_id)}
+                  />
+                </Grid>
+              ))}
+
+              {/* Add visual separator between attributes and product details */}
+              <Grid item xs={12}>
+                <Box
+                  sx={{
+                    borderBottom: "1px solid #e0e0e0",
+                    my: 2,
+                    position: "relative",
+                  }}
+                >
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      position: "absolute",
+                      top: "-10px",
+                      left: "20px",
+                      backgroundColor: "white",
+                      padding: "0 8px",
+                      color: "text.secondary",
+                    }}
+                  >
+                    Variant Details
+                  </Typography>
+                </Box>
+              </Grid>
+
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  {...register(`variants.${index}.slug`)}
+                  fullWidth
+                  label="Variant Slug"
+                  error={!!errors.variants?.[index]?.slug}
+                  helperText={errors.variants?.[index]?.slug?.message}
+                  required
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  {...register(`variants.${index}.price`, {
+                    valueAsNumber: true,
+                  })}
+                  fullWidth
+                  label="Price"
+                  type="number"
+                  error={!!errors.variants?.[index]?.price}
+                  helperText={errors.variants?.[index]?.price?.message}
+                  required
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  {...register(`variants.${index}.discount_price`, {
+                    valueAsNumber: true,
+                  })}
+                  fullWidth
+                  label="Discount Price"
+                  type="number"
+                  error={!!errors.variants?.[index]?.discount_price}
+                  helperText={errors.variants?.[index]?.discount_price?.message}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  {...register(`variants.${index}.purchase_price`, {
+                    valueAsNumber: true,
+                  })}
+                  fullWidth
+                  label="Purchase Price"
+                  type="number"
+                  error={!!errors.variants?.[index]?.purchase_price}
+                  helperText={errors.variants?.[index]?.purchase_price?.message}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  {...register(`variants.${index}.stock`, {
+                    valueAsNumber: true,
+                  })}
+                  fullWidth
+                  label="Stock"
+                  type="number"
+                  error={!!errors.variants?.[index]?.stock}
+                  helperText={errors.variants?.[index]?.stock?.message}
+                  required
+                  inputProps={{
+                    step: "1",
+                    min: "0",
+                    onKeyDown: (e) => {
+                      if (e.key === "." || e.key === ",") {
+                        e.preventDefault();
+                      }
+                    },
+                  }}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  {...register(`variants.${index}.low_stock_threshold`, {
+                    valueAsNumber: true,
+                  })}
+                  fullWidth
+                  label="Low Stock Threshold"
+                  type="number"
+                  error={!!errors.variants?.[index]?.low_stock_threshold}
+                  helperText={
+                    errors.variants?.[index]?.low_stock_threshold?.message
+                  }
+                  inputProps={{
+                    step: "1",
+                    min: "0",
+                    onKeyDown: (e) => {
+                      if (e.key === "." || e.key === ",") {
+                        e.preventDefault();
+                      }
+                    },
+                  }}
+                />
+              </Grid>
+
+              {/* Group dimensions and weight in a single row */}
+              <Grid item xs={12}>
+                <Box sx={{ borderBottom: "1px dashed #eee", mb: 2, pb: 1 }}>
+                  <Typography variant="caption" color="text.secondary">
+                    Dimensions & Weight
+                  </Typography>
+                </Box>
+                <Grid container spacing={2}>
+                  <Grid item xs={6} sm={3}>
+                    <TextField
+                      {...register(`variants.${index}.weight`, {
+                        valueAsNumber: true,
+                      })}
+                      fullWidth
+                      label="Weight"
+                      type="number"
+                      error={!!errors.variants?.[index]?.weight}
+                      helperText={errors.variants?.[index]?.weight?.message}
+                      InputProps={{
+                        endAdornment: (
+                          <Typography variant="caption">g</Typography>
+                        ),
+                      }}
+                    />
+                  </Grid>
+                  <Grid item xs={6} sm={3}>
+                    <TextField
+                      {...register(`variants.${index}.length`, {
+                        valueAsNumber: true,
+                      })}
+                      fullWidth
+                      label="Length"
+                      type="number"
+                      error={!!errors.variants?.[index]?.length}
+                      helperText={errors.variants?.[index]?.length?.message}
+                      InputProps={{
+                        endAdornment: (
+                          <Typography variant="caption">cm</Typography>
+                        ),
+                      }}
+                    />
+                  </Grid>
+                  <Grid item xs={6} sm={3}>
+                    <TextField
+                      {...register(`variants.${index}.width`, {
+                        valueAsNumber: true,
+                      })}
+                      fullWidth
+                      label="Width"
+                      type="number"
+                      error={!!errors.variants?.[index]?.width}
+                      helperText={errors.variants?.[index]?.width?.message}
+                      InputProps={{
+                        endAdornment: (
+                          <Typography variant="caption">cm</Typography>
+                        ),
+                      }}
+                    />
+                  </Grid>
+                  <Grid item xs={6} sm={3}>
+                    <TextField
+                      {...register(`variants.${index}.height`, {
+                        valueAsNumber: true,
+                      })}
+                      fullWidth
+                      label="Height"
+                      type="number"
+                      error={!!errors.variants?.[index]?.height}
+                      helperText={errors.variants?.[index]?.height?.message}
+                      InputProps={{
+                        endAdornment: (
+                          <Typography variant="caption">cm</Typography>
+                        ),
+                      }}
+                    />
+                  </Grid>
+                </Grid>
+              </Grid>
+              <Grid item xs={12}>
+                <TextField
+                  {...register(`variants.${index}.barcode`)}
+                  fullWidth
+                  label="Barcode"
+                  error={!!errors.variants?.[index]?.barcode}
+                  helperText={errors.variants?.[index]?.barcode?.message}
+                />
+              </Grid>
+              <Grid item xs={12}>
+                <TextField
+                  {...register(`variants.${index}.description`)}
+                  fullWidth
+                  label="Description"
+                  multiline
+                  rows={3}
+                  error={!!errors.variants?.[index]?.description}
+                  helperText={errors.variants?.[index]?.description?.message}
+                />
+              </Grid>
+
+              {/* Show variant images if they exist */}
+              <Grid item xs={12}>
+                <Box
+                  sx={{
+                    marginBottom: 2,
+                    padding: 2,
+                    border: "1px dashed #ccc",
+                    borderRadius: 1,
+                  }}
+                >
+                  <Typography variant="subtitle1" gutterBottom>
+                    Images
+                  </Typography>
+
+                  {isUploading && (
+                    <Box
+                      display="flex"
+                      justifyContent="center"
+                      alignItems="center"
+                      p={2}
+                    >
+                      <CircularProgress size={24} sx={{ mr: 1 }} />
+                      <Typography>Uploading images...</Typography>
+                    </Box>
+                  )}
+
+                  {!isUploading && (
+                    <>
+                      <Box
+                        sx={{
+                          display: "flex",
+                          flexWrap: "wrap",
+                          gap: 1,
+                          marginBottom: 2,
+                        }}
+                      >
+                        {/* Show existing images if variant has ID */}
+                        {variantId &&
+                        variantImages[variantId] &&
+                        variantImages[variantId].length > 0 ? (
+                          variantImages[variantId].map((image, imgIndex) => (
+                            <Box
+                              key={image.id || imgIndex}
+                              sx={{
+                                position: "relative",
+                                width: 100,
+                                height: 130, // Increased height to accommodate controls
+                                borderRadius: 1,
+                                overflow: "visible", // Changed to visible to allow controls outside
+                              }}
+                            >
+                              {/* Control box above the image */}
                               <Box
-                                key={image.id || imgIndex}
+                                sx={{
+                                  position: "absolute",
+                                  top: -30, // Position above the image
+                                  left: 0,
+                                  right: 0,
+                                  display: "flex",
+                                  justifyContent: "space-between",
+                                  alignItems: "center",
+                                  zIndex: 2,
+                                  marginTop: 4,
+                                }}
+                              >
+                                <Checkbox
+                                  checked={image.is_primary}
+                                  onChange={() =>
+                                    handleSetPrimary(
+                                      variantId,
+                                      image.id ? image.id.toString() : ""
+                                    )
+                                  }
+                                  disabled={isUploading || image.is_primary}
+                                  size="small"
+                                  sx={{ padding: "2px" }}
+                                />
+                                <IconButton
+                                  size="small"
+                                  onClick={() =>
+                                    handleDeleteImage(
+                                      variantId,
+                                      image.id ? image.id.toString() : ""
+                                    )
+                                  }
+                                  disabled={isUploading}
+                                  color="error"
+                                  sx={{ padding: "2px" }}
+                                >
+                                  <DeleteIcon fontSize="small" />
+                                </IconButton>
+                              </Box>
+
+                              {/* Image container */}
+                              <Box
                                 sx={{
                                   position: "relative",
                                   width: 100,
@@ -2316,274 +2704,283 @@ function VariantTab() {
                                       "https://via.placeholder.com/100?text=Image+Error";
                                   }}
                                 />
-                                <Box
-                                  sx={{
-                                    position: "absolute",
-                                    top: 0,
-                                    right: 0,
-                                    display: "flex",
-                                    flexDirection: "column",
-                                    bgcolor: "rgba(255,255,255,0.8)",
-                                  }}
-                                >
-                                  <IconButton
-                                    size="small"
-                                    onClick={() =>
-                                      handleDeleteImageClick(
-                                        variantId,
-                                        image.id ? image.id.toString() : ""
-                                      )
-                                    }
-                                    disabled={
-                                      variantId ? isUploading[variantId] : false
-                                    }
-                                    color="error"
-                                  >
-                                    <DeleteIcon
-                                      fontSize="small"
-                                      sx={{ color: "error.main" }}
-                                    />
-                                  </IconButton>
-                                  <Box sx={{ px: 0.5 }}>
-                                    <Checkbox
-                                      checked={image.is_primary}
-                                      onChange={() =>
-                                        handleSetPrimary(
-                                          variantId,
-                                          image.id ? image.id.toString() : ""
-                                        )
-                                      }
-                                      disabled={
-                                        (variantId
-                                          ? isUploading[variantId]
-                                          : false) || image.is_primary
-                                      }
-                                    />
-                                  </Box>
-                                </Box>
                               </Box>
-                            ))
-                          ) : (
-                            <Typography color="text.secondary">
-                              No images uploaded. Click "Upload Images" to add
-                              images for this variant.
-                            </Typography>
-                          )}
-                        </Box>
-
-                        {variantId && (
-                          <>
-                            <input
-                              type="file"
-                              multiple
-                              onChange={(event) =>
-                                handleFileSelect(event, variantId)
-                              }
-                              ref={(el) => {
-                                if (el && variantId)
-                                  fileInputRefs.current[variantId] = el;
+                            </Box>
+                          ))
+                        ) : hasPendingImages ? (
+                          // Show temporary images for new variants with controls above
+                          pendingImageUrls.map((url, imgIndex) => (
+                            <Box
+                              key={`pending-${index}-${imgIndex}`}
+                              sx={{
+                                position: "relative",
+                                width: 100,
+                                height: 130, // Increased height to accommodate controls
+                                borderRadius: 1,
+                                overflow: "visible", // Changed to visible to allow controls outside
                               }}
-                              style={{ display: "none" }}
-                              accept="image/jpeg,image/png,image/webp"
-                            />
-                            <Button
-                              variant="outlined"
-                              startIcon={<CloudUploadIcon />}
-                              onClick={() =>
-                                variantId &&
-                                fileInputRefs.current[variantId]?.click()
-                              }
-                              disabled={
-                                variantId ? isUploading[variantId] : false
-                              }
                             >
-                              Upload Images
-                            </Button>
-                          </>
+                              {/* Control box above the image */}
+                              <Box
+                                sx={{
+                                  position: "absolute",
+                                  top: -30, // Position above the image
+                                  right: 0,
+                                  display: "flex",
+                                  zIndex: 2,
+                                }}
+                              >
+                                <IconButton
+                                  size="small"
+                                  onClick={() => {
+                                    // Remove this pending image
+                                    setPendingImages((prev) => {
+                                      const updated = { ...prev };
+                                      if (updated[index]) {
+                                        const files = [...updated[index]];
+                                        files.splice(imgIndex, 1);
+                                        updated[index] = files;
+                                      }
+                                      return updated;
+                                    });
+
+                                    // Revoke the URL and remove it
+                                    URL.revokeObjectURL(url);
+                                    setTempImageUrls((prev) => {
+                                      const updated = { ...prev };
+                                      if (updated[index]) {
+                                        const urls = [...updated[index]];
+                                        urls.splice(imgIndex, 1);
+                                        updated[index] = urls;
+                                      }
+                                      return updated;
+                                    });
+                                  }}
+                                  color="error"
+                                  sx={{ padding: "2px" }}
+                                >
+                                  <DeleteIcon fontSize="small" />
+                                </IconButton>
+                              </Box>
+
+                              {/* Image container */}
+                              <Box
+                                sx={{
+                                  position: "relative",
+                                  width: 100,
+                                  height: 100,
+                                  border: "1px solid #ddd",
+                                  borderRadius: 1,
+                                  overflow: "hidden",
+                                }}
+                              >
+                                <img
+                                  src={url}
+                                  alt={`Pending image ${imgIndex}`}
+                                  style={{
+                                    width: "100%",
+                                    height: "100%",
+                                    objectFit: "cover",
+                                  }}
+                                />
+                              </Box>
+                            </Box>
+                          ))
+                        ) : (
+                          <Typography color="text.secondary">
+                            No images uploaded. Click "Upload Images" to add
+                            images for this variant.
+                          </Typography>
                         )}
-                      </>
-                    )}
-                  </Box>
-                </Grid>
+                      </Box>
+
+                      {/* Show the file input regardless of variant ID */}
+                      <input
+                        type="file"
+                        multiple
+                        onChange={(event) =>
+                          handleFileSelect(event, variantId, index)
+                        }
+                        ref={(el) => {
+                          if (el)
+                            fileInputRefs.current[variantId || index] = el;
+                        }}
+                        style={{ display: "none" }}
+                        accept="image/jpeg,image/png,image/webp"
+                      />
+                      <Button
+                        variant="outlined"
+                        startIcon={<CloudUploadIcon />}
+                        onClick={() =>
+                          fileInputRefs.current[variantId || index]?.click()
+                        }
+                        disabled={isUploading}
+                        title={
+                          variantId
+                            ? "Select images to upload immediately"
+                            : "Select images first, then click Update to complete the upload"
+                        }
+                      >
+                        {variantId ? "Upload Images" : "Select Images"}
+                      </Button>
+
+                      {/* Show message for pending images */}
+                      {hasPendingImages && (
+                        <Typography
+                          variant="caption"
+                          color="text.secondary"
+                          sx={{ display: "block", mt: 1 }}
+                        >
+                          {pendingImages[index].length} image(s) selected.
+                          {!variantId &&
+                            " They will be uploaded after saving the variant."}
+                        </Typography>
+                      )}
+                    </>
+                  )}
+                </Box>
               </Grid>
+            </Grid>
 
-              {/* Delete Variant Button - Only show for non-default variants */}
-              {fields.length > 1 && (
-                <IconButton
-                  onClick={(e) => {
-                    e.preventDefault();
-                    const variantId = formData.variants?.[index]?.id;
-                    console.log("Deleting variant:", { variantId, index });
-                    handleDeleteClick(variantId, index);
-                  }}
-                  disabled={isLoading}
-                  className="absolute top-2 right-2"
-                  color="error"
-                  size="small"
-                  type="button"
-                  sx={{
-                    position: "absolute",
-                    top: "12px",
-                    right: "12px",
-                    margin: "0",
-                    zIndex: 2,
-                    "&:hover": {
-                      backgroundColor: "rgba(211, 47, 47, 0.04)",
-                    },
-                  }}
-                >
-                  <DeleteIcon />
-                </IconButton>
-              )}
-            </Paper>
-          );
-        })}
+            {/* Delete Variant Button - Only show for non-default variants */}
+            {fields.length > 1 && (
+              <IconButton
+                onClick={(e) => {
+                  e.preventDefault(); // Prevent form submission
+                  const variantId = formData.variants?.[index]?.id;
+                  console.log("Deleting variant:", { variantId, index });
+                  handleDeleteVariant(variantId, index);
+                }}
+                disabled={isLoading}
+                className="absolute top-2 right-2"
+                color="error"
+                size="small"
+                type="button" // Explicitly set type to button
+                sx={{
+                  position: "absolute",
+                  top: "12px",
+                  right: "12px",
+                  margin: "0",
+                  zIndex: 2,
+                  "&:hover": {
+                    backgroundColor: "rgba(211, 47, 47, 0.04)",
+                  },
+                }}
+              >
+                <DeleteIcon />
+              </IconButton>
+            )}
+          </Paper>
+        );
+      })}
 
-        {/* Add New Variant Button - Only show if not all combinations are used */}
-        {!areAllCombinationsUsed() ? (
-          <div className="flex justify-center">
-            <AppButton
-              label="Add Variant"
-              onClick={handleAddVariant}
-              variant="outlined"
-              type="button"
-              disabled={isLoading}
-            />
-          </div>
-        ) : (
-          <div className="flex justify-center p-3 bg-green-50 border border-green-200 rounded-md">
-            <div className="text-green-600 flex items-center">
-              <span className="mr-2">✓</span>
-              <span>
-                All combinations have been added. You can proceed to the next
-                step.
-              </span>
-            </div>
-          </div>
-        )}
-
-        <div className="flex justify-between mt-4">
+      {/* Add New Variant Button - Only show if not all combinations are used */}
+      {!areAllCombinationsUsed() ? (
+        <div className="flex justify-center">
           <AppButton
-            label="Previous"
-            onClick={previousStep}
+            label="Add Variant"
+            onClick={handleAddVariant}
             variant="outlined"
-            disabled={isLoading}
             type="button"
+            disabled={isLoading}
           />
-          <div className="flex gap-2">
-            <AppButton
-              label={isEditMode ? "Update" : "Next"}
-              type="button"
-              loading={isLoading}
-              disabled={isLoading}
-              onClick={() => {
-                console.log("=== NEXT/UPDATE BUTTON CLICKED ===");
-
-                // Get current form data
-                const formValues = watch();
-                console.log("Direct submission values:", formValues);
-
-                // Do a quick check for attribute term_id values
-                let hasAttributeErrors = false;
-
-                formValues.variants.forEach((variant, index) => {
-                  if (variant.attributes) {
-                    variant.attributes.forEach((attr, attrIndex) => {
-                      if (!attr.term_id || attr.term_id <= 0) {
-                        const attributeName = getAttributeName(
-                          attr.attribute_id
-                        );
-                        showSnackbar(
-                          `Select a value for ${attributeName} in variant ${
-                            index + 1
-                          }`,
-                          "error"
-                        );
-                        hasAttributeErrors = true;
-                      }
-                    });
-                  }
-                });
-
-                if (!hasAttributeErrors || isEditMode) {
-                  // If not in edit mode, check if all combinations are added
-                  if (!isEditMode) {
-                    const allCombinations = generateAllAttributeCombinations();
-                    if (allCombinations.length > formValues.variants.length) {
-                      showSnackbar("Please add all combinations", "warning");
-                      return;
-                    }
-                  }
-
-                  // If we're in edit mode or no errors, proceed
-                  onSubmit(formValues);
-                }
-              }}
-            />
+        </div>
+      ) : (
+        <div className="flex justify-center p-3 bg-green-50 border border-green-200 rounded-md">
+          <div className="text-green-600 flex items-center">
+            <span className="mr-2">✓</span>
+            <span>
+              All combinations have been added. You can proceed to the next
+              step.
+            </span>
           </div>
         </div>
-      </form>
+      )}
 
-      {/* Add the confirmation modal */}
+      <div className="flex justify-between mt-4">
+        <AppButton
+          label="Previous"
+          onClick={previousStep}
+          variant="outlined"
+          disabled={isLoading}
+          type="button"
+        />
+        <div className="flex gap-2">
+          <AppButton
+            label={isEditMode ? "Update" : "Finish"}
+            type="button"
+            loading={isLoading}
+            disabled={isLoading}
+            onClick={() => {
+              console.log("=== NEXT/UPDATE BUTTON CLICKED ===");
+
+              // Get current form values
+              const formValues = watch();
+              console.log("Direct submission values:", formValues);
+
+              // Do a quick check for attribute term_id values
+              let hasAttributeErrors = false;
+
+              formValues.variants.forEach((variant, index) => {
+                if (variant.attributes) {
+                  variant.attributes.forEach((attr, attrIndex) => {
+                    if (!attr.term_id || attr.term_id <= 0) {
+                      const attributeName = getAttributeName(attr.attribute_id);
+                      showSnackbar(
+                        `Select a value for ${attributeName} in variant ${
+                          index + 1
+                        }`,
+                        "error"
+                      );
+                      hasAttributeErrors = true;
+                    }
+                  });
+                }
+              });
+
+              if (!hasAttributeErrors || isEditMode) {
+                // If not in edit mode, check if all combinations are added
+                if (!isEditMode) {
+                  const allCombinations = generateAllAttributeCombinations();
+                  if (allCombinations.length > formValues.variants.length) {
+                    showSnackbar("Please add all combinations", "warning");
+                    return;
+                  }
+                }
+
+                // If we're in edit mode or no errors, proceed
+                handleFormSubmit(formValues);
+              }
+            }}
+          />
+        </div>
+      </div>
+
+      {/* Delete Confirmation Modal */}
       <Dialog
         open={deleteModalOpen}
-        onClose={handleDeleteCancel}
-        aria-labelledby="delete-dialog-title"
-        aria-describedby="delete-dialog-description"
-      >
-        <DialogTitle id="delete-dialog-title">Confirm Delete</DialogTitle>
-        <DialogContent>
-          <Typography id="delete-dialog-description">
-            Are you sure you want to delete this variant? This action cannot be
-            undone.
-          </Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleDeleteCancel} color="primary">
-            Cancel
-          </Button>
-          <Button
-            onClick={handleDeleteConfirm}
-            color="error"
-            variant="contained"
-            disabled={isLoading}
-          >
-            {isLoading ? "Deleting..." : "Delete"}
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* Add the image deletion confirmation modal */}
-      <Dialog
-        open={deleteImageModalOpen}
-        onClose={handleDeleteImageCancel}
+        onClose={() => setDeleteModalOpen(false)}
         aria-labelledby="delete-image-dialog-title"
         aria-describedby="delete-image-dialog-description"
       >
         <DialogTitle id="delete-image-dialog-title">
-          Confirm Delete Image
+          Confirm Image Deletion
         </DialogTitle>
         <DialogContent>
-          <Typography id="delete-image-dialog-description">
-            Are you sure you want to delete this image? This action cannot be
-            undone.
-          </Typography>
+          <DialogContentText id="delete-image-dialog-description">
+            Are you sure you want to delete this image?
+          </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleDeleteImageCancel} color="primary">
+          <Button onClick={() => setDeleteModalOpen(false)} color="primary">
             Cancel
           </Button>
-          <Button
-            onClick={handleDeleteImageConfirm}
-            color="error"
-            variant="contained"
-            disabled={isLoading}
-          >
-            {isLoading ? "Deleting..." : "Delete"}
+          <Button onClick={confirmDeleteImage} color="error" autoFocus>
+            Delete
           </Button>
         </DialogActions>
       </Dialog>
-    </>
+    </form>
   );
 }
 
