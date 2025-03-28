@@ -25,7 +25,9 @@ export default function ProductDetailTable() {
   const idParam = params?.id;
 
   // ✅ Ensure ID is properly cast as a number or set to `null` if invalid
-  const id = Array.isArray(idParam) ? parseInt(idParam[0]) : parseInt(idParam || "");
+  const id = Array.isArray(idParam)
+    ? parseInt(idParam[0])
+    : parseInt(idParam || "");
   const [productDetail, setProductDetail] = useState<ProductType | null>(null);
 
   if (!id || isNaN(Number(id))) {
@@ -33,7 +35,7 @@ export default function ProductDetailTable() {
   }
 
   const { data, error, isLoading } = useFetch(["getProduct", id], () =>
-    getProduct(id),
+    getProduct(id)
   );
 
   console.log("product", data);
@@ -51,8 +53,8 @@ export default function ProductDetailTable() {
         category_id: productData.category_id,
         createdAt: productData.createdAt
           ? new Date(productData.createdAt)
-            .toLocaleDateString("en-GB")
-            .replace(/\//g, "-")
+              .toLocaleDateString("en-GB")
+              .replace(/\//g, "-")
           : "",
       });
     }
@@ -68,9 +70,12 @@ export default function ProductDetailTable() {
     { accessorKey: "name", header: "Product Name" },
     // { accessorKey: "description", header: "Description" },
     { accessorKey: "price", header: "Price ($)" },
-    { accessorKey: "stock_quantity", header: "Stock Quantity" },
+    // { accessorKey: "stock_quantity", header: "Stock Quantity" },
     { accessorKey: "brand_name", header: "Brand" },
-    { accessorKey: "category_id", header: "Category ID" },
+    {
+      header: "Category",
+      accessorFn: (row) => row.Category?.name || "N/A",
+    },
     { accessorKey: "createdAt", header: "Created At" },
   ];
 

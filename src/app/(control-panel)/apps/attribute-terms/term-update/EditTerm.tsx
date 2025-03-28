@@ -17,11 +17,18 @@ import { useEffect, useState } from "react";
 import PageBreadcrumb from "@/components/PageBreadcrumb";
 
 const schema = z.object({
-  name: z.string().min(1, "Term Name is required").max(50, "Term Name must be 50 characters or less"),
-  slug: z.string()
+  name: z
+    .string()
+    .min(1, "Term Name is required")
+    .max(50, "Term Name must be 50 characters or less"),
+  slug: z
+    .string()
     .min(1, "Slug is required")
     .max(50, "Slug  must be at most 50 characters")
-    .regex(/^[a-z0-9-]+$/, "Slug must be a valid URL-friendly string (lowercase letters, numbers, and hyphens only)"),
+    .regex(
+      /^[a-z0-9-]+$/,
+      "Slug must be a valid URL-friendly string (lowercase letters, numbers, and hyphens only)"
+    ),
   description: z.string().optional(),
 });
 
@@ -47,7 +54,7 @@ function EditTerm() {
   const { data: termData, isLoading: isLoadingTerm } = useFetch(
     ["termDetail", id],
     () => getAttributeTermDetails(id as string),
-    { revalidateOnFocus: false },
+    { revalidateOnFocus: false }
   );
 
   const term = termData?.data;
@@ -69,8 +76,8 @@ function EditTerm() {
     if (term) {
       console.log("Setting form values with term data:", term);
       reset({
-        name: term?.attribute?.name,
-        slug: term?.attribute?.slug,
+        name: term?.name,
+        slug: term?.slug,
         description: term.description || "",
       });
     }
@@ -79,7 +86,7 @@ function EditTerm() {
   const { isValid, errors } = formState;
   const { trigger: triggerUpdateTerm } = usePost(
     "updateTerm",
-    updateAttributeTerm,
+    updateAttributeTerm
   );
 
   const onSubmit = async (formData: FormType) => {
@@ -97,12 +104,12 @@ function EditTerm() {
       }
 
       // Make sure id is a valid number or string
-      const termId = typeof id === 'object' ? id.toString() : id;
+      const termId = typeof id === "object" ? id.toString() : id;
 
       const termData = {
         name: formData.name.trim(),
         slug: formData.slug.toLowerCase().replace(/\s+/g, "-"),
-        description: formData.description || '',
+        description: formData.description || "",
       };
 
       // Pass termId and termData as separate arguments
@@ -148,7 +155,6 @@ function EditTerm() {
         </Typography>
       </div>
 
-
       <form
         name="termForm"
         noValidate
@@ -169,7 +175,8 @@ function EditTerm() {
           required
         />
         <div className="text-xs text-gray-500 -mt-3 mb-4">
-          {nameLength} / 50 characters used {nameRemaining < 0 ? "(exceeded maximum)" : ""}
+          {nameLength} / 50 characters used{" "}
+          {nameRemaining < 0 ? "(exceeded maximum)" : ""}
         </div>
 
         <FormInputField

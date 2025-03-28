@@ -47,16 +47,22 @@ function BasicInfoTab() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { showSnackbar } = useSnackbar();
-  const { data: categories } = useFetch(
-    ["productCategoryList", {}],
-    listProductCategory,
-    {}
-  );
-  const { data: brands } = useFetch(
-    ["productBrandList", {}],
-    listProductBrand,
-    {}
-  );
+  // const { data: categories } = useFetch(
+  //   ["productCategoryList", {}],
+  //   listProductCategory,
+  //   {}
+  // );
+  // const { data: brands } = useFetch(
+  //   ["productBrandList", {}],
+  //   listProductBrand,
+  //   { limit: 100 }
+  // );
+  const { data: categories } = useFetch("categories", listProductCategory, {
+    limit: 1000, // Request a high limit to get all brands
+  });
+  const { data: brands } = useFetch("brands", listProductBrand, {
+    limit: 1000, // Request a high limit to get all brands
+  });
   const [isLoading, setIsLoading] = useState(false);
   const { formData, updateFormData, nextStep, markStepAsCompleted } =
     useProductForm();
