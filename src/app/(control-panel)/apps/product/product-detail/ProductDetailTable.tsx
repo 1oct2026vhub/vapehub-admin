@@ -18,6 +18,9 @@ export type ProductType = {
   brand_name: string;
   category_id: number | null;
   createdAt?: string;
+  Category?: {          // Add Category property with optional name
+    name?: string;
+  };
 };
 
 export default function ProductDetailTable() {
