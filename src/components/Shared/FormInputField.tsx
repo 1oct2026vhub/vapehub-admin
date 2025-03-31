@@ -12,7 +12,7 @@ interface ReusableTextFieldProps {
   type?: string;
   required?: boolean;
   autoFocus?: boolean;
-  multiline?: boolean; 
+  multiline?: boolean;
   rows?: number;
   inputProps?: any;
 }
@@ -36,10 +36,11 @@ const FormInputField: React.FC<ReusableTextFieldProps> = ({
   };
 
   // Determine if this is a dimension or weight field
-  const isWeightField = name.toLowerCase().includes('weight');
-  const isDimensionField = name.toLowerCase().includes('length') || 
-                          name.toLowerCase().includes('width') || 
-                          name.toLowerCase().includes('height');
+  const isWeightField = name.toLowerCase().includes("weight");
+  const isDimensionField =
+    name.toLowerCase().includes("length") ||
+    name.toLowerCase().includes("width") ||
+    name.toLowerCase().includes("height");
 
   return (
     <Controller
@@ -66,8 +67,8 @@ const FormInputField: React.FC<ReusableTextFieldProps> = ({
           helperText={touched && error ? error.message : ""}
           variant="outlined"
           fullWidth
-          multiline={multiline}   
-          rows={rows}  
+          multiline={multiline}
+          rows={rows}
           className="mb-6"
           onFocus={() => setTouched(true)}
           InputProps={{
@@ -80,7 +81,7 @@ const FormInputField: React.FC<ReusableTextFieldProps> = ({
                     </IconButton>
                   </InputAdornment>
                 ) : isWeightField ? (
-                  <InputAdornment position="end">kg</InputAdornment>
+                  <InputAdornment position="end">gm</InputAdornment>
                 ) : isDimensionField ? (
                   <InputAdornment position="end">cm</InputAdornment>
                 ) : null}
