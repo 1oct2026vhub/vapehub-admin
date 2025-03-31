@@ -2743,7 +2743,22 @@ function VariantTab() {
                   control={control}
                   label="Barcode"
                   required
+                  inputProps={{
+                    maxLength: 50,
+                    onBlur: (e) => {
+                      const value = e.target.value.trim();
+                      if (!value) {
+                        setValue(`variants.${index}.barcode`, "");
+                        trigger(`variants.${index}.barcode`);
+                      }
+                    },
+                  }}
                 />
+                {/* {errors.variants?.[index]?.barcode && (
+                  <Typography color="error" variant="caption" sx={{ mt: 0.5 }}>
+                    {errors.variants[index].barcode.message}
+                  </Typography>
+                )} */}
               </Grid>
               <Grid item xs={12}>
                 <FormInputField
