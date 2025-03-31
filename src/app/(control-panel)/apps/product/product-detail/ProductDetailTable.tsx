@@ -315,7 +315,7 @@ export default function ProductDetailTable() {
                     </TableRow> */}
                     <TableRow>
                       <TableCell component="th" className="font-semibold">
-                        Created
+                        Created At
                       </TableCell>
                       <TableCell>
                         {new Date(productDetail.createdAt).toLocaleDateString(
@@ -691,6 +691,30 @@ export default function ProductDetailTable() {
                                             </TableCell>
                                             <TableCell>
                                               {variant.weight}
+                                            </TableCell>
+                                          </TableRow>
+                                          <TableRow>
+                                            <TableCell className="font-semibold">
+                                              Height
+                                            </TableCell>
+                                            <TableCell>
+                                              {variant.height}
+                                            </TableCell>
+                                          </TableRow>
+                                          <TableRow>
+                                            <TableCell className="font-semibold">
+                                              Length
+                                            </TableCell>
+                                            <TableCell>
+                                              {variant.length}
+                                            </TableCell>
+                                          </TableRow>
+                                          <TableRow>
+                                            <TableCell className="font-semibold">
+                                              Width
+                                            </TableCell>
+                                            <TableCell>
+                                              {variant.width}
                                             </TableCell>
                                           </TableRow>
                                           <TableRow>
