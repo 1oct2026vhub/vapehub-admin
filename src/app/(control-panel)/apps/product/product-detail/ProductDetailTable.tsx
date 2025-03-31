@@ -180,20 +180,26 @@ export default function ProductDetailTable() {
         {/* Images Section */}
         <Grid item xs={12} md={5}>
           <Paper
-            className="shadow-1 rounded-lg overflow-hidden p-4 h-full"
+            className="shadow-1 rounded-lg overflow-hidden p-3 h-full"
             elevation={1}
           >
-            <Typography variant="h6" className="mb-4 font-bold">
+            <Typography
+              variant="h6"
+              className="text-base mb-2 font-bold flex items-center"
+            >
               <RequiredField>Product Images</RequiredField>
-              {/* ({productDetail.ProductImages.length}) */}
             </Typography>
+
             <Box
               sx={{
-                maxHeight: "500px",
-                overflowY: "auto",
-                pr: 1,
+                maxHeight:
+                  productDetail.ProductImages.length > 6 ? "400px" : "auto",
+                overflowY:
+                  productDetail.ProductImages.length > 6 ? "auto" : "visible",
+                pr: productDetail.ProductImages.length > 6 ? 1 : 0,
+                position: "relative",
                 "&::-webkit-scrollbar": {
-                  width: "8px",
+                  width: "6px",
                 },
                 "&::-webkit-scrollbar-thumb": {
                   backgroundColor: "#bdbdbd",
@@ -203,25 +209,75 @@ export default function ProductDetailTable() {
                   backgroundColor: "#f5f5f5",
                   borderRadius: "4px",
                 },
+                "&::after":
+                  productDetail.ProductImages.length > 6
+                    ? {
+                        content: '""',
+                        position: "absolute",
+                        bottom: 0,
+                        left: 0,
+                        right: 0,
+                        height: "20px",
+                        background:
+                          "linear-gradient(to top, rgba(255,255,255,1), rgba(255,255,255,0))",
+                        pointerEvents: "none",
+                      }
+                    : {},
               }}
             >
               {productDetail.ProductImages?.length > 0 ? (
-                <Grid container spacing={2}>
+                <Grid container spacing={0.5}>
                   {productDetail.ProductImages.map((image) => (
-                    <Grid item xs={12} sm={6} key={image.id}>
-                      <Card className="h-full" elevation={2}>
+                    <Grid
+                      item
+                      xs={4}
+                      sm={4}
+                      md={4}
+                      key={image.id}
+                      sx={{ padding: "4px" }}
+                    >
+                      <Card
+                        className="h-full transition-shadow hover:shadow-md"
+                        elevation={1}
+                        sx={{
+                          border: "1px solid #e0e0e0",
+                          position: "relative",
+                        }}
+                      >
                         <CardMedia
                           component="img"
                           image={image.image_url}
                           alt={productDetail.name}
-                          sx={{ height: 200, objectFit: "contain" }}
+                          sx={{
+                            height: 110,
+                            objectFit: "contain",
+                            padding: 1,
+                            backgroundColor: "#f9f9f9",
+                          }}
                         />
-                        <CardContent className="px-2 py-1">
+                        <CardContent
+                          className="px-2 py-0 flex justify-between items-center"
+                          sx={{ padding: "2px 8px !important" }}
+                        >
                           <Chip
                             label={image.is_primary ? "Primary" : "Secondary"}
                             color={image.is_primary ? "primary" : "default"}
                             size="small"
+                            sx={{
+                              height: 20,
+                              "& .MuiChip-label": {
+                                fontSize: "0.65rem",
+                                padding: "0 4px",
+                              },
+                            }}
                           />
+                          <Typography
+                            variant="caption"
+                            color="textSecondary"
+                            sx={{ fontSize: "0.65rem" }}
+                          >
+                            ID: {image.id}
+                          </Typography>
                         </CardContent>
                       </Card>
                     </Grid>
@@ -300,34 +356,7 @@ export default function ProductDetailTable() {
                         {productDetail.Brand?.name || "N/A"}
                       </TableCell>
                     </TableRow>
-                    <TableRow>
-                      <TableCell component="th" className="font-semibold">
-                        Price
-                      </TableCell>
-                      <TableCell>
-                        {productDetail.price
-                          ? `$${productDetail.price}`
-                          : "N/A"}
-                      </TableCell>
-                    </TableRow>
-                    <TableRow>
-                      <TableCell component="th" className="font-semibold">
-                        Discount Price
-                      </TableCell>
-                      <TableCell>
-                        {productDetail.discount_price
-                          ? `$${productDetail.discount_price}`
-                          : "N/A"}
-                      </TableCell>
-                    </TableRow>
-                    {/* <TableRow>
-                      <TableCell component="th" className="font-semibold">
-                        Stock Quantity
-                      </TableCell>
-                      <TableCell>
-                        {productDetail.stock_quantity ?? "N/A"}
-                      </TableCell>
-                    </TableRow> */}
+
                     <TableRow>
                       <TableCell component="th" className="font-semibold">
                         Created At
@@ -704,40 +733,48 @@ export default function ProductDetailTable() {
                                             <TableCell className="font-semibold">
                                               Weight
                                             </TableCell>
-                                            {variant.weight != null && (
+                                            {variant.weight != null ? (
                                               <TableCell>
                                                 {variant.weight} gm
                                               </TableCell>
+                                            ) : (
+                                              <p>N/A</p>
                                             )}
                                           </TableRow>
                                           <TableRow>
                                             <TableCell className="font-semibold">
                                               Height
                                             </TableCell>
-                                            {variant.height != null && (
+                                            {variant.height != null ? (
                                               <TableCell>
                                                 {variant.height} cm
                                               </TableCell>
+                                            ) : (
+                                              <p>N/A</p>
                                             )}
                                           </TableRow>
                                           <TableRow>
                                             <TableCell className="font-semibold">
                                               Length
                                             </TableCell>
-                                            {variant.length != null && (
+                                            {variant.length != null ? (
                                               <TableCell>
                                                 {variant.length} cm
                                               </TableCell>
+                                            ) : (
+                                              <p>N/A</p>
                                             )}
                                           </TableRow>
                                           <TableRow>
                                             <TableCell className="font-semibold">
                                               Width
                                             </TableCell>
-                                            {variant.width != null && (
+                                            {variant.width != null ? (
                                               <TableCell>
                                                 {variant.width} cm
                                               </TableCell>
+                                            ) : (
+                                              <p>N/A</p>
                                             )}
                                           </TableRow>
                                           <TableRow>
@@ -757,7 +794,7 @@ export default function ProductDetailTable() {
                                 <Grid item xs={12} md={6}>
                                   <Typography
                                     variant="subtitle2"
-                                    className="font-bold mb-2 pb-1 border-b"
+                                    className="font-bold mb-1 pb-1 border-b text-sm"
                                   >
                                     Variant Attributes
                                   </Typography>
@@ -765,10 +802,10 @@ export default function ProductDetailTable() {
                                     sx={{
                                       height:
                                         variant.variantAttributes.length > 0
-                                          ? "150px"
+                                          ? "120px"
                                           : "auto",
                                       overflowY: "auto",
-                                      mb: 3,
+                                      mb: 2,
                                       "&::-webkit-scrollbar": {
                                         width: "6px",
                                       },
@@ -816,7 +853,7 @@ export default function ProductDetailTable() {
 
                                   <Typography
                                     variant="subtitle2"
-                                    className="font-bold mb-2 pb-1 border-b"
+                                    className="font-bold mb-1 pb-1 border-b text-sm"
                                   >
                                     Variant Images
                                   </Typography>
@@ -824,7 +861,7 @@ export default function ProductDetailTable() {
                                     sx={{
                                       height:
                                         variant.variantImages.length > 0
-                                          ? "180px"
+                                          ? "150px"
                                           : "auto",
                                       overflowY: "auto",
                                       "&::-webkit-scrollbar": {
@@ -837,23 +874,28 @@ export default function ProductDetailTable() {
                                     }}
                                   >
                                     {variant.variantImages.length > 0 ? (
-                                      <Grid container spacing={1}>
+                                      <Grid container spacing={0.5}>
                                         {variant.variantImages.map((image) => (
-                                          <Grid item xs={6} key={image.id}>
+                                          <Grid item xs={4} key={image.id}>
                                             <Card
                                               className="h-full"
                                               elevation={1}
+                                              sx={{
+                                                border: '1px solid #e0e0e0',
+                                              }}
                                             >
                                               <CardMedia
                                                 component="img"
                                                 image={image.image_url}
                                                 alt={variant.slug}
                                                 sx={{
-                                                  height: 120,
+                                                  height: 80,
                                                   objectFit: "contain",
+                                                  padding: 0.5,
+                                                  backgroundColor: '#f9f9f9',
                                                 }}
                                               />
-                                              <CardContent className="px-2 py-1">
+                                              <CardContent className="px-1 py-0" sx={{ padding: '2px !important', minHeight: '24px' }}>
                                                 <Chip
                                                   label={
                                                     image.is_primary
@@ -866,6 +908,13 @@ export default function ProductDetailTable() {
                                                       : "default"
                                                   }
                                                   size="small"
+                                                  sx={{ 
+                                                    height: 20,
+                                                    '& .MuiChip-label': {
+                                                      fontSize: '0.65rem',
+                                                      padding: '0 4px',
+                                                    }
+                                                  }}
                                                 />
                                               </CardContent>
                                             </Card>

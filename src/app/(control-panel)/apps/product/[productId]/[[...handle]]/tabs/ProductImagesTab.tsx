@@ -239,7 +239,7 @@ function ProductImagesTab() {
       // Move to the Attributes tab
       nextStep();
     } catch (error) {
-      console.error("Error uploading images:", error);
+      // console.error("Error uploading images:", error);
       showSnackbar("Failed to upload images", "error");
       updateFormData({
         hasErrors: true,
