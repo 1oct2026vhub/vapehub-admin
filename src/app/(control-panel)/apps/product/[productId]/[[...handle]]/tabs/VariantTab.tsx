@@ -246,7 +246,12 @@ const schema = z.object({
         const parsed = Number(val);
         return isNaN(parsed) ? "NaN" : parsed;
       }, z.union([z.literal("NaN").refine(() => false, "Please enter a valid number for height"), z.number().min(0, "Height must be a non-negative number"), z.null()])),
-      barcode: z.string().nullable().optional(),
+      barcode: z
+        .string()
+        .min(1, "Barcode is required")
+        .max(50, "Barcode cannot exceed 50 characters")
+        .nullable()
+        .transform((val) => (val === null ? "" : val)),
       description: z.string().nullable().optional(),
       attributes: z
         .array(
@@ -2480,12 +2485,14 @@ function VariantTab() {
                     step: "1",
                     min: "0",
                     onKeyDown: (e) => {
+                      // Allow digits, Backspace, Delete, Arrow keys, and Tab
                       if (
-                        !/[0-9]/.test(e.key) &&
+                        /[a-zA-Z]/.test(e.key) && // Restrict letters
                         e.key !== "Backspace" &&
                         e.key !== "Delete" &&
                         e.key !== "ArrowLeft" &&
-                        e.key !== "ArrowRight"
+                        e.key !== "ArrowRight" &&
+                        e.key !== "Tab"
                       ) {
                         e.preventDefault();
                       }
@@ -2639,7 +2646,7 @@ function VariantTab() {
                           }
                         },
                         endAdornment: (
-                          <InputAdornment position="end">kg</InputAdornment>
+                          <InputAdornment position="end">gm</InputAdornment>
                         ), // Move inside inputProps
                       }}
                     />
