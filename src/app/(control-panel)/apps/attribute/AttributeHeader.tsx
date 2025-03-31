@@ -210,7 +210,7 @@ function AttributeHeader({ refreshData }: AttributeHeaderProps) {
           <AppButton
             label={
               <>
-                <span className="w-full">Bulk Update</span>
+                <span className="w-full">Bulk Upload</span>
               </>
             }
             variant="outlined"
@@ -426,9 +426,9 @@ function AttributeHeader({ refreshData }: AttributeHeaderProps) {
                       <TableCell>Name</TableCell>
                       {/* <TableCell>Slug</TableCell> */}
                       <TableCell>Status</TableCell>
-                      {uploadResult.data.results.some(result => result.status === "Error") && (
-                        <TableCell>Message</TableCell>
-                      )}
+                      {uploadResult.data.results.some(
+                        (result) => result.status === "Error"
+                      ) && <TableCell>Message</TableCell>}
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -451,7 +451,9 @@ function AttributeHeader({ refreshData }: AttributeHeaderProps) {
                               size="small"
                             />
                           </TableCell>
-                          {uploadResult.data.results.some(result => result.status === "Error") && (
+                          {uploadResult.data.results.some(
+                            (result) => result.status === "Error"
+                          ) && (
                             <TableCell>
                               {result.status === "Error" && result.message ? (
                                 <Typography variant="body2" color="error">

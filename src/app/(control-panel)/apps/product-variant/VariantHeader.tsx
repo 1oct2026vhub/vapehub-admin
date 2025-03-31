@@ -18,7 +18,7 @@ import {
   TableHead,
   TableRow,
   Paper,
-  Chip
+  Chip,
 } from "@mui/material";
 import { motion } from "motion/react";
 import FuseSvgIcon from "@fuse/core/FuseSvgIcon";
@@ -72,7 +72,9 @@ const VariantHeader = ({ refreshData }: VariantHeaderProps) => {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
-  const [uploadResult, setUploadResult] = useState<BulkUpdateResponse | null>(null);
+  const [uploadResult, setUploadResult] = useState<BulkUpdateResponse | null>(
+    null
+  );
   const [openResultDialog, setOpenResultDialog] = useState(false);
   const { showSnackbar } = useSnackbar();
 
@@ -83,7 +85,7 @@ const VariantHeader = ({ refreshData }: VariantHeaderProps) => {
   const handleMenuClose = () => {
     setAnchorEl(null);
   };
-  
+
   const handleResultDialogClose = () => {
     setOpenResultDialog(false);
   };
@@ -102,20 +104,20 @@ const VariantHeader = ({ refreshData }: VariantHeaderProps) => {
     fileInputRef.current?.click();
     handleMenuClose();
   };
-  
+
   // Helper function to get status chip color
   const getStatusColor = (status: string) => {
-    switch(status) {
-      case 'Created':
-        return 'success';
-      case 'Updated':
-        return 'info';
-      case 'Unchanged':
-        return 'default';
-      case 'Error':
-        return 'error';
+    switch (status) {
+      case "Created":
+        return "success";
+      case "Updated":
+        return "info";
+      case "Unchanged":
+        return "default";
+      case "Error":
+        return "error";
       default:
-        return 'default';
+        return "default";
     }
   };
 
@@ -138,18 +140,18 @@ const VariantHeader = ({ refreshData }: VariantHeaderProps) => {
     setIsUploading(true);
     try {
       const response = await bulkUpdateVariant(file);
-      
+
       // Handle the response
       if (response && response.data && response.data.results) {
         setUploadResult(response as BulkUpdateResponse);
         setOpenResultDialog(true);
-        
+
         // Show success message
         const results = response.data.results;
-        const created = results.filter(r => r.status === 'Created').length;
-        const updated = results.filter(r => r.status === 'Updated').length;
-        const errors = results.filter(r => r.status === 'Error').length;
-        
+        const created = results.filter((r) => r.status === "Created").length;
+        const updated = results.filter((r) => r.status === "Updated").length;
+        const errors = results.filter((r) => r.status === "Error").length;
+
         const successMessage = `Upload completed: ${created} created, ${updated} updated, ${errors} errors`;
         showSnackbar(successMessage, "success");
       } else {
@@ -208,7 +210,7 @@ const VariantHeader = ({ refreshData }: VariantHeaderProps) => {
           <AppButton
             label={
               <>
-                <span className="w-full">Bulk Update</span>
+                <span className="w-full">Bulk Upload</span>
               </>
             }
             variant="outlined"
@@ -267,7 +269,7 @@ const VariantHeader = ({ refreshData }: VariantHeaderProps) => {
           /> */}
         </motion.div>
       </div>
-      
+
       {/* Results Dialog */}
       <Dialog
         open={openResultDialog}
@@ -426,9 +428,9 @@ const VariantHeader = ({ refreshData }: VariantHeaderProps) => {
                     <TableRow>
                       <TableCell>Name</TableCell>
                       <TableCell>Status</TableCell>
-                      {uploadResult.data.results.some(result => result.status === "Error") && (
-                        <TableCell>Message</TableCell>
-                      )}
+                      {uploadResult.data.results.some(
+                        (result) => result.status === "Error"
+                      ) && <TableCell>Message</TableCell>}
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -450,7 +452,9 @@ const VariantHeader = ({ refreshData }: VariantHeaderProps) => {
                               size="small"
                             />
                           </TableCell>
-                          {uploadResult.data.results.some(result => result.status === "Error") && (
+                          {uploadResult.data.results.some(
+                            (result) => result.status === "Error"
+                          ) && (
                             <TableCell>
                               {result.status === "Error" && result.message ? (
                                 <Typography variant="body2" color="error">
