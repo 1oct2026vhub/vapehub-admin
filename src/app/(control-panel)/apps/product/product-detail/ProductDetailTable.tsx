@@ -704,40 +704,48 @@ export default function ProductDetailTable() {
                                             <TableCell className="font-semibold">
                                               Weight
                                             </TableCell>
-                                            {variant.weight != null && (
+                                            {variant.weight != null ? (
                                               <TableCell>
                                                 {variant.weight} gm
                                               </TableCell>
+                                            ) : (
+                                              <p>N/A</p>
                                             )}
                                           </TableRow>
                                           <TableRow>
                                             <TableCell className="font-semibold">
                                               Height
                                             </TableCell>
-                                            {variant.height != null && (
+                                            {variant.height != null ? (
                                               <TableCell>
                                                 {variant.height} cm
                                               </TableCell>
+                                            ) : (
+                                              <p>N/A</p>
                                             )}
                                           </TableRow>
                                           <TableRow>
                                             <TableCell className="font-semibold">
                                               Length
                                             </TableCell>
-                                            {variant.length != null && (
+                                            {variant.length != null ? (
                                               <TableCell>
                                                 {variant.length} cm
                                               </TableCell>
+                                            ) : (
+                                              <p>N/A</p>
                                             )}
                                           </TableRow>
                                           <TableRow>
                                             <TableCell className="font-semibold">
                                               Width
                                             </TableCell>
-                                            {variant.width != null && (
+                                            {variant.width != null ? (
                                               <TableCell>
                                                 {variant.width} cm
                                               </TableCell>
+                                            ) : (
+                                              <p>N/A</p>
                                             )}
                                           </TableRow>
                                           <TableRow>
