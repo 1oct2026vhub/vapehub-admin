@@ -215,7 +215,7 @@ function ProductHeader({ refreshData }: ProductHeaderProps) {
           <AppButton
             label={
               <>
-                <span className="w-full">Bulk Update</span>
+                <span className="w-full">Bulk Upload</span>
               </>
             }
             variant="outlined"

@@ -228,9 +228,11 @@ export default function ProductDetailTable() {
                   ))}
                 </Grid>
               ) : (
-                <Typography variant="h6" className="mb-4 font-bold">
-                  No data found!
-                </Typography>
+                <div className="flex items-center justify-center mt-12">
+                  <Typography variant="h6" className="">
+                    No Image Found !
+                  </Typography>
+                </div>
               )}
             </Box>
           </Paper>

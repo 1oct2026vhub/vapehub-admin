@@ -900,12 +900,42 @@ function VariantTab() {
               }));
 
               if (processedImages.length > 0) {
-                console.log(
-                  `Loaded ${processedImages.length} images for variant ${variantId}`
+                // Update the UI state immediately
+                setVariantImages((prev) => {
+                  const updated = { ...prev };
+                  if (updated[variantId]) {
+                    // Make sure we don't add duplicate images by checking IDs
+                    const existingIds = new Set(
+                      updated[variantId].map((img) => img.id)
+                    );
+                    const uniqueNewImages = processedImages.filter(
+                      (img) => !existingIds.has(img.id)
+                    );
+
+                    console.log(
+                      `Adding ${
+                        uniqueNewImages.length
+                      } unique images (filtered out ${
+                        processedImages.length - uniqueNewImages.length
+                      } duplicates)`
+                    );
+
+                    updated[variantId] = [
+                      ...updated[variantId],
+                      ...uniqueNewImages,
+                    ];
+                  } else {
+                    updated[variantId] = processedImages;
+                  }
+                  return updated;
+                });
+
+                showSnackbar(
+                  `Successfully uploaded ${processedImages.length} images`,
+                  "success"
                 );
-                newVariantImages[variantId] = processedImages;
               } else {
-                console.log(`No images found for variant ${variantId}`);
+                showSnackbar("Failed to process uploaded images", "error");
               }
             }
           });
@@ -1538,12 +1568,20 @@ function VariantTab() {
       }
     } catch (error) {
       console.error("Error saving variants:", error);
-      if (error?.errors) {
-        showSnackbar(error?.errors[0]?.msg, "error");
-      } else if (error?.error) {
-        showSnackbar(error?.error[0]?.message, "error");
+
+      // Check for error structure properly
+      if (error?.errors && error?.errors.length > 0) {
+        showSnackbar(error.errors[0]?.msg, "error");
+      } else if (
+        error?.error &&
+        Array.isArray(error?.error) &&
+        error.error.length > 0
+      ) {
+        showSnackbar(error.error[0]?.message, "error");
+      } else if (error?.message) {
+        showSnackbar(error.message, "error");
       } else {
-        const errorMessage = error?.message || "An unexpected error occurred";
+        const errorMessage = "An unexpected error occurred";
         showSnackbar(errorMessage, "error");
       }
     } finally {
@@ -2474,6 +2512,11 @@ function VariantTab() {
                   label="Slug"
                   required
                 />
+                {/* {errors.variants?.[index]?.slug && (
+                  <Typography color="error" variant="caption" sx={{ pl: 1 }}>
+                    {errors.variants[index].slug.message}
+                  </Typography>
+                )} */}
               </Grid>
               <Grid item xs={12} sm={6}>
                 <FormInputField
@@ -2486,9 +2529,8 @@ function VariantTab() {
                     step: "1",
                     min: "0",
                     onKeyDown: (e) => {
-                      // Allow digits, Backspace, Delete, Arrow keys, and Tab
                       if (
-                        /[a-zA-Z]/.test(e.key) && // Restrict letters
+                        /[a-zA-Z]/.test(e.key) &&
                         e.key !== "Backspace" &&
                         e.key !== "Delete" &&
                         e.key !== "ArrowLeft" &&
@@ -2500,6 +2542,11 @@ function VariantTab() {
                     },
                   }}
                 />
+                {/* {errors.variants?.[index]?.price && (
+                  <Typography color="error" variant="caption" sx={{ pl: 1 }}>
+                    {errors.variants[index].price.message}
+                  </Typography>
+                )} */}
               </Grid>
               <Grid item xs={12} sm={6}>
                 <FormInputField
@@ -2564,9 +2611,8 @@ function VariantTab() {
                     step: "1",
                     min: "0",
                     onKeyDown: (e) => {
-                      // Allow only digits, Backspace, Delete, Arrow keys, and Tab
                       if (
-                        !/[0-9]/.test(e.key) && // Restrict letters
+                        !/[0-9]/.test(e.key) &&
                         e.key !== "Backspace" &&
                         e.key !== "Delete" &&
                         e.key !== "ArrowLeft" &&
@@ -2575,14 +2621,17 @@ function VariantTab() {
                       ) {
                         e.preventDefault();
                       }
-
-                      // Restrict decimal point
                       if (e.key === "." || e.key === ",") {
                         e.preventDefault();
                       }
                     },
                   }}
                 />
+                {/* {errors.variants?.[index]?.stock && (
+                  <Typography color="error" variant="caption" sx={{ pl: 1 }}>
+                    {errors.variants[index].stock.message}
+                  </Typography>
+                )} */}
               </Grid>
               <Grid item xs={12} sm={6}>
                 <FormInputField
@@ -2595,9 +2644,8 @@ function VariantTab() {
                     step: "1",
                     min: "0",
                     onKeyDown: (e) => {
-                      // Allow only digits, Backspace, Delete, Arrow keys, and Tab
                       if (
-                        !/[0-9]/.test(e.key) && // Restrict letters
+                        !/[0-9]/.test(e.key) &&
                         e.key !== "Backspace" &&
                         e.key !== "Delete" &&
                         e.key !== "ArrowLeft" &&
@@ -2606,14 +2654,17 @@ function VariantTab() {
                       ) {
                         e.preventDefault();
                       }
-
-                      // Restrict decimal point
                       if (e.key === "." || e.key === ",") {
                         e.preventDefault();
                       }
                     },
                   }}
                 />
+                {/* {errors.variants?.[index]?.low_stock_threshold && (
+                  <Typography color="error" variant="caption" sx={{ pl: 1 }}>
+                    {errors.variants[index].low_stock_threshold.message}
+                  </Typography>
+                )} */}
               </Grid>
 
               {/* Group dimensions and weight in a single row */}
@@ -2756,7 +2807,7 @@ function VariantTab() {
                   }}
                 />
                 {/* {errors.variants?.[index]?.barcode && (
-                  <Typography color="error" variant="caption" sx={{ mt: 0.5 }}>
+                  <Typography color="error" variant="caption" sx={{ pl: 1 }}>
                     {errors.variants[index].barcode.message}
                   </Typography>
                 )} */}
@@ -3121,12 +3172,7 @@ function VariantTab() {
                   variant.attributes.forEach((attr, attrIndex) => {
                     if (!attr.term_id || attr.term_id <= 0) {
                       const attributeName = getAttributeName(attr.attribute_id);
-                      showSnackbar(
-                        `Select a value for ${attributeName} in variant ${
-                          index + 1
-                        }`,
-                        "error"
-                      );
+                      showSnackbar("Select a value in variant", "error");
                       hasAttributeErrors = true;
                     }
                   });
