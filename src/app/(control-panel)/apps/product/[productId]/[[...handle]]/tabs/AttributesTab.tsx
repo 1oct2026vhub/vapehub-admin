@@ -696,7 +696,7 @@ function AttributesTab() {
                   field.attribute_id
                 )}
                 required
-                // isMulti
+                isMulti
                 onTermRemove={(termId) => handleTermRemove(index, termId)}
               />
 
