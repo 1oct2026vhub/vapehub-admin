@@ -283,7 +283,8 @@ interface ReusableTextFieldProps {
   required?: boolean;
   autoFocus?: boolean;
   multiline?: boolean; 
-  rows?: number;                  
+  rows?: number;
+  inputProps?: any;
 }
 
 const FormInputField: React.FC<ReusableTextFieldProps> = ({
@@ -295,6 +296,7 @@ const FormInputField: React.FC<ReusableTextFieldProps> = ({
   multiline = false,
   autoFocus = false,
   rows = 1,
+  inputProps,
 }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [touched, setTouched] = useState(false);
@@ -342,6 +344,7 @@ const FormInputField: React.FC<ReusableTextFieldProps> = ({
                 </InputAdornment>
               ) : null,
           }}
+          inputProps={inputProps}
           sx={{
             "& .MuiOutlinedInput-root": {
               "& fieldset": {

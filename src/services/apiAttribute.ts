@@ -68,6 +68,30 @@ export interface AttributeDetailResponse {
   };
 }
 
+export interface BulkUpdateResult {
+  slug: string;
+  name: string;
+  status: "Created" | "Updated" | "Unchanged" | "Error";
+  id?: number;
+  message?: string;
+}
+
+export interface BulkUpdateResponse {
+  success: boolean;
+  message: string;
+  data: {
+    summary: {
+      total: number;
+      created: number;
+      updated: number;
+      unchanged: number;
+      errors: number;
+      skipped: number;
+    };
+    results: BulkUpdateResult[];
+  };
+}
+
 export const createAttribute = async (data: CreateAttributeData) => {
   const response = await axiosInstance.post("/api/admin/attributes", data);
   return response.data;
@@ -158,7 +182,7 @@ export const downloadSampleExcel = () => {
 };
 
 // Bulk update attribute from Excel file
-export const bulkUpdateAttribute = async (file: File) => {
+export const bulkUpdateAttribute = async (file: File): Promise<BulkUpdateResponse> => {
   const formData = new FormData();
   formData.append("file", file);
 
