@@ -7,8 +7,66 @@ import AppButton from "@/components/Shared/AppButton";
 import { downloadSampleExcel, bulkUpdateProducts } from "@/services/apiProduct";
 import { useSnackbar } from "@/contexts/SnackbarContext";
 import { useState, useRef } from "react";
-import { Menu, MenuItem, ListItemIcon, ListItemText } from "@mui/material";
+import {
+  Menu,
+  MenuItem,
+  ListItemIcon,
+  ListItemText,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  IconButton,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
+  Box,
+  Chip,
+} from "@mui/material";
+import CloseIcon from "@mui/icons-material/Close";
 import PageBreadcrumb from "@/components/PageBreadcrumb";
+
+// Update the interfaces to match the API response
+interface ProductResult {
+  id?: string;
+  slug: string;
+  status: "Created" | "Updated" | "Unchanged" | "Error" | "Skipped";
+  message?: string;
+}
+
+interface AttributeResult {
+  product_slug: string;
+  attribute_slug: string;
+  status: "Created" | "Updated" | "Unchanged" | "Error" | "Skipped";
+  message?: string;
+}
+
+interface SummaryStats {
+  total: number;
+  created: number;
+  updated: number;
+  errors: number;
+  skipped: number;
+}
+
+interface BulkUpdateResponse {
+  success: boolean;
+  message: string;
+  data: {
+    summary: {
+      products: SummaryStats;
+      attributes?: SummaryStats;
+    };
+    results: {
+      products: ProductResult[];
+      attributes: AttributeResult[];
+    };
+  };
+}
 
 // Add props interface
 interface ProductHeaderProps {
@@ -23,6 +81,10 @@ function ProductHeader({ refreshData }: ProductHeaderProps) {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadResult, setUploadResult] = useState<BulkUpdateResponse | null>(
+    null
+  );
+  const [openResultDialog, setOpenResultDialog] = useState(false);
 
   const { showSnackbar } = useSnackbar();
 
@@ -32,6 +94,10 @@ function ProductHeader({ refreshData }: ProductHeaderProps) {
 
   const handleMenuClose = () => {
     setAnchorEl(null);
+  };
+
+  const handleResultDialogClose = () => {
+    setOpenResultDialog(false);
   };
 
   const handleDownloadSample = async () => {
@@ -47,6 +113,24 @@ function ProductHeader({ refreshData }: ProductHeaderProps) {
   const handleFileUploadClick = () => {
     fileInputRef.current?.click();
     handleMenuClose();
+  };
+
+  // Helper function to get status chip color
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "Created":
+        return "success";
+      case "Updated":
+        return "info";
+      case "Unchanged":
+        return "default";
+      case "Error":
+        return "error";
+      case "Skipped":
+        return "warning";
+      default:
+        return "default";
+    }
   };
 
   const handleFileChange = async (
@@ -67,24 +151,36 @@ function ProductHeader({ refreshData }: ProductHeaderProps) {
 
     setIsUploading(true);
     try {
-      await bulkUpdateProducts(file);
-      showSnackbar("Products updated successfully", "success");
+      const response = await bulkUpdateProducts(file);
 
-      // Refresh data after successful upload
-      if (refreshData) {
-        setTimeout(async () => {
-          await refreshData(); // Call with a slight delay to ensure server has processed the data
-        }, 500);
+      // Handle the response
+      if (response?.data?.results?.products) {
+        setUploadResult(response as BulkUpdateResponse);
+        setOpenResultDialog(true);
+
+        // Show success message
+        const { products } = response.data.summary;
+        const successMessage = `Upload completed: ${products.created} created, ${products.updated} updated, ${products.errors} errors, ${products.skipped} skipped`;
+        showSnackbar(successMessage, "success");
+
+        // Refresh data after successful upload
+        if (refreshData) {
+          setTimeout(async () => {
+            await refreshData();
+          }, 500);
+        }
+      } else {
+        showSnackbar("Invalid response format received from server", "error");
+        console.error("Invalid response format:", response);
       }
     } catch (error) {
+      console.error("Bulk update error:", error);
       showSnackbar("Failed to update products", "error");
     } finally {
       setIsUploading(false);
-    }
-
-    // Reset file input
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
     }
   };
 
@@ -119,7 +215,7 @@ function ProductHeader({ refreshData }: ProductHeaderProps) {
           <AppButton
             label={
               <>
-                <span className="w-full">Bulk Update</span>
+                <span className="w-full">Bulk Upload</span>
               </>
             }
             variant="outlined"
@@ -176,6 +272,215 @@ function ProductHeader({ refreshData }: ProductHeaderProps) {
           />
         </motion.div>
       </div>
+
+      {/* Results Dialog */}
+      <Dialog
+        open={openResultDialog}
+        onClose={handleResultDialogClose}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle
+          sx={{
+            m: 0,
+            p: 2,
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
+        >
+          <Typography variant="h6" component="div">
+            Bulk Update Results
+          </Typography>
+          <IconButton
+            aria-label="close"
+            onClick={handleResultDialogClose}
+            sx={{
+              color: (theme) => theme.palette.grey[500],
+            }}
+          >
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent>
+          {uploadResult?.data?.results?.products ? (
+            <Box sx={{ maxWidth: "100%" }}>
+              {/* Products Summary Section */}
+              <Box
+                sx={{
+                  mb: 3,
+                  p: 2,
+                  backgroundColor: "#f5f5f5",
+                  borderRadius: 1,
+                }}
+              >
+                <Typography variant="subtitle1" gutterBottom>
+                  Products Summary
+                </Typography>
+                <Box display="flex" gap={2} flexWrap="wrap">
+                  <Box>
+                    <Typography variant="body2" color="text.secondary">
+                      Total
+                    </Typography>
+                    <Typography variant="h6">
+                      {uploadResult.data.summary.products.total}
+                    </Typography>
+                  </Box>
+                  <Box>
+                    <Typography variant="body2" color="text.secondary">
+                      Created
+                    </Typography>
+                    <Typography variant="h6" color="success.main">
+                      {uploadResult.data.summary.products.created}
+                    </Typography>
+                  </Box>
+                  <Box>
+                    <Typography variant="body2" color="text.secondary">
+                      Updated
+                    </Typography>
+                    <Typography variant="h6" color="info.main">
+                      {uploadResult.data.summary.products.updated}
+                    </Typography>
+                  </Box>
+                  <Box>
+                    <Typography variant="body2" color="text.secondary">
+                      Errors
+                    </Typography>
+                    <Typography variant="h6" color="error.main">
+                      {uploadResult.data.summary.products.errors}
+                    </Typography>
+                  </Box>
+                  <Box>
+                    <Typography variant="body2" color="text.secondary">
+                      Skipped
+                    </Typography>
+                    <Typography variant="h6" color="warning.main">
+                      {uploadResult.data.summary.products.skipped}
+                    </Typography>
+                  </Box>
+                </Box>
+              </Box>
+
+              {/* Products Results Table */}
+              <Typography variant="subtitle1" gutterBottom>
+                Products Details
+              </Typography>
+              <TableContainer component={Paper} sx={{ maxHeight: 440, mb: 3 }}>
+                <Table stickyHeader aria-label="products update results table">
+                  <TableHead>
+                    <TableRow>
+                      {/* <TableCell>ID</TableCell> */}
+                      <TableCell>Slug</TableCell>
+                      <TableCell>Status</TableCell>
+                      <TableCell>Message</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {uploadResult.data.results.products.map((result, index) => (
+                      <TableRow
+                        key={index}
+                        sx={{
+                          "&:last-child td, &:last-child th": { border: 0 },
+                        }}
+                      >
+                        {/* <TableCell>{result.id || "N/A"}</TableCell> */}
+                        <TableCell>{result.slug}</TableCell>
+                        <TableCell>
+                          <Chip
+                            label={result.status}
+                            color={getStatusColor(result.status) as any}
+                            size="small"
+                          />
+                        </TableCell>
+                        <TableCell>
+                          {result.message ? (
+                            <Typography variant="body2" color="error">
+                              {result.message}
+                            </Typography>
+                          ) : (
+                            "-"
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+
+              {/* Attributes Results Table */}
+              {uploadResult.data.results.attributes &&
+                uploadResult.data.results.attributes.length > 0 && (
+                  <>
+                    <Typography variant="subtitle1" gutterBottom>
+                      Attributes Details
+                    </Typography>
+                    <TableContainer component={Paper} sx={{ maxHeight: 440 }}>
+                      <Table
+                        stickyHeader
+                        aria-label="attributes update results table"
+                      >
+                        <TableHead>
+                          <TableRow>
+                            <TableCell>Product</TableCell>
+                            <TableCell>Attribute</TableCell>
+                            <TableCell>Status</TableCell>
+                            <TableCell>Message</TableCell>
+                          </TableRow>
+                        </TableHead>
+                        <TableBody>
+                          {uploadResult.data.results.attributes.map(
+                            (result, index) => (
+                              <TableRow
+                                key={index}
+                                sx={{
+                                  "&:last-child td, &:last-child th": {
+                                    border: 0,
+                                  },
+                                }}
+                              >
+                                <TableCell>{result.product_slug}</TableCell>
+                                <TableCell>{result.attribute_slug}</TableCell>
+                                <TableCell>
+                                  <Chip
+                                    label={result.status}
+                                    color={getStatusColor(result.status) as any}
+                                    size="small"
+                                  />
+                                </TableCell>
+                                <TableCell>
+                                  {result.message ? (
+                                    <Typography variant="body2" color="error">
+                                      {result.message}
+                                    </Typography>
+                                  ) : (
+                                    "-"
+                                  )}
+                                </TableCell>
+                              </TableRow>
+                            )
+                          )}
+                        </TableBody>
+                      </Table>
+                    </TableContainer>
+                  </>
+                )}
+            </Box>
+          ) : (
+            <Box p={2} textAlign="center">
+              <Typography variant="body1">
+                No data available or invalid response format.
+              </Typography>
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <AppButton
+            label="Ok"
+            variant="contained"
+            onClick={handleResultDialogClose}
+          />
+        </DialogActions>
+      </Dialog>
     </div>
   );
 }
