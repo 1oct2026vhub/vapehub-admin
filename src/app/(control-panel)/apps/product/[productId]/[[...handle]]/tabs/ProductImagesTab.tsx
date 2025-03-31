@@ -42,7 +42,7 @@ const mapApiImageToProductImage = (apiImage: any): ProductImage => {
   return {
     id: apiImage.id,
     url: apiImage.image_url,
-    is_primary: apiImage.is_primary
+    is_primary: apiImage.is_primary,
   };
 };
 
@@ -55,11 +55,11 @@ function ProductImagesTab() {
   const { formData, updateFormData, nextStep, previousStep } = useProductForm();
   const router = useRouter();
   const searchParams = useSearchParams();
-  
+
   // Use refs to track fetch status
   const fetchedRef = useRef(false);
   const productIdRef = useRef<string | number | null>(null);
-  
+
   // Get productId from URL or formData
   const productId = formData.productId || searchParams.get("productId");
 
@@ -70,37 +70,42 @@ function ProductImagesTab() {
       setIsLoading(false);
       return;
     }
-    
+
     // Skip if we've already fetched data for this product ID
     if (fetchedRef.current && productIdRef.current === productId) {
       setIsLoading(false);
       return;
     }
-    
+
     // Update refs to track current fetch state
     productIdRef.current = productId;
-    
+
     setIsLoading(true);
     try {
       console.log("Fetching product data for ID:", productId);
       const response = await getProduct(Number(productId));
       console.log("Product data received:", response?.data);
-      
-      if (response?.data?.ProductImages && response.data.ProductImages.length > 0) {
+
+      if (
+        response?.data?.ProductImages &&
+        response.data.ProductImages.length > 0
+      ) {
         // Map API response to our internal structure
-        const mappedImages = response.data.ProductImages.map(mapApiImageToProductImage);
-        
+        const mappedImages = response.data.ProductImages.map(
+          mapApiImageToProductImage
+        );
+
         // Check if there's an existing primary image
-        const hasExistingPrimary = mappedImages.some(img => img.is_primary);
-        
+        const hasExistingPrimary = mappedImages.some((img) => img.is_primary);
+
         // If no primary image exists, set the first one as primary
         const updatedImages = mappedImages.map((img, index) => ({
           ...img,
-          is_primary: hasExistingPrimary ? img.is_primary : index === 0
+          is_primary: hasExistingPrimary ? img.is_primary : index === 0,
         }));
-        
+
         setUploadedImages(updatedImages);
-        
+
         // If we auto-selected the first image as primary, update it on the server
         if (!hasExistingPrimary && updatedImages.length > 0) {
           try {
@@ -110,7 +115,7 @@ function ProductImagesTab() {
             console.error("Error setting default primary image:", error);
           }
         }
-        
+
         // Update the form data with the images information
         updateFormData({
           productId: Number(productId),
@@ -119,12 +124,12 @@ function ProductImagesTab() {
       } else {
         setUploadedImages([]);
       }
-      
+
       // Mark fetch as completed
       fetchedRef.current = true;
     } catch (error) {
       console.error("Error fetching product data:", error);
-      showSnackbar("Failed to load product data", "error");
+      // showSnackbar("Failed to load product data", "error");
     } finally {
       setIsLoading(false);
     }
@@ -135,15 +140,18 @@ function ProductImagesTab() {
     fetchProductData();
   }, [productId]); // Only depend on productId, not fetchProductData
 
-  const onDrop = useCallback((acceptedFiles: File[]) => {
-    setFiles((prev) => {
-      const newFiles = acceptedFiles.map((file) => ({
-        file,
-        is_primary: prev.length === 0 && uploadedImages.length === 0, // First image is primary only if no other images exist
-      }));
-      return [...prev, ...newFiles];
-    });
-  }, [uploadedImages.length]);
+  const onDrop = useCallback(
+    (acceptedFiles: File[]) => {
+      setFiles((prev) => {
+        const newFiles = acceptedFiles.map((file) => ({
+          file,
+          is_primary: prev.length === 0 && uploadedImages.length === 0, // First image is primary only if no other images exist
+        }));
+        return [...prev, ...newFiles];
+      });
+    },
+    [uploadedImages.length]
+  );
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
@@ -164,7 +172,7 @@ function ProductImagesTab() {
         nextStep();
         return;
       }
-      
+
       showSnackbar("Please select at least one image", "error");
       return;
     }
@@ -172,14 +180,14 @@ function ProductImagesTab() {
     setIsUploading(true);
     try {
       console.log("Uploading images for product ID:", productId);
-      
+
       // Extract just the files for upload
       const filesToUpload = files.map((f) => f.file);
       const response = await uploadProductImages(
         Number(productId),
-        filesToUpload,
+        filesToUpload
       );
-      
+
       console.log("Upload response:", response);
       showSnackbar("Images uploaded successfully", "success");
 
@@ -187,7 +195,7 @@ function ProductImagesTab() {
       if (response?.data?.images) {
         // Find the primary image from the new files
         const primaryFile = files.find((f) => f.is_primary);
-        
+
         // If there's a primary file among the new uploads, find its corresponding uploaded image
         let primaryImageId = null;
         if (primaryFile) {
@@ -195,13 +203,16 @@ function ProductImagesTab() {
             img.url.includes(primaryFile.file.name)
           );
           primaryImageId = primaryImage?.id;
-        } else if (uploadedImages.length === 0 && response.data.images.length > 0) {
+        } else if (
+          uploadedImages.length === 0 &&
+          response.data.images.length > 0
+        ) {
           // If no existing images and no primary selected, make the first uploaded one primary
           primaryImageId = response.data.images[0].id;
         }
 
         // If we need to set a primary image
-        if (primaryImageId && !uploadedImages.some(img => img.is_primary)) {
+        if (primaryImageId && !uploadedImages.some((img) => img.is_primary)) {
           try {
             await updatePrimaryImage(Number(productId), primaryImageId);
             console.log("Primary image set to:", primaryImageId);
@@ -212,7 +223,7 @@ function ProductImagesTab() {
 
         // Reset fetch status to allow re-fetching after upload
         fetchedRef.current = false;
-        
+
         // After uploading, refresh product data to get the latest images
         await fetchProductData();
       }
@@ -254,7 +265,7 @@ function ProductImagesTab() {
       prev.map((file, i) => ({
         ...file,
         is_primary: i === index,
-      })),
+      }))
     );
   };
 
@@ -277,23 +288,25 @@ function ProductImagesTab() {
 
       // Call API to update primary image
       await updatePrimaryImage(Number(productId), imageId);
-      
+
       // Update form context with the updated images
       updateFormData({
         productImages: updatedImages,
       });
-      
+
       showSnackbar("Primary image updated successfully", "success");
     } catch (error) {
       console.error("Error updating primary image:", error);
 
       // Revert the local state if the API call fails
-      const originalPrimaryImage = uploadedImages.find(img => img.is_primary);
+      const originalPrimaryImage = uploadedImages.find((img) => img.is_primary);
       setUploadedImages((prev) =>
         prev.map((img) => ({
           ...img,
-          is_primary: originalPrimaryImage ? img.id === originalPrimaryImage.id : false,
-        })),
+          is_primary: originalPrimaryImage
+            ? img.id === originalPrimaryImage.id
+            : false,
+        }))
       );
 
       showSnackbar("Failed to update primary image", "error");
@@ -320,9 +333,9 @@ function ProductImagesTab() {
       // After successful API call, update both UI and form context
       const updatedImages = uploadedImages.filter((img) => img.id !== imageId);
       setUploadedImages(updatedImages);
-      updateFormData({ 
+      updateFormData({
         productImages: updatedImages,
-        hasErrors: false 
+        hasErrors: false,
       });
 
       // Show success message
@@ -330,8 +343,8 @@ function ProductImagesTab() {
     } catch (error) {
       console.error("Error deleting image:", error);
       showSnackbar("Failed to delete image", "error");
-      updateFormData({ 
-        hasErrors: true 
+      updateFormData({
+        hasErrors: true,
       });
     }
   };
@@ -377,7 +390,9 @@ function ProductImagesTab() {
           <Paper
             {...getRootProps()}
             className={`p-8 border-2 border-dashed ${
-              isDragActive ? "border-primary-500 bg-primary-50" : "border-gray-300"
+              isDragActive
+                ? "border-primary-500 bg-primary-50"
+                : "border-gray-300"
             } cursor-pointer text-center`}
           >
             <input {...getInputProps()} />
@@ -399,10 +414,7 @@ function ProductImagesTab() {
               </Typography>
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
                 {uploadedImages.map((image) => (
-                  <div
-                    key={`uploaded-${image.id}`}
-                    className="relative group"
-                  >
+                  <div key={`uploaded-${image.id}`} className="relative group">
                     <ImageWithFallback
                       src={image.url}
                       alt={`Product image ${image.id}`}
@@ -483,7 +495,13 @@ function ProductImagesTab() {
               disabled={isUploading}
             />
             <AppButton
-              label={isUploading ? "Uploading..." : files.length > 0 ? "Upload & Next" : "Next"}
+              label={
+                isUploading
+                  ? "Uploading..."
+                  : files.length > 0
+                  ? "Upload & Next"
+                  : "Next"
+              }
               onClick={handleUpload}
               loading={isUploading}
               disabled={isUploading}

@@ -19,6 +19,7 @@ import {
   DialogContent,
   DialogContentText,
   DialogTitle,
+  InputAdornment,
 } from "@mui/material";
 import AppButton from "@/components/Shared/AppButton";
 import FormCheckboxField from "@/components/Shared/FormCheckboxField";
@@ -69,7 +70,7 @@ const StyledTextField = styled(TextField)(({ theme }) => ({
     display: "none",
   },
   // Ensure fullWidth is applied by default
-  width: "100%"
+  width: "100%",
 }));
 
 type Variant = NonNullable<ProductFormData["variants"]>[number] & {
@@ -190,8 +191,7 @@ const schema = z.object({
               },
               { message: "Discount price can have at most 2 decimal places" }
             ),
-                  z.null().refine(() => false, "Discount price is required"),
-
+          z.null().refine(() => false, "Discount price is required"),
         ])
       ),
       purchase_price: z.preprocess(
@@ -218,16 +218,14 @@ const schema = z.object({
               },
               { message: "Purchase price can have at most 2 decimal places" }
             ),
-                    z.null().refine(() => false, "Purchase price is required"),
-
+          z.null().refine(() => false, "Purchase price is required"),
         ])
       ),
       low_stock_threshold: z.preprocess((val) => {
         if (val === "" || val === null || val === undefined) return null;
         const parsed = Number(val);
         return isNaN(parsed) ? "NaN" : parsed;
-      }, z.union([z.literal("NaN").refine(() => false, "Please enter a valid number for low stock threshold"), z.number().int("Low stock threshold must be a whole number").min(0, "Low stock threshold must be a non-negative number"),z.null().refine(() => false, "Low stock threshold is required"),
-])),
+      }, z.union([z.literal("NaN").refine(() => false, "Please enter a valid number for low stock threshold"), z.number().int("Low stock threshold must be a whole number").min(0, "Low stock threshold must be a non-negative number"), z.null().refine(() => false, "Low stock threshold is required")])),
       weight: z.preprocess((val) => {
         if (val === "" || val === null || val === undefined) return null;
         const parsed = Number(val);
@@ -270,28 +268,46 @@ interface VariantImage {
 }
 
 // For section headings, create a custom component to add red asterisks
-const SectionHeading = ({ children, required = false }: { children: React.ReactNode, required?: boolean }) => (
+const SectionHeading = ({
+  children,
+  required = false,
+}: {
+  children: React.ReactNode;
+  required?: boolean;
+}) => (
   <Grid item xs={12}>
     <Box sx={{ borderBottom: "1px dashed #eee", mb: 2, pb: 1 }}>
-      <Typography variant="caption" color="text.secondary" sx={{ display: 'flex', alignItems: 'center' }}>
+      <Typography
+        variant="caption"
+        color="text.secondary"
+        sx={{ display: "flex", alignItems: "center" }}
+      >
         {children}
-        {required && <span style={{ color: 'red', marginLeft: '3px' }}>*</span>}
+        {required && <span style={{ color: "red", marginLeft: "3px" }}>*</span>}
       </Typography>
     </Box>
   </Grid>
 );
 
 // For field labels with double asterisks (required critical fields)
-const RequiredDoubleAsterisk = ({ children }: { children: React.ReactNode }) => (
-  <div style={{ display: 'flex', alignItems: 'center' }}>
-    {children} <span style={{ color: 'red', marginLeft: '3px' }}>*</span>
+const RequiredDoubleAsterisk = ({
+  children,
+}: {
+  children: React.ReactNode;
+}) => (
+  <div style={{ display: "flex", alignItems: "center" }}>
+    {children} <span style={{ color: "red", marginLeft: "3px" }}>*</span>
   </div>
 );
 
 // For field labels with single asterisk (required fields)
-const RequiredSingleAsterisk = ({ children }: { children: React.ReactNode }) => (
-  <div style={{ display: 'flex', alignItems: 'center' }}>
-    {children} <span style={{ color: 'red', marginLeft: '3px' }}>*</span>
+const RequiredSingleAsterisk = ({
+  children,
+}: {
+  children: React.ReactNode;
+}) => (
+  <div style={{ display: "flex", alignItems: "center" }}>
+    {children} <span style={{ color: "red", marginLeft: "3px" }}>*</span>
   </div>
 );
 
@@ -891,7 +907,7 @@ function VariantTab() {
         }
       } catch (error) {
         console.error("Error fetching product data:", error);
-        showSnackbar("Failed to load product variants", "error");
+        // showSnackbar("Failed to load product variants", "error");
       } finally {
         setIsLoading(false);
       }
@@ -1518,6 +1534,8 @@ function VariantTab() {
       console.error("Error saving variants:", error);
       if (error?.errors) {
         showSnackbar(error?.errors[0]?.msg, "error");
+      } else if (error?.error) {
+        showSnackbar(error?.error[0]?.message, "error");
       } else {
         const errorMessage = error?.message || "An unexpected error occurred";
         showSnackbar(errorMessage, "error");
@@ -2433,12 +2451,12 @@ function VariantTab() {
                       left: "10px",
                       backgroundColor: "white",
                       px: 1,
-                      display: 'flex',
-                      alignItems: 'center',
+                      display: "flex",
+                      alignItems: "center",
                     }}
                   >
                     Variant Attributes
-                    <span style={{ color: 'red', marginLeft: '3px' }}>*</span>
+                    <span style={{ color: "red", marginLeft: "3px" }}>*</span>
                   </Typography>
                 </Box>
               </Grid>
@@ -2459,14 +2477,20 @@ function VariantTab() {
                   type="number"
                   required
                   inputProps={{
-    step: "1",
-    min: "0",
-    onKeyDown: (e) => {
-      if (!/[0-9]/.test(e.key) && e.key !== "Backspace" && e.key !== "Delete" && e.key !== "ArrowLeft" && e.key !== "ArrowRight") {
-        e.preventDefault();
-      }
-    }
-  }}
+                    step: "1",
+                    min: "0",
+                    onKeyDown: (e) => {
+                      if (
+                        !/[0-9]/.test(e.key) &&
+                        e.key !== "Backspace" &&
+                        e.key !== "Delete" &&
+                        e.key !== "ArrowLeft" &&
+                        e.key !== "ArrowRight"
+                      ) {
+                        e.preventDefault();
+                      }
+                    },
+                  }}
                 />
               </Grid>
               <Grid item xs={12} sm={6}>
@@ -2476,14 +2500,22 @@ function VariantTab() {
                   label="Discount Price"
                   type="number"
                   required
-              inputProps={{
+                  inputProps={{
                     step: "1",
                     min: "0",
                     onKeyDown: (e) => {
-                      if (!/[0-9]/.test(e.key) && e.key !== "Backspace" && e.key !== "Delete" && e.key !== "ArrowLeft" && e.key !== "ArrowRight") {
+                      // Allow digits, Backspace, Delete, Arrow keys, and Tab
+                      if (
+                        /[a-zA-Z]/.test(e.key) && // Restrict letters
+                        e.key !== "Backspace" &&
+                        e.key !== "Delete" &&
+                        e.key !== "ArrowLeft" &&
+                        e.key !== "ArrowRight" &&
+                        e.key !== "Tab"
+                      ) {
                         e.preventDefault();
                       }
-                    }
+                    },
                   }}
                 />
               </Grid>
@@ -2498,10 +2530,18 @@ function VariantTab() {
                     step: "1",
                     min: "0",
                     onKeyDown: (e) => {
-                      if (!/[0-9]/.test(e.key) && e.key !== "Backspace" && e.key !== "Delete" && e.key !== "ArrowLeft" && e.key !== "ArrowRight") {
+                      // Allow digits, Backspace, Delete, Arrow keys, and Tab
+                      if (
+                        /[a-zA-Z]/.test(e.key) && // Restrict letters
+                        e.key !== "Backspace" &&
+                        e.key !== "Delete" &&
+                        e.key !== "ArrowLeft" &&
+                        e.key !== "ArrowRight" &&
+                        e.key !== "Tab"
+                      ) {
                         e.preventDefault();
                       }
-                    }
+                    },
                   }}
                 />
               </Grid>
@@ -2512,14 +2552,27 @@ function VariantTab() {
                   label="Stock"
                   type="number"
                   required
-                inputProps={{
+                  inputProps={{
                     step: "1",
                     min: "0",
                     onKeyDown: (e) => {
-                      if (!/[0-9]/.test(e.key) && e.key !== "Backspace" && e.key !== "Delete" && e.key !== "ArrowLeft" && e.key !== "ArrowRight") {
+                      // Allow only digits, Backspace, Delete, Arrow keys, and Tab
+                      if (
+                        !/[0-9]/.test(e.key) && // Restrict letters
+                        e.key !== "Backspace" &&
+                        e.key !== "Delete" &&
+                        e.key !== "ArrowLeft" &&
+                        e.key !== "ArrowRight" &&
+                        e.key !== "Tab"
+                      ) {
                         e.preventDefault();
                       }
-                    }
+
+                      // Restrict decimal point
+                      if (e.key === "." || e.key === ",") {
+                        e.preventDefault();
+                      }
+                    },
                   }}
                 />
               </Grid>
@@ -2534,10 +2587,23 @@ function VariantTab() {
                     step: "1",
                     min: "0",
                     onKeyDown: (e) => {
-                      if (!/[0-9]/.test(e.key) && e.key !== "Backspace" && e.key !== "Delete" && e.key !== "ArrowLeft" && e.key !== "ArrowRight") {
+                      // Allow only digits, Backspace, Delete, Arrow keys, and Tab
+                      if (
+                        !/[0-9]/.test(e.key) && // Restrict letters
+                        e.key !== "Backspace" &&
+                        e.key !== "Delete" &&
+                        e.key !== "ArrowLeft" &&
+                        e.key !== "ArrowRight" &&
+                        e.key !== "Tab"
+                      ) {
                         e.preventDefault();
-                      } 
-                    }
+                      }
+
+                      // Restrict decimal point
+                      if (e.key === "." || e.key === ",") {
+                        e.preventDefault();
+                      }
+                    },
                   }}
                 />
               </Grid>
@@ -2557,14 +2623,25 @@ function VariantTab() {
                       label="Weight"
                       type="number"
                       inputProps={{
-                      step: "1",
-                      min: "0",
-                      onKeyDown: (e) => {
-                        if (!/[0-9]/.test(e.key) && e.key !== "Backspace" && e.key !== "Delete" && e.key !== "ArrowLeft" && e.key !== "ArrowRight") {
-                          e.preventDefault();
-                        }
-                      }
-                    }}
+                        step: "1",
+                        min: "0",
+                        onKeyDown: (e) => {
+                          // Allow digits, Backspace, Delete, Arrow keys, and Tab
+                          if (
+                            /[a-zA-Z]/.test(e.key) && // Restrict letters
+                            e.key !== "Backspace" &&
+                            e.key !== "Delete" &&
+                            e.key !== "ArrowLeft" &&
+                            e.key !== "ArrowRight" &&
+                            e.key !== "Tab"
+                          ) {
+                            e.preventDefault();
+                          }
+                        },
+                        endAdornment: (
+                          <InputAdornment position="end">kg</InputAdornment>
+                        ), // Move inside inputProps
+                      }}
                     />
                   </Grid>
                   <Grid item xs={6} sm={3}>
@@ -2574,14 +2651,25 @@ function VariantTab() {
                       label="Length"
                       type="number"
                       inputProps={{
-                      step: "1",
-                      min: "0",
-                      onKeyDown: (e) => {
-                        if (!/[0-9]/.test(e.key) && e.key !== "Backspace" && e.key !== "Delete" && e.key !== "ArrowLeft" && e.key !== "ArrowRight") {
-                          e.preventDefault();
-                        }
-                      }
-                    }}
+                        step: "1",
+                        min: "0",
+                        onKeyDown: (e) => {
+                          // Allow digits, Backspace, Delete, Arrow keys, and Tab
+                          if (
+                            /[a-zA-Z]/.test(e.key) && // Restrict letters
+                            e.key !== "Backspace" &&
+                            e.key !== "Delete" &&
+                            e.key !== "ArrowLeft" &&
+                            e.key !== "ArrowRight" &&
+                            e.key !== "Tab"
+                          ) {
+                            e.preventDefault();
+                          }
+                        },
+                        endAdornment: (
+                          <InputAdornment position="end">cm</InputAdornment>
+                        ), // Move inside inputProps
+                      }}
                     />
                   </Grid>
                   <Grid item xs={6} sm={3}>
@@ -2594,10 +2682,21 @@ function VariantTab() {
                         step: "1",
                         min: "0",
                         onKeyDown: (e) => {
-                          if (!/[0-9]/.test(e.key) && e.key !== "Backspace" && e.key !== "Delete" && e.key !== "ArrowLeft" && e.key !== "ArrowRight") {
+                          // Allow digits, Backspace, Delete, Arrow keys, and Tab
+                          if (
+                            /[a-zA-Z]/.test(e.key) && // Restrict letters
+                            e.key !== "Backspace" &&
+                            e.key !== "Delete" &&
+                            e.key !== "ArrowLeft" &&
+                            e.key !== "ArrowRight" &&
+                            e.key !== "Tab"
+                          ) {
                             e.preventDefault();
                           }
-                        }
+                        },
+                        endAdornment: (
+                          <InputAdornment position="end">cm</InputAdornment>
+                        ), // Move inside inputProps
                       }}
                     />
                   </Grid>
@@ -2611,10 +2710,21 @@ function VariantTab() {
                         step: "1",
                         min: "0",
                         onKeyDown: (e) => {
-                          if (!/[0-9]/.test(e.key) && e.key !== "Backspace" && e.key !== "Delete" && e.key !== "ArrowLeft" && e.key !== "ArrowRight") {
+                          // Allow digits, Backspace, Delete, Arrow keys, and Tab
+                          if (
+                            /[a-zA-Z]/.test(e.key) && // Restrict letters
+                            e.key !== "Backspace" &&
+                            e.key !== "Delete" &&
+                            e.key !== "ArrowLeft" &&
+                            e.key !== "ArrowRight" &&
+                            e.key !== "Tab"
+                          ) {
                             e.preventDefault();
                           }
-                        }
+                        },
+                        endAdornment: (
+                          <InputAdornment position="end">cm</InputAdornment>
+                        ), // Move inside inputProps
                       }}
                     />
                   </Grid>
