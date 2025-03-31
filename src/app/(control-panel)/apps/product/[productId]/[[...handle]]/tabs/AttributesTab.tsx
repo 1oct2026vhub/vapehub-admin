@@ -65,7 +65,11 @@ interface FormProductAttribute {
 const attributeSchema = z.object({
   attributes: z.array(
     z.object({
-      attribute_id: z.number().min(1, "Attribute is required"),
+      attribute_id: z
+        .union([z.number().min(1, "Attribute is required"), z.null()])
+        .refine((val) => val !== null && val > 0, {
+          message: "Attribute is required",
+        }),
       term_ids: z.array(z.number()).min(1, "At least one term is required"),
       is_visible_page: z.boolean(),
       used_in_variation: z.boolean(),
@@ -134,7 +138,7 @@ function AttributesTab() {
           ? formData.attributes
           : [
               {
-                attribute_id: null,
+                attribute_id: null as any,
                 term_ids: [],
                 is_visible_page: true,
                 used_in_variation: false,
@@ -601,104 +605,154 @@ function AttributesTab() {
         {fields.map((field, index) => (
           <Paper key={field.id} className="p-4 relative">
             <div className="grid grid-cols-2 gap-4">
-              <FormControl sx={{ minWidth: 180 }} size="small">
-                <Controller
-                  name={`attributes.${index}.attribute_id`}
-                  control={control}
-                  rules={{ required: "Please select an attribute" }}
-                  render={({
-                    field: { onChange, value },
-                    fieldState: { error },
-                  }) => (
-                    <Autocomplete
-                      options={getAvailableAttributes(index)}
-                      getOptionLabel={(option) => option.label}
-                      value={
-                        attributes?.data?.attributes?.find(
-                          (attr) => attr.id === value
-                        )
-                          ? {
-                              value,
-                              label: attributes.data.attributes.find(
-                                (attr) => attr.id === value
-                              ).name,
+              <div className="h-16">
+                {" "}
+                {/* Fixed height wrapper (h-14 = 56px in Tailwind) */}
+                <FormControl
+                  sx={{ minWidth: 180, width: "100%" }}
+                  size="small"
+                  error={!!errors?.attributes?.[index]?.attribute_id}
+                >
+                  <Controller
+                    name={`attributes.${index}.attribute_id`}
+                    control={control}
+                    rules={{ required: "Attribute is required" }}
+                    render={({
+                      field: { onChange, value },
+                      fieldState: { error },
+                    }) => (
+                      <Autocomplete
+                        options={getAvailableAttributes(index)}
+                        getOptionLabel={(option) => option.label}
+                        value={
+                          attributes?.data?.attributes?.find(
+                            (attr) => attr.id === value
+                          )
+                            ? {
+                                value,
+                                label: attributes.data.attributes.find(
+                                  (attr) => attr.id === value
+                                ).name,
+                              }
+                            : null
+                        }
+                        onChange={(event, newValue) => {
+                          onChange(newValue ? newValue.value : null);
+                          handleAttributeChange(
+                            index,
+                            newValue ? Number(newValue.value) : null
+                          );
+                        }}
+                        renderInput={(params) => (
+                          <TextField
+                            {...params}
+                            label="Attribute"
+                            variant="outlined"
+                            size="small"
+                            error={!!errors?.attributes?.[index]?.attribute_id}
+                            required
+                            helperText={
+                              errors?.attributes?.[index]?.attribute_id?.message
                             }
-                          : null
-                      }
-                      onChange={(event, newValue) => {
-                        onChange(newValue ? newValue.value : null);
-                        handleAttributeChange(
-                          index,
-                          newValue ? Number(newValue.value) : null
-                        );
-                      }}
-                      renderInput={(params) => (
-                        <TextField
-                          {...params}
-                          label="Attribute"
-                          variant="outlined"
-                          size="small"
-                          error={!!error}
-                          required
-                          helperText={error?.message}
-                          sx={{
-                            "& .MuiOutlinedInput-root": {
-                              "& fieldset": {
-                                borderImage:
-                                  "linear-gradient(to right, #2E9970, #005434) 1",
+                            FormHelperTextProps={{
+                              sx: {
+                                color: errors?.attributes?.[index]?.attribute_id
+                                  ? "#d32f2f"
+                                  : "inherit",
+                                marginLeft: 0,
+                                position: "absolute",
+                                bottom: -20,
                               },
-                              "&:hover fieldset": {
-                                borderImage:
-                                  "linear-gradient(to right, #247C5C, #003F29) 1",
+                            }}
+                            sx={{
+                              "& .MuiOutlinedInput-root": {
+                                "& fieldset": {
+                                  borderImage: errors?.attributes?.[index]
+                                    ?.attribute_id
+                                    ? "none"
+                                    : "linear-gradient(to right, #2E9970, #005434) 1",
+                                  borderColor: errors?.attributes?.[index]
+                                    ?.attribute_id
+                                    ? "#d32f2f"
+                                    : undefined,
+                                },
+                                "&:hover fieldset": {
+                                  borderImage: errors?.attributes?.[index]
+                                    ?.attribute_id
+                                    ? "none"
+                                    : "linear-gradient(to right, #247C5C, #003F29) 1",
+                                  borderColor: errors?.attributes?.[index]
+                                    ?.attribute_id
+                                    ? "#d32f2f"
+                                    : undefined,
+                                },
+                                "&.Mui-focused fieldset": {
+                                  borderImage: errors?.attributes?.[index]
+                                    ?.attribute_id
+                                    ? "none"
+                                    : "linear-gradient(to right, #1E7A56, #004C30) 1",
+                                  borderColor: errors?.attributes?.[index]
+                                    ?.attribute_id
+                                    ? "#d32f2f"
+                                    : undefined,
+                                },
                               },
-                              "&.Mui-focused fieldset": {
-                                borderImage:
-                                  "linear-gradient(to right, #1E7A56, #004C30) 1",
+                              "& .MuiInputLabel-root": {
+                                color: errors?.attributes?.[index]?.attribute_id
+                                  ? "#d32f2f"
+                                  : "#2E9970",
                               },
+                              "& .MuiInputLabel-root.Mui-focused": {
+                                color: errors?.attributes?.[index]?.attribute_id
+                                  ? "#d32f2f"
+                                  : "#2E9970",
+                              },
+                              "& .MuiFormLabel-asterisk": {
+                                color: "red",
+                              },
+                            }}
+                          />
+                        )}
+                        size="small"
+                        sx={{
+                          "& .MuiOutlinedInput-root": {
+                            "&.Mui-focused fieldset": {
+                              borderColor: errors?.attributes?.[index]
+                                ?.attribute_id
+                                ? "#d32f2f"
+                                : "#2E9970",
+                              borderWidth: "2px",
                             },
-                            "& .MuiInputLabel-root": {
-                              color: "#2E9970", // Label color before focus
-                            },
-                            "& .MuiInputLabel-root.Mui-focused": {
-                              color: "#2E9970", // Label color on focus
-                            },
-                            "& .MuiFormLabel-asterisk": {
-                              color: "red",
-                            },
-                            marginBottom: "20px",
-                          }}
-                        />
-                      )}
-                      size="small"
-                      sx={{
-                        "& .MuiOutlinedInput-root": {
-                          "&.Mui-focused fieldset": {
-                            borderColor: "#2E9970",
-                            borderWidth: "2px",
                           },
-                        },
-                        "& .MuiInputLabel-root.Mui-focused": {
-                          color: "#2E9970",
-                        },
-                      }}
-                    />
-                  )}
-                />
-              </FormControl>
+                          "& .MuiInputLabel-root.Mui-focused": {
+                            color: errors?.attributes?.[index]?.attribute_id
+                              ? "#d32f2f"
+                              : "#2E9970",
+                          },
+                        }}
+                      />
+                    )}
+                  />
+                </FormControl>
+              </div>
 
-              <FormSelectField
-                name={`attributes.${index}.term_ids`}
-                control={control}
-                label="Terms"
-                options={getUniqueTermOptions(
-                  formData.attributesResponse?.productAttributeTerms || [],
-                  terms?.[index]?.data?.terms || [],
-                  field.attribute_id
-                )}
-                required
-                isMulti
-                onTermRemove={(termId) => handleTermRemove(index, termId)}
-              />
+              <div className="h-14">
+                {" "}
+                {/* Fixed height wrapper (h-14 = 56px in Tailwind) */}
+                <FormSelectField
+                  name={`attributes.${index}.term_ids`}
+                  control={control}
+                  label="Terms"
+                  options={getUniqueTermOptions(
+                    formData.attributesResponse?.productAttributeTerms || [],
+                    terms?.[index]?.data?.terms || [],
+                    field.attribute_id
+                  )}
+                  required
+                  isMulti
+                  onTermRemove={(termId) => handleTermRemove(index, termId)}
+                />
+              </div>
 
               <FormCheckboxField
                 name={`attributes.${index}.is_visible_page`}
@@ -747,7 +801,7 @@ function AttributesTab() {
             variant="outlined"
             onClick={() =>
               append({
-                attribute_id: null,
+                attribute_id: null as any,
                 term_ids: [],
                 is_visible_page: true,
                 used_in_variation: false,
