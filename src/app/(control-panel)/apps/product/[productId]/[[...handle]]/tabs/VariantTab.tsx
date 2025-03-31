@@ -249,10 +249,12 @@ const schema = z.object({
       }, z.union([z.literal("NaN").refine(() => false, "Please enter a valid number for height"), z.number().min(0, "Height must be a non-negative number"), z.null()])),
       barcode: z
         .string()
-        .min(1, "Barcode is required")
+        // .min(1, "Barcode is required")
         .max(50, "Barcode cannot exceed 50 characters")
+        // .nullable()
+        // .transform((val) => (val === null ? "" : val))
         .nullable()
-        .transform((val) => (val === null ? "" : val)),
+        .optional(),
       description: z.string().nullable().optional(),
       attributes: z
         .array(
@@ -316,6 +318,20 @@ const RequiredSingleAsterisk = ({
     {children} <span style={{ color: "red", marginLeft: "3px" }}>*</span>
   </div>
 );
+
+// Add ValidationMessage component after styled TextField
+const ValidationMessage = ({ error }: { error?: string }) => {
+  if (!error) return null;
+  return (
+    <Typography
+      variant="caption"
+      color="error"
+      sx={{ pl: 1, display: "block", mt: 0.5 }}
+    >
+      {error}
+    </Typography>
+  );
+};
 
 function VariantTab() {
   const router = useRouter();
@@ -480,7 +496,7 @@ function VariantTab() {
   });
 
   // Watch all variants to track used terms
-  const variants = watch("variants") || [];
+  const formVariants = watch("variants") || [];
 
   // Helper functions to display attribute and term names
   const getTermName = (attributeId, termId) => {
@@ -656,7 +672,7 @@ function VariantTab() {
   // Check if all possible combinations are used
   const areAllCombinationsUsed = useCallback(() => {
     const allCombinations = generateAllAttributeCombinations();
-    const currentVariants = watch("variants") || [];
+    const currentVariants = formVariants;
 
     // If there are no possible combinations, consider all used
     if (allCombinations.length === 0) return true;
@@ -669,7 +685,7 @@ function VariantTab() {
       `${unusedCombinations.length} unused combinations out of ${allCombinations.length} total`
     );
     return unusedCombinations.length === 0;
-  }, [generateAllAttributeCombinations, isCombinationUsed, watch]);
+  }, [generateAllAttributeCombinations, isCombinationUsed, formVariants]);
 
   // Function to check if all required combinations have been added
   const areAllRequiredCombinationsAdded = useCallback(() => {
@@ -706,7 +722,7 @@ function VariantTab() {
   // Update the handleAddVariant function
   const handleAddVariant = () => {
     const allCombinations = generateAllAttributeCombinations();
-    const currentVariants = watch("variants") || [];
+    const currentVariants = formVariants;
 
     // No possible combinations
     if (!allCombinations || allCombinations.length === 0) {
@@ -847,11 +863,7 @@ function VariantTab() {
                     term_id: Number(varAttr.term_id),
                   }))
                 : [],
-              images: Array.isArray(variant.images)
-                ? variant.images
-                : Array.isArray(variant.variantImages)
-                ? variant.variantImages
-                : [],
+              images: variant.variantImages || [], // Store the variant images directly
             })
           );
 
@@ -869,81 +881,29 @@ function VariantTab() {
           // Reset form with fetched variants
           reset({ variants: fetchedVariants });
 
-          // Initialize variant images
+          // Initialize variant images state
           const newVariantImages: Record<string | number, any[]> = {};
           fetchedVariants.forEach((variant) => {
             if (variant.id) {
-              const variantId = variant.id.toString();
-
-              // Try to extract images from possible locations
-              let images = [];
-
-              if (Array.isArray(variant.images)) {
-                images = variant.images;
-              } else if (
-                variant.variantImages &&
-                Array.isArray(variant.variantImages)
-              ) {
-                images = variant.variantImages;
-              } else if (
-                variant.variant_images &&
-                Array.isArray(variant.variant_images)
-              ) {
-                images = variant.variant_images;
-              }
-
-              // Ensure all images have an id and URL properties
-              const processedImages = images.map((img) => ({
-                ...img,
-                id: img.id || img.image_id,
-                url: img.url || img.image_url,
+              // Get images directly from the variant's variantImages array
+              const images = variant.images.map((img: any) => ({
+                id: img.id,
+                image_url: img.image_url,
+                is_primary: img.is_primary,
               }));
 
-              if (processedImages.length > 0) {
-                // Update the UI state immediately
-                setVariantImages((prev) => {
-                  const updated = { ...prev };
-                  if (updated[variantId]) {
-                    // Make sure we don't add duplicate images by checking IDs
-                    const existingIds = new Set(
-                      updated[variantId].map((img) => img.id)
-                    );
-                    const uniqueNewImages = processedImages.filter(
-                      (img) => !existingIds.has(img.id)
-                    );
-
-                    console.log(
-                      `Adding ${
-                        uniqueNewImages.length
-                      } unique images (filtered out ${
-                        processedImages.length - uniqueNewImages.length
-                      } duplicates)`
-                    );
-
-                    updated[variantId] = [
-                      ...updated[variantId],
-                      ...uniqueNewImages,
-                    ];
-                  } else {
-                    updated[variantId] = processedImages;
-                  }
-                  return updated;
-                });
-
-                showSnackbar(
-                  `Successfully uploaded ${processedImages.length} images`,
-                  "success"
-                );
-              } else {
-                showSnackbar("Failed to process uploaded images", "error");
+              if (images.length > 0) {
+                newVariantImages[variant.id] = images;
               }
             }
           });
+
+          // Update the variant images state
           setVariantImages(newVariantImages);
         }
       } catch (error) {
         console.error("Error fetching product data:", error);
-        // showSnackbar("Failed to load product variants", "error");
+        //showSnackbar("Failed to load product variants", "error");
       } finally {
         setIsLoading(false);
       }
@@ -956,7 +916,7 @@ function VariantTab() {
     attributeId: number,
     variantIndex: number
   ) => {
-    const currentVariant = variants[variantIndex];
+    const currentVariant = formVariants[variantIndex];
     const currentTermId = currentVariant?.attributes?.find(
       (attr) => attr.attribute_id === attributeId
     )?.term_id;
@@ -972,7 +932,7 @@ function VariantTab() {
       }
 
       // Check if this term is used in any other variant
-      const isUsedInOtherVariant = variants.some(
+      const isUsedInOtherVariant = formVariants.some(
         (variant, idx) =>
           idx !== variantIndex && // Skip current variant
           variant.attributes?.some(
@@ -1065,7 +1025,7 @@ function VariantTab() {
 
   // Update the areAllVariantsValid function
   const areAllVariantsValid = useCallback(() => {
-    const currentVariants = watch("variants");
+    const currentVariants = formVariants;
     if (!currentVariants || currentVariants.length === 0) return false;
 
     const isValid = currentVariants.every((variant, index) => {
@@ -1084,7 +1044,7 @@ function VariantTab() {
     });
 
     return isValid && Object.keys(errors).length === 0;
-  }, [watch, errors]);
+  }, [formVariants, errors]);
 
   // Update the transformVariantData function to ensure correct status type
   const transformVariantData = (
@@ -1367,10 +1327,10 @@ function VariantTab() {
                     return updated;
                   });
 
-                  showSnackbar(
-                    `Successfully uploaded ${uploadedImages.length} images`,
-                    "success"
-                  );
+                  // showSnackbar(
+                  //   `Successfully uploaded ${uploadedImages.length} images`,
+                  //   "success"3
+                  // );
                 }
               } catch (error) {
                 console.error(
@@ -1634,11 +1594,11 @@ function VariantTab() {
   // Track used terms - only update when variants change
   useEffect(() => {
     // Skip this effect during initial render or if variants haven't changed
-    if (!variants || variants.length === 0) return;
+    if (!formVariants || formVariants.length === 0) return;
 
     const newUsedTerms: Record<number, Set<number>> = {};
 
-    variants.forEach((variant) => {
+    formVariants.forEach((variant) => {
       if (Array.isArray(variant.attributes)) {
         variant.attributes.forEach((attr) => {
           if (!newUsedTerms[attr.attribute_id]) {
@@ -1663,7 +1623,7 @@ function VariantTab() {
     ) {
       setUsedTerms(newUsedTerms);
     }
-  }, [variants]);
+  }, [formVariants]);
 
   // Add validation state logging, but without causing side effects
   const loggingRef = useRef({ lastLogTime: 0 });
@@ -1674,7 +1634,7 @@ function VariantTab() {
 
     loggingRef.current.lastLogTime = now;
 
-    const currentVariants = watch("variants");
+    const currentVariants = formVariants;
     const validationState = {
       variantsCount: currentVariants?.length || 0,
       errorsCount: Object.keys(errors).length,
@@ -1691,7 +1651,7 @@ function VariantTab() {
       ),
     };
     console.log("Form validation state:", validationState);
-  }, [watch, errors, isValid, isLoading]);
+  }, [formVariants, errors, isValid, isLoading]);
 
   // Check if there are any unused terms available for any attribute
   const hasUnusedTerms = variationAttributes.some((attr) => {
@@ -1784,7 +1744,7 @@ function VariantTab() {
     const selectedValue = Number(event.target.value);
 
     // Get current variants
-    const currentVariants = [...watch("variants")];
+    const currentVariants = [...formVariants];
     if (!currentVariants[index] || !currentVariants[index].attributes) return;
 
     // Create a copy of the current variant with the new term value
@@ -1933,13 +1893,9 @@ function VariantTab() {
                 }
                 return updated;
               });
-
-              showSnackbar(
-                `Successfully uploaded ${processedImages.length} images`,
-                "success"
-              );
-            } else {
-              showSnackbar("Failed to process uploaded images", "error");
+              if (response) {
+                showSnackbar(response.data?.message, "success");
+              }
             }
           } catch (error) {
             console.error("Error directly uploading images:", error);
@@ -2120,10 +2076,10 @@ function VariantTab() {
         return updatedImages;
       });
 
-      showSnackbar(
-        `Successfully uploaded ${processedImages.length} images`,
-        "success"
-      );
+      // showSnackbar(
+      //   `Successfully uploaded ${processedImages.length} images`,
+      //   "success"
+      // );
       return processedImages;
     } catch (error) {
       console.error("Error uploading images:", error);
@@ -2430,798 +2386,877 @@ function VariantTab() {
     [formData.variants, productId, showSnackbar]
   );
 
+  // Add state for showing validation messages
+  const [showValidationMessages, setShowValidationMessages] = useState(false);
+
+  // Update the handleFinishClick function
+  const handleFinishClick = async () => {
+    setShowValidationMessages(true);
+
+    // Trigger validation for all fields
+    const result = await trigger();
+    const currentFormValues = watch();
+
+    // Check required fields
+    const requiredFields = [
+      "slug",
+      "price",
+      "stock",
+      "purchase_price",
+      "low_stock_threshold",
+    ];
+    let firstErrorField = null;
+    let firstErrorIndex = 0;
+
+    // Check each variant for required fields
+    for (let index = 0; index < currentFormValues.variants.length; index++) {
+      const variant = currentFormValues.variants[index];
+
+      // Check required fields
+      for (const field of requiredFields) {
+        if (!variant[field]) {
+          firstErrorField = field;
+          firstErrorIndex = index;
+          break;
+        }
+      }
+
+      // Check attributes
+      if (!firstErrorField && variant.attributes) {
+        for (
+          let attrIndex = 0;
+          attrIndex < variant.attributes.length;
+          attrIndex++
+        ) {
+          const attr = variant.attributes[attrIndex];
+          if (!attr.term_id || attr.term_id <= 0) {
+            firstErrorField = `attributes.${attrIndex}.term_id`;
+            firstErrorIndex = index;
+            break;
+          }
+        }
+      }
+
+      if (firstErrorField) break;
+    }
+
+    if (firstErrorField) {
+      // Scroll to and focus the first error field
+      const fieldName = `variants.${firstErrorIndex}.${firstErrorField}`;
+      const element = document.querySelector(`[name="${fieldName}"]`);
+      if (element) {
+        element.scrollIntoView({ behavior: "smooth", block: "center" });
+        (element as HTMLElement).focus();
+      }
+      // showSnackbar('Please fill in all required fields', 'error');
+      return;
+    }
+
+    // If not in edit mode, check for combinations
+    if (!isEditMode) {
+      const allCombinations = generateAllAttributeCombinations();
+      if (allCombinations.length > currentFormValues.variants.length) {
+        showSnackbar("Please add all combinations", "warning");
+        return;
+      }
+    }
+
+    // If validation passes, proceed with form submission
+    handleFormSubmit(currentFormValues);
+  };
+
+  // Update FormInputField usage to show validation state
+  const renderFormField = (index: number, field: string, options: any = {}) => {
+    const {
+      label,
+      type = "text",
+      required = false,
+      inputProps = {},
+      ...rest
+    } = options;
+
+    const fieldError =
+      showValidationMessages && errors?.variants?.[index]?.[field];
+    const errorMessage = fieldError?.message;
+
+    return (
+      <FormInputField
+        name={`variants.${index}.${field}`}
+        control={control}
+        label={label}
+        type={type}
+        required={required}
+        className={fieldError ? "error-field" : ""}
+        {...rest}
+        inputProps={{
+          ...inputProps,
+          "aria-label": label,
+        }}
+      />
+    );
+  };
+
+  // Add styles for error states
+  const errorStyles = `
+    .error-field .MuiOutlinedInput-root {
+      & fieldset {
+        border-color: #d32f2f;
+      }
+      &:hover fieldset {
+        border-color: #d32f2f;
+      }
+      &.Mui-focused fieldset {
+        border-color: #d32f2f;
+      }
+    }
+    .error-field .MuiFormLabel-root {
+      color: #d32f2f;
+    }
+    .error-field .MuiFormHelperText-root {
+      color: #d32f2f;
+    }
+  `;
+
   return (
-    <form
-      id="variantForm"
-      ref={formRef}
-      onSubmit={handleSubmit(handleFormSubmit)}
-      className="flex w-full flex-col justify-center space-y-4"
-    >
-      {fields.map((field, index) => {
-        const variantId = watch(`variants.${index}.id`);
-        const variantImages_ = variantId ? variantImages[variantId] || [] : [];
-        const isUploading = variantId ? uploading[variantId] || false : false;
-        // Add temporary images for display
-        const hasPendingImages = !!pendingImages[index]?.length;
-        const pendingImageUrls = tempImageUrls[index] || [];
+    <>
+      <style jsx global>
+        {errorStyles}
+      </style>
+      <form
+        id="variantForm"
+        ref={formRef}
+        onSubmit={handleSubmit(handleFormSubmit)}
+        className="flex w-full flex-col justify-center space-y-4"
+      >
+        {fields.map((field, index) => {
+          const variantId = watch(`variants.${index}.id`);
+          const variantImages_ = variantId
+            ? variantImages[variantId] || []
+            : [];
+          const isUploading = variantId ? uploading[variantId] || false : false;
+          // Add temporary images for display
+          const hasPendingImages = !!pendingImages[index]?.length;
+          const pendingImageUrls = tempImageUrls[index] || [];
 
-        return (
-          <Paper key={field.id} className="p-4 relative">
-            <Grid container spacing={2}>
-              {variationAttributes.map((attr, attrIndex) => (
-                <Grid item xs={12} sm={6} key={attr.attribute_id}>
-                  <FormSelectField
-                    name={`variants.${index}.attributes.${attrIndex}.term_id`}
-                    control={control}
-                    label={getAttributeName(attr.attribute_id)}
-                    options={getAllTermsForAttribute(attr.attribute_id).map(
-                      (term) => ({
-                        value: term.value,
-                        label: term.label,
-                      })
-                    )}
-                    required
-                    onChange={(event: SelectChangeEvent<unknown>) =>
-                      handleTermChange(event, index, attrIndex)
-                    }
-                  />
+          return (
+            <Paper key={field.id} className="p-4 relative">
+              <Grid container spacing={2}>
+                {variationAttributes.map((attr, attrIndex) => (
+                  <Grid item xs={12} sm={6} key={attr.attribute_id}>
+                    <FormSelectField
+                      name={`variants.${index}.attributes.${attrIndex}.term_id`}
+                      control={control}
+                      label={getAttributeName(attr.attribute_id)}
+                      options={getAllTermsForAttribute(attr.attribute_id).map(
+                        (term) => ({
+                          value: term.value,
+                          label: term.label,
+                        })
+                      )}
+                      required
+                      onChange={(event: SelectChangeEvent<unknown>) =>
+                        handleTermChange(event, index, attrIndex)
+                      }
+                    />
 
-                  {/* Set attribute_id as hidden field */}
-                  <input
-                    type="hidden"
-                    {...register(
-                      `variants.${index}.attributes.${attrIndex}.attribute_id`
-                    )}
-                    defaultValue={Number(attr.attribute_id)}
-                  />
-                </Grid>
-              ))}
+                    {/* Set attribute_id as hidden field */}
+                    <input
+                      type="hidden"
+                      {...register(
+                        `variants.${index}.attributes.${attrIndex}.attribute_id`
+                      )}
+                      defaultValue={Number(attr.attribute_id)}
+                    />
+                  </Grid>
+                ))}
 
-              {/* Add visual separator between attributes and product details */}
-              <Grid item xs={12}>
-                <Box
-                  sx={{
-                    borderBottom: "1px solid #e0e0e0",
-                    my: 2,
-                    position: "relative",
-                  }}
-                >
-                  <Typography
-                    variant="subtitle2"
-                    component="span"
+                {/* Add visual separator between attributes and product details */}
+                <Grid item xs={12}>
+                  <Box
                     sx={{
-                      position: "absolute",
-                      top: "-10px",
-                      left: "10px",
-                      backgroundColor: "white",
-                      px: 1,
-                      display: "flex",
-                      alignItems: "center",
+                      borderBottom: "1px solid #e0e0e0",
+                      my: 2,
+                      position: "relative",
                     }}
                   >
-                    Variant Attributes
-                    <span style={{ color: "red", marginLeft: "3px" }}>*</span>
-                  </Typography>
-                </Box>
-              </Grid>
+                    <Typography
+                      variant="subtitle2"
+                      component="span"
+                      sx={{
+                        position: "absolute",
+                        top: "-10px",
+                        left: "10px",
+                        backgroundColor: "white",
+                        px: 1,
+                        display: "flex",
+                        alignItems: "center",
+                      }}
+                    >
+                      Variant Attributes
+                      <span style={{ color: "red", marginLeft: "3px" }}>*</span>
+                    </Typography>
+                  </Box>
+                </Grid>
 
-              <Grid item xs={12} sm={6}>
-                <FormInputField
-                  name={`variants.${index}.slug`}
-                  control={control}
-                  label="Slug"
-                  required
-                />
-                {/* {errors.variants?.[index]?.slug && (
-                  <Typography color="error" variant="caption" sx={{ pl: 1 }}>
-                    {errors.variants[index].slug.message}
-                  </Typography>
-                )} */}
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <FormInputField
-                  name={`variants.${index}.price`}
-                  control={control}
-                  label="Price"
-                  type="number"
-                  required
-                  inputProps={{
-                    step: "1",
-                    min: "0",
-                    onKeyDown: (e) => {
-                      if (
-                        /[a-zA-Z]/.test(e.key) &&
-                        e.key !== "Backspace" &&
-                        e.key !== "Delete" &&
-                        e.key !== "ArrowLeft" &&
-                        e.key !== "ArrowRight" &&
-                        e.key !== "Tab"
-                      ) {
-                        e.preventDefault();
-                      }
-                    },
-                  }}
-                />
-                {/* {errors.variants?.[index]?.price && (
-                  <Typography color="error" variant="caption" sx={{ pl: 1 }}>
-                    {errors.variants[index].price.message}
-                  </Typography>
-                )} */}
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <FormInputField
-                  name={`variants.${index}.discount_price`}
-                  control={control}
-                  label="Discount Price"
-                  type="number"
-                  // required
-                  inputProps={{
-                    step: "1",
-                    min: "0",
-                    onKeyDown: (e) => {
-                      // Allow digits, Backspace, Delete, Arrow keys, and Tab
-                      if (
-                        /[a-zA-Z]/.test(e.key) && // Restrict letters
-                        e.key !== "Backspace" &&
-                        e.key !== "Delete" &&
-                        e.key !== "ArrowLeft" &&
-                        e.key !== "ArrowRight" &&
-                        e.key !== "Tab"
-                      ) {
-                        e.preventDefault();
-                      }
-                    },
-                  }}
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <FormInputField
-                  name={`variants.${index}.purchase_price`}
-                  control={control}
-                  label="Purchase Price"
-                  type="number"
-                  required
-                  inputProps={{
-                    step: "1",
-                    min: "0",
-                    onKeyDown: (e) => {
-                      // Allow digits, Backspace, Delete, Arrow keys, and Tab
-                      if (
-                        /[a-zA-Z]/.test(e.key) && // Restrict letters
-                        e.key !== "Backspace" &&
-                        e.key !== "Delete" &&
-                        e.key !== "ArrowLeft" &&
-                        e.key !== "ArrowRight" &&
-                        e.key !== "Tab"
-                      ) {
-                        e.preventDefault();
-                      }
-                    },
-                  }}
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <FormInputField
-                  name={`variants.${index}.stock`}
-                  control={control}
-                  label="Stock"
-                  type="number"
-                  required
-                  inputProps={{
-                    step: "1",
-                    min: "0",
-                    onKeyDown: (e) => {
-                      if (
-                        !/[0-9]/.test(e.key) &&
-                        e.key !== "Backspace" &&
-                        e.key !== "Delete" &&
-                        e.key !== "ArrowLeft" &&
-                        e.key !== "ArrowRight" &&
-                        e.key !== "Tab"
-                      ) {
-                        e.preventDefault();
-                      }
-                      if (e.key === "." || e.key === ",") {
-                        e.preventDefault();
-                      }
-                    },
-                  }}
-                />
-                {/* {errors.variants?.[index]?.stock && (
-                  <Typography color="error" variant="caption" sx={{ pl: 1 }}>
-                    {errors.variants[index].stock.message}
-                  </Typography>
-                )} */}
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <FormInputField
-                  name={`variants.${index}.low_stock_threshold`}
-                  control={control}
-                  label="Low Stock Threshold"
-                  type="number"
-                  required
-                  inputProps={{
-                    step: "1",
-                    min: "0",
-                    onKeyDown: (e) => {
-                      if (
-                        !/[0-9]/.test(e.key) &&
-                        e.key !== "Backspace" &&
-                        e.key !== "Delete" &&
-                        e.key !== "ArrowLeft" &&
-                        e.key !== "ArrowRight" &&
-                        e.key !== "Tab"
-                      ) {
-                        e.preventDefault();
-                      }
-                      if (e.key === "." || e.key === ",") {
-                        e.preventDefault();
-                      }
-                    },
-                  }}
-                />
-                {/* {errors.variants?.[index]?.low_stock_threshold && (
-                  <Typography color="error" variant="caption" sx={{ pl: 1 }}>
-                    {errors.variants[index].low_stock_threshold.message}
-                  </Typography>
-                )} */}
-              </Grid>
+                <Grid item xs={12} sm={6}>
+                  <FormInputField
+                    name={`variants.${index}.slug`}
+                    control={control}
+                    label="Slug"
+                    required
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <FormInputField
+                    name={`variants.${index}.price`}
+                    control={control}
+                    label="Price"
+                    type="number"
+                    required
+                    inputProps={{
+                      step: "1",
+                      min: "0",
+                      onKeyDown: (e) => {
+                        if (
+                          /[a-zA-Z]/.test(e.key) &&
+                          e.key !== "Backspace" &&
+                          e.key !== "Delete" &&
+                          e.key !== "ArrowLeft" &&
+                          e.key !== "ArrowRight" &&
+                          e.key !== "Tab"
+                        ) {
+                          e.preventDefault();
+                        }
+                      },
+                    }}
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <FormInputField
+                    name={`variants.${index}.discount_price`}
+                    control={control}
+                    label="Discount Price"
+                    type="number"
+                    // required
+                    inputProps={{
+                      step: "1",
+                      min: "0",
+                      onKeyDown: (e) => {
+                        // Allow digits, Backspace, Delete, Arrow keys, and Tab
+                        if (
+                          /[a-zA-Z]/.test(e.key) && // Restrict letters
+                          e.key !== "Backspace" &&
+                          e.key !== "Delete" &&
+                          e.key !== "ArrowLeft" &&
+                          e.key !== "ArrowRight" &&
+                          e.key !== "Tab"
+                        ) {
+                          e.preventDefault();
+                        }
+                      },
+                    }}
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <FormInputField
+                    name={`variants.${index}.purchase_price`}
+                    control={control}
+                    label="Purchase Price"
+                    type="number"
+                    required
+                    inputProps={{
+                      step: "1",
+                      min: "0",
+                      onKeyDown: (e) => {
+                        // Allow digits, Backspace, Delete, Arrow keys, and Tab
+                        if (
+                          /[a-zA-Z]/.test(e.key) && // Restrict letters
+                          e.key !== "Backspace" &&
+                          e.key !== "Delete" &&
+                          e.key !== "ArrowLeft" &&
+                          e.key !== "ArrowRight" &&
+                          e.key !== "Tab"
+                        ) {
+                          e.preventDefault();
+                        }
+                      },
+                    }}
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <FormInputField
+                    name={`variants.${index}.stock`}
+                    control={control}
+                    label="Stock"
+                    type="number"
+                    required
+                    inputProps={{
+                      step: "1",
+                      min: "0",
+                      onKeyDown: (e) => {
+                        if (
+                          !/[0-9]/.test(e.key) &&
+                          e.key !== "Backspace" &&
+                          e.key !== "Delete" &&
+                          e.key !== "ArrowLeft" &&
+                          e.key !== "ArrowRight" &&
+                          e.key !== "Tab"
+                        ) {
+                          e.preventDefault();
+                        }
+                        if (e.key === "." || e.key === ",") {
+                          e.preventDefault();
+                        }
+                      },
+                    }}
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <FormInputField
+                    name={`variants.${index}.low_stock_threshold`}
+                    control={control}
+                    label="Low Stock Threshold"
+                    type="number"
+                    required
+                    inputProps={{
+                      step: "1",
+                      min: "0",
+                      onKeyDown: (e) => {
+                        if (
+                          !/[0-9]/.test(e.key) &&
+                          e.key !== "Backspace" &&
+                          e.key !== "Delete" &&
+                          e.key !== "ArrowLeft" &&
+                          e.key !== "ArrowRight" &&
+                          e.key !== "Tab"
+                        ) {
+                          e.preventDefault();
+                        }
+                        if (e.key === "." || e.key === ",") {
+                          e.preventDefault();
+                        }
+                      },
+                    }}
+                  />
+                </Grid>
 
-              {/* Group dimensions and weight in a single row */}
-              <Grid item xs={12}>
-                <Box sx={{ borderBottom: "1px dashed #eee", mb: 2, pb: 1 }}>
-                  <Typography variant="caption" color="text.secondary">
-                    Dimensions & Weight
-                  </Typography>
-                </Box>
-                <Grid container spacing={2}>
-                  <Grid item xs={6} sm={3}>
-                    <FormInputField
-                      name={`variants.${index}.weight`}
-                      control={control}
-                      label="Weight"
-                      type="number"
-                      inputProps={{
-                        step: "1",
-                        min: "0",
-                        onKeyDown: (e) => {
-                          // Allow digits, Backspace, Delete, Arrow keys, and Tab
-                          if (
-                            /[a-zA-Z]/.test(e.key) && // Restrict letters
-                            e.key !== "Backspace" &&
-                            e.key !== "Delete" &&
-                            e.key !== "ArrowLeft" &&
-                            e.key !== "ArrowRight" &&
-                            e.key !== "Tab"
-                          ) {
-                            e.preventDefault();
-                          }
-                        },
-                        endAdornment: (
-                          <InputAdornment position="end">gm</InputAdornment>
-                        ), // Move inside inputProps
-                      }}
-                    />
-                  </Grid>
-                  <Grid item xs={6} sm={3}>
-                    <FormInputField
-                      name={`variants.${index}.length`}
-                      control={control}
-                      label="Length"
-                      type="number"
-                      inputProps={{
-                        step: "1",
-                        min: "0",
-                        onKeyDown: (e) => {
-                          // Allow digits, Backspace, Delete, Arrow keys, and Tab
-                          if (
-                            /[a-zA-Z]/.test(e.key) && // Restrict letters
-                            e.key !== "Backspace" &&
-                            e.key !== "Delete" &&
-                            e.key !== "ArrowLeft" &&
-                            e.key !== "ArrowRight" &&
-                            e.key !== "Tab"
-                          ) {
-                            e.preventDefault();
-                          }
-                        },
-                        endAdornment: (
-                          <InputAdornment position="end">cm</InputAdornment>
-                        ), // Move inside inputProps
-                      }}
-                    />
-                  </Grid>
-                  <Grid item xs={6} sm={3}>
-                    <FormInputField
-                      name={`variants.${index}.width`}
-                      control={control}
-                      label="Width"
-                      type="number"
-                      inputProps={{
-                        step: "1",
-                        min: "0",
-                        onKeyDown: (e) => {
-                          // Allow digits, Backspace, Delete, Arrow keys, and Tab
-                          if (
-                            /[a-zA-Z]/.test(e.key) && // Restrict letters
-                            e.key !== "Backspace" &&
-                            e.key !== "Delete" &&
-                            e.key !== "ArrowLeft" &&
-                            e.key !== "ArrowRight" &&
-                            e.key !== "Tab"
-                          ) {
-                            e.preventDefault();
-                          }
-                        },
-                        endAdornment: (
-                          <InputAdornment position="end">cm</InputAdornment>
-                        ), // Move inside inputProps
-                      }}
-                    />
-                  </Grid>
-                  <Grid item xs={6} sm={3}>
-                    <FormInputField
-                      name={`variants.${index}.height`}
-                      control={control}
-                      label="Height"
-                      type="number"
-                      inputProps={{
-                        step: "1",
-                        min: "0",
-                        onKeyDown: (e) => {
-                          // Allow digits, Backspace, Delete, Arrow keys, and Tab
-                          if (
-                            /[a-zA-Z]/.test(e.key) && // Restrict letters
-                            e.key !== "Backspace" &&
-                            e.key !== "Delete" &&
-                            e.key !== "ArrowLeft" &&
-                            e.key !== "ArrowRight" &&
-                            e.key !== "Tab"
-                          ) {
-                            e.preventDefault();
-                          }
-                        },
-                        endAdornment: (
-                          <InputAdornment position="end">cm</InputAdornment>
-                        ), // Move inside inputProps
-                      }}
-                    />
+                {/* Group dimensions and weight in a single row */}
+                <Grid item xs={12}>
+                  <Box sx={{ borderBottom: "1px dashed #eee", mb: 2, pb: 1 }}>
+                    <Typography variant="caption" color="text.secondary">
+                      Dimensions & Weight
+                    </Typography>
+                  </Box>
+                  <Grid container spacing={2}>
+                    <Grid item xs={6} sm={3}>
+                      <FormInputField
+                        name={`variants.${index}.weight`}
+                        control={control}
+                        label="Weight"
+                        type="number"
+                        inputProps={{
+                          step: "1",
+                          min: "0",
+                          onKeyDown: (e) => {
+                            // Allow digits, Backspace, Delete, Arrow keys, and Tab
+                            if (
+                              /[a-zA-Z]/.test(e.key) && // Restrict letters
+                              e.key !== "Backspace" &&
+                              e.key !== "Delete" &&
+                              e.key !== "ArrowLeft" &&
+                              e.key !== "ArrowRight" &&
+                              e.key !== "Tab"
+                            ) {
+                              e.preventDefault();
+                            }
+                          },
+                          endAdornment: (
+                            <InputAdornment position="end">gm</InputAdornment>
+                          ), // Move inside inputProps
+                        }}
+                      />
+                    </Grid>
+                    <Grid item xs={6} sm={3}>
+                      <FormInputField
+                        name={`variants.${index}.length`}
+                        control={control}
+                        label="Length"
+                        type="number"
+                        inputProps={{
+                          step: "1",
+                          min: "0",
+                          onKeyDown: (e) => {
+                            // Allow digits, Backspace, Delete, Arrow keys, and Tab
+                            if (
+                              /[a-zA-Z]/.test(e.key) && // Restrict letters
+                              e.key !== "Backspace" &&
+                              e.key !== "Delete" &&
+                              e.key !== "ArrowLeft" &&
+                              e.key !== "ArrowRight" &&
+                              e.key !== "Tab"
+                            ) {
+                              e.preventDefault();
+                            }
+                          },
+                          endAdornment: (
+                            <InputAdornment position="end">cm</InputAdornment>
+                          ), // Move inside inputProps
+                        }}
+                      />
+                    </Grid>
+                    <Grid item xs={6} sm={3}>
+                      <FormInputField
+                        name={`variants.${index}.width`}
+                        control={control}
+                        label="Width"
+                        type="number"
+                        inputProps={{
+                          step: "1",
+                          min: "0",
+                          onKeyDown: (e) => {
+                            // Allow digits, Backspace, Delete, Arrow keys, and Tab
+                            if (
+                              /[a-zA-Z]/.test(e.key) && // Restrict letters
+                              e.key !== "Backspace" &&
+                              e.key !== "Delete" &&
+                              e.key !== "ArrowLeft" &&
+                              e.key !== "ArrowRight" &&
+                              e.key !== "Tab"
+                            ) {
+                              e.preventDefault();
+                            }
+                          },
+                          endAdornment: (
+                            <InputAdornment position="end">cm</InputAdornment>
+                          ), // Move inside inputProps
+                        }}
+                      />
+                    </Grid>
+                    <Grid item xs={6} sm={3}>
+                      <FormInputField
+                        name={`variants.${index}.height`}
+                        control={control}
+                        label="Height"
+                        type="number"
+                        inputProps={{
+                          step: "1",
+                          min: "0",
+                          onKeyDown: (e) => {
+                            // Allow digits, Backspace, Delete, Arrow keys, and Tab
+                            if (
+                              /[a-zA-Z]/.test(e.key) && // Restrict letters
+                              e.key !== "Backspace" &&
+                              e.key !== "Delete" &&
+                              e.key !== "ArrowLeft" &&
+                              e.key !== "ArrowRight" &&
+                              e.key !== "Tab"
+                            ) {
+                              e.preventDefault();
+                            }
+                          },
+                          endAdornment: (
+                            <InputAdornment position="end">cm</InputAdornment>
+                          ), // Move inside inputProps
+                        }}
+                      />
+                    </Grid>
                   </Grid>
                 </Grid>
-              </Grid>
-              <Grid item xs={12}>
-                <FormInputField
-                  name={`variants.${index}.barcode`}
-                  control={control}
-                  label="Barcode"
-                  required
-                  inputProps={{
-                    maxLength: 50,
-                    onBlur: (e) => {
-                      const value = e.target.value.trim();
-                      if (!value) {
-                        setValue(`variants.${index}.barcode`, "");
-                        trigger(`variants.${index}.barcode`);
-                      }
-                    },
-                  }}
-                />
-                {/* {errors.variants?.[index]?.barcode && (
-                  <Typography color="error" variant="caption" sx={{ pl: 1 }}>
-                    {errors.variants[index].barcode.message}
-                  </Typography>
-                )} */}
-              </Grid>
-              <Grid item xs={12}>
-                <FormInputField
-                  name={`variants.${index}.description`}
-                  control={control}
-                  label="Description"
-                  multiline
-                  rows={3}
-                />
-              </Grid>
+                <Grid item xs={12}>
+                  <FormInputField
+                    name={`variants.${index}.barcode`}
+                    control={control}
+                    label="Barcode"
+                    inputProps={{
+                      maxLength: 50,
+                      onBlur: (e) => {
+                        const value = e.target.value.trim();
+                        if (!value) {
+                          setValue(`variants.${index}.barcode`, "");
+                          trigger(`variants.${index}.barcode`);
+                        }
+                      },
+                    }}
+                  />
+                </Grid>
+                <Grid item xs={12}>
+                  <FormInputField
+                    name={`variants.${index}.description`}
+                    control={control}
+                    label="Description"
+                    multiline
+                    rows={3}
+                  />
+                </Grid>
 
-              {/* Show variant images if they exist */}
-              <Grid item xs={12}>
-                <Box
-                  sx={{
-                    marginBottom: 2,
-                    padding: 2,
-                    border: "1px dashed #ccc",
-                    borderRadius: 1,
-                  }}
-                >
-                  <Typography variant="subtitle1" gutterBottom>
-                    Images
-                  </Typography>
+                {/* Show variant images if they exist */}
+                <Grid item xs={12}>
+                  <Box
+                    sx={{
+                      marginBottom: 2,
+                      padding: 2,
+                      border: "1px dashed #ccc",
+                      borderRadius: 1,
+                    }}
+                  >
+                    <Typography variant="subtitle1" gutterBottom>
+                      Images
+                    </Typography>
 
-                  {isUploading && (
-                    <Box
-                      display="flex"
-                      justifyContent="center"
-                      alignItems="center"
-                      p={2}
-                    >
-                      <CircularProgress size={24} sx={{ mr: 1 }} />
-                      <Typography>Uploading images...</Typography>
-                    </Box>
-                  )}
-
-                  {!isUploading && (
-                    <>
+                    {isUploading && (
                       <Box
-                        sx={{
-                          display: "flex",
-                          flexWrap: "wrap",
-                          gap: 1,
-                          marginBottom: 2,
-                        }}
+                        display="flex"
+                        justifyContent="center"
+                        alignItems="center"
+                        p={2}
                       >
-                        {/* Show existing images if variant has ID */}
-                        {variantId &&
-                        variantImages[variantId] &&
-                        variantImages[variantId].length > 0 ? (
-                          variantImages[variantId].map((image, imgIndex) => (
-                            <Box
-                              key={image.id || imgIndex}
-                              sx={{
-                                position: "relative",
-                                width: 100,
-                                height: 130, // Increased height to accommodate controls
-                                borderRadius: 1,
-                                overflow: "visible", // Changed to visible to allow controls outside
-                              }}
-                            >
-                              {/* Control box above the image */}
-                              <Box
-                                sx={{
-                                  position: "absolute",
-                                  top: -30, // Position above the image
-                                  left: 0,
-                                  right: 0,
-                                  display: "flex",
-                                  justifyContent: "space-between",
-                                  alignItems: "center",
-                                  zIndex: 2,
-                                  marginTop: 4,
-                                }}
-                              >
-                                <Checkbox
-                                  checked={image.is_primary}
-                                  onChange={() =>
-                                    handleSetPrimary(
-                                      variantId,
-                                      image.id ? image.id.toString() : ""
-                                    )
-                                  }
-                                  disabled={isUploading || image.is_primary}
-                                  size="small"
-                                  sx={{ padding: "2px" }}
-                                />
-                                <IconButton
-                                  size="small"
-                                  onClick={() =>
-                                    handleDeleteImage(
-                                      variantId,
-                                      image.id ? image.id.toString() : ""
-                                    )
-                                  }
-                                  disabled={isUploading}
-                                  color="error"
-                                  sx={{ padding: "2px" }}
-                                >
-                                  <DeleteIcon fontSize="small" />
-                                </IconButton>
-                              </Box>
+                        <CircularProgress size={24} sx={{ mr: 1 }} />
+                        <Typography>Uploading images...</Typography>
+                      </Box>
+                    )}
 
-                              {/* Image container */}
+                    {!isUploading && (
+                      <>
+                        <Box
+                          sx={{
+                            display: "flex",
+                            flexWrap: "wrap",
+                            gap: 1,
+                            marginBottom: 2,
+                          }}
+                        >
+                          {/* Show existing images if variant has ID */}
+                          {variantId &&
+                          variantImages[variantId] &&
+                          variantImages[variantId].length > 0 ? (
+                            variantImages[variantId].map((image, imgIndex) => (
                               <Box
+                                key={image.id || imgIndex}
                                 sx={{
                                   position: "relative",
                                   width: 100,
-                                  height: 100,
-                                  border: (theme) =>
-                                    image.is_primary
-                                      ? `2px solid ${theme.palette.primary.main}`
-                                      : "1px solid #ddd",
+                                  height: 130, // Increased height to accommodate controls
                                   borderRadius: 1,
-                                  overflow: "hidden",
+                                  overflow: "visible", // Changed to visible to allow controls outside
                                 }}
                               >
-                                <img
-                                  src={
-                                    typeof image.url === "string"
-                                      ? image.url
-                                      : typeof image.image_url === "string"
-                                      ? image.image_url
-                                      : ""
-                                  }
-                                  alt={`Variant ${variantId} image ${imgIndex}`}
-                                  style={{
-                                    width: "100%",
-                                    height: "100%",
-                                    objectFit: "cover",
+                                {/* Control box above the image */}
+                                <Box
+                                  sx={{
+                                    position: "absolute",
+                                    top: -30, // Position above the image
+                                    left: 0,
+                                    right: 0,
+                                    display: "flex",
+                                    justifyContent: "space-between",
+                                    alignItems: "center",
+                                    zIndex: 2,
+                                    marginTop: 4,
                                   }}
-                                  onError={(e) => {
-                                    console.error(
-                                      "Image failed to load:",
-                                      image
-                                    );
-                                    e.currentTarget.src =
-                                      "https://via.placeholder.com/100?text=Image+Error";
-                                  }}
-                                />
-                              </Box>
-                            </Box>
-                          ))
-                        ) : hasPendingImages ? (
-                          // Show temporary images for new variants with controls above
-                          pendingImageUrls.map((url, imgIndex) => (
-                            <Box
-                              key={`pending-${index}-${imgIndex}`}
-                              sx={{
-                                position: "relative",
-                                width: 100,
-                                height: 130, // Increased height to accommodate controls
-                                borderRadius: 1,
-                                overflow: "visible", // Changed to visible to allow controls outside
-                              }}
-                            >
-                              {/* Control box above the image */}
-                              <Box
-                                sx={{
-                                  position: "absolute",
-                                  top: -30, // Position above the image
-                                  right: 0,
-                                  display: "flex",
-                                  zIndex: 2,
-                                }}
-                              >
-                                <IconButton
-                                  size="small"
-                                  onClick={() => {
-                                    // Remove this pending image
-                                    setPendingImages((prev) => {
-                                      const updated = { ...prev };
-                                      if (updated[index]) {
-                                        const files = [...updated[index]];
-                                        files.splice(imgIndex, 1);
-                                        updated[index] = files;
-                                      }
-                                      return updated;
-                                    });
-
-                                    // Revoke the URL and remove it
-                                    URL.revokeObjectURL(url);
-                                    setTempImageUrls((prev) => {
-                                      const updated = { ...prev };
-                                      if (updated[index]) {
-                                        const urls = [...updated[index]];
-                                        urls.splice(imgIndex, 1);
-                                        updated[index] = urls;
-                                      }
-                                      return updated;
-                                    });
-                                  }}
-                                  color="error"
-                                  sx={{ padding: "2px" }}
                                 >
-                                  <DeleteIcon fontSize="small" />
-                                </IconButton>
-                              </Box>
+                                  <Checkbox
+                                    checked={image.is_primary}
+                                    onChange={() =>
+                                      handleSetPrimary(
+                                        variantId,
+                                        image.id ? image.id.toString() : ""
+                                      )
+                                    }
+                                    disabled={isUploading || image.is_primary}
+                                    size="small"
+                                    sx={{ padding: "2px" }}
+                                  />
+                                  <IconButton
+                                    size="small"
+                                    onClick={() =>
+                                      handleDeleteImage(
+                                        variantId,
+                                        image.id ? image.id.toString() : ""
+                                      )
+                                    }
+                                    disabled={isUploading}
+                                    color="error"
+                                    sx={{ padding: "2px" }}
+                                  >
+                                    <DeleteIcon fontSize="small" />
+                                  </IconButton>
+                                </Box>
 
-                              {/* Image container */}
+                                {/* Image container */}
+                                <Box
+                                  sx={{
+                                    position: "relative",
+                                    width: 100,
+                                    height: 100,
+                                    border: (theme) =>
+                                      image.is_primary
+                                        ? `2px solid ${theme.palette.primary.main}`
+                                        : "1px solid #ddd",
+                                    borderRadius: 1,
+                                    overflow: "hidden",
+                                  }}
+                                >
+                                  <img
+                                    src={
+                                      typeof image.url === "string"
+                                        ? image.url
+                                        : typeof image.image_url === "string"
+                                        ? image.image_url
+                                        : ""
+                                    }
+                                    alt={`Variant ${variantId} image ${imgIndex}`}
+                                    style={{
+                                      width: "100%",
+                                      height: "100%",
+                                      objectFit: "cover",
+                                    }}
+                                    onError={(e) => {
+                                      console.error(
+                                        "Image failed to load:",
+                                        image
+                                      );
+                                      e.currentTarget.src =
+                                        "https://via.placeholder.com/100?text=Image+Error";
+                                    }}
+                                  />
+                                </Box>
+                              </Box>
+                            ))
+                          ) : hasPendingImages ? (
+                            // Show temporary images for new variants with controls above
+                            pendingImageUrls.map((url, imgIndex) => (
                               <Box
+                                key={`pending-${index}-${imgIndex}`}
                                 sx={{
                                   position: "relative",
                                   width: 100,
-                                  height: 100,
-                                  border: "1px solid #ddd",
+                                  height: 130, // Increased height to accommodate controls
                                   borderRadius: 1,
-                                  overflow: "hidden",
+                                  overflow: "visible", // Changed to visible to allow controls outside
                                 }}
                               >
-                                <img
-                                  src={url}
-                                  alt={`Pending image ${imgIndex}`}
-                                  style={{
-                                    width: "100%",
-                                    height: "100%",
-                                    objectFit: "cover",
+                                {/* Control box above the image */}
+                                <Box
+                                  sx={{
+                                    position: "absolute",
+                                    top: -30, // Position above the image
+                                    right: 0,
+                                    display: "flex",
+                                    zIndex: 2,
                                   }}
-                                />
+                                >
+                                  <IconButton
+                                    size="small"
+                                    onClick={() => {
+                                      // Remove this pending image
+                                      setPendingImages((prev) => {
+                                        const updated = { ...prev };
+                                        if (updated[index]) {
+                                          const files = [...updated[index]];
+                                          files.splice(imgIndex, 1);
+                                          updated[index] = files;
+                                        }
+                                        return updated;
+                                      });
+
+                                      // Revoke the URL and remove it
+                                      URL.revokeObjectURL(url);
+                                      setTempImageUrls((prev) => {
+                                        const updated = { ...prev };
+                                        if (updated[index]) {
+                                          const urls = [...updated[index]];
+                                          urls.splice(imgIndex, 1);
+                                          updated[index] = urls;
+                                        }
+                                        return updated;
+                                      });
+                                    }}
+                                    color="error"
+                                    sx={{ padding: "2px" }}
+                                  >
+                                    <DeleteIcon fontSize="small" />
+                                  </IconButton>
+                                </Box>
+
+                                {/* Image container */}
+                                <Box
+                                  sx={{
+                                    position: "relative",
+                                    width: 100,
+                                    height: 100,
+                                    border: "1px solid #ddd",
+                                    borderRadius: 1,
+                                    overflow: "hidden",
+                                  }}
+                                >
+                                  <img
+                                    src={url}
+                                    alt={`Pending image ${imgIndex}`}
+                                    style={{
+                                      width: "100%",
+                                      height: "100%",
+                                      objectFit: "cover",
+                                    }}
+                                  />
+                                </Box>
                               </Box>
-                            </Box>
-                          ))
-                        ) : (
-                          <Typography color="text.secondary">
-                            No images uploaded. Click "Upload Images" to add
-                            images for this variant.
+                            ))
+                          ) : (
+                            <Typography color="text.secondary">
+                              No images uploaded. Click "Upload Images" to add
+                              images for this variant.
+                            </Typography>
+                          )}
+                        </Box>
+
+                        {/* Show the file input regardless of variant ID */}
+                        <input
+                          type="file"
+                          multiple
+                          onChange={(event) =>
+                            handleFileSelect(event, variantId, index)
+                          }
+                          ref={(el) => {
+                            if (el)
+                              fileInputRefs.current[variantId || index] = el;
+                          }}
+                          style={{ display: "none" }}
+                          accept="image/jpeg,image/png,image/webp"
+                        />
+                        <Button
+                          variant="outlined"
+                          startIcon={<CloudUploadIcon />}
+                          onClick={() =>
+                            fileInputRefs.current[variantId || index]?.click()
+                          }
+                          disabled={isUploading}
+                          title={
+                            variantId
+                              ? "Select images to upload immediately"
+                              : "Select images first, then click Update to complete the upload"
+                          }
+                        >
+                          {variantId ? "Upload Images" : "Select Images"}
+                        </Button>
+
+                        {/* Show message for pending images */}
+                        {hasPendingImages && (
+                          <Typography
+                            variant="caption"
+                            color="text.secondary"
+                            sx={{ display: "block", mt: 1 }}
+                          >
+                            {pendingImages[index].length} image(s) selected.
+                            {!variantId &&
+                              " They will be uploaded after saving the variant."}
                           </Typography>
                         )}
-                      </Box>
-
-                      {/* Show the file input regardless of variant ID */}
-                      <input
-                        type="file"
-                        multiple
-                        onChange={(event) =>
-                          handleFileSelect(event, variantId, index)
-                        }
-                        ref={(el) => {
-                          if (el)
-                            fileInputRefs.current[variantId || index] = el;
-                        }}
-                        style={{ display: "none" }}
-                        accept="image/jpeg,image/png,image/webp"
-                      />
-                      <Button
-                        variant="outlined"
-                        startIcon={<CloudUploadIcon />}
-                        onClick={() =>
-                          fileInputRefs.current[variantId || index]?.click()
-                        }
-                        disabled={isUploading}
-                        title={
-                          variantId
-                            ? "Select images to upload immediately"
-                            : "Select images first, then click Update to complete the upload"
-                        }
-                      >
-                        {variantId ? "Upload Images" : "Select Images"}
-                      </Button>
-
-                      {/* Show message for pending images */}
-                      {hasPendingImages && (
-                        <Typography
-                          variant="caption"
-                          color="text.secondary"
-                          sx={{ display: "block", mt: 1 }}
-                        >
-                          {pendingImages[index].length} image(s) selected.
-                          {!variantId &&
-                            " They will be uploaded after saving the variant."}
-                        </Typography>
-                      )}
-                    </>
-                  )}
-                </Box>
+                      </>
+                    )}
+                  </Box>
+                </Grid>
               </Grid>
-            </Grid>
 
-            {/* Delete Variant Button - Only show for non-default variants */}
-            {fields.length > 1 && (
-              <IconButton
-                onClick={(e) => {
-                  e.preventDefault(); // Prevent form submission
-                  const variantId = formData.variants?.[index]?.id;
-                  console.log("Deleting variant:", { variantId, index });
-                  handleDeleteVariant(variantId, index);
-                }}
-                disabled={isLoading}
-                className="absolute top-2 right-2"
-                color="error"
-                size="small"
-                type="button" // Explicitly set type to button
-                sx={{
-                  position: "absolute",
-                  top: "12px",
-                  right: "12px",
-                  margin: "0",
-                  zIndex: 2,
-                  "&:hover": {
-                    backgroundColor: "rgba(211, 47, 47, 0.04)",
-                  },
-                }}
-              >
-                <DeleteIcon />
-              </IconButton>
-            )}
-          </Paper>
-        );
-      })}
+              {/* Delete Variant Button - Only show for non-default variants */}
+              {fields.length > 1 && (
+                <IconButton
+                  onClick={(e) => {
+                    e.preventDefault(); // Prevent form submission
+                    const variantId = formData.variants?.[index]?.id;
+                    console.log("Deleting variant:", { variantId, index });
+                    handleDeleteVariant(variantId, index);
+                  }}
+                  disabled={isLoading}
+                  className="absolute top-2 right-2"
+                  color="error"
+                  size="small"
+                  type="button" // Explicitly set type to button
+                  sx={{
+                    position: "absolute",
+                    top: "12px",
+                    right: "12px",
+                    margin: "0",
+                    zIndex: 2,
+                    "&:hover": {
+                      backgroundColor: "rgba(211, 47, 47, 0.04)",
+                    },
+                  }}
+                >
+                  <DeleteIcon />
+                </IconButton>
+              )}
+            </Paper>
+          );
+        })}
 
-      {/* Add New Variant Button - Only show if not all combinations are used */}
-      {!areAllCombinationsUsed() ? (
-        <div className="flex justify-center">
+        {/* Add New Variant Button - Only show if not all combinations are used */}
+        {!areAllCombinationsUsed() ? (
+          <div className="flex justify-center">
+            <AppButton
+              label="Add Variant"
+              onClick={handleAddVariant}
+              variant="outlined"
+              type="button"
+              disabled={isLoading}
+            />
+          </div>
+        ) : (
+          <div className="flex justify-center p-3 bg-green-50 border border-green-200 rounded-md">
+            <div className="text-green-600 flex items-center">
+              <span className="mr-2">✓</span>
+              <span>
+                All combinations have been added. You can proceed to the next
+                step.
+              </span>
+            </div>
+          </div>
+        )}
+
+        <div className="flex justify-between mt-4">
           <AppButton
-            label="Add Variant"
-            onClick={handleAddVariant}
+            label="Previous"
+            onClick={previousStep}
             variant="outlined"
-            type="button"
             disabled={isLoading}
+            type="button"
           />
-        </div>
-      ) : (
-        <div className="flex justify-center p-3 bg-green-50 border border-green-200 rounded-md">
-          <div className="text-green-600 flex items-center">
-            <span className="mr-2">✓</span>
-            <span>
-              All combinations have been added. You can proceed to the next
-              step.
-            </span>
+          <div className="flex gap-2">
+            <AppButton
+              label={isEditMode ? "Update" : "Finish"}
+              type="button"
+              loading={isLoading}
+              disabled={isLoading}
+              onClick={handleFinishClick}
+            />
           </div>
         </div>
-      )}
 
-      <div className="flex justify-between mt-4">
-        <AppButton
-          label="Previous"
-          onClick={previousStep}
-          variant="outlined"
-          disabled={isLoading}
-          type="button"
-        />
-        <div className="flex gap-2">
-          <AppButton
-            label={isEditMode ? "Update" : "Finish"}
-            type="button"
-            loading={isLoading}
-            disabled={isLoading}
-            onClick={() => {
-              // Get current form values
-              const formValues = watch();
-              console.log("Direct submission values:", formValues);
-
-              // Do a quick check for attribute term_id values
-              let hasAttributeErrors = false;
-
-              formValues.variants.forEach((variant, index) => {
-                if (variant.attributes) {
-                  variant.attributes.forEach((attr, attrIndex) => {
-                    if (!attr.term_id || attr.term_id <= 0) {
-                      const attributeName = getAttributeName(attr.attribute_id);
-                      showSnackbar("Select a value in variant", "error");
-                      hasAttributeErrors = true;
-                    }
-                  });
-                }
-              });
-
-              if (!hasAttributeErrors || isEditMode) {
-                // If not in edit mode, check if all combinations are added
-                if (!isEditMode) {
-                  const allCombinations = generateAllAttributeCombinations();
-                  if (allCombinations.length > formValues.variants.length) {
-                    showSnackbar("Please add all combinations", "warning");
-                    return;
-                  }
-                }
-
-                // If we're in edit mode or no errors, proceed
-                handleFormSubmit(formValues);
-              }
-            }}
-          />
-        </div>
-      </div>
-
-      {/* Delete Confirmation Modal */}
-      <Dialog
-        open={deleteModalOpen}
-        onClose={() => setDeleteModalOpen(false)}
-        aria-labelledby="delete-image-dialog-title"
-        aria-describedby="delete-image-dialog-description"
-      >
-        <DialogTitle id="delete-image-dialog-title">
-          Confirm Image Deletion
-        </DialogTitle>
-        <DialogContent>
-          <DialogContentText id="delete-image-dialog-description">
-            Are you sure you want to delete this image?
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDeleteModalOpen(false)} color="primary">
-            Cancel
-          </Button>
-          <Button onClick={confirmDeleteImage} color="error" autoFocus>
-            Delete
-          </Button>
-        </DialogActions>
-      </Dialog>
-    </form>
+        {/* Delete Confirmation Modal */}
+        <Dialog
+          open={deleteModalOpen}
+          onClose={() => setDeleteModalOpen(false)}
+          aria-labelledby="delete-image-dialog-title"
+          aria-describedby="delete-image-dialog-description"
+        >
+          <DialogTitle id="delete-image-dialog-title">
+            Confirm Image Deletion
+          </DialogTitle>
+          <DialogContent>
+            <DialogContentText id="delete-image-dialog-description">
+              Are you sure you want to delete this image?
+            </DialogContentText>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setDeleteModalOpen(false)} color="primary">
+              Cancel
+            </Button>
+            <Button onClick={confirmDeleteImage} color="error" autoFocus>
+              Delete
+            </Button>
+          </DialogActions>
+        </Dialog>
+      </form>
+    </>
   );
 }
 

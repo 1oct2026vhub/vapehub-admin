@@ -359,17 +359,17 @@ const ProductListTable = ({
       { accessorKey: "id", header: "ID" },
       { accessorKey: "name", header: "Name" },
       { accessorKey: "slug", header: "Slug" },
-      {
-        accessorKey: "price",
-        header: "Price",
-        Cell: ({ row }) => {
-          const price =
-            typeof row.original.price === "string"
-              ? parseFloat(row.original.price)
-              : row.original.price;
-          return `$${Number(price).toFixed(2)}`;
-        },
-      },
+      // {
+      //   accessorKey: "price",
+      //   header: "Price",
+      //   Cell: ({ row }) => {
+      //     const price =
+      //       typeof row.original.price === "string"
+      //         ? parseFloat(row.original.price)
+      //         : row.original.price;
+      //     return `$${Number(price).toFixed(2)}`;
+      //   },
+      // },
       // { accessorKey: "stock_quantity", header: "Stock" },
       {
         accessorKey: "category_name",
