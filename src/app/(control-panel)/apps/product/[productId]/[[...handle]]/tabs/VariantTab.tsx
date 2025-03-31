@@ -35,6 +35,7 @@ import {
   deleteVariantImage,
 } from "@/services/apiProduct";
 import FormSelectField from "@/components/Shared/SelectField";
+import FormInputField from "@/components/Shared/FormInputField";
 import DeleteIcon from "@mui/icons-material/Delete";
 import { z } from "zod";
 import { useForm, useFieldArray } from "react-hook-form";
@@ -42,6 +43,34 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useSearchParams, useRouter } from "next/navigation";
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import CloseIcon from "@mui/icons-material/Close";
+import { styled } from "@mui/material/styles";
+
+// Create a styled version of TextField with the app's styling
+const StyledTextField = styled(TextField)(({ theme }) => ({
+  "& .MuiOutlinedInput-root": {
+    "& fieldset": {
+      borderImage: "linear-gradient(to right, #2E9970, #005434) 1",
+    },
+    "&:hover fieldset": {
+      borderImage: "linear-gradient(to right, #247C5C, #003F29) 1",
+    },
+    "&.Mui-focused fieldset": {
+      borderImage: "linear-gradient(to right, #1E7A56, #004C30) 1",
+    },
+  },
+  "& .MuiInputLabel-root": {
+    color: "#2E9970",
+  },
+  "& .MuiInputLabel-root.Mui-focused": {
+    color: "#2E9970",
+  },
+  /* Hide Edge's default password reveal icon */
+  "& input::-ms-reveal, & input::-ms-clear": {
+    display: "none",
+  },
+  // Ensure fullWidth is applied by default
+  width: "100%",
+}));
 
 type Variant = NonNullable<ProductFormData["variants"]>[number] & {
   variantAttributes?: Array<{
@@ -161,7 +190,7 @@ const schema = z.object({
               },
               { message: "Discount price can have at most 2 decimal places" }
             ),
-          z.null(),
+          z.null().refine(() => false, "Discount price is required"),
         ])
       ),
       purchase_price: z.preprocess(
@@ -188,14 +217,14 @@ const schema = z.object({
               },
               { message: "Purchase price can have at most 2 decimal places" }
             ),
-          z.null(),
+          z.null().refine(() => false, "Purchase price is required"),
         ])
       ),
       low_stock_threshold: z.preprocess((val) => {
         if (val === "" || val === null || val === undefined) return null;
         const parsed = Number(val);
         return isNaN(parsed) ? "NaN" : parsed;
-      }, z.union([z.literal("NaN").refine(() => false, "Please enter a valid number for low stock threshold"), z.number().int("Low stock threshold must be a whole number").min(0, "Low stock threshold must be a non-negative number"), z.null()])),
+      }, z.union([z.literal("NaN").refine(() => false, "Please enter a valid number for low stock threshold"), z.number().int("Low stock threshold must be a whole number").min(0, "Low stock threshold must be a non-negative number"), z.null().refine(() => false, "Low stock threshold is required")])),
       weight: z.preprocess((val) => {
         if (val === "" || val === null || val === undefined) return null;
         const parsed = Number(val);
@@ -236,6 +265,50 @@ interface VariantImage {
   image_url: string;
   is_primary: boolean;
 }
+
+// For section headings, create a custom component to add red asterisks
+const SectionHeading = ({
+  children,
+  required = false,
+}: {
+  children: React.ReactNode;
+  required?: boolean;
+}) => (
+  <Grid item xs={12}>
+    <Box sx={{ borderBottom: "1px dashed #eee", mb: 2, pb: 1 }}>
+      <Typography
+        variant="caption"
+        color="text.secondary"
+        sx={{ display: "flex", alignItems: "center" }}
+      >
+        {children}
+        {required && <span style={{ color: "red", marginLeft: "3px" }}>*</span>}
+      </Typography>
+    </Box>
+  </Grid>
+);
+
+// For field labels with double asterisks (required critical fields)
+const RequiredDoubleAsterisk = ({
+  children,
+}: {
+  children: React.ReactNode;
+}) => (
+  <div style={{ display: "flex", alignItems: "center" }}>
+    {children} <span style={{ color: "red", marginLeft: "3px" }}>*</span>
+  </div>
+);
+
+// For field labels with single asterisk (required fields)
+const RequiredSingleAsterisk = ({
+  children,
+}: {
+  children: React.ReactNode;
+}) => (
+  <div style={{ display: "flex", alignItems: "center" }}>
+    {children} <span style={{ color: "red", marginLeft: "3px" }}>*</span>
+  </div>
+);
 
 function VariantTab() {
   const router = useRouter();
@@ -390,7 +463,7 @@ function VariantTab() {
             }))
           : [createDefaultVariant([])],
     },
-    mode: "onChange",
+    mode: "all",
     resolver: zodResolver(schema),
   });
 
@@ -2367,84 +2440,50 @@ function VariantTab() {
                   }}
                 >
                   <Typography
-                    variant="caption"
+                    variant="subtitle2"
+                    component="span"
                     sx={{
                       position: "absolute",
                       top: "-10px",
-                      left: "20px",
+                      left: "10px",
                       backgroundColor: "white",
-                      padding: "0 8px",
-                      color: "text.secondary",
+                      px: 1,
+                      display: "flex",
+                      alignItems: "center",
                     }}
                   >
-                    Variant Details
+                    Variant Attributes
+                    {/* <span style={{ color: "red", marginLeft: "3px" }}>*</span> */}
                   </Typography>
                 </Box>
               </Grid>
 
               <Grid item xs={12} sm={6}>
-                <TextField
-                  {...register(`variants.${index}.slug`)}
-                  fullWidth
-                  label="Variant Slug"
-                  error={!!errors.variants?.[index]?.slug}
-                  helperText={errors.variants?.[index]?.slug?.message}
+                <FormInputField
+                  name={`variants.${index}.slug`}
+                  control={control}
+                  label="Slug"
                   required
                 />
               </Grid>
               <Grid item xs={12} sm={6}>
-                <TextField
-                  {...register(`variants.${index}.price`, {
-                    valueAsNumber: true,
-                  })}
-                  fullWidth
+                <FormInputField
+                  name={`variants.${index}.price`}
+                  control={control}
                   label="Price"
                   type="number"
-                  error={!!errors.variants?.[index]?.price}
-                  helperText={errors.variants?.[index]?.price?.message}
-                  required
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  {...register(`variants.${index}.discount_price`, {
-                    valueAsNumber: true,
-                  })}
-                  fullWidth
-                  label="Discount Price"
-                  type="number"
-                  error={!!errors.variants?.[index]?.discount_price}
-                  helperText={errors.variants?.[index]?.discount_price?.message}
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  {...register(`variants.${index}.purchase_price`, {
-                    valueAsNumber: true,
-                  })}
-                  fullWidth
-                  label="Purchase Price"
-                  type="number"
-                  error={!!errors.variants?.[index]?.purchase_price}
-                  helperText={errors.variants?.[index]?.purchase_price?.message}
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  {...register(`variants.${index}.stock`, {
-                    valueAsNumber: true,
-                  })}
-                  fullWidth
-                  label="Stock"
-                  type="number"
-                  error={!!errors.variants?.[index]?.stock}
-                  helperText={errors.variants?.[index]?.stock?.message}
                   required
                   inputProps={{
                     step: "1",
                     min: "0",
                     onKeyDown: (e) => {
-                      if (e.key === "." || e.key === ",") {
+                      if (
+                        !/[0-9]/.test(e.key) &&
+                        e.key !== "Backspace" &&
+                        e.key !== "Delete" &&
+                        e.key !== "ArrowLeft" &&
+                        e.key !== "ArrowRight"
+                      ) {
                         e.preventDefault();
                       }
                     },
@@ -2452,22 +2491,95 @@ function VariantTab() {
                 />
               </Grid>
               <Grid item xs={12} sm={6}>
-                <TextField
-                  {...register(`variants.${index}.low_stock_threshold`, {
-                    valueAsNumber: true,
-                  })}
-                  fullWidth
-                  label="Low Stock Threshold"
+                <FormInputField
+                  name={`variants.${index}.discount_price`}
+                  control={control}
+                  label="Discount Price"
                   type="number"
-                  error={!!errors.variants?.[index]?.low_stock_threshold}
-                  helperText={
-                    errors.variants?.[index]?.low_stock_threshold?.message
-                  }
+                  required
                   inputProps={{
                     step: "1",
                     min: "0",
                     onKeyDown: (e) => {
-                      if (e.key === "." || e.key === ",") {
+                      if (
+                        !/[0-9]/.test(e.key) &&
+                        e.key !== "Backspace" &&
+                        e.key !== "Delete" &&
+                        e.key !== "ArrowLeft" &&
+                        e.key !== "ArrowRight"
+                      ) {
+                        e.preventDefault();
+                      }
+                    },
+                  }}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <FormInputField
+                  name={`variants.${index}.purchase_price`}
+                  control={control}
+                  label="Purchase Price"
+                  type="number"
+                  required
+                  inputProps={{
+                    step: "1",
+                    min: "0",
+                    onKeyDown: (e) => {
+                      if (
+                        !/[0-9]/.test(e.key) &&
+                        e.key !== "Backspace" &&
+                        e.key !== "Delete" &&
+                        e.key !== "ArrowLeft" &&
+                        e.key !== "ArrowRight"
+                      ) {
+                        e.preventDefault();
+                      }
+                    },
+                  }}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <FormInputField
+                  name={`variants.${index}.stock`}
+                  control={control}
+                  label="Stock"
+                  type="number"
+                  required
+                  inputProps={{
+                    step: "1",
+                    min: "0",
+                    onKeyDown: (e) => {
+                      if (
+                        !/[0-9]/.test(e.key) &&
+                        e.key !== "Backspace" &&
+                        e.key !== "Delete" &&
+                        e.key !== "ArrowLeft" &&
+                        e.key !== "ArrowRight"
+                      ) {
+                        e.preventDefault();
+                      }
+                    },
+                  }}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <FormInputField
+                  name={`variants.${index}.low_stock_threshold`}
+                  control={control}
+                  label="Low Stock Threshold"
+                  type="number"
+                  required
+                  inputProps={{
+                    step: "1",
+                    min: "0",
+                    onKeyDown: (e) => {
+                      if (
+                        !/[0-9]/.test(e.key) &&
+                        e.key !== "Backspace" &&
+                        e.key !== "Delete" &&
+                        e.key !== "ArrowLeft" &&
+                        e.key !== "ArrowRight"
+                      ) {
                         e.preventDefault();
                       }
                     },
@@ -2484,93 +2596,114 @@ function VariantTab() {
                 </Box>
                 <Grid container spacing={2}>
                   <Grid item xs={6} sm={3}>
-                    <TextField
-                      {...register(`variants.${index}.weight`, {
-                        valueAsNumber: true,
-                      })}
-                      fullWidth
+                    <FormInputField
+                      name={`variants.${index}.weight`}
+                      control={control}
                       label="Weight"
                       type="number"
-                      error={!!errors.variants?.[index]?.weight}
-                      helperText={errors.variants?.[index]?.weight?.message}
-                      InputProps={{
-                        endAdornment: (
-                          <Typography variant="caption">g</Typography>
-                        ),
+                      inputProps={{
+                        step: "1",
+                        min: "0",
+                        onKeyDown: (e) => {
+                          if (
+                            !/[0-9]/.test(e.key) &&
+                            e.key !== "Backspace" &&
+                            e.key !== "Delete" &&
+                            e.key !== "ArrowLeft" &&
+                            e.key !== "ArrowRight"
+                          ) {
+                            e.preventDefault();
+                          }
+                        },
                       }}
                     />
                   </Grid>
                   <Grid item xs={6} sm={3}>
-                    <TextField
-                      {...register(`variants.${index}.length`, {
-                        valueAsNumber: true,
-                      })}
-                      fullWidth
+                    <FormInputField
+                      name={`variants.${index}.length`}
+                      control={control}
                       label="Length"
                       type="number"
-                      error={!!errors.variants?.[index]?.length}
-                      helperText={errors.variants?.[index]?.length?.message}
-                      InputProps={{
-                        endAdornment: (
-                          <Typography variant="caption">cm</Typography>
-                        ),
+                      inputProps={{
+                        step: "1",
+                        min: "0",
+                        onKeyDown: (e) => {
+                          if (
+                            !/[0-9]/.test(e.key) &&
+                            e.key !== "Backspace" &&
+                            e.key !== "Delete" &&
+                            e.key !== "ArrowLeft" &&
+                            e.key !== "ArrowRight"
+                          ) {
+                            e.preventDefault();
+                          }
+                        },
                       }}
                     />
                   </Grid>
                   <Grid item xs={6} sm={3}>
-                    <TextField
-                      {...register(`variants.${index}.width`, {
-                        valueAsNumber: true,
-                      })}
-                      fullWidth
+                    <FormInputField
+                      name={`variants.${index}.width`}
+                      control={control}
                       label="Width"
                       type="number"
-                      error={!!errors.variants?.[index]?.width}
-                      helperText={errors.variants?.[index]?.width?.message}
-                      InputProps={{
-                        endAdornment: (
-                          <Typography variant="caption">cm</Typography>
-                        ),
+                      inputProps={{
+                        step: "1",
+                        min: "0",
+                        onKeyDown: (e) => {
+                          if (
+                            !/[0-9]/.test(e.key) &&
+                            e.key !== "Backspace" &&
+                            e.key !== "Delete" &&
+                            e.key !== "ArrowLeft" &&
+                            e.key !== "ArrowRight"
+                          ) {
+                            e.preventDefault();
+                          }
+                        },
                       }}
                     />
                   </Grid>
                   <Grid item xs={6} sm={3}>
-                    <TextField
-                      {...register(`variants.${index}.height`, {
-                        valueAsNumber: true,
-                      })}
-                      fullWidth
+                    <FormInputField
+                      name={`variants.${index}.height`}
+                      control={control}
                       label="Height"
                       type="number"
-                      error={!!errors.variants?.[index]?.height}
-                      helperText={errors.variants?.[index]?.height?.message}
-                      InputProps={{
-                        endAdornment: (
-                          <Typography variant="caption">cm</Typography>
-                        ),
+                      inputProps={{
+                        step: "1",
+                        min: "0",
+                        onKeyDown: (e) => {
+                          if (
+                            !/[0-9]/.test(e.key) &&
+                            e.key !== "Backspace" &&
+                            e.key !== "Delete" &&
+                            e.key !== "ArrowLeft" &&
+                            e.key !== "ArrowRight"
+                          ) {
+                            e.preventDefault();
+                          }
+                        },
                       }}
                     />
                   </Grid>
                 </Grid>
               </Grid>
               <Grid item xs={12}>
-                <TextField
-                  {...register(`variants.${index}.barcode`)}
-                  fullWidth
+                <FormInputField
+                  name={`variants.${index}.barcode`}
+                  control={control}
                   label="Barcode"
-                  error={!!errors.variants?.[index]?.barcode}
-                  helperText={errors.variants?.[index]?.barcode?.message}
+                  required
                 />
               </Grid>
               <Grid item xs={12}>
-                <TextField
-                  {...register(`variants.${index}.description`)}
-                  fullWidth
+                <FormInputField
+                  name={`variants.${index}.description`}
+                  control={control}
                   label="Description"
                   multiline
                   rows={3}
-                  error={!!errors.variants?.[index]?.description}
-                  helperText={errors.variants?.[index]?.description?.message}
                 />
               </Grid>
 

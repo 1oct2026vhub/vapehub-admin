@@ -438,6 +438,7 @@ function AttributesTab() {
         response = await addProductAttributes(Number(productId), addRequest);
         showSnackbar("Product attributes saved successfully", "success");
         nextStep();
+        // router.push(`/apps/product/${productId}/variant?from=attributes`);
       }
 
       // Update form data
@@ -642,14 +643,29 @@ function AttributesTab() {
                           helperText={error?.message}
                           sx={{
                             "& .MuiOutlinedInput-root": {
+                              "& fieldset": {
+                                borderImage:
+                                  "linear-gradient(to right, #2E9970, #005434) 1",
+                              },
+                              "&:hover fieldset": {
+                                borderImage:
+                                  "linear-gradient(to right, #247C5C, #003F29) 1",
+                              },
                               "&.Mui-focused fieldset": {
-                                borderColor: "#2E9970",
-                                borderWidth: "2px",
+                                borderImage:
+                                  "linear-gradient(to right, #1E7A56, #004C30) 1",
                               },
                             },
-                            "& .MuiInputLabel-root.Mui-focused": {
-                              color: "#2E9970",
+                            "& .MuiInputLabel-root": {
+                              color: "#2E9970", // Label color before focus
                             },
+                            "& .MuiInputLabel-root.Mui-focused": {
+                              color: "#2E9970", // Label color on focus
+                            },
+                            "& .MuiFormLabel-asterisk": {
+                              color: "red",
+                            },
+                            marginBottom: "20px",
                           }}
                         />
                       )}
@@ -680,7 +696,7 @@ function AttributesTab() {
                   field.attribute_id
                 )}
                 required
-                isMulti
+                // isMulti
                 onTermRemove={(termId) => handleTermRemove(index, termId)}
               />
 
