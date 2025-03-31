@@ -193,6 +193,8 @@ const AttributeTermTable = ({
     } catch (error: any) {
       if (error?.errors) {
         showSnackbar(error?.errors[0]?.msg, "error");
+      } else if (error?.error) {
+        showSnackbar(error?.error?.message, "error");
       } else {
         const errorMessage = error?.message || "An unexpected error occurred";
         showSnackbar(errorMessage, "error");
