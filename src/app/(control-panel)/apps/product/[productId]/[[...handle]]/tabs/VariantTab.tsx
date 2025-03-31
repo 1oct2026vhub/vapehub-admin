@@ -249,10 +249,12 @@ const schema = z.object({
       }, z.union([z.literal("NaN").refine(() => false, "Please enter a valid number for height"), z.number().min(0, "Height must be a non-negative number"), z.null()])),
       barcode: z
         .string()
-        .min(1, "Barcode is required")
+        // .min(1, "Barcode is required")
         .max(50, "Barcode cannot exceed 50 characters")
+        // .nullable()
+        // .transform((val) => (val === null ? "" : val))
         .nullable()
-        .transform((val) => (val === null ? "" : val)),
+        .optional(),
       description: z.string().nullable().optional(),
       attributes: z
         .array(
@@ -316,6 +318,20 @@ const RequiredSingleAsterisk = ({
     {children} <span style={{ color: "red", marginLeft: "3px" }}>*</span>
   </div>
 );
+
+// Add ValidationMessage component after styled TextField
+const ValidationMessage = ({ error }: { error?: string }) => {
+  if (!error) return null;
+  return (
+    <Typography
+      variant="caption"
+      color="error"
+      sx={{ pl: 1, display: "block", mt: 0.5 }}
+    >
+      {error}
+    </Typography>
+  );
+};
 
 function VariantTab() {
   const router = useRouter();
@@ -847,11 +863,7 @@ function VariantTab() {
                     term_id: Number(varAttr.term_id),
                   }))
                 : [],
-              images: Array.isArray(variant.images)
-                ? variant.images
-                : Array.isArray(variant.variantImages)
-                ? variant.variantImages
-                : [],
+              images: variant.variantImages || [], // Store the variant images directly
             })
           );
 
@@ -869,81 +881,29 @@ function VariantTab() {
           // Reset form with fetched variants
           reset({ variants: fetchedVariants });
 
-          // Initialize variant images
+          // Initialize variant images state
           const newVariantImages: Record<string | number, any[]> = {};
           fetchedVariants.forEach((variant) => {
             if (variant.id) {
-              const variantId = variant.id.toString();
-
-              // Try to extract images from possible locations
-              let images = [];
-
-              if (Array.isArray(variant.images)) {
-                images = variant.images;
-              } else if (
-                variant.variantImages &&
-                Array.isArray(variant.variantImages)
-              ) {
-                images = variant.variantImages;
-              } else if (
-                variant.variant_images &&
-                Array.isArray(variant.variant_images)
-              ) {
-                images = variant.variant_images;
-              }
-
-              // Ensure all images have an id and URL properties
-              const processedImages = images.map((img) => ({
-                ...img,
-                id: img.id || img.image_id,
-                url: img.url || img.image_url,
+              // Get images directly from the variant's variantImages array
+              const images = variant.images.map((img: any) => ({
+                id: img.id,
+                image_url: img.image_url,
+                is_primary: img.is_primary,
               }));
 
-              if (processedImages.length > 0) {
-                // Update the UI state immediately
-                setVariantImages((prev) => {
-                  const updated = { ...prev };
-                  if (updated[variantId]) {
-                    // Make sure we don't add duplicate images by checking IDs
-                    const existingIds = new Set(
-                      updated[variantId].map((img) => img.id)
-                    );
-                    const uniqueNewImages = processedImages.filter(
-                      (img) => !existingIds.has(img.id)
-                    );
-
-                    console.log(
-                      `Adding ${
-                        uniqueNewImages.length
-                      } unique images (filtered out ${
-                        processedImages.length - uniqueNewImages.length
-                      } duplicates)`
-                    );
-
-                    updated[variantId] = [
-                      ...updated[variantId],
-                      ...uniqueNewImages,
-                    ];
-                  } else {
-                    updated[variantId] = processedImages;
-                  }
-                  return updated;
-                });
-
-                showSnackbar(
-                  `Successfully uploaded ${processedImages.length} images`,
-                  "success"
-                );
-              } else {
-                showSnackbar("Failed to process uploaded images", "error");
+              if (images.length > 0) {
+                newVariantImages[variant.id] = images;
               }
             }
           });
+
+          // Update the variant images state
           setVariantImages(newVariantImages);
         }
       } catch (error) {
         console.error("Error fetching product data:", error);
-        // showSnackbar("Failed to load product variants", "error");
+        //showSnackbar("Failed to load product variants", "error");
       } finally {
         setIsLoading(false);
       }
@@ -1367,10 +1327,10 @@ function VariantTab() {
                     return updated;
                   });
 
-                  showSnackbar(
-                    `Successfully uploaded ${uploadedImages.length} images`,
-                    "success"
-                  );
+                  // showSnackbar(
+                  //   `Successfully uploaded ${uploadedImages.length} images`,
+                  //   "success"3
+                  // );
                 }
               } catch (error) {
                 console.error(
@@ -1933,13 +1893,9 @@ function VariantTab() {
                 }
                 return updated;
               });
-
-              showSnackbar(
-                `Successfully uploaded ${processedImages.length} images`,
-                "success"
-              );
-            } else {
-              showSnackbar("Failed to process uploaded images", "error");
+              if (response) {
+                showSnackbar(response.data?.message, "success");
+              }
             }
           } catch (error) {
             console.error("Error directly uploading images:", error);
@@ -2120,10 +2076,10 @@ function VariantTab() {
         return updatedImages;
       });
 
-      showSnackbar(
-        `Successfully uploaded ${processedImages.length} images`,
-        "success"
-      );
+      // showSnackbar(
+      //   `Successfully uploaded ${processedImages.length} images`,
+      //   "success"
+      // );
       return processedImages;
     } catch (error) {
       console.error("Error uploading images:", error);
@@ -2430,6 +2386,42 @@ function VariantTab() {
     [formData.variants, productId, showSnackbar]
   );
 
+  const [showValidationMessages, setShowValidationMessages] = useState(false);
+
+  // Add handleFinishClick function before return statement
+  const handleFinishClick = () => {
+    setShowValidationMessages(true); // Show validation messages
+    const formValues = watch();
+
+    // Check for attribute errors
+    let hasAttributeErrors = false;
+    formValues.variants.forEach((variant, index) => {
+      if (variant.attributes) {
+        variant.attributes.forEach((attr, attrIndex) => {
+          if (!attr.term_id || attr.term_id <= 0) {
+            const attributeName = getAttributeName(attr.attribute_id);
+            showSnackbar("Select a value in variant", "error");
+            hasAttributeErrors = true;
+          }
+        });
+      }
+    });
+
+    if (!hasAttributeErrors || isEditMode) {
+      // If not in edit mode, check if all combinations are added
+      if (!isEditMode) {
+        const allCombinations = generateAllAttributeCombinations();
+        if (allCombinations.length > formValues.variants.length) {
+          showSnackbar("Please add all combinations", "warning");
+          return;
+        }
+      }
+
+      // If we're in edit mode or no errors, proceed
+      handleFormSubmit(formValues);
+    }
+  };
+
   return (
     <form
       id="variantForm"
@@ -2512,11 +2504,6 @@ function VariantTab() {
                   label="Slug"
                   required
                 />
-                {/* {errors.variants?.[index]?.slug && (
-                  <Typography color="error" variant="caption" sx={{ pl: 1 }}>
-                    {errors.variants[index].slug.message}
-                  </Typography>
-                )} */}
               </Grid>
               <Grid item xs={12} sm={6}>
                 <FormInputField
@@ -2542,11 +2529,6 @@ function VariantTab() {
                     },
                   }}
                 />
-                {/* {errors.variants?.[index]?.price && (
-                  <Typography color="error" variant="caption" sx={{ pl: 1 }}>
-                    {errors.variants[index].price.message}
-                  </Typography>
-                )} */}
               </Grid>
               <Grid item xs={12} sm={6}>
                 <FormInputField
@@ -2627,11 +2609,6 @@ function VariantTab() {
                     },
                   }}
                 />
-                {/* {errors.variants?.[index]?.stock && (
-                  <Typography color="error" variant="caption" sx={{ pl: 1 }}>
-                    {errors.variants[index].stock.message}
-                  </Typography>
-                )} */}
               </Grid>
               <Grid item xs={12} sm={6}>
                 <FormInputField
@@ -2660,11 +2637,6 @@ function VariantTab() {
                     },
                   }}
                 />
-                {/* {errors.variants?.[index]?.low_stock_threshold && (
-                  <Typography color="error" variant="caption" sx={{ pl: 1 }}>
-                    {errors.variants[index].low_stock_threshold.message}
-                  </Typography>
-                )} */}
               </Grid>
 
               {/* Group dimensions and weight in a single row */}
@@ -2794,7 +2766,6 @@ function VariantTab() {
                   name={`variants.${index}.barcode`}
                   control={control}
                   label="Barcode"
-                  required
                   inputProps={{
                     maxLength: 50,
                     onBlur: (e) => {
@@ -2806,11 +2777,6 @@ function VariantTab() {
                     },
                   }}
                 />
-                {/* {errors.variants?.[index]?.barcode && (
-                  <Typography color="error" variant="caption" sx={{ pl: 1 }}>
-                    {errors.variants[index].barcode.message}
-                  </Typography>
-                )} */}
               </Grid>
               <Grid item xs={12}>
                 <FormInputField
@@ -3159,40 +3125,7 @@ function VariantTab() {
             type="button"
             loading={isLoading}
             disabled={isLoading}
-            onClick={() => {
-              // Get current form values
-              const formValues = watch();
-              console.log("Direct submission values:", formValues);
-
-              // Do a quick check for attribute term_id values
-              let hasAttributeErrors = false;
-
-              formValues.variants.forEach((variant, index) => {
-                if (variant.attributes) {
-                  variant.attributes.forEach((attr, attrIndex) => {
-                    if (!attr.term_id || attr.term_id <= 0) {
-                      const attributeName = getAttributeName(attr.attribute_id);
-                      showSnackbar("Select a value in variant", "error");
-                      hasAttributeErrors = true;
-                    }
-                  });
-                }
-              });
-
-              if (!hasAttributeErrors || isEditMode) {
-                // If not in edit mode, check if all combinations are added
-                if (!isEditMode) {
-                  const allCombinations = generateAllAttributeCombinations();
-                  if (allCombinations.length > formValues.variants.length) {
-                    showSnackbar("Please add all combinations", "warning");
-                    return;
-                  }
-                }
-
-                // If we're in edit mode or no errors, proceed
-                handleFormSubmit(formValues);
-              }
-            }}
+            onClick={handleFinishClick}
           />
         </div>
       </div>

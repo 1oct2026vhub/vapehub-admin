@@ -300,34 +300,7 @@ export default function ProductDetailTable() {
                         {productDetail.Brand?.name || "N/A"}
                       </TableCell>
                     </TableRow>
-                    <TableRow>
-                      <TableCell component="th" className="font-semibold">
-                        Price
-                      </TableCell>
-                      <TableCell>
-                        {productDetail.price
-                          ? `$${productDetail.price}`
-                          : "N/A"}
-                      </TableCell>
-                    </TableRow>
-                    <TableRow>
-                      <TableCell component="th" className="font-semibold">
-                        Discount Price
-                      </TableCell>
-                      <TableCell>
-                        {productDetail.discount_price
-                          ? `$${productDetail.discount_price}`
-                          : "N/A"}
-                      </TableCell>
-                    </TableRow>
-                    {/* <TableRow>
-                      <TableCell component="th" className="font-semibold">
-                        Stock Quantity
-                      </TableCell>
-                      <TableCell>
-                        {productDetail.stock_quantity ?? "N/A"}
-                      </TableCell>
-                    </TableRow> */}
+
                     <TableRow>
                       <TableCell component="th" className="font-semibold">
                         Created At
