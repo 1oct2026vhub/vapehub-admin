@@ -190,8 +190,9 @@ const schema = z.object({
                 return !str.includes(".") || str.split(".")[1].length <= 2;
               },
               { message: "Discount price can have at most 2 decimal places" }
-            ),
-          z.null().refine(() => false, "Discount price is required"),
+            )
+            .nullable()
+            .optional(),
         ])
       ),
       purchase_price: z.preprocess(
@@ -2506,7 +2507,7 @@ function VariantTab() {
                   control={control}
                   label="Discount Price"
                   type="number"
-                  required
+                  // required
                   inputProps={{
                     step: "1",
                     min: "0",
