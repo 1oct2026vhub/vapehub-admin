@@ -28,6 +28,13 @@ import { useEffect, useState } from "react";
 import PageBreadcrumb from "@/components/PageBreadcrumb";
 import parse from "html-react-parser";
 
+// Add custom breadcrumb configuration
+const getBreadcrumbItems = (productId: string | number) => [
+  { label: "Home", link: "/" },
+  { label: "Product", link: "/apps/product" },
+  { label: "Product-Detail", link: "#", disabled: true },
+];
+
 // Component to add a red asterisk to required fields
 const RequiredField = ({ children }: { children: React.ReactNode }) => (
   <span className="relative">
@@ -198,27 +205,33 @@ export default function ProductDetailTable() {
                 },
               }}
             >
-              <Grid container spacing={2}>
-                {productDetail.ProductImages.map((image) => (
-                  <Grid item xs={12} sm={6} key={image.id}>
-                    <Card className="h-full" elevation={2}>
-                      <CardMedia
-                        component="img"
-                        image={image.image_url}
-                        alt={productDetail.name}
-                        sx={{ height: 200, objectFit: "contain" }}
-                      />
-                      <CardContent className="px-2 py-1">
-                        <Chip
-                          label={image.is_primary ? "Primary" : "Secondary"}
-                          color={image.is_primary ? "primary" : "default"}
-                          size="small"
+              {productDetail.ProductImages?.length > 0 ? (
+                <Grid container spacing={2}>
+                  {productDetail.ProductImages.map((image) => (
+                    <Grid item xs={12} sm={6} key={image.id}>
+                      <Card className="h-full" elevation={2}>
+                        <CardMedia
+                          component="img"
+                          image={image.image_url}
+                          alt={productDetail.name}
+                          sx={{ height: 200, objectFit: "contain" }}
                         />
-                      </CardContent>
-                    </Card>
-                  </Grid>
-                ))}
-              </Grid>
+                        <CardContent className="px-2 py-1">
+                          <Chip
+                            label={image.is_primary ? "Primary" : "Secondary"}
+                            color={image.is_primary ? "primary" : "default"}
+                            size="small"
+                          />
+                        </CardContent>
+                      </Card>
+                    </Grid>
+                  ))}
+                </Grid>
+              ) : (
+                <Typography variant="h6" className="mb-4 font-bold">
+                  No data found!
+                </Typography>
+              )}
             </Box>
           </Paper>
         </Grid>
@@ -689,33 +702,41 @@ export default function ProductDetailTable() {
                                             <TableCell className="font-semibold">
                                               Weight
                                             </TableCell>
-                                            <TableCell>
-                                              {variant.weight}
-                                            </TableCell>
+                                            {variant.weight != null && (
+                                              <TableCell>
+                                                {variant.weight} gm
+                                              </TableCell>
+                                            )}
                                           </TableRow>
                                           <TableRow>
                                             <TableCell className="font-semibold">
                                               Height
                                             </TableCell>
-                                            <TableCell>
-                                              {variant.height}
-                                            </TableCell>
+                                            {variant.height != null && (
+                                              <TableCell>
+                                                {variant.height} cm
+                                              </TableCell>
+                                            )}
                                           </TableRow>
                                           <TableRow>
                                             <TableCell className="font-semibold">
                                               Length
                                             </TableCell>
-                                            <TableCell>
-                                              {variant.length}
-                                            </TableCell>
+                                            {variant.length != null && (
+                                              <TableCell>
+                                                {variant.length} cm
+                                              </TableCell>
+                                            )}
                                           </TableRow>
                                           <TableRow>
                                             <TableCell className="font-semibold">
                                               Width
                                             </TableCell>
-                                            <TableCell>
-                                              {variant.width}
-                                            </TableCell>
+                                            {variant.width != null && (
+                                              <TableCell>
+                                                {variant.width} cm
+                                              </TableCell>
+                                            )}
                                           </TableRow>
                                           <TableRow>
                                             <TableCell className="font-semibold">
