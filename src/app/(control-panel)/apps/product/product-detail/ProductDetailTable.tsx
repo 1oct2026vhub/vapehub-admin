@@ -720,62 +720,53 @@ export default function ProductDetailTable() {
                                               {variant.low_stock_threshold}
                                             </TableCell>
                                           </TableRow>
-                                          {/* <TableRow>
-                                            <TableCell className="font-semibold">
-                                              Dimensions
-                                            </TableCell>
-                                            <TableCell>
-                                              {variant.length} × {variant.width}{" "}
-                                              × {variant.height}
-                                            </TableCell>
-                                          </TableRow> */}
                                           <TableRow>
                                             <TableCell className="font-semibold">
                                               Weight
                                             </TableCell>
-                                            {variant.weight != null ? (
-                                              <TableCell>
-                                                {variant.weight} gm
-                                              </TableCell>
-                                            ) : (
-                                              <p>N/A</p>
-                                            )}
+                                            <TableCell>
+                                              {variant.weight != null ? (
+                                                `${variant.weight} gm`
+                                              ) : (
+                                                "N/A"
+                                              )}
+                                            </TableCell>
                                           </TableRow>
                                           <TableRow>
                                             <TableCell className="font-semibold">
                                               Height
                                             </TableCell>
-                                            {variant.height != null ? (
-                                              <TableCell>
-                                                {variant.height} cm
-                                              </TableCell>
-                                            ) : (
-                                              <p>N/A</p>
-                                            )}
+                                            <TableCell>
+                                              {variant.height != null ? (
+                                                `${variant.height} cm`
+                                              ) : (
+                                                "N/A"
+                                              )}
+                                            </TableCell>
                                           </TableRow>
                                           <TableRow>
                                             <TableCell className="font-semibold">
                                               Length
                                             </TableCell>
-                                            {variant.length != null ? (
-                                              <TableCell>
-                                                {variant.length} cm
-                                              </TableCell>
-                                            ) : (
-                                              <p>N/A</p>
-                                            )}
+                                            <TableCell>
+                                              {variant.length != null ? (
+                                                `${variant.length} cm`
+                                              ) : (
+                                                "N/A"
+                                              )}
+                                            </TableCell>
                                           </TableRow>
                                           <TableRow>
                                             <TableCell className="font-semibold">
                                               Width
                                             </TableCell>
-                                            {variant.width != null ? (
-                                              <TableCell>
-                                                {variant.width} cm
-                                              </TableCell>
-                                            ) : (
-                                              <p>N/A</p>
-                                            )}
+                                            <TableCell>
+                                              {variant.width != null ? (
+                                                `${variant.width} cm`
+                                              ) : (
+                                                "N/A"
+                                              )}
+                                            </TableCell>
                                           </TableRow>
                                           <TableRow>
                                             <TableCell className="font-semibold">
