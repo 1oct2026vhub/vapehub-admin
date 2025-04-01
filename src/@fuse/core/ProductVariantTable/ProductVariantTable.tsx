@@ -305,9 +305,9 @@ const ProductVariantTable = ({
               size="small"
             >
               <MenuItem value="id">Sort by ID</MenuItem>
-              <MenuItem value="name">Sort by Name</MenuItem>
+              <MenuItem value="product_name">Sort by Name</MenuItem>
               <MenuItem value="price">Sort by Price</MenuItem>
-              <MenuItem value="stock_quantity">Sort by Stock</MenuItem>
+              <MenuItem value="stock">Sort by Stock</MenuItem>
             </Select>
 
             <Select
