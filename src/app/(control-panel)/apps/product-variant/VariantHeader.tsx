@@ -426,7 +426,7 @@ const VariantHeader = ({ refreshData }: VariantHeaderProps) => {
                 <Table stickyHeader aria-label="bulk update results table">
                   <TableHead>
                     <TableRow>
-                      <TableCell>Name</TableCell>
+                      <TableCell>Slug</TableCell>
                       <TableCell>Status</TableCell>
                       {uploadResult.data.results.some(
                         (result) => result.status === "Error"
@@ -443,7 +443,7 @@ const VariantHeader = ({ refreshData }: VariantHeaderProps) => {
                           }}
                         >
                           <TableCell component="th" scope="row">
-                            {result.name}
+                            {result.slug}
                           </TableCell>
                           <TableCell>
                             <Chip
