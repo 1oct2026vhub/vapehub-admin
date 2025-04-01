@@ -482,7 +482,7 @@ function VariantTab() {
                   attribute_id: Number(attr.attribute_id),
                   term_id: Number(attr.term_id),
                 })) || [],
-              status: "active" as const,
+              status: variant.status || ("active" as const),
             }))
           : [createDefaultVariant([])],
     },
@@ -819,7 +819,9 @@ function VariantTab() {
               status:
                 variant.status === true ||
                 (typeof variant.status === "string" &&
-                  variant.status === "active"),
+                  variant.status === "active")
+                  ? "active"
+                  : "inactive",
               discount_price: variant.discount_price
                 ? typeof variant.discount_price === "string"
                   ? parseFloat(variant.discount_price)
@@ -888,8 +890,8 @@ function VariantTab() {
               // Get images directly from the variant's variantImages array
               const images = variant.images.map((img: any) => ({
                 id: img.id,
-                image_url: img.image_url,
-                is_primary: img.is_primary,
+                image_url: img.image_url || img.url,
+                is_primary: !!img.is_primary,
               }));
 
               if (images.length > 0) {
@@ -2606,6 +2608,18 @@ function VariantTab() {
                     required
                   />
                 </Grid>
+                {/* <Grid item xs={12} sm={6}>
+                  <FormSelectField
+                    name={`variants.${index}.status`}
+                    control={control}
+                    label="Status"
+                    options={[
+                      { value: "active", label: "Active" },
+                      { value: "inactive", label: "Inactive" },
+                    ]}
+                    required
+                  />
+                </Grid> */}
                 <Grid item xs={12} sm={6}>
                   <FormInputField
                     name={`variants.${index}.price`}
@@ -2709,6 +2723,18 @@ function VariantTab() {
                         }
                       },
                     }}
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <FormSelectField
+                    name={`variants.${index}.status`}
+                    control={control}
+                    label="Status"
+                    options={[
+                      { value: "active", label: "Active" },
+                      { value: "inactive", label: "Inactive" },
+                    ]}
+                    required
                   />
                 </Grid>
                 <Grid item xs={12} sm={6}>
