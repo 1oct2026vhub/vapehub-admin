@@ -290,7 +290,7 @@ function ProductHeader({ refreshData }: ProductHeaderProps) {
           }}
         >
           <Typography variant="h6" component="div">
-            Bulk Update Results
+            Bulk Upload Results
           </Typography>
           <IconButton
             aria-label="close"

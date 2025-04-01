@@ -357,7 +357,7 @@ const ProductListTable = ({
   const columns = useMemo<MRT_ColumnDef<ProductType>[]>(
     () => [
       { accessorKey: "id", header: "ID" },
-      { accessorKey: "name", header: "Name" },
+      { accessorKey: "name", header: "Product Name" },
       { accessorKey: "slug", header: "Slug" },
       // {
       //   accessorKey: "price",
