@@ -50,6 +50,7 @@ import CloseIcon from "@mui/icons-material/Close";
 import { styled } from "@mui/material/styles";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
+import AttributeTermSelector from "@/components/AttributeTermSelector";
 
 // Create a styled version of TextField with the app's styling
 const StyledTextField = styled(TextField)(({ theme }) => ({
@@ -506,44 +507,103 @@ function VariantTab() {
   // Watch all variants to track used terms
   const formVariants = watch("variants") || [];
 
-  // Helper functions to display attribute and term names
-  const getTermName = (attributeId, termId) => {
-    const term = (
-      formData.attributesResponse?.productAttributeTerms || []
-    ).find((t) => t.attribute_id === attributeId && t.term_id === termId);
-    return term?.term?.name || `Term ${termId}`;
-  };
-
-  // Update the getAttributeName function to use the correct property access
-  const getAttributeName = (attributeId: number) => {
-    // First try to find the attribute in the attributesResponse
-    const responseAttribute =
-      formData.attributesResponse?.productAttributeTerms?.find(
-        (term) => term.attribute_id === attributeId
-      )?.attribute;
-    if (responseAttribute?.name) {
-      return responseAttribute.name;
+  // Add useEffect to update variant terms when attribute data changes
+  useEffect(() => {
+    if (!formData.attributesResponse?.productAttributeTerms || formVariants.length === 0) {
+      return;
     }
 
-    // If not found, return a default name
-    return `Attribute ${attributeId}`;
-  };
+    // Check each variant and update its term labels if needed
+    formVariants.forEach((variant, variantIndex) => {
+      if (!variant.attributes) return;
+
+      variant.attributes.forEach((attr, attrIndex) => {
+        if (!attr || !attr.attribute_id || !attr.term_id) return;
+        
+        // Force re-render of select fields by temporarily updating controlled value
+        // This trick forces react-hook-form to update the displayed values
+        const currentTermId = attr.term_id;
+        
+        // Schedule a micro-task to update the values
+        Promise.resolve().then(() => {
+          setValue(`variants.${variantIndex}.attributes.${attrIndex}.term_id`, currentTermId, {
+            shouldValidate: true,
+            shouldDirty: false,
+            shouldTouch: false
+          });
+        });
+      });
+    });
+  }, [formData.attributesResponse?.productAttributeTerms, formVariants, setValue]);
 
   // Function to get all available terms for an attribute
   const getAllTermsForAttribute = useCallback(
     (attributeId: number) => {
-      return (formData.attributesResponse?.productAttributeTerms || [])
-        .filter(
-          (term) => term.attribute_id === attributeId && term.used_in_variation
+      // Get all terms for this specific attribute
+      const attributeTerms = (formData.attributesResponse?.productAttributeTerms || [])
+        .filter((term) => 
+          term.attribute_id === attributeId && 
+          term.used_in_variation &&
+          term.term?.id && // Ensure term exists
+          term.attribute?.id === attributeId // Double check attribute match
         )
         .map((term) => ({
           value: term.term_id,
           label: term.term?.name || `Term ${term.term_id}`,
           attributeId: term.attribute_id,
+          attributeName: term.attribute?.name // Include attribute name for reference
         }));
+
+      // Sort terms by name for consistency
+      return attributeTerms.sort((a, b) => a.label.localeCompare(b.label));
     },
     [formData.attributesResponse?.productAttributeTerms]
   );
+
+  // Helper functions to display attribute and term names
+  const getTermName = (attributeId: number, termId: number) => {
+    // Find the exact term that matches both attribute and term IDs
+    const matchingTerm = (formData.attributesResponse?.productAttributeTerms || [])
+      .find(t => 
+        t.attribute_id === attributeId && 
+        t.term_id === termId
+      );
+    
+    if (matchingTerm?.term?.name) {
+      // Store this term in the global map for future reference
+      if (typeof window !== 'undefined') {
+        // Ensure the maps exist
+        if (!(window as any).directTermLabelMap) {
+          (window as any).directTermLabelMap = {};
+        }
+        
+        if (!(window as any).directTermLabelMap[attributeId]) {
+          (window as any).directTermLabelMap[attributeId] = {};
+        }
+        
+        // Store the term name
+        (window as any).directTermLabelMap[attributeId][termId] = matchingTerm.term.name;
+      }
+      
+      return matchingTerm.term.name;
+    }
+    
+    // Return the name if found, otherwise fallback
+    return matchingTerm?.term?.name || `Term ${termId}`;
+  };
+
+  // Update the getAttributeName function to use the correct property access
+  const getAttributeName = (attributeId: number) => {
+    // Look up the attribute in the attributesResponse
+    const matchingAttribute = (formData.attributesResponse?.productAttributeTerms || [])
+      .find(term => term.attribute_id === attributeId)?.attribute;
+    
+    if (matchingAttribute?.name) {
+      return matchingAttribute.name;
+    }
+    
+    return matchingAttribute?.name || `Attribute ${attributeId}`;
+  };
 
   // Function to generate all possible combinations of attributes
   const generateAllAttributeCombinations = useCallback(() => {
@@ -2527,6 +2587,58 @@ function VariantTab() {
     }
   `;
 
+  // Trigger global refresh of attribute terms when data changes
+  useEffect(() => {
+    if (!formData.attributesResponse?.productAttributeTerms || 
+        !Array.isArray(formData.attributesResponse.productAttributeTerms) ||
+        formData.attributesResponse.productAttributeTerms.length === 0) {
+      return;
+    }
+    
+    // Update the global attribute-term map
+    const attributeTermMap: Record<string, Record<string, string>> = {};
+    
+    // Populate the map with all terms from the attributes response
+    formData.attributesResponse.productAttributeTerms.forEach(term => {
+      const attributeId = String(term.attribute_id);
+      const termId = String(term.term_id);
+      const termName = term.term?.name || `Term ${termId}`;
+      
+      if (!attributeTermMap[attributeId]) {
+        attributeTermMap[attributeId] = {};
+      }
+      
+      attributeTermMap[attributeId][termId] = termName;
+    });
+    
+    // Update the global map
+    if (typeof window !== 'undefined') {
+      // Update the global map
+      (window as any).attributeTermsMap = {
+        ...(window as any).attributeTermsMap,
+        ...attributeTermMap
+      };
+      
+      // Force all select fields to refresh
+      document.querySelectorAll('select').forEach(select => {
+        const event = new Event('focus');
+        select.dispatchEvent(event);
+        
+        // Dispatch a blur event to trigger onChange
+        setTimeout(() => {
+          const blurEvent = new Event('blur');
+          select.dispatchEvent(blurEvent);
+        }, 10);
+      });
+      
+      // Force re-render of all form elements
+      document.querySelectorAll('form').forEach(form => {
+        form.classList.add('refreshing');
+        setTimeout(() => form.classList.remove('refreshing'), 10);
+      });
+    }
+  }, [formData.attributesResponse?.productAttributeTerms]);
+
   return (
     <>
       <style jsx global>
@@ -2580,34 +2692,78 @@ function VariantTab() {
                 </Box>
               </Grid>
               <Grid container spacing={2}>
-                {variationAttributes.map((attr, attrIndex) => (
-                  <Grid item xs={12} sm={6} key={attr.attribute_id}>
-                    <FormSelectField
-                      name={`variants.${index}.attributes.${attrIndex}.term_id`}
-                      control={control}
-                      label={getAttributeName(attr.attribute_id)}
-                      options={getAllTermsForAttribute(attr.attribute_id).map(
-                        (term) => ({
-                          value: term.value,
-                          label: term.label,
-                        })
-                      )}
-                      required
-                      onChange={(event: SelectChangeEvent<unknown>) =>
-                        handleTermChange(event, index, attrIndex)
+                {variationAttributes.map((attr, attrIndex) => {
+                  const attributeId = attr.attribute_id;
+                  
+                  // Get the currently selected term for this attribute
+                  const currentTermId = formVariants[index]?.attributes?.find(
+                    a => a.attribute_id === attributeId
+                  )?.term_id;
+                  
+                  // Get all available terms for this attribute with proper mapping
+                  const availableTerms = (formData.attributesResponse?.productAttributeTerms || [])
+                    .filter(term => 
+                      term.attribute_id === attributeId && 
+                      term.used_in_variation &&
+                      term.term && // Ensure term exists
+                      term.term.id // Ensure term has ID
+                    )
+                    .map(term => {
+                      // Store this term in the global map for future reference
+                      if (typeof window !== 'undefined') {
+                        // Ensure the maps exist
+                        if (!(window as any).directTermLabelMap) {
+                          (window as any).directTermLabelMap = {};
+                        }
+                        
+                        if (!(window as any).directTermLabelMap[attributeId]) {
+                          (window as any).directTermLabelMap[attributeId] = {};
+                        }
+                        
+                        // Store the term name
+                        (window as any).directTermLabelMap[attributeId][term.term_id] = term.term.name;
                       }
-                    />
+                      
+                      return {
+                        value: term.term_id,
+                        label: term.term.name || `Term ${term.term_id}`,
+                        attributeId
+                      };
+                    });
+                  
+                  // Create a unique instance ID to reference this specific field
+                  const instanceId = `variant-${index}-attr-${attributeId}`;
+                  
+                  // Get the current term name to properly display
+                  const currentTermName = currentTermId ? getTermName(attributeId, currentTermId) : '';
+                  
+                  return (
+                    <Grid item xs={12} sm={6} key={`${attributeId}-${index}-${Date.now()}`}>
+                      <AttributeTermSelector
+                        instanceId={instanceId}
+                        name={`variants.${index}.attributes.${attrIndex}.term_id`}
+                        control={control}
+                        attributeId={attributeId}
+                        termId={currentTermId}
+                        options={availableTerms}
+                        attributeName={getAttributeName(attributeId)}
+                        getTermName={getTermName}
+                        index={index}
+                        attrIndex={attrIndex}
+                        handleTermChange={handleTermChange}
+                      />
 
-                    {/* Set attribute_id as hidden field */}
-                    <input
-                      type="hidden"
-                      {...register(
-                        `variants.${index}.attributes.${attrIndex}.attribute_id`
-                      )}
-                      defaultValue={Number(attr.attribute_id)}
-                    />
-                  </Grid>
-                ))}
+                      {/* Set attribute_id as hidden field */}
+                      <input
+                        type="hidden"
+                        {...register(
+                          `variants.${index}.attributes.${attrIndex}.attribute_id`
+                        )}
+                        defaultValue={Number(attributeId)}
+                      />
+                    </Grid>
+                  );
+                })}
 
                 {/* Collapsible Variant Details Section */}
                 <Grid item xs={12}>
