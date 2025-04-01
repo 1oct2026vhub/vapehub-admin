@@ -509,7 +509,10 @@ function VariantTab() {
 
   // Add useEffect to update variant terms when attribute data changes
   useEffect(() => {
-    if (!formData.attributesResponse?.productAttributeTerms || formVariants.length === 0) {
+    if (
+      !formData.attributesResponse?.productAttributeTerms ||
+      formVariants.length === 0
+    ) {
       return;
     }
 
@@ -519,39 +522,50 @@ function VariantTab() {
 
       variant.attributes.forEach((attr, attrIndex) => {
         if (!attr || !attr.attribute_id || !attr.term_id) return;
-        
+
         // Force re-render of select fields by temporarily updating controlled value
         // This trick forces react-hook-form to update the displayed values
         const currentTermId = attr.term_id;
-        
+
         // Schedule a micro-task to update the values
         Promise.resolve().then(() => {
-          setValue(`variants.${variantIndex}.attributes.${attrIndex}.term_id`, currentTermId, {
-            shouldValidate: true,
-            shouldDirty: false,
-            shouldTouch: false
-          });
+          setValue(
+            `variants.${variantIndex}.attributes.${attrIndex}.term_id`,
+            currentTermId,
+            {
+              shouldValidate: true,
+              shouldDirty: false,
+              shouldTouch: false,
+            }
+          );
         });
       });
     });
-  }, [formData.attributesResponse?.productAttributeTerms, formVariants, setValue]);
+  }, [
+    formData.attributesResponse?.productAttributeTerms,
+    formVariants,
+    setValue,
+  ]);
 
   // Function to get all available terms for an attribute
   const getAllTermsForAttribute = useCallback(
     (attributeId: number) => {
       // Get all terms for this specific attribute
-      const attributeTerms = (formData.attributesResponse?.productAttributeTerms || [])
-        .filter((term) => 
-          term.attribute_id === attributeId && 
-          term.used_in_variation &&
-          term.term?.id && // Ensure term exists
-          term.attribute?.id === attributeId // Double check attribute match
+      const attributeTerms = (
+        formData.attributesResponse?.productAttributeTerms || []
+      )
+        .filter(
+          (term) =>
+            term.attribute_id === attributeId &&
+            term.used_in_variation &&
+            term.term?.id && // Ensure term exists
+            term.attribute?.id === attributeId // Double check attribute match
         )
         .map((term) => ({
           value: term.term_id,
           label: term.term?.name || `Term ${term.term_id}`,
           attributeId: term.attribute_id,
-          attributeName: term.attribute?.name // Include attribute name for reference
+          attributeName: term.attribute?.name, // Include attribute name for reference
         }));
 
       // Sort terms by name for consistency
@@ -563,31 +577,30 @@ function VariantTab() {
   // Helper functions to display attribute and term names
   const getTermName = (attributeId: number, termId: number) => {
     // Find the exact term that matches both attribute and term IDs
-    const matchingTerm = (formData.attributesResponse?.productAttributeTerms || [])
-      .find(t => 
-        t.attribute_id === attributeId && 
-        t.term_id === termId
-      );
-    
+    const matchingTerm = (
+      formData.attributesResponse?.productAttributeTerms || []
+    ).find((t) => t.attribute_id === attributeId && t.term_id === termId);
+
     if (matchingTerm?.term?.name) {
       // Store this term in the global map for future reference
-      if (typeof window !== 'undefined') {
+      if (typeof window !== "undefined") {
         // Ensure the maps exist
         if (!(window as any).directTermLabelMap) {
           (window as any).directTermLabelMap = {};
         }
-        
+
         if (!(window as any).directTermLabelMap[attributeId]) {
           (window as any).directTermLabelMap[attributeId] = {};
         }
-        
+
         // Store the term name
-        (window as any).directTermLabelMap[attributeId][termId] = matchingTerm.term.name;
+        (window as any).directTermLabelMap[attributeId][termId] =
+          matchingTerm.term.name;
       }
-      
+
       return matchingTerm.term.name;
     }
-    
+
     // Return the name if found, otherwise fallback
     return matchingTerm?.term?.name || `Term ${termId}`;
   };
@@ -595,13 +608,14 @@ function VariantTab() {
   // Update the getAttributeName function to use the correct property access
   const getAttributeName = (attributeId: number) => {
     // Look up the attribute in the attributesResponse
-    const matchingAttribute = (formData.attributesResponse?.productAttributeTerms || [])
-      .find(term => term.attribute_id === attributeId)?.attribute;
-    
+    const matchingAttribute = (
+      formData.attributesResponse?.productAttributeTerms || []
+    ).find((term) => term.attribute_id === attributeId)?.attribute;
+
     if (matchingAttribute?.name) {
       return matchingAttribute.name;
     }
-    
+
     return matchingAttribute?.name || `Attribute ${attributeId}`;
   };
 
@@ -2589,52 +2603,54 @@ function VariantTab() {
 
   // Trigger global refresh of attribute terms when data changes
   useEffect(() => {
-    if (!formData.attributesResponse?.productAttributeTerms || 
-        !Array.isArray(formData.attributesResponse.productAttributeTerms) ||
-        formData.attributesResponse.productAttributeTerms.length === 0) {
+    if (
+      !formData.attributesResponse?.productAttributeTerms ||
+      !Array.isArray(formData.attributesResponse.productAttributeTerms) ||
+      formData.attributesResponse.productAttributeTerms.length === 0
+    ) {
       return;
     }
-    
+
     // Update the global attribute-term map
     const attributeTermMap: Record<string, Record<string, string>> = {};
-    
+
     // Populate the map with all terms from the attributes response
-    formData.attributesResponse.productAttributeTerms.forEach(term => {
+    formData.attributesResponse.productAttributeTerms.forEach((term) => {
       const attributeId = String(term.attribute_id);
       const termId = String(term.term_id);
       const termName = term.term?.name || `Term ${termId}`;
-      
+
       if (!attributeTermMap[attributeId]) {
         attributeTermMap[attributeId] = {};
       }
-      
+
       attributeTermMap[attributeId][termId] = termName;
     });
-    
+
     // Update the global map
-    if (typeof window !== 'undefined') {
+    if (typeof window !== "undefined") {
       // Update the global map
       (window as any).attributeTermsMap = {
         ...(window as any).attributeTermsMap,
-        ...attributeTermMap
+        ...attributeTermMap,
       };
-      
+
       // Force all select fields to refresh
-      document.querySelectorAll('select').forEach(select => {
-        const event = new Event('focus');
+      document.querySelectorAll("select").forEach((select) => {
+        const event = new Event("focus");
         select.dispatchEvent(event);
-        
+
         // Dispatch a blur event to trigger onChange
         setTimeout(() => {
-          const blurEvent = new Event('blur');
+          const blurEvent = new Event("blur");
           select.dispatchEvent(blurEvent);
         }, 10);
       });
-      
+
       // Force re-render of all form elements
-      document.querySelectorAll('form').forEach(form => {
-        form.classList.add('refreshing');
-        setTimeout(() => form.classList.remove('refreshing'), 10);
+      document.querySelectorAll("form").forEach((form) => {
+        form.classList.add("refreshing");
+        setTimeout(() => form.classList.remove("refreshing"), 10);
       });
     }
   }, [formData.attributesResponse?.productAttributeTerms]);
@@ -2694,51 +2710,63 @@ function VariantTab() {
               <Grid container spacing={2}>
                 {variationAttributes.map((attr, attrIndex) => {
                   const attributeId = attr.attribute_id;
-                  
+
                   // Get the currently selected term for this attribute
                   const currentTermId = formVariants[index]?.attributes?.find(
-                    a => a.attribute_id === attributeId
+                    (a) => a.attribute_id === attributeId
                   )?.term_id;
-                  
+
                   // Get all available terms for this attribute with proper mapping
-                  const availableTerms = (formData.attributesResponse?.productAttributeTerms || [])
-                    .filter(term => 
-                      term.attribute_id === attributeId && 
-                      term.used_in_variation &&
-                      term.term && // Ensure term exists
-                      term.term.id // Ensure term has ID
+                  const availableTerms = (
+                    formData.attributesResponse?.productAttributeTerms || []
+                  )
+                    .filter(
+                      (term) =>
+                        term.attribute_id === attributeId &&
+                        term.used_in_variation &&
+                        term.term && // Ensure term exists
+                        term.term.id // Ensure term has ID
                     )
-                    .map(term => {
+                    .map((term) => {
                       // Store this term in the global map for future reference
-                      if (typeof window !== 'undefined') {
+                      if (typeof window !== "undefined") {
                         // Ensure the maps exist
                         if (!(window as any).directTermLabelMap) {
                           (window as any).directTermLabelMap = {};
                         }
-                        
+
                         if (!(window as any).directTermLabelMap[attributeId]) {
                           (window as any).directTermLabelMap[attributeId] = {};
                         }
-                        
+
                         // Store the term name
-                        (window as any).directTermLabelMap[attributeId][term.term_id] = term.term.name;
+                        (window as any).directTermLabelMap[attributeId][
+                          term.term_id
+                        ] = term.term.name;
                       }
-                      
+
                       return {
                         value: term.term_id,
                         label: term.term.name || `Term ${term.term_id}`,
-                        attributeId
+                        attributeId,
                       };
                     });
-                  
+
                   // Create a unique instance ID to reference this specific field
                   const instanceId = `variant-${index}-attr-${attributeId}`;
-                  
+
                   // Get the current term name to properly display
-                  const currentTermName = currentTermId ? getTermName(attributeId, currentTermId) : '';
-                  
+                  const currentTermName = currentTermId
+                    ? getTermName(attributeId, currentTermId)
+                    : "";
+
                   return (
-                    <Grid item xs={12} sm={6} key={`${attributeId}-${index}-${Date.now()}`}>
+                    <Grid
+                      item
+                      xs={12}
+                      sm={6}
+                      key={`${attributeId}-${index}-${Date.now()}`}
+                    >
                       <AttributeTermSelector
                         instanceId={instanceId}
                         name={`variants.${index}.attributes.${attrIndex}.term_id`}
@@ -3128,7 +3156,11 @@ function VariantTab() {
                               borderRadius: 1,
                             }}
                           >
-                            <Typography variant="subtitle1" gutterBottom>
+                            <Typography
+                              className="mb-10"
+                              variant="subtitle1"
+                              gutterBottom
+                            >
                               Images
                             </Typography>
 
@@ -3180,28 +3212,60 @@ function VariantTab() {
                                               right: 0,
                                               display: "flex",
                                               zIndex: 2,
+                                              gap: 0.5,
                                             }}
                                           >
-                                            {/* Set as primary button */}
-                                            {!image.is_primary && (
-                                              <IconButton
+                                            {/* Primary image checkbox */}
+                                            <Box
+                                              sx={{
+                                                display: "flex",
+                                                alignItems: "center",
+                                                backgroundColor:
+                                                  image.is_primary
+                                                    ? "rgba(46, 153, 112, 0.1)"
+                                                    : "rgba(0, 0, 0, 0.05)",
+                                                borderRadius: "4px",
+                                                padding: "2px 4px",
+                                              }}
+                                            >
+                                              <Checkbox
                                                 size="small"
-                                                onClick={() =>
-                                                  handleSetPrimary(
-                                                    variantId,
-                                                    image.id
-                                                      ? image.id.toString()
-                                                      : ""
-                                                  )
-                                                }
-                                                disabled={isUploading}
-                                                color="primary"
-                                                sx={{ padding: "2px" }}
-                                                title="Set as primary image"
+                                                checked={image.is_primary}
+                                                onChange={() => {
+                                                  if (!image.is_primary) {
+                                                    handleSetPrimary(
+                                                      variantId,
+                                                      image.id
+                                                        ? image.id.toString()
+                                                        : ""
+                                                    );
+                                                  }
+                                                }}
+                                                sx={{
+                                                  padding: "2px",
+                                                  color: image.is_primary
+                                                    ? "#2E9970"
+                                                    : "inherit",
+                                                  "&.Mui-checked": {
+                                                    color: "#2E9970",
+                                                  },
+                                                }}
+                                              />
+                                              <Typography
+                                                variant="caption"
+                                                sx={{
+                                                  fontSize: "10px",
+                                                  color: image.is_primary
+                                                    ? "#2E9970"
+                                                    : "text.secondary",
+                                                  fontWeight: image.is_primary
+                                                    ? 600
+                                                    : 400,
+                                                }}
                                               >
-                                                <CheckCircleOutlineIcon fontSize="small" />
-                                              </IconButton>
-                                            )}
+                                                Primary
+                                              </Typography>
+                                            </Box>
 
                                             {/* Delete button */}
                                             <IconButton
@@ -3216,7 +3280,15 @@ function VariantTab() {
                                               }
                                               disabled={isUploading}
                                               color="error"
-                                              sx={{ padding: "2px" }}
+                                              sx={{
+                                                padding: "2px",
+                                                backgroundColor:
+                                                  "rgba(211, 47, 47, 0.1)",
+                                                "&:hover": {
+                                                  backgroundColor:
+                                                    "rgba(211, 47, 47, 0.2)",
+                                                },
+                                              }}
                                             >
                                               <DeleteIcon fontSize="small" />
                                             </IconButton>
@@ -3234,6 +3306,22 @@ function VariantTab() {
                                                   : "1px solid #ddd",
                                               borderRadius: 1,
                                               overflow: "hidden",
+                                              cursor: "pointer",
+                                              "&:hover": {
+                                                boxShadow:
+                                                  "0 0 0 2px rgba(46, 153, 112, 0.3)",
+                                              },
+                                              transition: "box-shadow 0.2s",
+                                            }}
+                                            onClick={() => {
+                                              if (!image.is_primary) {
+                                                handleSetPrimary(
+                                                  variantId,
+                                                  image.id
+                                                    ? image.id.toString()
+                                                    : ""
+                                                );
+                                              }
                                             }}
                                           >
                                             <img
@@ -3285,8 +3373,10 @@ function VariantTab() {
                                             right: 0,
                                             display: "flex",
                                             zIndex: 2,
+                                            gap: 0.5,
                                           }}
                                         >
+                                          {/* Delete button */}
                                           <IconButton
                                             size="small"
                                             onClick={() => {
@@ -3318,7 +3408,15 @@ function VariantTab() {
                                               });
                                             }}
                                             color="error"
-                                            sx={{ padding: "2px" }}
+                                            sx={{
+                                              padding: "2px",
+                                              backgroundColor:
+                                                "rgba(211, 47, 47, 0.1)",
+                                              "&:hover": {
+                                                backgroundColor:
+                                                  "rgba(211, 47, 47, 0.2)",
+                                              },
+                                            }}
                                           >
                                             <DeleteIcon fontSize="small" />
                                           </IconButton>

@@ -264,7 +264,7 @@ function AttributesTab() {
       fetchedRef.current = true;
     } catch (error) {
       console.error("Error fetching product data:", error);
-      showSnackbar("Failed to load product data", "error");
+      // showSnackbar("Failed to load product data", "error");
 
       // If API fails but we have attributes in form context, use those
       if (formData.attributes && formData.attributes.length > 0) {
