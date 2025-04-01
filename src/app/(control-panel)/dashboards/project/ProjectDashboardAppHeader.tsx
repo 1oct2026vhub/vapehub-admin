@@ -53,7 +53,7 @@ function ProjectDashboardAppHeader() {
   }
 
   return (
-    <div className="flex w-full items-center justify-between p-24 sm:p-32">
+    <div className="flex w-full items-center justify-between px-6 md:px-8">
       <div className="flex flex-col">
         <PageBreadcrumb className="mb-2" />
         <div className="flex items-center">
@@ -61,13 +61,13 @@ function ProjectDashboardAppHeader() {
             component="h2"
             className="text-2xl md:text-3xl font-semibold tracking-tight leading-7 md:leading-snug truncate"
           >
-            Welcome back{user?.displayName ? `, ${user.displayName}` : ''}!
+            Welcome back{user?.displayName ? `, ${user.displayName}` : ""}!
           </Typography>
         </div>
       </div>
       <div className="flex flex-col sm:flex-row flex-auto sm:items-center min-w-0 my-8 sm:my-12">
         <div className="flex flex-auto items-start min-w-0">
-          <Avatar
+          {/* <Avatar
             sx={(theme) => ({
               background: (theme) =>
                 darken(theme.palette.background.default, 0.05),
@@ -78,14 +78,14 @@ function ProjectDashboardAppHeader() {
             src={user?.photoURL}
           >
             {user?.displayName?.[0]}
-          </Avatar>
+          </Avatar> */}
           <div className="flex flex-col min-w-0 mx-4">
             {/* <PageBreadcrumb /> */}
-            <Typography className="text-2xl md:text-5xl font-semibold tracking-tight leading-7 md:leading-[1.375] truncate">
+            {/* <Typography className="text-2xl md:text-5xl font-semibold tracking-tight leading-7 md:leading-[1.375] truncate">
               {isGuest
                 ? "Hi Guest!"
                 : `Welcome back, ${user?.displayName || user?.email}!`}
-            </Typography>
+            </Typography> */}
 
             {/* <div className="flex items-center">
 							<FuseSvgIcon
