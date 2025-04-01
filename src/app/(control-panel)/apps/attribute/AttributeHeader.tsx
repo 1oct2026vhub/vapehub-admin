@@ -423,7 +423,7 @@ function AttributeHeader({ refreshData }: AttributeHeaderProps) {
                 <Table stickyHeader aria-label="bulk update results table">
                   <TableHead>
                     <TableRow>
-                      <TableCell>Name</TableCell>
+                      <TableCell>Slug</TableCell>
                       {/* <TableCell>Slug</TableCell> */}
                       <TableCell>Status</TableCell>
                       {uploadResult.data.results.some(
@@ -441,7 +441,7 @@ function AttributeHeader({ refreshData }: AttributeHeaderProps) {
                           }}
                         >
                           <TableCell component="th" scope="row">
-                            {result.name}
+                            {result.slug}
                           </TableCell>
                           {/* <TableCell>{result.slug}</TableCell> */}
                           <TableCell>
