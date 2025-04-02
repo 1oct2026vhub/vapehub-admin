@@ -76,11 +76,33 @@ const navigationConfig: FuseNavItemType[] = [
   },
   {
     id: "order",
-    title: "Order List",
-    type: "item",
-    icon: "heroicons-outline:shopping-cart", // Clipboard List Icon for Orders
-    url: "",
+    title: "Order Report",
+    type: "collapse",
+    icon: "heroicons-outline:shopping-cart",
+    children: [
+      {
+        id: "statics",
+        title: "Order Statistics",
+        type: "item",
+        url: "/apps/order/list",
+        end: true,
+      },
+      {
+        id: "list",
+        title: "Order List",
+        type: "item",
+        url: "",
+        end: true,
+      },
+    ],
   },
+  // {
+  //   id: "order",
+  //   title: "Order List",
+  //   type: "item",
+  //   icon: "heroicons-outline:shopping-cart", // Clipboard List Icon for Orders
+  //   url: "",
+  // },
   // {
   // 	id: 'apps.forgotPassword',
   // 	title: 'Authentication',

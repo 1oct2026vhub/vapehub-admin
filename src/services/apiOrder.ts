@@ -1,4 +1,6 @@
+import { getAuthToken } from "@/utils/auth";
 import { fetcher, updater } from "./apiService";
+import axiosInstance from "@/utils/axiosApi";
 
 // Order status types
 export type OrderStatus =
@@ -38,86 +40,94 @@ export interface OrderStatistics {
   }[];
 }
 
+// Interface for address
+export interface Address {
+  id: number;
+  name: string;
+  last_name: string;
+  company_name: string | null;
+  country: string;
+  street: string;
+  apartment: string | null;
+  town: string;
+  county: string | null;
+  post_code: string;
+  phone: string | null;
+}
+
 // Interface for order item
 export interface OrderItem {
   id: number;
+  order_id: number;
   product_id: number;
   variant_id: number;
+  unit: string;
+  unit_price: string;
   quantity: number;
-  price: number;
-  total: number;
+  discount_price: string | null;
+  total: string;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt: string | null;
   product: {
+    id: number;
     name: string;
     slug: string;
-    image: string;
+    ProductImages: Array<{
+      id: number;
+      url: string;
+    }>;
   };
   variant: {
-    attributes: {
-      attribute: string;
-      value: string;
-    }[];
+    id: number;
+    barcode: string;
+    price: string;
+    slug: string;
   };
 }
 
 // Interface for order details
 export interface Order {
   id: number;
-  order_number: string;
+  order_unique_id: string;
   user_id: number;
-  total_items: number;
-  subtotal: number;
-  tax: number;
-  discount: number;
-  total: number;
+  coupon_id: number | null;
+  total: string;
+  discount_price: string | null;
   status: OrderStatus;
-  payment_status: PaymentStatus;
-  payment_method: string;
-  shipping_address: {
-    first_name: string;
-    last_name: string;
-    address_line1: string;
-    address_line2: string | null;
-    city: string;
-    state: string;
-    postal_code: string;
-    country: string;
-    phone: string;
-    email: string;
-  };
-  billing_address: {
-    first_name: string;
-    last_name: string;
-    address_line1: string;
-    address_line2: string | null;
-    city: string;
-    state: string;
-    postal_code: string;
-    country: string;
-    phone: string;
-    email: string;
-  };
-  shipping_method: string;
-  shipping_cost: number;
-  tracking_number: string | null;
-  notes: string | null;
-  created_at: string;
-  updated_at: string;
-  items: OrderItem[];
+  shipping_address_id: number;
+  billing_address_id: number;
+  shipping_method_id: number;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt: string | null;
   user: {
     id: number;
-    first_name: string;
-    last_name: string;
+    first_name: string | null;
+    last_name: string | null;
     email: string;
+    phone: string | null;
+    profile_pic_url: string | null;
   };
+  shippingAddress: Address;
+  billingAddress: Address;
+  orderItems: OrderItem[];
+  payment_status?: PaymentStatus; // Added for backward compatibility
 }
 
 // Interface for orders list response with pagination
 export interface OrdersListResponse {
-  data: Order[];
-  total: number;
-  page: number;
-  limit: number;
-  last_page: number;
+  success: boolean;
+  message: string;
+  data: {
+    orders: Order[];
+    pagination: {
+      total: number;
+      page: number;
+      limit: number;
+      total_pages: number;
+    };
+  };
 }
 
 // Interface for order filter parameters
@@ -150,29 +160,45 @@ export const generateOrderReport = async (
   paymentStatus?: PaymentStatus,
   startDate?: string,
   endDate?: string
-): Promise<Blob> => {
-  const params: any = {};
-  if (status) params.status = status;
-  if (paymentStatus) params.payment_status = paymentStatus;
-  if (startDate) params.start_date = startDate;
-  if (endDate) params.end_date = endDate;
+): Promise<void> => {
+  try {
+    // Build params object
+    const params: any = {};
+    if (status) params.status = status;
+    if (paymentStatus) params.payment_status = paymentStatus;
+    if (startDate) params.start_date = startDate;
+    if (endDate) params.end_date = endDate;
 
-  // This needs to be handled differently to get the blob data
-  const response = await fetch(
-    `/api/admin/orders/report?${new URLSearchParams(params).toString()}`,
-    {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem("jwt_access_token")}`,
-      },
-    }
-  );
+    // Use axiosInstance with blob response type, just like in apiProductVariant
+    const response = await axiosInstance.get("/api/admin/orders/report", {
+      params,
+      responseType: "blob",
+    });
 
-  if (!response.ok) {
-    throw new Error("Failed to generate report");
+    // Create a blob from the response data
+    const blob = new Blob([response.data], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+
+    // Create a temporary link element
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    
+    // Set filename with current date
+    const today = new Date().toISOString().split('T')[0];
+    link.download = `orders-report-${today}.xlsx`;
+
+    // Append to body, click, and remove
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    // Clean up the URL
+    URL.revokeObjectURL(link.href);
+  } catch (error) {
+    console.error("Error downloading report:", error);
+    throw error;
   }
-
-  return await response.blob();
 };
 
 // Function to update order status
@@ -191,11 +217,11 @@ export const getOrders = async (
   filters: OrderFilterParams = {}
 ): Promise<OrdersListResponse> => {
   const response = await fetcher("/api/admin/orders", filters);
-  return response.data;
+  return response;
 };
 
 // Function to get order details by ID
 export const getOrderById = async (orderId: number): Promise<Order> => {
   const response = await fetcher(`/api/admin/orders/${orderId}`);
-  return response.data;
+  return response?.data;
 };
