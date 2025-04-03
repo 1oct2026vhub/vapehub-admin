@@ -110,12 +110,6 @@ function AttributesTab() {
     formData.attributes && formData.attributes.length > 0
   );
 
-  // const { data: attributes } = useFetch(
-  //   ["attributeList", {}],
-  //   listAttributes,
-  //   {}
-  // );
-
   const { data: attributes } = useFetch(
     ["attributeList", { limit: 100 }], // Include limit in the query key
     listAttributes,
