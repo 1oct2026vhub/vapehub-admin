@@ -209,6 +209,16 @@ const OrdersTable = ({
 
   return (
     <>
+    <div className="flex items-end justify-end mb-4">
+    <Box className="flex items-end gap-2 juustify-end">
+            <GenerateReportButton 
+              status={status || undefined}
+              paymentStatus={paymentStatus || undefined}
+              startDate={startDateFilter ? startDateFilter.format("YYYY-MM-DD") : undefined}
+              endDate={endDateFilter ? endDateFilter.format("YYYY-MM-DD") : undefined}
+            />
+          </Box>
+          </div>
       <Paper
         className="flex flex-col flex-auto shadow-1 overflow-hidden"
         elevation={0}
@@ -238,14 +248,7 @@ const OrdersTable = ({
             </IconButton>
           </Box>
           
-          <Box className="flex items-center gap-2">
-            <GenerateReportButton 
-              status={status || undefined}
-              paymentStatus={paymentStatus || undefined}
-              startDate={startDateFilter ? startDateFilter.format("YYYY-MM-DD") : undefined}
-              endDate={endDateFilter ? endDateFilter.format("YYYY-MM-DD") : undefined}
-            />
-          </Box>
+          
         </div>
 
         <DataTable
