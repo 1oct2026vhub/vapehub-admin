@@ -10,10 +10,10 @@ import {
   Paper,
   Box,
   Typography,
-  Chip
-} from '@mui/material';
-import { format } from 'date-fns';
-import { RecentOrder } from '@/services/apiDashboard';
+  Chip,
+} from "@mui/material";
+import { format } from "date-fns";
+import { RecentOrder } from "@/services/apiDashboard";
 
 interface RecentOrdersTableProps {
   orders: RecentOrder[];
@@ -31,51 +31,75 @@ const RecentOrdersTable = ({ orders }: RecentOrdersTableProps) => {
   }
 
   const formatName = (order: RecentOrder) => {
-    if (!order.userId) return 'Unknown';
-    
-    const firstName = order.userId.firstName || '';
-    const lastName = order.userId.lastName || '';
-    
-    if (!firstName && !lastName) return 'Unknown User';
+    if (!order.userId) return "Unknown";
+
+    const firstName = order.userId.firstName || "";
+    const lastName = order.userId.lastName || "";
+
+    if (!firstName && !lastName) return "Unknown User";
     return `${firstName} ${lastName}`.trim();
   };
 
   const getEmail = (order: RecentOrder) => {
-    return order.userId?.email || 'N/A';
+    return order.userId?.email || "N/A";
   };
 
   return (
-    <TableContainer component={Paper} sx={{ boxShadow: 'none' }}>
+    <TableContainer component={Paper} sx={{ boxShadow: "none" }}>
       <Table aria-label="recent orders table">
         <TableHead>
           <TableRow>
-            <TableCell sx={{ fontWeight: 'bold' }}>Order Number</TableCell>
-            <TableCell sx={{ fontWeight: 'bold' }}>Date</TableCell>
-            <TableCell sx={{ fontWeight: 'bold' }}>Customer</TableCell>
-            <TableCell sx={{ fontWeight: 'bold' }}>Email</TableCell>
+            <TableCell sx={{ fontWeight: "bold" }}>Order Id</TableCell>
+            <TableCell sx={{ fontWeight: "bold" }}>Name</TableCell>
+            <TableCell sx={{ fontWeight: "bold" }}>Created At</TableCell>
+            <TableCell sx={{ fontWeight: "bold" }}>Total</TableCell>
+            <TableCell sx={{ fontWeight: "bold" }}>Status</TableCell>
           </TableRow>
         </TableHead>
         <TableBody>
           {orders.map((order, index) => (
-            <TableRow 
-              key={`order-${order.orderNumber || ''}-${index}`}
-              sx={{ '&:last-child td, &:last-child th': { border: 0 } }}
+            <TableRow
+              key={`order-${order.id || ""}-${index}`}
+              sx={{ "&:last-child td, &:last-child th": { border: 0 } }}
             >
               <TableCell component="th" scope="row">
-                <Chip 
-                  label={order.orderNumber || 'No ID'} 
-                  size="small" 
-                  color="primary" 
-                  sx={{ fontWeight: 'medium' }}
+                <Chip
+                  label={order.order_unique_id || "No ID"}
+                  size="small"
+                  color="primary"
+                  sx={{ fontWeight: "medium" }}
                 />
               </TableCell>
               <TableCell>
-                {order.createdAt ? format(new Date(order.createdAt), 'MMM dd, yyyy') : 'N/A'}
+                {order?.user?.first_name ||
+                  order?.user?.last_name ||
+                  order?.user?.email ||
+                  "N/A"}
               </TableCell>
               <TableCell>
-                {formatName(order)}
+                {order.createdAt
+                  ? format(new Date(order.createdAt), "MMM dd, yyyy")
+                  : "N/A"}
               </TableCell>
-              <TableCell>{getEmail(order)}</TableCell>
+              <TableCell>{order?.total || "N/A"}</TableCell>
+              {/* <TableCell>{formatName(order)}</TableCell> */}
+              <TableCell>{order?.status || "N/A"}</TableCell>
+
+              {/* <TableCell>
+                {Array.isArray(order?.user)
+                  ? order.user
+                      .map((user) => {
+                        const name =
+                          [user.first_name, user.last_name]
+                            .filter(Boolean)
+                            .join(" ") ||
+                          user.email ||
+                          "N/A";
+                        return name;
+                      })
+                      .join(", ")
+                  : "N/A"}
+              </TableCell> */}
             </TableRow>
           ))}
         </TableBody>
@@ -84,4 +108,4 @@ const RecentOrdersTable = ({ orders }: RecentOrdersTableProps) => {
   );
 };
 
-export default RecentOrdersTable; 
+export default RecentOrdersTable;

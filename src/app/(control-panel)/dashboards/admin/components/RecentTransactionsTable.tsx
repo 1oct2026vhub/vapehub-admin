@@ -10,16 +10,18 @@ import {
   Paper,
   Box,
   Typography,
-  Chip
-} from '@mui/material';
-import { format } from 'date-fns';
-import { RecentTransaction } from '@/services/apiDashboard';
+  Chip,
+} from "@mui/material";
+import { format } from "date-fns";
+import { RecentTransaction } from "@/services/apiDashboard";
 
 interface RecentTransactionsTableProps {
   transactions: RecentTransaction[];
 }
 
-const RecentTransactionsTable = ({ transactions }: RecentTransactionsTableProps) => {
+const RecentTransactionsTable = ({
+  transactions,
+}: RecentTransactionsTableProps) => {
   if (transactions.length === 0) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" p={3}>
@@ -31,45 +33,58 @@ const RecentTransactionsTable = ({ transactions }: RecentTransactionsTableProps)
   }
 
   const getOrderNumber = (transaction: RecentTransaction) => {
-    return transaction.orderId?.orderNumber || 'No Order ID';
+    return transaction.orderId || "No Order ID";
   };
 
   return (
-    <TableContainer component={Paper} sx={{ boxShadow: 'none' }}>
+    <TableContainer component={Paper} sx={{ boxShadow: "none" }}>
       <Table aria-label="recent transactions table">
         <TableHead>
           <TableRow>
-            <TableCell sx={{ fontWeight: 'bold' }}>Order Number</TableCell>
-            <TableCell sx={{ fontWeight: 'bold' }}>Date</TableCell>
-            <TableCell sx={{ fontWeight: 'bold', textAlign: 'right' }}>Amount</TableCell>
+            <TableCell sx={{ fontWeight: "bold" }}>Order Id</TableCell>
+            <TableCell sx={{ fontWeight: "bold" }}>Date</TableCell>
+            <TableCell sx={{ fontWeight: "bold" }}>Payment Method</TableCell>
+            <TableCell sx={{ fontWeight: "bold" }}>Status</TableCell>
+            <TableCell sx={{ fontWeight: "bold" }}>Reference Number</TableCell>
+            <TableCell sx={{ fontWeight: "bold" }}>Transaction Type</TableCell>
+
+            <TableCell sx={{ fontWeight: "bold", textAlign: "right" }}>
+              Amount
+            </TableCell>
           </TableRow>
         </TableHead>
         <TableBody>
           {transactions.map((transaction, index) => (
-            <TableRow 
+            <TableRow
               key={`transaction-${getOrderNumber(transaction)}-${index}`}
-              sx={{ '&:last-child td, &:last-child th': { border: 0 } }}
+              sx={{ "&:last-child td, &:last-child th": { border: 0 } }}
             >
               <TableCell component="th" scope="row">
-                <Chip 
-                  label={getOrderNumber(transaction)} 
-                  size="small" 
-                  color="secondary" 
-                  sx={{ fontWeight: 'medium' }}
+                <Chip
+                  label={getOrderNumber(transaction)}
+                  size="small"
+                  color="secondary"
+                  sx={{ fontWeight: "medium" }}
                 />
               </TableCell>
               <TableCell>
-                {transaction.createdAt ? format(new Date(transaction.createdAt), 'MMM dd, yyyy') : 'N/A'}
+                {transaction.createdAt
+                  ? format(new Date(transaction.createdAt), "MMM dd, yyyy")
+                  : "N/A"}
               </TableCell>
+              <TableCell>{transaction.paymentMethod || "N/A"}</TableCell>
+              <TableCell>{transaction.status || "N/A"}</TableCell>
+              <TableCell>{transaction.referenceNumber || "N/A"}</TableCell>
+              <TableCell>{transaction.transactionType || "N/A"}</TableCell>
               <TableCell align="right">
-                <Typography 
-                  variant="body2" 
-                  fontWeight="medium" 
-                  sx={{ color: '#2E9970' }}
+                <Typography
+                  variant="body2"
+                  fontWeight="medium"
+                  sx={{ color: "#2E9970" }}
                 >
-                  {new Intl.NumberFormat('en-US', {
-                    style: 'currency',
-                    currency: 'USD'
+                  {new Intl.NumberFormat("en-US", {
+                    style: "currency",
+                    currency: "USD",
                   }).format(transaction.amount || 0)}
                 </Typography>
               </TableCell>
@@ -81,4 +96,4 @@ const RecentTransactionsTable = ({ transactions }: RecentTransactionsTableProps)
   );
 };
 
-export default RecentTransactionsTable; 
+export default RecentTransactionsTable;

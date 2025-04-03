@@ -3,12 +3,12 @@
 import { Chip, ChipProps } from "@mui/material";
 import { PaymentStatus } from "@/services/apiOrder";
 
-interface PaymentStatusChipProps extends Omit<ChipProps, 'label' | 'color'> {
+interface PaymentStatusChipProps extends Omit<ChipProps, "color"> {
   status: PaymentStatus;
 }
 
-const PaymentStatusChip = ({ status, ...props }: PaymentStatusChipProps) => {
-  const getStatusConfig = (status: PaymentStatus): { label: string; color: ChipProps['color'] } => {
+const PaymentStatusChip = ({ status, ...rest }: PaymentStatusChipProps) => {
+  const getStatusConfig = (status: PaymentStatus) => {
     switch (status) {
       case "pending":
         return { label: "Pending", color: "warning" };
@@ -28,11 +28,11 @@ const PaymentStatusChip = ({ status, ...props }: PaymentStatusChipProps) => {
   return (
     <Chip
       label={label}
-      color={color}
+      color={color as ChipProps["color"]}
       size="small"
-      {...props}
+      {...rest}
     />
   );
 };
 
-export default PaymentStatusChip;
+export default PaymentStatusChip; 

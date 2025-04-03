@@ -20,24 +20,20 @@ export type OrderStatus =
 // Payment status types
 export type PaymentStatus = "pending" | "paid" | "failed" | "refunded";
 
+// Interface for order status statistics
+export interface OrderStatusStatistics {
+  status: OrderStatus;
+  count: number;
+  total_amount: string;
+}
+
 // Interface for order statistics response
-export interface OrderStatistics {
-  totalOrders: number;
-  totalSales: number;
-  totalRevenue: number;
-  ordersByStatus: {
-    status: OrderStatus;
-    count: number;
-  }[];
-  ordersByPaymentStatus: {
-    status: PaymentStatus;
-    count: number;
-  }[];
-  dailySales: {
-    date: string;
-    orders: number;
-    revenue: number;
-  }[];
+export interface OrderStatisticsResponse {
+  success: boolean;
+  message: string;
+  data: {
+    order_status: OrderStatusStatistics[];
+  };
 }
 
 // Interface for address
@@ -145,13 +141,13 @@ export interface OrderFilterParams {
 export const getOrderStatistics = async (
   startDate?: string,
   endDate?: string
-): Promise<OrderStatistics> => {
+): Promise<OrderStatisticsResponse> => {
   const params: any = {};
   if (startDate) params.start_date = startDate;
   if (endDate) params.end_date = endDate;
 
   const response = await fetcher("/api/admin/orders/stats", params);
-  return response.data;
+  return response;
 };
 
 // Function to generate Excel report of orders

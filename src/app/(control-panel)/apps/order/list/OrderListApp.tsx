@@ -24,6 +24,8 @@ import FuseLoading from "@fuse/core/FuseLoading";
 import { motion } from "motion/react";
 import OrdersTable from "../components/OrdersTable";
 import OrderFilters from "../components/OrderFilters";
+import OrderStatistics from "../components/OrderStatistics";
+import GenerateReportButton from "../components/GenerateReportButton";
 import { OrderStatus, PaymentStatus } from "@/services/apiOrder";
 
 function OrderListApp() {
@@ -83,81 +85,26 @@ function OrderListApp() {
               <Typography variant="h4" fontWeight="bold">
                 Orders List
               </Typography>
-              {/* <Button
-                variant="outlined"
-                color="inherit"
-                startIcon={<FilterListIcon />}
-                onClick={() => setShowFilters(!showFilters)}
-              >
-                {showFilters ? "Hide Filters" : "Show Filters"}
-              </Button> */}
             </Box>
           </Grid>
 
-          {/* <Grid item xs={12}>
-            <Paper
-              component="form"
-              onSubmit={handleSearch}
-              sx={{ p: 2, mb: 3 }}
-            >
-              <Grid container spacing={2} alignItems="center">
-                <Grid item xs={12} sm={6} md={8}>
-                  <TextField
-                    fullWidth
-                    placeholder="Search by order number or customer details"
-                    variant="outlined"
-                    size="small"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    InputProps={{
-                      startAdornment: (
-                        <InputAdornment position="start">
-                          <SearchIcon color="action" />
-                        </InputAdornment>
-                      ),
-                    }}
-                  />
-                </Grid>
-                <Grid item xs={12} sm={6} md={4}>
-                  <Box
-                    sx={{
-                      display: "flex",
-                      gap: 1,
-                      justifyContent: { xs: "flex-start", sm: "flex-end" },
-                    }}
-                  >
-                    <Button
-                      type="submit"
-                      variant="contained"
-                      color="primary"
-                      disabled={!searchQuery.trim()}
-                    >
-                      Search
-                    </Button>
-                    <Button
-                      variant="outlined"
-                      color="inherit"
-                      onClick={handleClearFilters}
-                    >
-                      Clear
-                    </Button>
-                  </Box>
-                </Grid>
-              </Grid>
+          {/* Order Statistics */}
+          <Grid item xs={12}>
+            <OrderStatistics className="mb-4" />
+          </Grid>
 
-              {showFilters && (
-                <OrderFilters
-                  statusFilter={statusFilter}
-                  paymentStatusFilter={paymentStatusFilter}
-                  startDate={startDate}
-                  endDate={endDate}
-                  onStatusChange={handleStatusChange}
-                  onPaymentStatusChange={handlePaymentStatusChange}
-                  onStartDateChange={setStartDate}
-                  onEndDateChange={setEndDate}
+          {/* Export Excel Button */}
+          {/* <Grid item xs={12}>
+            <div className="flex items-end justify-end mb-4">
+              <Box className="flex items-end gap-2 juustify-end">
+                <GenerateReportButton 
+                  status={statusFilter || undefined}
+                  paymentStatus={paymentStatusFilter || undefined}
+                  startDate={startDate ? startDate.format("YYYY-MM-DD") : undefined}
+                  endDate={endDate ? endDate.format("YYYY-MM-DD") : undefined}
                 />
-              )}
-            </Paper>
+              </Box>
+            </div>
           </Grid> */}
 
           <Grid item xs={12}>
