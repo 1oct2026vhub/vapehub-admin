@@ -33,11 +33,37 @@ import HomeOutlinedIcon from "@mui/icons-material/HomeOutlined";
 import AttachMoneyIcon from "@mui/icons-material/AttachMoney";
 import PhoneIcon from "@mui/icons-material/Phone";
 import LocationOnIcon from "@mui/icons-material/LocationOn";
+import OrderStatusTimeline from "./OrderStatusTimeline";
 
 const OrderDetailApp = () => {
   const params = useParams();
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // Sample order history data - in a real app, this would come from the API
+  const [orderHistory, setOrderHistory] = useState([
+    {
+      status: "pending",
+      description: "An order has been placed.",
+      createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(), // 5 days ago
+    },
+    {
+      status: "processing",
+      description: "Seller has processed your order.",
+      createdAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(), // 4 days ago
+    },
+    {
+      status: "packed",
+      description: "Your item has been picked up by courier partner",
+      createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(), // 3 days ago
+    },
+    {
+      status: "shipped",
+      description: "Your item has been shipped.",
+      trackingInfo: "MFDS1400457854",
+      createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(), // 2 days ago
+    },
+  ]);
 
   useEffect(() => {
     const fetchOrder = async () => {
@@ -95,7 +121,7 @@ const OrderDetailApp = () => {
               #{order?.order_unique_id || ""}
             </Typography>
           </div>
-          <div className="flex gap-2">
+          {/* <div className="flex gap-2">
             <Button
               variant="outlined"
               color="error"
@@ -104,7 +130,7 @@ const OrderDetailApp = () => {
             >
               Cancel Order
             </Button>
-            {/* <Button
+            <Button
               variant="outlined"
               startIcon={<DownloadIcon />}
               size="small"
@@ -118,8 +144,8 @@ const OrderDetailApp = () => {
               color="primary"
             >
               Edit Order
-            </Button> */}
-          </div>
+            </Button>
+          </div> */}
         </div>
         <Typography variant="body2" color="text.secondary">
           Order History / Order Details / {order?.order_unique_id} -{" "}
@@ -130,91 +156,8 @@ const OrderDetailApp = () => {
       <Grid container spacing={3}>
         {/* Left Column - Progress and Products */}
         <Grid item xs={12} md={8}>
-          {/* Progress Section */}
-          {/* <Paper className="p-4 mb-3">
-            <Typography variant="h6" className="mb-2 font-medium">
-              Progress
-            </Typography>
-            <Typography variant="body2" color="text.secondary" className="mb-4">
-              Current Order Status
-            </Typography>
-
-            <Grid container spacing={2} className="mb-2">
-              <Grid item xs={2} className="text-center">
-                <CheckCircleOutlineIcon
-                  color={
-                    order?.status === "pending" ||
-                    order?.status === "processing" ||
-                    order?.status === "shipped" ||
-                    order?.status === "delivered"
-                      ? "primary"
-                      : "disabled"
-                  }
-                />
-                <Typography variant="body2" className="mt-1">
-                  Order Confirming
-                </Typography>
-              </Grid>
-              <Grid item xs={2} className="text-center">
-                <MailOutlineIcon
-                  color={
-                    order?.status === "processing" ||
-                    order?.status === "shipped" ||
-                    order?.status === "delivered"
-                      ? "primary"
-                      : "disabled"
-                  }
-                />
-                <Typography variant="body2" className="mt-1">
-                  Payment Pending
-                </Typography>
-              </Grid>
-              <Grid item xs={2} className="text-center">
-                <LocalShippingOutlinedIcon
-                  color={
-                    order?.status === "processing" ||
-                    order?.status === "shipped" ||
-                    order?.status === "delivered"
-                      ? "primary"
-                      : "disabled"
-                  }
-                />
-                <Typography variant="body2" className="mt-1">
-                  Processing
-                </Typography>
-              </Grid>
-              <Grid item xs={2} className="text-center">
-                <DeliveryDiningOutlinedIcon
-                  color={
-                    order?.status === "shipped" || order?.status === "delivered"
-                      ? "primary"
-                      : "disabled"
-                  }
-                />
-                <Typography variant="body2" className="mt-1">
-                  Shipping
-                </Typography>
-              </Grid>
-              <Grid item xs={2} className="text-center">
-                <CheckCircleOutlineIcon
-                  color={order?.status === "delivered" ? "primary" : "disabled"}
-                />
-                <Typography variant="body2" className="mt-1">
-                  Delivered
-                </Typography>
-              </Grid>
-            </Grid>
-
-            <LinearProgress
-              variant="determinate"
-              value={order ? getStatusProgress(order.status) : 0}
-              className="h-1 rounded-full"
-              color="primary"
-            />
-          </Paper> */}
-
           {/* Product Section */}
-          <Paper className="p-4">
+          <Paper className="p-4 mb-4">
             <div className="flex justify-between items-center mb-3">
               <Typography variant="h6" className="font-medium">
                 Order #{order?.order_unique_id || ""}
@@ -425,6 +368,15 @@ const OrderDetailApp = () => {
               </Table>
             </TableContainer>
           </Paper>
+
+          {/* Order Status Timeline */}
+          {order && (
+            <OrderStatusTimeline
+              status={order.status}
+              orderDate={order.createdAt}
+              orderHistory={orderHistory}
+            />
+          )}
         </Grid>
 
         {/* Right Column - Payment and Customer Info */}
@@ -497,11 +449,7 @@ const OrderDetailApp = () => {
               <Typography variant="h6" className="font-medium">
                 Customer Details
               </Typography>
-              <Button
-                size="small"
-                variant="text"
-                sx={{ color: '#6366F1' }}
-              >
+              <Button size="small" variant="text" sx={{ color: "#6366F1" }}>
                 View Profile
               </Button>
             </div>
@@ -511,14 +459,15 @@ const OrderDetailApp = () => {
               <div className="flex items-center gap-3">
                 <div className="w-14 h-14 rounded-md overflow-hidden bg-orange-100">
                   {order?.user?.profile_pic_url ? (
-                    <img 
-                      src={order.user.profile_pic_url} 
+                    <img
+                      src={order.user.profile_pic_url}
                       alt={`${order.user.first_name} ${order.user.last_name}`}
                       className="w-full h-full object-cover"
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center bg-gradient-to-r from-orange-300 to-orange-400 text-white text-xl font-bold">
-                      {order?.user?.first_name?.charAt(0) || ''}{order?.user?.last_name?.charAt(0) || ''}
+                      {order?.user?.first_name?.charAt(0) || ""}
+                      {order?.user?.last_name?.charAt(0) || ""}
                     </div>
                   )}
                 </div>
@@ -535,14 +484,12 @@ const OrderDetailApp = () => {
               {/* Contact info */}
               <div className="mt-4">
                 <div className="flex items-center gap-2 mt-3 text-gray-600">
-                  <MailOutlineIcon fontSize="small" sx={{ color: '#6B7280' }} />
-                  <Typography variant="body2">
-                    {order?.user?.email}
-                  </Typography>
+                  <MailOutlineIcon fontSize="small" sx={{ color: "#6B7280" }} />
+                  <Typography variant="body2">{order?.user?.email}</Typography>
                 </div>
                 {order?.user?.phone && (
                   <div className="flex items-center gap-2 mt-2 text-gray-600">
-                    <PhoneIcon fontSize="small" sx={{ color: '#6B7280' }} />
+                    <PhoneIcon fontSize="small" sx={{ color: "#6B7280" }} />
                     <Typography variant="body2">
                       {order?.user?.phone}
                     </Typography>
@@ -556,7 +503,7 @@ const OrderDetailApp = () => {
           <Paper className="p-0 mb-3 overflow-hidden">
             {/* Header with View Profile button */}
             <div className="flex items-center gap-2 p-4 border-b border-gray-200">
-              <LocationOnIcon fontSize="small" sx={{ color: '#6B7280' }} />
+              <LocationOnIcon fontSize="small" sx={{ color: "#6B7280" }} />
               <Typography variant="h6" className="font-medium">
                 Billing Address
               </Typography>
@@ -567,22 +514,24 @@ const OrderDetailApp = () => {
                 <Typography variant="body1" className="font-medium">
                   {order.billingAddress.name} {order.billingAddress.last_name}
                 </Typography>
-                
+
                 {order.billingAddress.phone && (
                   <Typography variant="body2" className="text-gray-600 mt-2">
                     {order.billingAddress.phone}
                   </Typography>
                 )}
-                
+
                 <Typography variant="body2" className="text-gray-600 mt-2">
                   {order.billingAddress.street}
-                  {order.billingAddress.apartment ? `, ${order.billingAddress.apartment}` : ''}
+                  {order.billingAddress.apartment
+                    ? `, ${order.billingAddress.apartment}`
+                    : ""}
                 </Typography>
-                
+
                 <Typography variant="body2" className="text-gray-600">
                   {order.billingAddress.town} - {order.billingAddress.post_code}
                 </Typography>
-                
+
                 <Typography variant="body2" className="text-gray-600">
                   {order.billingAddress.country}
                 </Typography>
@@ -593,7 +542,7 @@ const OrderDetailApp = () => {
           {/* Shipping Address */}
           <Paper className="p-0 overflow-hidden">
             <div className="flex items-center gap-2 p-4 border-b border-gray-200">
-              <LocationOnIcon fontSize="small" sx={{ color: '#6B7280' }} />
+              <LocationOnIcon fontSize="small" sx={{ color: "#6B7280" }} />
               <Typography variant="h6" className="font-medium">
                 Shipping Address
               </Typography>
@@ -604,22 +553,25 @@ const OrderDetailApp = () => {
                 <Typography variant="body1" className="font-medium">
                   {order.shippingAddress.name} {order.shippingAddress.last_name}
                 </Typography>
-                
+
                 {order.shippingAddress.phone && (
                   <Typography variant="body2" className="text-gray-600 mt-2">
                     {order.shippingAddress.phone}
                   </Typography>
                 )}
-                
+
                 <Typography variant="body2" className="text-gray-600 mt-2">
                   {order.shippingAddress.street}
-                  {order.shippingAddress.apartment ? `, ${order.shippingAddress.apartment}` : ''}
+                  {order.shippingAddress.apartment
+                    ? `, ${order.shippingAddress.apartment}`
+                    : ""}
                 </Typography>
-                
+
                 <Typography variant="body2" className="text-gray-600">
-                  {order.shippingAddress.town} - {order.shippingAddress.post_code}
+                  {order.shippingAddress.town} -{" "}
+                  {order.shippingAddress.post_code}
                 </Typography>
-                
+
                 <Typography variant="body2" className="text-gray-600">
                   {order.shippingAddress.country}
                 </Typography>
