@@ -31,6 +31,8 @@ import DeliveryDiningOutlinedIcon from "@mui/icons-material/DeliveryDiningOutlin
 import PersonOutlineOutlinedIcon from "@mui/icons-material/PersonOutlineOutlined";
 import HomeOutlinedIcon from "@mui/icons-material/HomeOutlined";
 import AttachMoneyIcon from "@mui/icons-material/AttachMoney";
+import PhoneIcon from "@mui/icons-material/Phone";
+import LocationOnIcon from "@mui/icons-material/LocationOn";
 
 const OrderDetailApp = () => {
   const params = useParams();
@@ -213,46 +215,103 @@ const OrderDetailApp = () => {
 
           {/* Product Section */}
           <Paper className="p-4">
-            {/* <div className="flex justify-between items-center mb-3">
+            <div className="flex justify-between items-center mb-3">
               <Typography variant="h6" className="font-medium">
-                Product
+                Order #{order?.order_unique_id || ""}
               </Typography>
               <Button
                 startIcon={<DownloadIcon />}
                 size="small"
                 variant="outlined"
+                sx={{
+                  borderColor: "#2E9970",
+                  color: "#2E9970",
+                  "&:hover": {
+                    borderColor: "#1d7d59",
+                    backgroundColor: "rgba(46, 153, 112, 0.04)",
+                  },
+                }}
               >
-                Download CSV
+                Export Invoice
               </Button>
-            </div> */}
+            </div>
             <Typography variant="body2" color="text.secondary" className="mb-4">
               Your Shipment
             </Typography>
 
-            <TableContainer>
+            <TableContainer className="border border-gray-200 rounded-md overflow-hidden">
               <Table>
-                <TableHead>
+                <TableHead className="bg-[#f0f7f4]">
                   <TableRow>
-                    <TableCell>Item</TableCell>
-                    <TableCell>Status</TableCell>
-                    <TableCell align="center">Quantity</TableCell>
-                    <TableCell align="right">Price</TableCell>
-                    <TableCell align="right">Tax</TableCell>
-                    <TableCell align="right">Amount</TableCell>
+                    <TableCell
+                      className="font-semibold text-gray-700"
+                      sx={{ borderBottom: "2px solid #c9e7dc", py: 2 }}
+                    >
+                      Item
+                    </TableCell>
+                    <TableCell
+                      className="font-semibold text-gray-700"
+                      sx={{ borderBottom: "2px solid #c9e7dc", py: 2 }}
+                    >
+                      Status
+                    </TableCell>
+                    <TableCell
+                      align="center"
+                      className="font-semibold text-gray-700"
+                      sx={{ borderBottom: "2px solid #c9e7dc", py: 2 }}
+                    >
+                      Quantity
+                    </TableCell>
+                    <TableCell
+                      align="right"
+                      className="font-semibold text-gray-700"
+                      sx={{ borderBottom: "2px solid #c9e7dc", py: 2 }}
+                    >
+                      Price
+                    </TableCell>
+                    <TableCell
+                      align="right"
+                      className="font-semibold text-gray-700"
+                      sx={{ borderBottom: "2px solid #c9e7dc", py: 2 }}
+                    >
+                      Tax
+                    </TableCell>
+                    <TableCell
+                      align="right"
+                      className="font-semibold text-gray-700"
+                      sx={{ borderBottom: "2px solid #c9e7dc", py: 2 }}
+                    >
+                      Amount
+                    </TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
                   {order?.orderItems?.map((item) => (
-                    <TableRow key={item.id}>
+                    <TableRow
+                      key={item.id}
+                      hover
+                      sx={{
+                        "&:nth-of-type(even)": { backgroundColor: "#fafafa" },
+                        "&:last-child td, &:last-child th": { border: 0 },
+                        transition: "background-color 0.2s ease",
+                        "&:hover": {
+                          backgroundColor: "#f5f5f5",
+                        },
+                      }}
+                    >
                       <TableCell>
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-gray-200 rounded flex items-center justify-center">
-                            {item.product.ProductImages &&
+                          <div className="w-16 h-16 bg-gray-100 rounded-md flex items-center justify-center overflow-hidden">
+                            {item.product?.ProductImages &&
                             item.product.ProductImages.length > 0 ? (
                               <img
                                 src={item.product.ProductImages[0].url}
                                 alt={item.product.name}
-                                className="w-full h-full object-cover rounded"
+                                className="w-full h-full object-contain"
+                                onError={(e) => {
+                                  (e.target as HTMLImageElement).src =
+                                    "/placeholder-image.png";
+                                }}
                               />
                             ) : (
                               <span className="text-xs text-gray-500">
@@ -261,32 +320,107 @@ const OrderDetailApp = () => {
                             )}
                           </div>
                           <div>
-                            <Typography variant="body1">
+                            <Typography
+                              variant="body1"
+                              className="font-medium text-gray-800"
+                            >
                               {item.product.name}
                             </Typography>
-                            <Typography variant="body2" color="text.secondary">
-                              Variant: {item.variant?.slug}
-                            </Typography>
+                            {item.variant?.slug && (
+                              <Typography
+                                variant="body2"
+                                color="text.secondary"
+                              >
+                                Variant: {item.variant.slug}
+                              </Typography>
+                            )}
                           </div>
                         </div>
                       </TableCell>
                       <TableCell>
                         <Chip
-                          label={order.status}
+                          label={order.status.toUpperCase()}
                           size="small"
-                          className="bg-green-100 text-green-800"
+                          sx={{
+                            backgroundColor:
+                              order.status === "pending"
+                                ? "#FFF4E5"
+                                : order.status === "processing"
+                                ? "#E8F4FD"
+                                : order.status === "delivered"
+                                ? "#E6F6EC"
+                                : order.status === "fail"
+                                ? "#FEEBEB"
+                                : order.status === "cancel"
+                                ? "#F5F5F5"
+                                : "#E6F6EC",
+                            color:
+                              order.status === "pending"
+                                ? "#FF9800"
+                                : order.status === "processing"
+                                ? "#2196F3"
+                                : order.status === "delivered"
+                                ? "#4CAF50"
+                                : order.status === "fail"
+                                ? "#F44336"
+                                : order.status === "cancel"
+                                ? "#9E9E9E"
+                                : "#4CAF50",
+                            fontWeight: 600,
+                            fontSize: "0.75rem",
+                          }}
                         />
                       </TableCell>
-                      <TableCell align="center">{item.quantity}</TableCell>
-                      <TableCell align="right">
+                      <TableCell align="center" className="font-medium">
+                        {item.quantity}
+                      </TableCell>
+                      <TableCell align="right" className="font-medium">
                         ${Number(item.unit_price).toFixed(2)}
                       </TableCell>
-                      <TableCell align="right">$0.00</TableCell>
-                      <TableCell align="right">
+                      <TableCell align="right" className="font-medium">
+                        $0.00
+                      </TableCell>
+                      <TableCell
+                        align="right"
+                        className="font-medium text-gray-800"
+                      >
                         ${Number(item.total).toFixed(2)}
                       </TableCell>
                     </TableRow>
                   ))}
+
+                  {/* Total Row */}
+                  <TableRow
+                    sx={{
+                      backgroundColor: "#f0f7f4",
+                      fontWeight: "bold",
+                      "& td": {
+                        borderTop: "2px solid #c9e7dc",
+                        fontWeight: 600,
+                        py: 2,
+                      },
+                    }}
+                  >
+                    <TableCell colSpan={3} className="text-right font-semibold">
+                      Sub Total:
+                    </TableCell>
+                    <TableCell align="right" className="font-semibold">
+                      $
+                      {order?.orderItems
+                        ?.reduce(
+                          (sum, item) =>
+                            sum + Number(item.unit_price) * item.quantity,
+                          0
+                        )
+                        .toFixed(2) || "0.00"}
+                    </TableCell>
+                    <TableCell align="right" className="font-semibold">
+                      $0.00
+                    </TableCell>
+                    <TableCell align="right" className="font-semibold">
+                      ${Number(order?.total || 0).toFixed(2)}
+                    </TableCell>
+                  </TableRow>
                 </TableBody>
               </Table>
             </TableContainer>
@@ -297,7 +431,7 @@ const OrderDetailApp = () => {
         <Grid item xs={12} md={4}>
           {/* Payment Section */}
           <Paper className="p-4 mb-3">
-            {/* <div className="flex justify-between items-center mb-3">
+            <div className="flex justify-between items-center mb-3">
               <Typography variant="h6" className="font-medium">
                 Payment
               </Typography>
@@ -305,10 +439,18 @@ const OrderDetailApp = () => {
                 startIcon={<DownloadIcon />}
                 size="small"
                 variant="outlined"
+                sx={{
+                  borderColor: "#2E9970",
+                  color: "#2E9970",
+                  "&:hover": {
+                    borderColor: "#1d7d59",
+                    backgroundColor: "rgba(46, 153, 112, 0.04)",
+                  },
+                }}
               >
                 Download Invoice
               </Button>
-            </div> */}
+            </div>
             <Typography variant="body2" color="text.secondary" className="mb-4">
               Final Payment Amount
             </Typography>
@@ -348,109 +490,141 @@ const OrderDetailApp = () => {
             </div>
           </Paper>
 
-          {/* Customer Information */}
-          <Paper className="p-4">
-            <Typography variant="h6" className="font-medium mb-3">
-              Customer
-            </Typography>
-            <Typography variant="body2" color="text.secondary" className="mb-4">
-              Information Detail
-            </Typography>
+          {/* Customer Details */}
+          <Paper className="p-0 mb-3 overflow-hidden">
+            {/* Header with View Profile button */}
+            <div className="flex items-center justify-between p-4 border-b border-gray-200">
+              <Typography variant="h6" className="font-medium">
+                Customer Details
+              </Typography>
+              <Button
+                size="small"
+                variant="text"
+                sx={{ color: '#6366F1' }}
+              >
+                View Profile
+              </Button>
+            </div>
 
-            <div className="space-y-4">
-              {/* General Information */}
-              <div>
-                <div className="flex items-center gap-2 mb-2">
-                  <PersonOutlineOutlinedIcon fontSize="small" />
-                  <Typography variant="subtitle2">
-                    General Information
+            {/* Customer basic info with profile image */}
+            <div className="p-4 border-b border-gray-200">
+              <div className="flex items-center gap-3">
+                <div className="w-14 h-14 rounded-md overflow-hidden bg-orange-100">
+                  {order?.user?.profile_pic_url ? (
+                    <img 
+                      src={order.user.profile_pic_url} 
+                      alt={`${order.user.first_name} ${order.user.last_name}`}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-r from-orange-300 to-orange-400 text-white text-xl font-bold">
+                      {order?.user?.first_name?.charAt(0) || ''}{order?.user?.last_name?.charAt(0) || ''}
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <Typography variant="h6" className="font-medium">
+                    {order?.user?.first_name} {order?.user?.last_name}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Customer
                   </Typography>
                 </div>
-                <ul className="list-disc pl-6 space-y-1">
-                  <li className="text-gray-700">
-                    {order?.user.first_name && order?.user.last_name
-                      ? `${order.user.first_name} ${order.user.last_name}`
-                      : "N/A"}
-                  </li>
-                  <li className="text-gray-700">
-                    {order?.user.email || "N/A"}
-                  </li>
-                  <li className="text-gray-700">
-                    {order?.user.phone || "N/A"}
-                  </li>
-                </ul>
               </div>
 
-              {/* Shipping Address */}
-              <div>
-                <div className="flex items-center gap-2 mb-2">
-                  <HomeOutlinedIcon fontSize="small" />
-                  <Typography variant="subtitle2">Shipping Address</Typography>
+              {/* Contact info */}
+              <div className="mt-4">
+                <div className="flex items-center gap-2 mt-3 text-gray-600">
+                  <MailOutlineIcon fontSize="small" sx={{ color: '#6B7280' }} />
+                  <Typography variant="body2">
+                    {order?.user?.email}
+                  </Typography>
                 </div>
-                {order?.shippingAddress && (
-                  <ul className="list-disc pl-6 space-y-1">
-                    <li className="text-gray-700">
-                      {order.shippingAddress.name}
-                    </li>
-                    <li className="text-gray-700">
-                      {order.shippingAddress.company_name || "N/A"}
-                    </li>
-                    <li className="text-gray-700">
-                      {order.shippingAddress.street}
-                      {order.shippingAddress.apartment &&
-                        `, ${order.shippingAddress.apartment}`}
-                    </li>
-                    <li className="text-gray-700">
-                      {order.shippingAddress.town},{" "}
-                      {order.shippingAddress.post_code}
-                    </li>
-                    <li className="text-gray-700">
-                      {order.shippingAddress.country}
-                    </li>
-                    {order.shippingAddress.phone && (
-                      <li className="text-gray-700">
-                        {order.shippingAddress.phone}
-                      </li>
-                    )}
-                  </ul>
-                )}
-              </div>
-
-              {/* Billing Address */}
-              <div>
-                <div className="flex items-center gap-2 mb-2">
-                  <AttachMoneyIcon fontSize="small" />
-                  <Typography variant="subtitle2">Billing Address</Typography>
-                </div>
-                {order?.billingAddress && (
-                  <ul className="list-disc pl-6 space-y-1">
-                    <li className="text-gray-700">
-                      {order.billingAddress.name}
-                    </li>
-                    <li className="text-gray-700">
-                      {order.billingAddress.company_name || "N/A"}
-                    </li>
-                    <li className="text-gray-700">
-                      {order.billingAddress.street}
-                      {order.billingAddress.apartment &&
-                        `, ${order.billingAddress.apartment}`}
-                    </li>
-                    <li className="text-gray-700">
-                      {order.billingAddress.town},{" "}
-                      {order.billingAddress.post_code}
-                    </li>
-                    <li className="text-gray-700">
-                      {order.billingAddress.country}
-                    </li>
-                    {order.billingAddress.phone && (
-                      <li className="text-gray-700">
-                        {order.billingAddress.phone}
-                      </li>
-                    )}
-                  </ul>
+                {order?.user?.phone && (
+                  <div className="flex items-center gap-2 mt-2 text-gray-600">
+                    <PhoneIcon fontSize="small" sx={{ color: '#6B7280' }} />
+                    <Typography variant="body2">
+                      {order?.user?.phone}
+                    </Typography>
+                  </div>
                 )}
               </div>
             </div>
+          </Paper>
+
+          {/* Billing Address */}
+          <Paper className="p-0 mb-3 overflow-hidden">
+            {/* Header with View Profile button */}
+            <div className="flex items-center gap-2 p-4 border-b border-gray-200">
+              <LocationOnIcon fontSize="small" sx={{ color: '#6B7280' }} />
+              <Typography variant="h6" className="font-medium">
+                Billing Address
+              </Typography>
+            </div>
+
+            {order?.billingAddress && (
+              <div className="p-4">
+                <Typography variant="body1" className="font-medium">
+                  {order.billingAddress.name} {order.billingAddress.last_name}
+                </Typography>
+                
+                {order.billingAddress.phone && (
+                  <Typography variant="body2" className="text-gray-600 mt-2">
+                    {order.billingAddress.phone}
+                  </Typography>
+                )}
+                
+                <Typography variant="body2" className="text-gray-600 mt-2">
+                  {order.billingAddress.street}
+                  {order.billingAddress.apartment ? `, ${order.billingAddress.apartment}` : ''}
+                </Typography>
+                
+                <Typography variant="body2" className="text-gray-600">
+                  {order.billingAddress.town} - {order.billingAddress.post_code}
+                </Typography>
+                
+                <Typography variant="body2" className="text-gray-600">
+                  {order.billingAddress.country}
+                </Typography>
+              </div>
+            )}
+          </Paper>
+
+          {/* Shipping Address */}
+          <Paper className="p-0 overflow-hidden">
+            <div className="flex items-center gap-2 p-4 border-b border-gray-200">
+              <LocationOnIcon fontSize="small" sx={{ color: '#6B7280' }} />
+              <Typography variant="h6" className="font-medium">
+                Shipping Address
+              </Typography>
+            </div>
+
+            {order?.shippingAddress && (
+              <div className="p-4">
+                <Typography variant="body1" className="font-medium">
+                  {order.shippingAddress.name} {order.shippingAddress.last_name}
+                </Typography>
+                
+                {order.shippingAddress.phone && (
+                  <Typography variant="body2" className="text-gray-600 mt-2">
+                    {order.shippingAddress.phone}
+                  </Typography>
+                )}
+                
+                <Typography variant="body2" className="text-gray-600 mt-2">
+                  {order.shippingAddress.street}
+                  {order.shippingAddress.apartment ? `, ${order.shippingAddress.apartment}` : ''}
+                </Typography>
+                
+                <Typography variant="body2" className="text-gray-600">
+                  {order.shippingAddress.town} - {order.shippingAddress.post_code}
+                </Typography>
+                
+                <Typography variant="body2" className="text-gray-600">
+                  {order.shippingAddress.country}
+                </Typography>
+              </div>
+            )}
           </Paper>
         </Grid>
       </Grid>
