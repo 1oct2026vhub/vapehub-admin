@@ -11,33 +11,57 @@ import {
   Divider,
   Chip,
   CircularProgress,
+  Button,
 } from "@mui/material";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import dayjs, { Dayjs } from "dayjs";
+import DownloadIcon from "@mui/icons-material/Download";
 import { getOrderStatistics, OrderStatusStatistics } from "@/services/apiOrder";
 import { useSnackbar } from "@/contexts/SnackbarContext";
 
 interface OrderStatisticsProps {
   className?: string;
+  externalStartDate?: string;
+  externalEndDate?: string;
 }
 
-const OrderStatistics = ({ className }: OrderStatisticsProps) => {
+const OrderStatistics = ({
+  className,
+  externalStartDate,
+  externalEndDate,
+}: OrderStatisticsProps) => {
   const [startDate, setStartDate] = useState<Dayjs | null>(
-    dayjs().subtract(30, "day")
+    externalStartDate ? dayjs(externalStartDate) : dayjs().subtract(30, "day")
   );
-  const [endDate, setEndDate] = useState<Dayjs | null>(dayjs());
+  const [endDate, setEndDate] = useState<Dayjs | null>(
+    externalEndDate ? dayjs(externalEndDate) : dayjs()
+  );
   const [loading, setLoading] = useState(false);
+  const [exportLoading, setExportLoading] = useState(false);
   const [statistics, setStatistics] = useState<OrderStatusStatistics[]>([]);
   const { showSnackbar } = useSnackbar();
+
+  // Update local dates when external dates change
+  useEffect(() => {
+    if (externalStartDate) {
+      setStartDate(dayjs(externalStartDate));
+    }
+  }, [externalStartDate]);
+
+  useEffect(() => {
+    if (externalEndDate) {
+      setEndDate(dayjs(externalEndDate));
+    }
+  }, [externalEndDate]);
 
   // Calculate total orders and amount
   const totalStats = useMemo(() => {
     if (!statistics.length) {
       return { orders: 0, amount: 0 };
     }
-    
+
     return statistics.reduce(
       (acc, curr) => {
         acc.orders += curr.count;
@@ -76,7 +100,7 @@ const OrderStatistics = ({ className }: OrderStatisticsProps) => {
         startDate.format("YYYY-MM-DD"),
         endDate.format("YYYY-MM-DD")
       );
-      
+
       if (response.success && response.data.order_status) {
         setStatistics(response.data.order_status);
       } else {
@@ -95,6 +119,48 @@ const OrderStatistics = ({ className }: OrderStatisticsProps) => {
     fetchStatistics();
   }, [startDate, endDate]);
 
+  // Handle Excel export
+  const handleExportExcel = () => {
+    try {
+      setExportLoading(true);
+
+      // Create CSV content
+      let csvContent = "Status,Orders,Revenue\n";
+      statistics.forEach((stat) => {
+        csvContent += `${stat.status},${stat.count},$${parseFloat(
+          stat.total_amount
+        ).toFixed(2)}\n`;
+      });
+
+      // Add total row
+      csvContent += `Total,${totalStats.orders},$${totalStats.amount.toFixed(
+        2
+      )}\n`;
+
+      // Create blob and download
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute(
+        "download",
+        `order-statistics-${startDate?.format(
+          "YYYY-MM-DD"
+        )}-to-${endDate?.format("YYYY-MM-DD")}.csv`
+      );
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      showSnackbar("Statistics exported successfully", "success");
+    } catch (error) {
+      console.error("Export failed:", error);
+      showSnackbar("Failed to export statistics", "error");
+    } finally {
+      setExportLoading(false);
+    }
+  };
+
   return (
     <LocalizationProvider dateAdapter={AdapterDayjs}>
       <Paper className={`${className} overflow-hidden`} elevation={1}>
@@ -102,35 +168,34 @@ const OrderStatistics = ({ className }: OrderStatisticsProps) => {
           <Typography variant="h6" className="font-medium mb-4">
             Order Statistics
           </Typography>
-          
+
           <Grid container spacing={2} alignItems="center">
             <Grid item xs={12} sm={5}>
               <DatePicker
                 label="Start Date"
                 value={startDate}
-                onChange={setStartDate}
-                slotProps={{ textField: { size: 'small', fullWidth: true } }}
+                onChange={(newValue) => {
+                  setStartDate(newValue);
+                }}
+                slotProps={{ textField: { size: "small", fullWidth: true } }}
               />
             </Grid>
             <Grid item xs={12} sm={5}>
               <DatePicker
                 label="End Date"
                 value={endDate}
-                onChange={setEndDate}
-                slotProps={{ textField: { size: 'small', fullWidth: true } }}
+                onChange={(newValue) => {
+                  setEndDate(newValue);
+                }}
+                slotProps={{ textField: { size: "small", fullWidth: true } }}
               />
-            </Grid>
-            <Grid item xs={12} sm={2}>
-              <Box className="h-full flex items-center justify-center">
-                {loading && <CircularProgress size={24} />}
-              </Box>
             </Grid>
           </Grid>
         </Box>
 
         <Box className="p-4">
           {/* Summary Cards */}
-          <Grid container spacing={3} className="mb-4">
+          {/* <Grid container spacing={3} className="mb-4">
             <Grid item xs={12} sm={6}>
               <Card variant="outlined">
                 <CardContent>
@@ -155,7 +220,7 @@ const OrderStatistics = ({ className }: OrderStatisticsProps) => {
                 </CardContent>
               </Card>
             </Grid>
-          </Grid>
+          </Grid> */}
 
           {/* Status Breakdown */}
           <Typography variant="subtitle1" className="mb-3 font-medium">
@@ -168,12 +233,12 @@ const OrderStatistics = ({ className }: OrderStatisticsProps) => {
                 <Card variant="outlined">
                   <CardContent>
                     <Box className="flex items-center mb-2">
-                      <Chip 
-                        label={stat.status.toUpperCase()} 
-                        size="small" 
-                        style={{ 
+                      <Chip
+                        label={stat.status.toUpperCase()}
+                        size="small"
+                        style={{
                           backgroundColor: getStatusColor(stat.status),
-                          color: 'white',
+                          color: "white",
                         }}
                       />
                     </Box>
@@ -182,9 +247,7 @@ const OrderStatistics = ({ className }: OrderStatisticsProps) => {
                         <Typography variant="body2" color="text.secondary">
                           Orders
                         </Typography>
-                        <Typography variant="h6">
-                          {stat.count}
-                        </Typography>
+                        <Typography variant="h6">{stat.count}</Typography>
                       </Box>
                       <Box className="text-right">
                         <Typography variant="body2" color="text.secondary">

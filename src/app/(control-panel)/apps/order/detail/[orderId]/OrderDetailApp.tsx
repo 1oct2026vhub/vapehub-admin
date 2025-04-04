@@ -67,9 +67,17 @@ const OrderDetailApp = () => {
 
   // Calculate status progress
   const getStatusProgress = (status: string) => {
-    const statuses = ["pending", "processing", "shipped", "delivered", "completed"];
+    const statuses = [
+      "pending",
+      "processing",
+      "shipped",
+      "delivered",
+      "completed",
+    ];
     const currentIndex = statuses.indexOf(status);
-    return currentIndex !== -1 ? (currentIndex / (statuses.length - 1)) * 100 : 0;
+    return currentIndex !== -1
+      ? (currentIndex / (statuses.length - 1)) * 100
+      : 0;
   };
 
   return (
@@ -92,9 +100,9 @@ const OrderDetailApp = () => {
               startIcon={<DeleteIcon />}
               size="small"
             >
-              Delete Order
+              Cancel Order
             </Button>
-            <Button
+            {/* <Button
               variant="outlined"
               startIcon={<DownloadIcon />}
               size="small"
@@ -108,11 +116,12 @@ const OrderDetailApp = () => {
               color="primary"
             >
               Edit Order
-            </Button>
+            </Button> */}
           </div>
         </div>
         <Typography variant="body2" color="text.secondary">
-          Order History / Order Details / {order?.order_unique_id} - {formatDate(order?.createdAt || "")}
+          Order History / Order Details / {order?.order_unique_id} -{" "}
+          {formatDate(order?.createdAt || "")}
         </Typography>
       </Paper>
 
@@ -120,58 +129,91 @@ const OrderDetailApp = () => {
         {/* Left Column - Progress and Products */}
         <Grid item xs={12} md={8}>
           {/* Progress Section */}
-          <Paper className="p-4 mb-3">
+          {/* <Paper className="p-4 mb-3">
             <Typography variant="h6" className="mb-2 font-medium">
               Progress
             </Typography>
             <Typography variant="body2" color="text.secondary" className="mb-4">
               Current Order Status
             </Typography>
-            
+
             <Grid container spacing={2} className="mb-2">
               <Grid item xs={2} className="text-center">
-                <CheckCircleOutlineIcon color={order?.status === "pending" || order?.status === "processing" || order?.status === "shipped" || order?.status === "delivered" ? "primary" : "disabled"} />
+                <CheckCircleOutlineIcon
+                  color={
+                    order?.status === "pending" ||
+                    order?.status === "processing" ||
+                    order?.status === "shipped" ||
+                    order?.status === "delivered"
+                      ? "primary"
+                      : "disabled"
+                  }
+                />
                 <Typography variant="body2" className="mt-1">
                   Order Confirming
                 </Typography>
               </Grid>
               <Grid item xs={2} className="text-center">
-                <MailOutlineIcon color={order?.status === "processing" || order?.status === "shipped" || order?.status === "delivered" ? "primary" : "disabled"} />
+                <MailOutlineIcon
+                  color={
+                    order?.status === "processing" ||
+                    order?.status === "shipped" ||
+                    order?.status === "delivered"
+                      ? "primary"
+                      : "disabled"
+                  }
+                />
                 <Typography variant="body2" className="mt-1">
                   Payment Pending
                 </Typography>
               </Grid>
               <Grid item xs={2} className="text-center">
-                <LocalShippingOutlinedIcon color={order?.status === "processing" || order?.status === "shipped" || order?.status === "delivered" ? "primary" : "disabled"} />
+                <LocalShippingOutlinedIcon
+                  color={
+                    order?.status === "processing" ||
+                    order?.status === "shipped" ||
+                    order?.status === "delivered"
+                      ? "primary"
+                      : "disabled"
+                  }
+                />
                 <Typography variant="body2" className="mt-1">
                   Processing
                 </Typography>
               </Grid>
               <Grid item xs={2} className="text-center">
-                <DeliveryDiningOutlinedIcon color={order?.status === "shipped" || order?.status === "delivered" ? "primary" : "disabled"} />
+                <DeliveryDiningOutlinedIcon
+                  color={
+                    order?.status === "shipped" || order?.status === "delivered"
+                      ? "primary"
+                      : "disabled"
+                  }
+                />
                 <Typography variant="body2" className="mt-1">
                   Shipping
                 </Typography>
               </Grid>
               <Grid item xs={2} className="text-center">
-                <CheckCircleOutlineIcon color={order?.status === "delivered" ? "primary" : "disabled"} />
+                <CheckCircleOutlineIcon
+                  color={order?.status === "delivered" ? "primary" : "disabled"}
+                />
                 <Typography variant="body2" className="mt-1">
                   Delivered
                 </Typography>
               </Grid>
             </Grid>
-            
+
             <LinearProgress
               variant="determinate"
               value={order ? getStatusProgress(order.status) : 0}
               className="h-1 rounded-full"
               color="primary"
             />
-          </Paper>
+          </Paper> */}
 
           {/* Product Section */}
           <Paper className="p-4">
-            <div className="flex justify-between items-center mb-3">
+            {/* <div className="flex justify-between items-center mb-3">
               <Typography variant="h6" className="font-medium">
                 Product
               </Typography>
@@ -182,11 +224,11 @@ const OrderDetailApp = () => {
               >
                 Download CSV
               </Button>
-            </div>
+            </div> */}
             <Typography variant="body2" color="text.secondary" className="mb-4">
               Your Shipment
             </Typography>
-            
+
             <TableContainer>
               <Table>
                 <TableHead>
@@ -205,20 +247,25 @@ const OrderDetailApp = () => {
                       <TableCell>
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 bg-gray-200 rounded flex items-center justify-center">
-                            {item.product.ProductImages && item.product.ProductImages.length > 0 ? (
-                              <img 
-                                src={item.product.ProductImages[0].url} 
-                                alt={item.product.name} 
+                            {item.product.ProductImages &&
+                            item.product.ProductImages.length > 0 ? (
+                              <img
+                                src={item.product.ProductImages[0].url}
+                                alt={item.product.name}
                                 className="w-full h-full object-cover rounded"
                               />
                             ) : (
-                              <span className="text-xs text-gray-500">No img</span>
+                              <span className="text-xs text-gray-500">
+                                No img
+                              </span>
                             )}
                           </div>
                           <div>
-                            <Typography variant="body1">{item.product.name}</Typography>
+                            <Typography variant="body1">
+                              {item.product.name}
+                            </Typography>
                             <Typography variant="body2" color="text.secondary">
-                              Variant: {item.variant.slug}
+                              Variant: {item.variant?.slug}
                             </Typography>
                           </div>
                         </div>
@@ -231,9 +278,13 @@ const OrderDetailApp = () => {
                         />
                       </TableCell>
                       <TableCell align="center">{item.quantity}</TableCell>
-                      <TableCell align="right">${Number(item.unit_price).toFixed(2)}</TableCell>
+                      <TableCell align="right">
+                        ${Number(item.unit_price).toFixed(2)}
+                      </TableCell>
                       <TableCell align="right">$0.00</TableCell>
-                      <TableCell align="right">${Number(item.total).toFixed(2)}</TableCell>
+                      <TableCell align="right">
+                        ${Number(item.total).toFixed(2)}
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -246,7 +297,7 @@ const OrderDetailApp = () => {
         <Grid item xs={12} md={4}>
           {/* Payment Section */}
           <Paper className="p-4 mb-3">
-            <div className="flex justify-between items-center mb-3">
+            {/* <div className="flex justify-between items-center mb-3">
               <Typography variant="h6" className="font-medium">
                 Payment
               </Typography>
@@ -257,20 +308,24 @@ const OrderDetailApp = () => {
               >
                 Download Invoice
               </Button>
-            </div>
+            </div> */}
             <Typography variant="body2" color="text.secondary" className="mb-4">
               Final Payment Amount
             </Typography>
-            
+
             <div className="space-y-3">
               <div className="flex justify-between">
                 <Typography variant="body2">Subtotal</Typography>
-                <Typography variant="body2">${Number(order?.total || 0).toFixed(2)}</Typography>
+                <Typography variant="body2">
+                  ${Number(order?.total || 0).toFixed(2)}
+                </Typography>
               </div>
               {order?.discount_price && (
                 <div className="flex justify-between">
                   <Typography variant="body2">Discount (10%)</Typography>
-                  <Typography variant="body2" color="error">-${Number(order.discount_price).toFixed(2)}</Typography>
+                  <Typography variant="body2" color="error">
+                    -${Number(order.discount_price).toFixed(2)}
+                  </Typography>
                 </div>
               )}
               <div className="flex justify-between">
@@ -283,8 +338,12 @@ const OrderDetailApp = () => {
               </div>
               <Divider />
               <div className="flex justify-between">
-                <Typography variant="subtitle1" fontWeight="bold">Total</Typography>
-                <Typography variant="subtitle1" fontWeight="bold">${Number(order?.total || 0).toFixed(2)}</Typography>
+                <Typography variant="subtitle1" fontWeight="bold">
+                  Total
+                </Typography>
+                <Typography variant="subtitle1" fontWeight="bold">
+                  ${Number(order?.total || 0).toFixed(2)}
+                </Typography>
               </div>
             </div>
           </Paper>
@@ -297,25 +356,31 @@ const OrderDetailApp = () => {
             <Typography variant="body2" color="text.secondary" className="mb-4">
               Information Detail
             </Typography>
-            
+
             <div className="space-y-4">
               {/* General Information */}
               <div>
                 <div className="flex items-center gap-2 mb-2">
                   <PersonOutlineOutlinedIcon fontSize="small" />
-                  <Typography variant="subtitle2">General Information</Typography>
+                  <Typography variant="subtitle2">
+                    General Information
+                  </Typography>
                 </div>
                 <ul className="list-disc pl-6 space-y-1">
                   <li className="text-gray-700">
-                    {order?.user.first_name && order?.user.last_name 
+                    {order?.user.first_name && order?.user.last_name
                       ? `${order.user.first_name} ${order.user.last_name}`
                       : "N/A"}
                   </li>
-                  <li className="text-gray-700">{order?.user.email || "N/A"}</li>
-                  <li className="text-gray-700">{order?.user.phone || "N/A"}</li>
+                  <li className="text-gray-700">
+                    {order?.user.email || "N/A"}
+                  </li>
+                  <li className="text-gray-700">
+                    {order?.user.phone || "N/A"}
+                  </li>
                 </ul>
               </div>
-              
+
               {/* Shipping Address */}
               <div>
                 <div className="flex items-center gap-2 mb-2">
@@ -324,28 +389,33 @@ const OrderDetailApp = () => {
                 </div>
                 {order?.shippingAddress && (
                   <ul className="list-disc pl-6 space-y-1">
-                      <li className="text-gray-700">
+                    <li className="text-gray-700">
                       {order.shippingAddress.name}
                     </li>
-                      <li className="text-gray-700">
+                    <li className="text-gray-700">
                       {order.shippingAddress.company_name || "N/A"}
                     </li>
                     <li className="text-gray-700">
                       {order.shippingAddress.street}
-                      {order.shippingAddress.apartment && `, ${order.shippingAddress.apartment}`}
+                      {order.shippingAddress.apartment &&
+                        `, ${order.shippingAddress.apartment}`}
                     </li>
                     <li className="text-gray-700">
-                      {order.shippingAddress.town}, {order.shippingAddress.post_code}
+                      {order.shippingAddress.town},{" "}
+                      {order.shippingAddress.post_code}
                     </li>
-                    <li className="text-gray-700">{order.shippingAddress.country}</li>
+                    <li className="text-gray-700">
+                      {order.shippingAddress.country}
+                    </li>
                     {order.shippingAddress.phone && (
-                      <li className="text-gray-700">{order.shippingAddress.phone}</li>
+                      <li className="text-gray-700">
+                        {order.shippingAddress.phone}
+                      </li>
                     )}
-                    
                   </ul>
                 )}
               </div>
-              
+
               {/* Billing Address */}
               <div>
                 <div className="flex items-center gap-2 mb-2">
@@ -354,24 +424,29 @@ const OrderDetailApp = () => {
                 </div>
                 {order?.billingAddress && (
                   <ul className="list-disc pl-6 space-y-1">
-                      <li className="text-gray-700">
+                    <li className="text-gray-700">
                       {order.billingAddress.name}
                     </li>
-                      <li className="text-gray-700">
+                    <li className="text-gray-700">
                       {order.billingAddress.company_name || "N/A"}
                     </li>
                     <li className="text-gray-700">
                       {order.billingAddress.street}
-                      {order.billingAddress.apartment && `, ${order.billingAddress.apartment}`}
+                      {order.billingAddress.apartment &&
+                        `, ${order.billingAddress.apartment}`}
                     </li>
                     <li className="text-gray-700">
-                      {order.billingAddress.town}, {order.billingAddress.post_code}
+                      {order.billingAddress.town},{" "}
+                      {order.billingAddress.post_code}
                     </li>
-                    <li className="text-gray-700">{order.billingAddress.country}</li>
+                    <li className="text-gray-700">
+                      {order.billingAddress.country}
+                    </li>
                     {order.billingAddress.phone && (
-                      <li className="text-gray-700">{order.billingAddress.phone}</li>
+                      <li className="text-gray-700">
+                        {order.billingAddress.phone}
+                      </li>
                     )}
-                    
                   </ul>
                 )}
               </div>

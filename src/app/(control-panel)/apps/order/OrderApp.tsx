@@ -216,8 +216,8 @@ const OrderApp = () => {
 
       <TabPanel value={tabValue} index={1}>
         <OrderStatistics 
-          startDate={startDate ? startDate.format("YYYY-MM-DD") : undefined}
-          endDate={endDate ? endDate.format("YYYY-MM-DD") : undefined}
+          externalStartDate={startDate ? startDate.format("YYYY-MM-DD") : undefined}
+          externalEndDate={endDate ? endDate.format("YYYY-MM-DD") : undefined}
         />
       </TabPanel>
     </Box>
