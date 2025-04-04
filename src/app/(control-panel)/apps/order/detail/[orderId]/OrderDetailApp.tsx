@@ -248,7 +248,7 @@ const OrderDetailApp = () => {
                             {item.product?.ProductImages &&
                             item.product.ProductImages.length > 0 ? (
                               <img
-                                src={item.product.ProductImages[0].url}
+                                src={(item.product.ProductImages[0] as any).image_url || item.product.ProductImages[0].url}
                                 alt={item.product.name}
                                 className="w-full h-full object-contain"
                                 onError={(e) => {
