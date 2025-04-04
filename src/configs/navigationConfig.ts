@@ -96,6 +96,14 @@ const navigationConfig: FuseNavItemType[] = [
       },
     ],
   },
+  {
+    id: "transaction",
+    title: "Transaction",
+    // translate: 'EXAMPLE',
+    type: "item",
+    icon: "heroicons-outline:credit-card",
+    url: "/apps/transaction/list",
+  },
   // {
   //   id: "order",
   //   title: "Order List",
