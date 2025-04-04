@@ -164,7 +164,7 @@ function AttributesTab() {
       Promise.all(
         attributeIds.map((id) =>
           id
-            ? listAttributeTerms({ attribute_id: id, limit: 1000 }) // Add limit here
+            ? listAttributeTerms({ attribute_id: id, limit: 100 }) // Add limit here
             : Promise.resolve({ data: { terms: [] } })
         )
       ),
