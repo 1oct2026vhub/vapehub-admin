@@ -96,6 +96,7 @@ const OrderFilters = ({
           <MenuItem value="paid">Paid</MenuItem>
           <MenuItem value="failed">Failed</MenuItem>
           <MenuItem value="refunded">Refunded</MenuItem>
+          <MenuItem value="cancelled">Cancelled</MenuItem>
         </Select>
       </FormControl>
 
@@ -114,7 +115,7 @@ const OrderFilters = ({
         />
       </LocalizationProvider>
 
-    {/* <Button variant="outlined" size="small" onClick={onClearFilters}>
+      {/* <Button variant="outlined" size="small" onClick={onClearFilters}>
         Clear Filters
       </Button> */}
     </Box>

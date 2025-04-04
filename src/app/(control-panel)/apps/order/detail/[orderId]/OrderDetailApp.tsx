@@ -26,7 +26,12 @@ import {
   Snackbar,
   Alert,
 } from "@mui/material";
-import { getOrderById, Order, updateOrderStatus, OrderStatus } from "@/services/apiOrder";
+import {
+  getOrderById,
+  Order,
+  updateOrderStatus,
+  OrderStatus,
+} from "@/services/apiOrder";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import EditIcon from "@mui/icons-material/Edit";
 import DownloadIcon from "@mui/icons-material/Download";
@@ -41,17 +46,20 @@ import AttachMoneyIcon from "@mui/icons-material/AttachMoney";
 import PhoneIcon from "@mui/icons-material/Phone";
 import LocationOnIcon from "@mui/icons-material/LocationOn";
 import OrderStatusTimeline from "./OrderStatusTimeline";
+import { useSnackbar } from "@/contexts/SnackbarContext";
 
 const OrderDetailApp = () => {
   const params = useParams();
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
   const [updatingStatus, setUpdatingStatus] = useState(false);
-  const [snackbar, setSnackbar] = useState({
-    open: false,
-    message: "",
-    severity: "success" as "success" | "error",
-  });
+  const { showSnackbar } = useSnackbar();
+
+  // const [snackbar, setSnackbar] = useState({
+  //   open: false,
+  //   message: "",
+  //   severity: "success" as "success" | "error",
+  // });
 
   // Sample order history data - in a real app, this would come from the API
   const [orderHistory, setOrderHistory] = useState([
@@ -124,33 +132,22 @@ const OrderDetailApp = () => {
   // Handle status change
   const handleStatusChange = async (event: SelectChangeEvent<string>) => {
     if (!order) return;
-    
+
     const newStatus = event.target.value as OrderStatus;
     setUpdatingStatus(true);
-    
+
     try {
       const response = await updateOrderStatus(order.id, newStatus);
-      setOrder({...order, status: newStatus});
-      setSnackbar({
-        open: true,
-        message: "Order status updated successfully",
-        severity: "success",
-      });
+      setOrder({ ...order, status: newStatus });
+      if (response) {
+        showSnackbar(response?.message, "success");
+      }
     } catch (error) {
       console.error("Failed to update order status:", error);
-      setSnackbar({
-        open: true,
-        message: "Failed to update order status",
-        severity: "error",
-      });
+      showSnackbar("Failed to update order status", error);
     } finally {
       setUpdatingStatus(false);
     }
-  };
-
-  // Close snackbar
-  const handleCloseSnackbar = () => {
-    setSnackbar({ ...snackbar, open: false });
   };
 
   return (
@@ -296,7 +293,11 @@ const OrderDetailApp = () => {
                             {item.product?.ProductImages &&
                             item.product.ProductImages.length > 0 ? (
                               <img
-                                src={(item.product.ProductImages[0] as any).image_url || item.product.ProductImages[0].url}
+                                src={
+                                  (item.product.ProductImages[0] as any)
+                                    .image_url ||
+                                  item.product.ProductImages[0].url
+                                }
                                 alt={item.product.name}
                                 className="w-full h-full object-contain"
                                 onError={(e) => {
@@ -423,6 +424,10 @@ const OrderDetailApp = () => {
               status={order.status}
               orderDate={order.createdAt}
               orderHistory={orderHistory}
+              orderId={order.id}
+              onStatusUpdate={(newStatus) => {
+                setOrder({ ...order, status: newStatus });
+              }}
             />
           )}
         </Grid>
@@ -630,21 +635,21 @@ const OrderDetailApp = () => {
       </Grid>
 
       {/* Snackbar for notifications */}
-      <Snackbar 
-        open={snackbar.open} 
-        autoHideDuration={6000} 
+      {/* <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
         onClose={handleCloseSnackbar}
-        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+        anchorOrigin={{ vertical: "top", horizontal: "right" }}
       >
-        <Alert 
-          onClose={handleCloseSnackbar} 
+        <Alert
+          onClose={handleCloseSnackbar}
           severity={snackbar.severity}
           variant="filled"
-          sx={{ width: '100%' }}
+          sx={{ width: "100%" }}
         >
           {snackbar.message}
         </Alert>
-      </Snackbar>
+      </Snackbar> */}
     </div>
   );
 };

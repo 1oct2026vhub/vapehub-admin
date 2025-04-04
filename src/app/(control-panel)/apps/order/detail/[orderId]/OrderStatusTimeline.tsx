@@ -1,5 +1,16 @@
-import React from "react";
-import { Paper, Typography, Box, Button } from "@mui/material";
+import React, { useState } from "react";
+import {
+  Paper,
+  Typography,
+  Box,
+  Button,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
+  CircularProgress,
+} from "@mui/material";
 import ShoppingBagOutlinedIcon from "@mui/icons-material/ShoppingBagOutlined";
 import InventoryOutlinedIcon from "@mui/icons-material/InventoryOutlined";
 import LocalShippingOutlinedIcon from "@mui/icons-material/LocalShippingOutlined";
@@ -7,6 +18,7 @@ import DeliveryDiningIcon from "@mui/icons-material/DeliveryDining";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import EditLocationAltOutlinedIcon from "@mui/icons-material/EditLocationAltOutlined";
 import DoDisturbAltOutlinedIcon from "@mui/icons-material/DoDisturbAltOutlined";
+import { updateOrderStatus, OrderStatus } from "@/services/apiOrder";
 
 type StatusStep = {
   id: string;
@@ -21,8 +33,10 @@ type StatusStep = {
 };
 
 interface OrderStatusTimelineProps {
-  status: string;
+  status: OrderStatus;
   orderDate: string;
+  orderId?: number;
+  onStatusUpdate?: (newStatus: OrderStatus) => void;
   orderHistory?: Array<{
     status: string;
     description?: string;
@@ -34,8 +48,15 @@ interface OrderStatusTimelineProps {
 const OrderStatusTimeline: React.FC<OrderStatusTimelineProps> = ({
   status,
   orderDate,
+  orderId,
+  onStatusUpdate,
   orderHistory = [],
 }) => {
+  // State for cancel confirmation dialog
+  const [openCancelDialog, setOpenCancelDialog] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+
   // Format date for display
   const formatDate = (dateString: string): { date: string; time: string } => {
     const date = new Date(dateString);
@@ -53,6 +74,38 @@ const OrderStatusTimeline: React.FC<OrderStatusTimelineProps> = ({
     };
   };
 
+  // Handle order cancellation
+  const handleCancelOrder = async () => {
+    if (!orderId) {
+      setErrorMessage("Order ID is missing");
+      return;
+    }
+
+    setIsCancelling(true);
+    setErrorMessage("");
+
+    try {
+      // Call the API to update order status to "cancel"
+      await updateOrderStatus(orderId, "cancel");
+
+      // Close the dialog and notify parent component
+      setOpenCancelDialog(false);
+      if (onStatusUpdate) {
+        onStatusUpdate("cancel" as OrderStatus);
+      }
+    } catch (error) {
+      console.error("Failed to cancel order:", error);
+      setErrorMessage("Failed to cancel the order. Please try again.");
+    } finally {
+      setIsCancelling(false);
+    }
+  };
+
+  // Open cancel confirmation dialog
+  const openCancelConfirmation = () => {
+    setOpenCancelDialog(true);
+  };
+
   // Define status steps and their completion based on current status
   const getStatusSteps = (): StatusStep[] => {
     // Map status from API to our steps
@@ -64,11 +117,11 @@ const OrderStatusTimeline: React.FC<OrderStatusTimelineProps> = ({
       out_for_delivery: 3,
       delivered: 4,
       completed: 4,
-      cancelled: -1,
+      cancel: -1,
     };
 
     const currentStepIndex = statusMap[status] ?? 0;
-    const isOrderCancelled = status === "cancelled";
+    const isOrderCancelled = status === "cancel";
 
     // Find history items for each status
     const findHistoryItem = (statusToFind: string) => {
@@ -183,7 +236,7 @@ const OrderStatusTimeline: React.FC<OrderStatusTimelineProps> = ({
 
     // If order is cancelled, add cancelled status
     if (isOrderCancelled) {
-      const cancelledItem = findHistoryItem("cancelled");
+      const cancelledItem = findHistoryItem("cancel");
       if (cancelledItem) {
         const formatted = formatDate(cancelledItem.createdAt);
         steps.push({
@@ -229,20 +282,25 @@ const OrderStatusTimeline: React.FC<OrderStatusTimelineProps> = ({
           >
             Change Address
           </Button> */}
-          <Button
-            variant="outlined"
-            startIcon={<DoDisturbAltOutlinedIcon />}
-            size="small"
-            color="error"
-            sx={{
-              backgroundColor: "rgba(254, 226, 226, 0.5)",
-              "&:hover": {
-                backgroundColor: "rgba(254, 226, 226, 0.8)",
-              },
-            }}
-          >
-            Cancel Order
-          </Button>
+          {status !== "cancel" &&
+            status !== "completed" &&
+            status !== "delivered" && (
+              <Button
+                variant="outlined"
+                startIcon={<DoDisturbAltOutlinedIcon />}
+                size="small"
+                color="error"
+                onClick={openCancelConfirmation}
+                sx={{
+                  backgroundColor: "rgba(254, 226, 226, 0.5)",
+                  "&:hover": {
+                    backgroundColor: "rgba(254, 226, 226, 0.8)",
+                  },
+                }}
+              >
+                Cancel Order
+              </Button>
+            )}
         </div>
       </div>
 
@@ -313,6 +371,49 @@ const OrderStatusTimeline: React.FC<OrderStatusTimelineProps> = ({
           </div>
         ))}
       </div>
+
+      {/* Cancel Order Confirmation Dialog */}
+      <Dialog
+        open={openCancelDialog}
+        onClose={() => setOpenCancelDialog(false)}
+        aria-labelledby="cancel-dialog-title"
+        aria-describedby="cancel-dialog-description"
+      >
+        <DialogTitle id="cancel-dialog-title">Cancel Order</DialogTitle>
+        <DialogContent>
+          <DialogContentText id="cancel-dialog-description">
+            Are you sure you want to cancel this order?
+          </DialogContentText>
+          {errorMessage && (
+            <Typography color="error" variant="body2" className="mt-2">
+              {errorMessage}
+            </Typography>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={() => setOpenCancelDialog(false)}
+            disabled={isCancelling}
+          >
+            No, Keep Order
+          </Button>
+          <Button
+            onClick={handleCancelOrder}
+            color="error"
+            variant="contained"
+            disabled={isCancelling}
+            startIcon={
+              isCancelling ? (
+                <CircularProgress size={20} />
+              ) : (
+                <DoDisturbAltOutlinedIcon />
+              )
+            }
+          >
+            {isCancelling ? "Cancelling..." : "Yes, Cancel Order"}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Paper>
   );
 };
