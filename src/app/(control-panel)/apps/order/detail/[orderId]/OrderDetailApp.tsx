@@ -18,8 +18,15 @@ import {
   Chip,
   LinearProgress,
   IconButton,
+  MenuItem,
+  Select,
+  FormControl,
+  InputLabel,
+  SelectChangeEvent,
+  Snackbar,
+  Alert,
 } from "@mui/material";
-import { getOrderById, Order } from "@/services/apiOrder";
+import { getOrderById, Order, updateOrderStatus, OrderStatus } from "@/services/apiOrder";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import EditIcon from "@mui/icons-material/Edit";
 import DownloadIcon from "@mui/icons-material/Download";
@@ -39,6 +46,12 @@ const OrderDetailApp = () => {
   const params = useParams();
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
+  const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    message: "",
+    severity: "success" as "success" | "error",
+  });
 
   // Sample order history data - in a real app, this would come from the API
   const [orderHistory, setOrderHistory] = useState([
@@ -108,6 +121,38 @@ const OrderDetailApp = () => {
       : 0;
   };
 
+  // Handle status change
+  const handleStatusChange = async (event: SelectChangeEvent<string>) => {
+    if (!order) return;
+    
+    const newStatus = event.target.value as OrderStatus;
+    setUpdatingStatus(true);
+    
+    try {
+      const response = await updateOrderStatus(order.id, newStatus);
+      setOrder({...order, status: newStatus});
+      setSnackbar({
+        open: true,
+        message: "Order status updated successfully",
+        severity: "success",
+      });
+    } catch (error) {
+      console.error("Failed to update order status:", error);
+      setSnackbar({
+        open: true,
+        message: "Failed to update order status",
+        severity: "error",
+      });
+    } finally {
+      setUpdatingStatus(false);
+    }
+  };
+
+  // Close snackbar
+  const handleCloseSnackbar = () => {
+    setSnackbar({ ...snackbar, open: false });
+  };
+
   return (
     <div className="flex flex-col gap-4 p-4 bg-gray-50 min-h-screen">
       {/* Order Header */}
@@ -121,31 +166,34 @@ const OrderDetailApp = () => {
               #{order?.order_unique_id || ""}
             </Typography>
           </div>
-          {/* <div className="flex gap-2">
-            <Button
-              variant="outlined"
-              color="error"
-              startIcon={<DeleteIcon />}
-              size="small"
-            >
-              Cancel Order
-            </Button>
-            <Button
-              variant="outlined"
-              startIcon={<DownloadIcon />}
-              size="small"
-            >
-              Track Order
-            </Button>
-            <Button
-              variant="contained"
-              startIcon={<EditIcon />}
-              size="small"
-              color="primary"
-            >
-              Edit Order
-            </Button>
-          </div> */}
+          <div className="flex items-center gap-4">
+            {updatingStatus && <LinearProgress className="w-20" />}
+            <FormControl size="small" sx={{ minWidth: 150 }}>
+              <InputLabel id="order-status-label">Status</InputLabel>
+              <Select
+                labelId="order-status-label"
+                id="order-status"
+                value={order?.status || ""}
+                label="Status"
+                onChange={handleStatusChange}
+                disabled={updatingStatus}
+                className="bg-white"
+              >
+                <MenuItem value="draft">Draft</MenuItem>
+                <MenuItem value="pending">Pending</MenuItem>
+                <MenuItem value="processing">Processing</MenuItem>
+                <MenuItem value="shipped">Shipped</MenuItem>
+                <MenuItem value="delivered">Delivered</MenuItem>
+                <MenuItem value="completed">Completed</MenuItem>
+                <MenuItem value="fail">Failed</MenuItem>
+                <MenuItem value="cancel">Cancelled</MenuItem>
+                <MenuItem value="return_requested">Return Requested</MenuItem>
+                <MenuItem value="return_approved">Return Approved</MenuItem>
+                <MenuItem value="return_received">Return Received</MenuItem>
+                <MenuItem value="refunded">Refunded</MenuItem>
+              </Select>
+            </FormControl>
+          </div>
         </div>
         <Typography variant="body2" color="text.secondary">
           Order History / Order Details / {order?.order_unique_id} -{" "}
@@ -580,6 +628,23 @@ const OrderDetailApp = () => {
           </Paper>
         </Grid>
       </Grid>
+
+      {/* Snackbar for notifications */}
+      <Snackbar 
+        open={snackbar.open} 
+        autoHideDuration={6000} 
+        onClose={handleCloseSnackbar}
+        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+      >
+        <Alert 
+          onClose={handleCloseSnackbar} 
+          severity={snackbar.severity}
+          variant="filled"
+          sx={{ width: '100%' }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </div>
   );
 };
