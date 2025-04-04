@@ -36,8 +36,18 @@ const schema = z.object({
       "Slug must be a valid URL-friendly string (lowercase letters, numbers, and hyphens only)"
     ),
   description: z.string().optional().default(""),
-  category_id: z.number().min(1, "Category is required"),
-  brand_id: z.number().min(1, "Brand is required"),
+  category_id: z
+    .any()
+    .refine((val) => val && Number(val) > 0, {
+      message: "Category is required",
+    })
+    .transform((val) => Number(val)),
+  brand_id: z
+    .any()
+    .refine((val) => val && Number(val) > 0, {
+      message: "Brand is required",
+    })
+    .transform((val) => Number(val)),
   is_new: z.boolean().optional(),
 });
 
@@ -309,6 +319,7 @@ function BasicInfoTab() {
         }
         required
         loading={!categories}
+        errorMessage={errors.category_id?.message}
       />
 
       <FormSearchableSelectField
@@ -323,6 +334,7 @@ function BasicInfoTab() {
         }
         required
         loading={!brands}
+        errorMessage={errors.brand_id?.message}
       />
       <AppButton
         label={isEditMode ? "Update" : "Next"}

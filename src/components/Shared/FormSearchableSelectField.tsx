@@ -79,6 +79,7 @@ interface FormSearchableSelectFieldProps {
   options: Option[];
   required?: boolean;
   loading?: boolean;
+  errorMessage?: string;
 }
 
 const FormSearchableSelectField: React.FC<FormSearchableSelectFieldProps> = ({
@@ -88,6 +89,7 @@ const FormSearchableSelectField: React.FC<FormSearchableSelectFieldProps> = ({
   options,
   required = false,
   loading = false,
+  errorMessage,
 }) => {
   const [touched, setTouched] = useState(false);
 
@@ -125,8 +127,8 @@ const FormSearchableSelectField: React.FC<FormSearchableSelectFieldProps> = ({
               }
               variant="outlined"
               fullWidth
-              error={touched && !!error}
-              helperText={touched && error ? error.message : ""}
+              error={!!errorMessage || (touched && !!error)}
+              helperText={errorMessage || (touched && error ? error.message : "")}
               InputProps={{
                 ...params.InputProps,
                 endAdornment: (
