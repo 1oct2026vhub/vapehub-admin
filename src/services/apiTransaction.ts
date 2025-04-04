@@ -1,4 +1,4 @@
-import { fetcher, updater } from "./apiService";
+import { fetcher, updater, patcher, poster } from "./apiService";
 
 // Transaction status types
 export type TransactionStatus = 
@@ -58,6 +58,64 @@ export interface Transaction {
     total: string;
     discount_price: string | null;
     status: string;
+    shipping_address_id?: number;
+    billing_address_id?: number;
+    shipping_method_id?: number;
+    createdAt?: string;
+    updatedAt?: string;
+    deletedAt?: string | null;
+    orderItems?: Array<{
+      id: number;
+      order_id: number;
+      product_id: number;
+      variant_id: number | null;
+      unit: string;
+      unit_price: string;
+      quantity: number;
+      discount_price: string | null;
+      total: string;
+      createdAt: string;
+      updatedAt: string;
+      deletedAt: string | null;
+      product: {
+        id: number;
+        name: string;
+        slug: string;
+      };
+      variant?: {
+        id: number;
+        barcode: string;
+        price: string;
+        slug: string;
+      } | null;
+    }>;
+    shippingMethod?: {
+      id: number;
+      shipping_method: string;
+      shipping_cost: number;
+    };
+    shippingAddress?: {
+      id: number;
+      name: string;
+      last_name: string;
+      street: string;
+      town: string;
+      county: string | null;
+      post_code: string;
+      country: string | null;
+      phone: string | null;
+    };
+    billingAddress?: {
+      id: number;
+      name: string;
+      last_name: string;
+      street: string;
+      town: string;
+      county: string | null;
+      post_code: string;
+      country: string | null;
+      phone: string | null;
+    };
   };
 }
 
@@ -150,6 +208,38 @@ export const generateTransactionReport = async (
     URL.revokeObjectURL(link.href);
   } catch (error) {
     console.error("Error downloading report:", error);
+    throw error;
+  }
+};
+
+// Function to update transaction status
+export const updateTransactionStatus = async (
+  transactionId: number,
+  status: TransactionStatus
+): Promise<any> => {
+  try {
+    // Use patcher instead of updater for PATCH request
+    const response = await patcher(`/api/admin/transactions/${transactionId}/status`, {
+      status
+    });
+    
+    return response;
+  } catch (error) {
+    console.error("Error updating transaction status:", error);
+    throw error;
+  }
+};
+
+// Function to refund a transaction
+export const refundTransaction = async (
+  transactionId: number,
+  data: { reason: string; amount: number }
+): Promise<any> => {
+  try {
+    const response = await poster(`/api/admin/transactions/${transactionId}/refund`, data);
+    return response;
+  } catch (error) {
+    console.error("Error refunding transaction:", error);
     throw error;
   }
 }; 

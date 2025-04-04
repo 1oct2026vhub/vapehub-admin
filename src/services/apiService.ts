@@ -14,6 +14,10 @@ export const poster = (url, data) =>
 export const updater = (url, data) =>
   axiosInstance.put(url, data).then((res) => res.data);
 
+// Generic patcher for PATCH requests
+export const patcher = (url, data) =>
+  axiosInstance.patch(url, data).then((res) => res.data);
+
 // Generic deleter for DELETE requests
 export const deleter = (url) =>
   axiosInstance.delete(url).then((res) => res.data);
