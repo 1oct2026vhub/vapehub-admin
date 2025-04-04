@@ -179,9 +179,9 @@ export const generateOrderReport = async (
     // Create a temporary link element
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
-    
+
     // Set filename with current date
-    const today = new Date().toISOString().split('T')[0];
+    const today = new Date().toISOString().split("T")[0];
     link.download = `orders-report-${today}.xlsx`;
 
     // Append to body, click, and remove
@@ -205,7 +205,7 @@ export const updateOrderStatus = async (
   const response = await updater(`/api/admin/orders/${orderId}/status`, {
     status,
   });
-  return response.data;
+  return response;
 };
 
 // Function to get list of orders with filtering and pagination
