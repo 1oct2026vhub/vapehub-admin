@@ -104,6 +104,21 @@ const navigationConfig: FuseNavItemType[] = [
     icon: "heroicons-outline:credit-card",
     url: "/apps/transaction/list",
   },
+  {
+    id: "website",
+    title: "Website",
+    type: "collapse",
+    icon: "heroicons-outline:globe-alt",
+    children: [
+      {
+        id: "footer",
+        title: "Footer Management",
+        type: "item",
+        url: "/apps/footer",
+        end: true,
+      }
+    ],
+  },
   // {
   //   id: "order",
   //   title: "Order List",
