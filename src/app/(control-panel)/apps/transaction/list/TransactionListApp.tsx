@@ -16,7 +16,9 @@ import {
   TransactionStatus,
   TransactionType,
   getTransactionStatistics,
+  getRevenueReport,
 } from "@/services/apiTransaction";
+import dayjs from "dayjs";
 
 function TransactionListApp() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -26,21 +28,42 @@ function TransactionListApp() {
   const [typeFilter, setTypeFilter] = useState<TransactionType | undefined>(
     undefined
   );
+  const [startDate, setStartDate] = useState<dayjs.Dayjs | null>(null);
+  const [endDate, setEndDate] = useState<dayjs.Dayjs | null>(null);
   const [stats, setStats] = useState({
     totalTransactions: 0,
     completedTransactions: 0,
     failedTransactions: 0,
     totalRevenue: "0.00",
   });
+  const [revenueData, setRevenueData] = useState({
+    totalRevenue: 0,
+    start_date: "",
+    end_date: "",
+  });
   const [loading, setLoading] = useState(true);
 
-  // Fetch transaction statistics
+  // Fetch transaction statistics and revenue data
   useEffect(() => {
     const fetchStats = async () => {
       try {
         setLoading(true);
         const statistics = await getTransactionStatistics();
         setStats(statistics);
+
+        // Fetch revenue data based on date filters
+        if (startDate || endDate) {
+          const startDateStr = startDate
+            ? startDate.format("YYYY-MM-DD")
+            : undefined;
+          const endDateStr = endDate ? endDate.format("YYYY-MM-DD") : undefined;
+
+          const revenueReport = await getRevenueReport(
+            startDateStr,
+            endDateStr
+          );
+          setRevenueData(revenueReport);
+        }
       } catch (error) {
         console.error("Failed to fetch transaction statistics:", error);
       } finally {
@@ -49,7 +72,16 @@ function TransactionListApp() {
     };
 
     fetchStats();
-  }, []);
+  }, [startDate, endDate]);
+
+  // Handle date filter changes
+  const handleStartDateChange = (date: dayjs.Dayjs | null) => {
+    setStartDate(date);
+  };
+
+  const handleEndDateChange = (date: dayjs.Dayjs | null) => {
+    setEndDate(date);
+  };
 
   return (
     <Container maxWidth={false} sx={{ py: 3 }}>
@@ -86,62 +118,21 @@ function TransactionListApp() {
                   />
                 )}
                 <Typography color="text.secondary" variant="body2">
-                  Total Transactions
-                </Typography>
-                <Typography className="text-2xl font-bold">
-                  {stats.totalTransactions.toLocaleString()}
-                </Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-          <Grid item xs={12} md={3}>
-            <Card>
-              <CardContent sx={{ py: 1.5, position: "relative" }}>
-                {loading && (
-                  <LinearProgress
-                    sx={{ position: "absolute", top: 0, left: 0, right: 0 }}
-                  />
-                )}
-                <Typography color="text.secondary" variant="body2">
-                  Completed Transactions
-                </Typography>
-                <Typography className="text-2xl font-bold text-green-600">
-                  {stats.completedTransactions.toLocaleString()}
-                </Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-          <Grid item xs={12} md={3}>
-            <Card>
-              <CardContent sx={{ py: 1.5, position: "relative" }}>
-                {loading && (
-                  <LinearProgress
-                    sx={{ position: "absolute", top: 0, left: 0, right: 0 }}
-                  />
-                )}
-                <Typography color="text.secondary" variant="body2">
-                  Failed Transactions
-                </Typography>
-                <Typography className="text-2xl font-bold text-red-600">
-                  {stats.failedTransactions.toLocaleString()}
-                </Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-          <Grid item xs={12} md={3}>
-            <Card>
-              <CardContent sx={{ py: 1.5, position: "relative" }}>
-                {loading && (
-                  <LinearProgress
-                    sx={{ position: "absolute", top: 0, left: 0, right: 0 }}
-                  />
-                )}
-                <Typography color="text.secondary" variant="body2">
                   Total Revenue
+                  {/* {(startDate || endDate) ? "Filtered Revenue" : "Total Revenue"} */}
+                  {startDate && endDate && (
+                    <span className="text-xs block mt-1">
+                      {startDate.format("MMM D, YYYY")} -{" "}
+                      {endDate.format("MMM D, YYYY")}
+                    </span>
+                  )}
                 </Typography>
                 <Typography className="text-2xl font-bold text-blue-600">
                   $
-                  {parseFloat(stats.totalRevenue).toLocaleString(undefined, {
+                  {(startDate || endDate
+                    ? revenueData.totalRevenue
+                    : parseFloat(stats.totalRevenue)
+                  ).toLocaleString(undefined, {
                     minimumFractionDigits: 2,
                     maximumFractionDigits: 2,
                   })}
@@ -155,6 +146,10 @@ function TransactionListApp() {
               statusFilter={statusFilter}
               typeFilter={typeFilter}
               searchQuery={searchQuery}
+              startDate={startDate ? startDate.format("YYYY-MM-DD") : undefined}
+              endDate={endDate ? endDate.format("YYYY-MM-DD") : undefined}
+              onStartDateChange={handleStartDateChange}
+              onEndDateChange={handleEndDateChange}
             />
           </Grid>
         </Grid>

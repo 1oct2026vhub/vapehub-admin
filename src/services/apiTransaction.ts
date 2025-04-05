@@ -291,3 +291,33 @@ export const getTransactionStatistics = async (): Promise<{
     };
   }
 };
+
+// Function to get revenue report
+export const getRevenueReport = async (
+  startDate?: string,
+  endDate?: string
+): Promise<{
+  totalRevenue: number;
+  start_date: string;
+  end_date: string;
+}> => {
+  try {
+    const params: any = {};
+    if (startDate) params.start_date = startDate;
+    if (endDate) params.end_date = endDate;
+
+    const response = await fetcher('/api/admin/transactions/reports/revenue', params);
+    return response?.data || {
+      totalRevenue: 0,
+      start_date: startDate || '',
+      end_date: endDate || '',
+    };
+  } catch (error) {
+    console.error("Error fetching revenue report:", error);
+    return {
+      totalRevenue: 0,
+      start_date: startDate || '',
+      end_date: endDate || '',
+    };
+  }
+};

@@ -35,6 +35,8 @@ interface TransactionsTableProps {
   searchQuery?: string;
   startDate?: string;
   endDate?: string;
+  onStartDateChange?: (date: dayjs.Dayjs | null) => void;
+  onEndDateChange?: (date: dayjs.Dayjs | null) => void;
 }
 
 const TransactionsTable = ({
@@ -43,6 +45,8 @@ const TransactionsTable = ({
   searchQuery: initialSearch,
   startDate: initialStartDate,
   endDate: initialEndDate,
+  onStartDateChange,
+  onEndDateChange,
 }: TransactionsTableProps) => {
   const router = useRouter();
   const [order, setOrder] = useState<"ASC" | "DESC">("DESC");
@@ -100,6 +104,20 @@ const TransactionsTable = ({
     isLoading: apiLoading,
   } = useFetch(["transactionList", queryParams], getTransactions, queryParams);
 
+  const handleStartDateFilterChange = (date: dayjs.Dayjs | null) => {
+    setStartDateFilter(date);
+    if (onStartDateChange) {
+      onStartDateChange(date);
+    }
+  };
+
+  const handleEndDateFilterChange = (date: dayjs.Dayjs | null) => {
+    setEndDateFilter(date);
+    if (onEndDateChange) {
+      onEndDateChange(date);
+    }
+  };
+
   const handleClearFilters = useCallback(() => {
     setStatus("");
     setTransactionType("");
@@ -107,7 +125,15 @@ const TransactionsTable = ({
     setEndDateFilter(null);
     setSearch("");
     setPage(1);
-  }, []);
+    
+    if (onStartDateChange) {
+      onStartDateChange(null);
+    }
+    
+    if (onEndDateChange) {
+      onEndDateChange(null);
+    }
+  }, [onStartDateChange, onEndDateChange]);
 
   useEffect(() => {
     if (data?.data) {
@@ -241,8 +267,8 @@ const TransactionsTable = ({
               onSearchChange={setSearch}
               onStatusChange={setStatus}
               onTransactionTypeChange={setTransactionType}
-              onStartDateChange={setStartDateFilter}
-              onEndDateChange={setEndDateFilter}
+              onStartDateChange={handleStartDateFilterChange}
+              onEndDateChange={handleEndDateFilterChange}
               onClearFilters={handleClearFilters}
             />
           </Box>
