@@ -34,6 +34,8 @@ import {
   Transaction,
   updateTransactionStatus,
   TransactionStatus,
+  generateTransactionReport,
+  TransactionType,
 } from "@/services/apiTransaction";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import DownloadIcon from "@mui/icons-material/Download";
@@ -137,6 +139,38 @@ const TransactionDetailApp = () => {
     fetchTransaction(); // Reload transaction data
   };
 
+  // Handle export receipt
+  const handleExportReceipt = async () => {
+    if (!transaction) return;
+    
+    try {
+      console.log('Exporting receipt with params:', {
+        format: 'excel',
+        status: transaction.status,
+        startDate: transaction.createdAt.split('T')[0],
+        endDate: transaction.createdAt.split('T')[0],
+      });
+      
+      await generateTransactionReport('excel', {
+        status: transaction.status as TransactionStatus,
+        startDate: transaction.createdAt.split('T')[0],
+        endDate: transaction.createdAt.split('T')[0],
+        // Add transaction ID filter if API supports it
+        transactionType: transaction.transactionType as TransactionType,
+      });
+      
+      showSnackbar("Transaction receipt exported successfully", "success");
+    } catch (error) {
+      console.error("Failed to export transaction receipt:", error);
+      showSnackbar(
+        typeof error === 'string' 
+          ? error 
+          : "Failed to export transaction receipt. Please check your network connection.", 
+        "error"
+      );
+    }
+  };
+
   if (loading) {
     return (
       <Box sx={{ width: "100%", padding: 3 }}>
@@ -231,6 +265,7 @@ const TransactionDetailApp = () => {
                 variant="outlined"
                 startIcon={<DownloadIcon />}
                 size="small"
+                onClick={handleExportReceipt}
                 sx={{
                   borderColor: "#2E9970",
                   color: "#2E9970",

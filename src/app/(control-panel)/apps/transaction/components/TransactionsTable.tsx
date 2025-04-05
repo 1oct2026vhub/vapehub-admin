@@ -27,6 +27,7 @@ import { formatDate } from "@/utils/actions";
 import TransactionStatusChip from "./TransactionStatusChip";
 import TransactionTypeChip from "./TransactionTypeChip";
 import TransactionFilters from "./TransactionFilters";
+import GenerateReportButton from "./GenerateReportButton";
 
 interface TransactionsTableProps {
   statusFilter?: TransactionStatus;
@@ -113,7 +114,7 @@ const TransactionsTable = ({
       setTransactions(data.data.transactions || []);
       if (data.data.pagination) {
         setTotalRecords(data.data.pagination.total || 0);
-        setTotalPages(data.data.pagination.total_pages || 1);
+        setTotalPages(data.data.pagination.totalPages || 1);
       }
     }
   }, [data]);
@@ -209,73 +210,90 @@ const TransactionsTable = ({
   if (error) return <p>Failed to load transactions</p>;
 
   return (
-    <Paper
-      className="flex flex-col flex-auto shadow-1 overflow-hidden"
-      elevation={0}
-    >
-      <div className="flex items-center justify-between p-3 flex-wrap gap-2">
-        <Box className="flex flex-col items-start gap-2">
-          <TransactionFilters
-            search={search}
-            status={status}
-            transactionType={transactionType}
-            startDateFilter={startDateFilter}
-            endDateFilter={endDateFilter}
-            onSearchChange={setSearch}
-            onStatusChange={setStatus}
-            onTransactionTypeChange={setTransactionType}
-            onStartDateChange={setStartDateFilter}
-            onEndDateChange={setEndDateFilter}
-            onClearFilters={handleClearFilters}
+    <div>
+      <div className="flex items-end justify-end mb-4">
+        <Box>
+          <GenerateReportButton
+            status={status || undefined}
+            transactionType={transactionType || undefined}
+            startDate={
+              startDateFilter ? startDateFilter.format("YYYY-MM-DD") : undefined
+            }
+            endDate={
+              endDateFilter ? endDateFilter.format("YYYY-MM-DD") : undefined
+            }
+            disabled={isLoading}
           />
         </Box>
       </div>
-
-      <DataTable
-        data={transactions}
-        columns={columns}
-        renderRowActionMenuItems={({ closeMenu, row }) => [
-          <MenuItem
-            key="view"
-            onClick={() => {
-              handleViewDetails(row.original.id);
-              closeMenu();
-            }}
-          >
-            <ListItemIcon>
-              <FuseSvgIcon>heroicons-outline:eye</FuseSvgIcon>
-            </ListItemIcon>
-            View Details
-          </MenuItem>,
-        ]}
-      />
-
-      {/* Pagination with additional information */}
-      <div className="flex flex-col items-center py-4">
-        <Pagination
-          count={totalPages}
-          page={page}
-          onChange={handlePageChange}
-          shape="rounded"
-          color="primary"
-          renderItem={(item) => (
-            <PaginationItem
-              {...item}
-              className="text-gray-600 hover:text-[#2E9970]"
-              sx={{
-                "&.Mui-selected": {
-                  backgroundColor: "#2E9970",
-                  color: "#fff",
-                  "&:hover": {
-                    backgroundColor: "#247C5C",
-                  },
-                },
-              }}
+      <Paper
+        className="flex flex-col flex-auto shadow-1 overflow-hidden"
+        elevation={0}
+      >
+        <div className="flex items-center justify-between p-3 flex-wrap gap-2">
+          <Box className="flex flex-col items-start gap-2">
+            <TransactionFilters
+              search={search}
+              status={status}
+              transactionType={transactionType}
+              startDateFilter={startDateFilter}
+              endDateFilter={endDateFilter}
+              onSearchChange={setSearch}
+              onStatusChange={setStatus}
+              onTransactionTypeChange={setTransactionType}
+              onStartDateChange={setStartDateFilter}
+              onEndDateChange={setEndDateFilter}
+              onClearFilters={handleClearFilters}
             />
-          )}
+          </Box>
+        </div>
+
+        <DataTable
+          data={transactions}
+          columns={columns}
+          renderRowActionMenuItems={({ closeMenu, row }) => [
+            <MenuItem
+              key="view"
+              onClick={() => {
+                handleViewDetails(row.original.id);
+                closeMenu();
+              }}
+            >
+              <ListItemIcon>
+                <FuseSvgIcon>heroicons-outline:eye</FuseSvgIcon>
+              </ListItemIcon>
+              View Details
+            </MenuItem>,
+          ]}
         />
-      </div>
-    </Paper>
+
+        {/* Pagination with additional information */}
+        <div className="flex flex-col items-center py-4">
+          <Pagination
+            count={totalPages}
+            page={page}
+            onChange={handlePageChange}
+            shape="rounded"
+            color="primary"
+            renderItem={(item) => (
+              <PaginationItem
+                {...item}
+                className="text-gray-600 hover:text-[#2E9970]"
+                sx={{
+                  "&.Mui-selected": {
+                    backgroundColor: "#2E9970",
+                    color: "#fff",
+                    "&:hover": {
+                      backgroundColor: "#247C5C",
+                    },
+                  },
+                }}
+              />
+            )}
+          />
+        </div>
+      </Paper>
+    </div>
   );
 };
 

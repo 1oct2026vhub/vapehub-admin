@@ -1,8 +1,9 @@
 import { fetcher, updater, patcher, poster } from "./apiService";
+import axiosInstance from "@/utils/axiosApi";
 
 // Transaction status types
-export type TransactionStatus = 
-  | "pending" 
+export type TransactionStatus =
+  | "pending"
   | "processing"
   | "shipped"
   | "delivered"
@@ -15,17 +16,10 @@ export type TransactionStatus =
   | "refunded";
 
 // Transaction type enum
-export type TransactionType = 
-  | "purchase" 
-  | "refund" 
-  | "payout";
+export type TransactionType = "purchase" | "refund" | "payout";
 
 // Payment method types
-export type PaymentMethod = 
-  | "worldPay" 
-  | "stripe" 
-  | "paypal" 
-  | "bank_transfer";
+export type PaymentMethod = "worldPay" | "stripe" | "paypal" | "bank_transfer";
 
 // Interface for transaction
 export interface Transaction {
@@ -158,46 +152,66 @@ export const getTransactions = async (
 };
 
 // Function to get transaction details by ID
-export const getTransactionById = async (transactionId: number): Promise<Transaction> => {
+export const getTransactionById = async (
+  transactionId: number
+): Promise<Transaction> => {
   const response = await fetcher(`/api/admin/transactions/${transactionId}`);
   return response?.data;
 };
 
-// Function to generate transactions report (Excel)
+// Function to generate transactions report (Excel/CSV)
 export const generateTransactionReport = async (
-  status?: TransactionStatus,
-  transactionType?: TransactionType,
-  startDate?: string,
-  endDate?: string
+  format: "excel" | "csv" = "excel",
+  filters: {
+    startDate?: string;
+    endDate?: string;
+    status?: TransactionStatus;
+    transactionType?: TransactionType;
+  } = {}
 ): Promise<void> => {
   try {
     // Build params object
-    const params: any = {};
-    if (status) params.status = status;
-    if (transactionType) params.transactionType = transactionType;
-    if (startDate) params.start_date = startDate;
-    if (endDate) params.end_date = endDate;
+    const params: any = { format };
+    if (filters.startDate) params.start_date = filters.startDate;
+    if (filters.endDate) params.end_date = filters.endDate;
+    if (filters.status) params.status = filters.status;
+    if (filters.transactionType)
+      params.transaction_type = filters.transactionType;
 
-    // Use axiosInstance with blob response type
-    const response = await fetch(`/api/admin/transactions/report?${new URLSearchParams(params)}`, {
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem('accessToken')}`,
-      },
-    });
+    // Use axiosInstance with proper configuration
+    const response = await axiosInstance.get(
+      `/api/admin/transactions/reports/export`,
+      {
+        params,
+        responseType: "blob",
+      }
+    );
 
-    if (!response.ok) {
-      throw new Error('Failed to download report');
-    }
-
-    const blob = await response.blob();
-    
     // Create a temporary link element
+    const blob = new Blob([response.data]);
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
-    
-    // Set filename with current date
-    const today = new Date().toISOString().split('T')[0];
-    link.download = `transactions-report-${today}.xlsx`;
+
+    // Set filename
+    const contentDisposition = response.headers["content-disposition"];
+    let filename = "transactions-report.xlsx";
+
+    if (contentDisposition) {
+      const filenameMatch = contentDisposition.match(
+        /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/
+      );
+      if (filenameMatch && filenameMatch[1]) {
+        filename = filenameMatch[1].replace(/['"]/g, "");
+      }
+    } else {
+      // Fallback filename with date
+      const today = new Date().toISOString().split("T")[0];
+      filename = `transactions-report-${today}.${
+        format === "csv" ? "csv" : "xlsx"
+      }`;
+    }
+
+    link.download = filename;
 
     // Append to body, click, and remove
     document.body.appendChild(link);
@@ -206,6 +220,8 @@ export const generateTransactionReport = async (
 
     // Clean up the URL
     URL.revokeObjectURL(link.href);
+
+    return;
   } catch (error) {
     console.error("Error downloading report:", error);
     throw error;
@@ -219,10 +235,13 @@ export const updateTransactionStatus = async (
 ): Promise<any> => {
   try {
     // Use patcher instead of updater for PATCH request
-    const response = await patcher(`/api/admin/transactions/${transactionId}/status`, {
-      status
-    });
-    
+    const response = await patcher(
+      `/api/admin/transactions/${transactionId}/status`,
+      {
+        status,
+      }
+    );
+
     return response;
   } catch (error) {
     console.error("Error updating transaction status:", error);
@@ -236,10 +255,39 @@ export const refundTransaction = async (
   data: { reason: string; amount: number }
 ): Promise<any> => {
   try {
-    const response = await poster(`/api/admin/transactions/${transactionId}/refund`, data);
+    const response = await poster(
+      `/api/admin/transactions/${transactionId}/refund`,
+      data
+    );
     return response;
   } catch (error) {
     console.error("Error refunding transaction:", error);
     throw error;
   }
-}; 
+};
+
+// Function to get transaction statistics
+export const getTransactionStatistics = async (): Promise<{
+  totalTransactions: number;
+  completedTransactions: number;
+  failedTransactions: number;
+  totalRevenue: string;
+}> => {
+  try {
+    const response = await fetcher('/api/admin/transactions/stats');
+    return response?.data || {
+      totalTransactions: 0,
+      completedTransactions: 0,
+      failedTransactions: 0,
+      totalRevenue: '0.00',
+    };
+  } catch (error) {
+    console.error("Error fetching transaction statistics:", error);
+    return {
+      totalTransactions: 0,
+      completedTransactions: 0,
+      failedTransactions: 0,
+      totalRevenue: '0.00',
+    };
+  }
+};

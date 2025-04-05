@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Box,
   Typography,
@@ -8,10 +8,15 @@ import {
   Grid,
   Card,
   CardContent,
+  LinearProgress,
 } from "@mui/material";
 import { motion } from "motion/react";
 import TransactionsTable from "../components/TransactionsTable";
-import { TransactionStatus, TransactionType } from "@/services/apiTransaction";
+import {
+  TransactionStatus,
+  TransactionType,
+  getTransactionStatistics,
+} from "@/services/apiTransaction";
 
 function TransactionListApp() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -21,6 +26,30 @@ function TransactionListApp() {
   const [typeFilter, setTypeFilter] = useState<TransactionType | undefined>(
     undefined
   );
+  const [stats, setStats] = useState({
+    totalTransactions: 0,
+    completedTransactions: 0,
+    failedTransactions: 0,
+    totalRevenue: "0.00",
+  });
+  const [loading, setLoading] = useState(true);
+
+  // Fetch transaction statistics
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        setLoading(true);
+        const statistics = await getTransactionStatistics();
+        setStats(statistics);
+      } catch (error) {
+        console.error("Failed to fetch transaction statistics:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchStats();
+  }, []);
 
   return (
     <Container maxWidth={false} sx={{ py: 3 }}>
@@ -47,49 +76,75 @@ function TransactionListApp() {
             </Box>
           </Grid>
 
-          {/* Transaction Summary Cards */}
+          {/* Transaction Summary Cards - Reduced Size */}
           <Grid item xs={12} md={3}>
             <Card>
-              <CardContent className="flex flex-col items-center justify-center text-center">
-                <Typography color="text.secondary" variant="subtitle1">
+              <CardContent sx={{ py: 1.5, position: "relative" }}>
+                {loading && (
+                  <LinearProgress
+                    sx={{ position: "absolute", top: 0, left: 0, right: 0 }}
+                  />
+                )}
+                <Typography color="text.secondary" variant="body2">
                   Total Transactions
                 </Typography>
-                <Typography className="mt-2 text-3xl font-bold">543</Typography>
+                <Typography className="text-2xl font-bold">
+                  {stats.totalTransactions.toLocaleString()}
+                </Typography>
               </CardContent>
             </Card>
           </Grid>
           <Grid item xs={12} md={3}>
             <Card>
-              <CardContent className="flex flex-col items-center justify-center text-center">
-                <Typography color="text.secondary" variant="subtitle1">
+              <CardContent sx={{ py: 1.5, position: "relative" }}>
+                {loading && (
+                  <LinearProgress
+                    sx={{ position: "absolute", top: 0, left: 0, right: 0 }}
+                  />
+                )}
+                <Typography color="text.secondary" variant="body2">
                   Completed Transactions
                 </Typography>
-                <Typography className="mt-2 text-3xl font-bold text-green-600">
-                  432
+                <Typography className="text-2xl font-bold text-green-600">
+                  {stats.completedTransactions.toLocaleString()}
                 </Typography>
               </CardContent>
             </Card>
           </Grid>
           <Grid item xs={12} md={3}>
             <Card>
-              <CardContent className="flex flex-col items-center justify-center text-center">
-                <Typography color="text.secondary" variant="subtitle1">
+              <CardContent sx={{ py: 1.5, position: "relative" }}>
+                {loading && (
+                  <LinearProgress
+                    sx={{ position: "absolute", top: 0, left: 0, right: 0 }}
+                  />
+                )}
+                <Typography color="text.secondary" variant="body2">
                   Failed Transactions
                 </Typography>
-                <Typography className="mt-2 text-3xl font-bold text-red-600">
-                  21
+                <Typography className="text-2xl font-bold text-red-600">
+                  {stats.failedTransactions.toLocaleString()}
                 </Typography>
               </CardContent>
             </Card>
           </Grid>
           <Grid item xs={12} md={3}>
             <Card>
-              <CardContent className="flex flex-col items-center justify-center text-center">
-                <Typography color="text.secondary" variant="subtitle1">
+              <CardContent sx={{ py: 1.5, position: "relative" }}>
+                {loading && (
+                  <LinearProgress
+                    sx={{ position: "absolute", top: 0, left: 0, right: 0 }}
+                  />
+                )}
+                <Typography color="text.secondary" variant="body2">
                   Total Revenue
                 </Typography>
-                <Typography className="mt-2 text-3xl font-bold text-blue-600">
-                  $43,250
+                <Typography className="text-2xl font-bold text-blue-600">
+                  $
+                  {parseFloat(stats.totalRevenue).toLocaleString(undefined, {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })}
                 </Typography>
               </CardContent>
             </Card>
