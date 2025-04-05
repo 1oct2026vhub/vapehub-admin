@@ -71,6 +71,31 @@ const TransactionsTable = ({
     initialEndDate ? dayjs(initialEndDate) : null
   );
 
+  // Initial setup of filters from props
+  useEffect(() => {
+    // Only update if we haven't set initial values yet and they are provided
+    if (!startDateFilter && initialStartDate) {
+      const date = dayjs(initialStartDate);
+      setStartDateFilter(date);
+    }
+    
+    if (!endDateFilter && initialEndDate) {
+      const date = dayjs(initialEndDate);
+      setEndDateFilter(date);
+    }
+  }, []); // Empty dependency array = only run once on mount
+
+  // Update filters when props change
+  useEffect(() => {
+    if (initialStartDate && (!startDateFilter || initialStartDate !== startDateFilter.format("YYYY-MM-DD"))) {
+      setStartDateFilter(dayjs(initialStartDate));
+    }
+    
+    if (initialEndDate && (!endDateFilter || initialEndDate !== endDateFilter.format("YYYY-MM-DD"))) {
+      setEndDateFilter(dayjs(initialEndDate));
+    }
+  }, [initialStartDate, initialEndDate]);
+
   const queryParams = useMemo(
     () => ({
       sort_by: sortBy,

@@ -28,8 +28,12 @@ function TransactionListApp() {
   const [typeFilter, setTypeFilter] = useState<TransactionType | undefined>(
     undefined
   );
-  const [startDate, setStartDate] = useState<dayjs.Dayjs | null>(null);
-  const [endDate, setEndDate] = useState<dayjs.Dayjs | null>(null);
+  const [startDate, setStartDate] = useState<dayjs.Dayjs | null>(
+    dayjs().subtract(1, 'month')
+  );
+  const [endDate, setEndDate] = useState<dayjs.Dayjs | null>(
+    dayjs()
+  );
   const [stats, setStats] = useState({
     totalTransactions: 0,
     completedTransactions: 0,
@@ -48,24 +52,48 @@ function TransactionListApp() {
     const fetchStats = async () => {
       try {
         setLoading(true);
+        
+        // Get transaction statistics
         const statistics = await getTransactionStatistics();
-        setStats(statistics);
-
-        // Fetch revenue data based on date filters
-        if (startDate || endDate) {
-          const startDateStr = startDate
-            ? startDate.format("YYYY-MM-DD")
-            : undefined;
-          const endDateStr = endDate ? endDate.format("YYYY-MM-DD") : undefined;
-
-          const revenueReport = await getRevenueReport(
-            startDateStr,
-            endDateStr
-          );
-          setRevenueData(revenueReport);
+        if (statistics) {
+          setStats({
+            totalTransactions: statistics.totalTransactions || 0,
+            completedTransactions: statistics.completedTransactions || 0,
+            failedTransactions: statistics.failedTransactions || 0,
+            totalRevenue: statistics.totalRevenue || '0.00',
+          });
+        }
+        
+        // Always fetch revenue data, using date filters if available
+        const startDateStr = startDate ? startDate.format("YYYY-MM-DD") : undefined;
+        const endDateStr = endDate ? endDate.format("YYYY-MM-DD") : undefined;
+        
+        const revenueReport = await getRevenueReport(
+          startDateStr,
+          endDateStr
+        );
+        
+        if (revenueReport) {
+          setRevenueData({
+            totalRevenue: revenueReport.totalRevenue || 0,
+            start_date: revenueReport.start_date || '',
+            end_date: revenueReport.end_date || '',
+          });
         }
       } catch (error) {
         console.error("Failed to fetch transaction statistics:", error);
+        // Set default values in case of error
+        setStats({
+          totalTransactions: 0,
+          completedTransactions: 0,
+          failedTransactions: 0,
+          totalRevenue: '0.00',
+        });
+        setRevenueData({
+          totalRevenue: 0,
+          start_date: '',
+          end_date: '',
+        });
       } finally {
         setLoading(false);
       }
@@ -118,24 +146,26 @@ function TransactionListApp() {
                   />
                 )}
                 <Typography color="text.secondary" variant="body2">
-                  Total Revenue
-                  {/* {(startDate || endDate) ? "Filtered Revenue" : "Total Revenue"} */}
-                  {startDate && endDate && (
-                    <span className="text-xs block mt-1">
-                      {startDate.format("MMM D, YYYY")} -{" "}
-                      {endDate.format("MMM D, YYYY")}
-                    </span>
-                  )}
+                  Revenue
+                  <span className="text-xs block mt-1">
+                    {startDate ? startDate.format("MMM D, YYYY") : ""} - {" "}
+                    {endDate ? endDate.format("MMM D, YYYY") : "Present"}
+                  </span>
                 </Typography>
                 <Typography className="text-2xl font-bold text-blue-600">
                   $
-                  {(startDate || endDate
-                    ? revenueData.totalRevenue
-                    : parseFloat(stats.totalRevenue)
-                  ).toLocaleString(undefined, {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2,
-                  })}
+                  {(() => {
+                    let value = 0;
+                    if (startDate || endDate) {
+                      value = revenueData?.totalRevenue || 0;
+                    } else {
+                      value = stats?.totalRevenue ? parseFloat(stats.totalRevenue) : 0;
+                    }
+                    return value.toLocaleString(undefined, {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    });
+                  })()}
                 </Typography>
               </CardContent>
             </Card>
