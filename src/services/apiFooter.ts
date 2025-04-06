@@ -58,10 +58,17 @@ export const deleteFooterSection = async (id: number) => {
 
 export const reorderFooterSection = async (
   id: number,
-  order: number
+  new_order: number
 ) => {
-  const response = await updater(`/api/admin/footer/sections/${id}/reorder`, { order });
-  return response?.data;
+  try {
+    console.log(`Reordering section ID ${id} to position ${new_order}`);
+    const response = await updater(`/api/admin/footer/sections/${id}/reorder`, { new_order });
+    console.log('Section reorder response:', response);
+    return response?.data;
+  } catch (error) {
+    console.error(`Error reordering section ${id}:`, error);
+    throw error;
+  }
 };
 
 // Footer Links API Functions
@@ -102,8 +109,15 @@ export const deleteFooterLink = async (id: number) => {
 
 export const reorderFooterLink = async (
   id: number,
-  order: number
+  new_order: number
 ) => {
-  const response = await updater(`/api/admin/footer/links/${id}/reorder`, { order });
-  return response?.data;
+  try {
+    console.log(`Reordering link ID ${id} to position ${new_order}`);
+    const response = await updater(`/api/admin/footer/links/${id}/reorder`, { new_order });
+    console.log('Link reorder response:', response);
+    return response?.data;
+  } catch (error) {
+    console.error(`Error reordering link ${id}:`, error);
+    throw error;
+  }
 }; 

@@ -9,7 +9,6 @@ import {
   Button,
   Typography,
   Box,
-  TextField,
   FormControlLabel,
   Switch,
   IconButton,
@@ -17,9 +16,14 @@ import {
   Divider,
   MenuItem,
   ListItemIcon,
+  Alert,
 } from "@mui/material";
 import { useForm, FormProvider } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import AddIcon from "@mui/icons-material/Add";
+import ArrowUpwardIcon from "@mui/icons-material/ArrowUpward";
+import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
 import { MRT_ColumnDef } from "material-react-table";
 import DataTable from "@/components/data-table/DataTable";
 import FuseSvgIcon from "@fuse/core/FuseSvgIcon";
@@ -33,6 +37,27 @@ import {
   deleteFooterLink,
   reorderFooterLink,
 } from "@/services/apiFooter";
+
+// Define validation schema using Zod
+const linkSchema = z.object({
+  label: z.string()
+    .min(1, "Label is required")
+    .max(50, "Label must not exceed 50 characters"),
+  
+  url: z.string()
+    .min(1, "URL is required")
+    .max(200, "URL must not exceed 200 characters")
+    .regex(/^\/[a-z0-9\-\/]*$|^https?:\/\/.+$/i, "URL must start with a slash (/) for internal links or be a valid URL for external links"),
+  
+  order: z.coerce.number()
+    .int("Order must be an integer")
+    .min(0, "Order must be a positive number"),
+  
+  is_active: z.boolean().default(true)
+});
+
+// Define the form type
+type LinkFormType = z.infer<typeof linkSchema>;
 
 interface FooterLinksDialogProps {
   open: boolean;
@@ -53,16 +78,21 @@ export default function FooterLinksDialog({
   const [editMode, setEditMode] = useState(false);
   const [currentLink, setCurrentLink] = useState<FooterLink | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [reordering, setReordering] = useState(false);
   
-  // Form state with react-hook-form
-  const methods = useForm({
+  // Form state with react-hook-form and Zod validation
+  const methods = useForm<LinkFormType>({
+    mode: "all",
     defaultValues: {
       label: "",
       url: "",
       order: 0,
       is_active: true,
-    }
+    },
+    resolver: zodResolver(linkSchema)
   });
+
+  const { isValid, errors } = methods.formState;
 
   // Reset form when dialog opens
   useEffect(() => {
@@ -72,6 +102,8 @@ export default function FooterLinksDialog({
         ...link,
         id: link.id || Math.random() * -1000,
       }));
+      // Sort by order
+      linksWithIds.sort((a, b) => a.order - b.order);
       setLinks(linksWithIds);
       resetForm();
     }
@@ -90,7 +122,7 @@ export default function FooterLinksDialog({
   };
 
   // Handle form submit
-  const handleSubmit = async (data: any) => {
+  const handleSubmit = async (data: LinkFormType) => {
     try {
       setSubmitting(true);
       if (editMode && currentLink?.id) {
@@ -125,11 +157,29 @@ export default function FooterLinksDialog({
             } as FooterLink,
           ];
       
+      // Sort by order
+      updatedLinks.sort((a, b) => a.order - b.order);
       setLinks(updatedLinks);
       resetForm();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to save footer link:", error);
-      onError("Failed to save footer link");
+      
+      // Display specific error messages if available
+      if (error?.errors) {
+        onError(error.errors[0]?.msg || "Failed to save footer link");
+      } else {
+        const errorMessage = error?.message || "Failed to save footer link";
+        onError(errorMessage);
+      }
+      
+      // Handle API validation errors
+      if (error?.error && typeof error.error === "object") {
+        Object.entries(error.error).forEach(([field, message]) => {
+          if (typeof message === "string") {
+            onError(message);
+          }
+        });
+      }
     } finally {
       setSubmitting(false);
     }
@@ -161,9 +211,64 @@ export default function FooterLinksDialog({
       
       // Update local links array
       setLinks(links.filter((l) => l.id !== link.id));
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to delete footer link:", error);
-      onError("Failed to delete footer link");
+      onError(error?.message || "Failed to delete footer link");
+    }
+  };
+
+  // Toggle reordering mode
+  const toggleReordering = () => {
+    setReordering(!reordering);
+  };
+
+  // Move link up
+  const moveLinkUp = async (link: FooterLink, index: number) => {
+    if (index === 0) return; // Already at top
+    
+    try {
+      const newOrder = links[index - 1].order;
+      await reorderFooterLink(link.id, newOrder);
+      
+      // Update local state for immediate feedback
+      const updatedLinks = [...links];
+      const temp = updatedLinks[index].order;
+      updatedLinks[index].order = updatedLinks[index - 1].order;
+      updatedLinks[index - 1].order = temp;
+      
+      // Sort by order
+      updatedLinks.sort((a, b) => a.order - b.order);
+      setLinks(updatedLinks);
+      
+      onSuccess("Link order updated successfully");
+    } catch (error: any) {
+      console.error("Failed to reorder link:", error);
+      onError(error?.message || "Failed to reorder link");
+    }
+  };
+
+  // Move link down
+  const moveLinkDown = async (link: FooterLink, index: number) => {
+    if (index === links.length - 1) return; // Already at bottom
+    
+    try {
+      const newOrder = links[index + 1].order;
+      await reorderFooterLink(link.id, newOrder);
+      
+      // Update local state for immediate feedback
+      const updatedLinks = [...links];
+      const temp = updatedLinks[index].order;
+      updatedLinks[index].order = updatedLinks[index + 1].order;
+      updatedLinks[index + 1].order = temp;
+      
+      // Sort by order
+      updatedLinks.sort((a, b) => a.order - b.order);
+      setLinks(updatedLinks);
+      
+      onSuccess("Link order updated successfully");
+    } catch (error: any) {
+      console.error("Failed to reorder link:", error);
+      onError(error?.message || "Failed to reorder link");
     }
   };
 
@@ -175,6 +280,36 @@ export default function FooterLinksDialog({
   // Table columns
   const columns = useMemo<MRT_ColumnDef<FooterLink>[]>(
     () => [
+      ...(reordering
+        ? [
+            {
+              accessorKey: "reorder",
+              header: "Reorder",
+              size: 100,
+              Cell: ({ row }) => {
+                const index = row.index;
+                return (
+                  <Box className="flex items-center">
+                    <IconButton
+                      size="small"
+                      disabled={index === 0}
+                      onClick={() => moveLinkUp(row.original, index)}
+                    >
+                      <ArrowUpwardIcon fontSize="small" />
+                    </IconButton>
+                    <IconButton
+                      size="small"
+                      disabled={index === links.length - 1}
+                      onClick={() => moveLinkDown(row.original, index)}
+                    >
+                      <ArrowDownwardIcon fontSize="small" />
+                    </IconButton>
+                  </Box>
+                );
+              },
+            },
+          ]
+        : []),
       {
         accessorKey: "label",
         header: "Label",
@@ -201,15 +336,28 @@ export default function FooterLinksDialog({
         ),
       },
     ],
-    []
+    [reordering, links]
   );
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
       <DialogTitle>
-        <Typography variant="h6">
-          Manage Links for Section: <strong>{section.title}</strong>
-        </Typography>
+        <Box display="flex" justifyContent="space-between" alignItems="center">
+          <Typography variant="h6">
+            Manage Links for Section: <strong>{section.title}</strong>
+          </Typography>
+          <FormControlLabel
+            control={
+              <Switch
+                checked={reordering}
+                onChange={toggleReordering}
+                color="primary"
+                size="small"
+              />
+            }
+            label="Reorder mode"
+          />
+        </Box>
       </DialogTitle>
       <DialogContent>
         <FormProvider {...methods}>
@@ -218,6 +366,13 @@ export default function FooterLinksDialog({
               <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
                 {editMode ? "Edit Link" : "Add New Link"}
               </Typography>
+              
+              {errors?.root?.message && (
+                <Alert className="mb-4" severity="error">
+                  {errors?.root?.message}
+                </Alert>
+              )}
+              
               <Box
                 sx={{
                   display: "flex",
@@ -269,7 +424,7 @@ export default function FooterLinksDialog({
                   <AppButton
                     label={editMode ? "Update" : "Add"}
                     type="submit"
-                    disabled={!methods.watch("label") || !methods.watch("url")}
+                    disabled={!isValid || submitting}
                     loading={submitting}
                   />
                   {editMode && (
@@ -301,7 +456,7 @@ export default function FooterLinksDialog({
           <DataTable
             columns={columns}
             data={links}
-            enableRowActions
+            enableRowActions={!reordering}
             renderRowActionMenuItems={({ closeMenu, row }) => [
               <MenuItem
                 key="edit"

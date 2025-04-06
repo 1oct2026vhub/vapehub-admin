@@ -11,8 +11,18 @@ export const poster = (url, data) =>
   axiosInstance.post(url, data).then((res) => res.data);
 
 // Generic updater for PUT requests
-export const updater = (url, data) =>
-  axiosInstance.put(url, data).then((res) => res.data);
+export const updater = (url, data) => {
+  console.log(`PUT request to ${url}`, { data });
+  return axiosInstance.put(url, data)
+    .then((res) => {
+      console.log(`PUT response from ${url}:`, res.data);
+      return res.data;
+    })
+    .catch((error) => {
+      console.error(`PUT error to ${url}:`, error);
+      throw error;
+    });
+};
 
 // Generic patcher for PATCH requests
 export const patcher = (url, data) =>

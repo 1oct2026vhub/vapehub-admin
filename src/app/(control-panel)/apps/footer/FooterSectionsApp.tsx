@@ -8,38 +8,38 @@ import {
   Grid,
   Paper,
   Dialog,
-  DialogActions,
   DialogContent,
   DialogTitle,
-  TextField,
   FormControlLabel,
   Switch,
-  Snackbar,
   Alert,
-  IconButton,
-  Tooltip,
-  Tab,
-  Tabs,
   MenuItem,
   ListItemIcon,
   Button,
+  IconButton,
 } from "@mui/material";
 import { useForm, FormProvider } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import FuseSvgIcon from "@fuse/core/FuseSvgIcon";
 import { motion } from "motion/react";
 import { MRT_ColumnDef } from "material-react-table";
 import DataTable from "@/components/data-table/DataTable";
 import FuseLoading from "@fuse/core/FuseLoading";
 import AddIcon from "@mui/icons-material/Add";
+import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
+import ArrowUpwardIcon from "@mui/icons-material/ArrowUpward";
+import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
 import AppButton from "@/components/Shared/AppButton";
 import FormInputField from "@/components/Shared/FormInputField";
-import { 
-  FooterSection, 
-  FooterLink, 
-  getFooterSections, 
-  createFooterSection, 
-  updateFooterSection, 
-  deleteFooterSection, 
+import { useSnackbar } from "@/contexts/SnackbarContext";
+import {
+  FooterSection,
+  FooterLink,
+  getFooterSections,
+  createFooterSection,
+  updateFooterSection,
+  deleteFooterSection,
   reorderFooterSection,
   createFooterLink,
   updateFooterLink,
@@ -48,50 +48,77 @@ import {
 } from "@/services/apiFooter";
 import FooterLinksDialog from "./components/FooterLinksDialog";
 
+// Define validation schema using Zod
+const sectionSchema = z.object({
+  title: z
+    .string()
+    .min(1, "Title is required")
+    .max(50, "Title must not exceed 50 characters"),
+
+  order: z.coerce
+    .number()
+    .int("Order must be an integer")
+    .min(0, "Order must be a positive number"),
+
+  is_active: z.boolean().default(true),
+});
+
+// Define the form type
+type SectionFormType = z.infer<typeof sectionSchema>;
+
 export default function FooterSectionsApp() {
+  const { showSnackbar } = useSnackbar();
   const [sections, setSections] = useState<FooterSection[]>([]);
   const [loading, setLoading] = useState(true);
   const [showActiveOnly, setShowActiveOnly] = useState(true);
   const [openDialog, setOpenDialog] = useState(false);
-  const [currentSection, setCurrentSection] = useState<FooterSection | null>(null);
+  const [currentSection, setCurrentSection] = useState<FooterSection | null>(
+    null
+  );
   const [openLinksDialog, setOpenLinksDialog] = useState(false);
-  const [selectedSection, setSelectedSection] = useState<FooterSection | null>(null);
-  const [notification, setNotification] = useState({
-    open: false,
-    message: "",
-    severity: "success" as "success" | "error" | "warning" | "info",
-  });
+  const [selectedSection, setSelectedSection] = useState<FooterSection | null>(
+    null
+  );
   const [submitting, setSubmitting] = useState(false);
+  const [reordering, setReordering] = useState(false);
 
-  // Form with react-hook-form
-  const methods = useForm({
+  // Form with react-hook-form and Zod validation
+  const methods = useForm<SectionFormType>({
+    mode: "all",
     defaultValues: {
       title: "",
       order: 0,
       is_active: true,
-    }
+    },
+    resolver: zodResolver(sectionSchema),
   });
+
+  const { isValid, errors } = methods.formState;
 
   // Fetch footer sections
   const fetchFooterSections = async () => {
     try {
       setLoading(true);
-      const data = await getFooterSections(showActiveOnly ? { is_active: true } : {});
+      const data = await getFooterSections(
+        showActiveOnly ? { is_active: true } : {}
+      );
       if (Array.isArray(data)) {
         // Add temporary id if missing to satisfy type requirements
-        const sectionsWithId = data.map(section => ({
+        const sectionsWithId = data.map((section) => ({
           ...section,
           id: section.id || Math.random() * -1000, // Use negative random number for temporary id
-          links: section.links?.map(link => ({
+          links: section.links?.map((link) => ({
             ...link,
             id: link.id || Math.random() * -1000,
-          }))
+          })),
         }));
+        // Sort by order
+        sectionsWithId.sort((a, b) => a.order - b.order);
         setSections(sectionsWithId);
       }
     } catch (error) {
       console.error("Failed to fetch footer sections:", error);
-      showNotification("Failed to load footer sections", "error");
+      showSnackbar("Failed to load footer sections", "error");
     } finally {
       setLoading(false);
     }
@@ -100,15 +127,6 @@ export default function FooterSectionsApp() {
   useEffect(() => {
     fetchFooterSections();
   }, [showActiveOnly]);
-
-  // Show notification
-  const showNotification = (message: string, severity: "success" | "error" | "warning" | "info") => {
-    setNotification({
-      open: true,
-      message,
-      severity,
-    });
-  };
 
   // Handle dialog close
   const handleDialogClose = () => {
@@ -122,23 +140,42 @@ export default function FooterSectionsApp() {
   };
 
   // Handle form submit
-  const handleSubmit = async (data: any) => {
+  const handleSubmit = async (data: SectionFormType) => {
     try {
       setSubmitting(true);
       if (currentSection?.id) {
         // Update existing section
         await updateFooterSection(currentSection.id, data);
-        showNotification("Footer section updated successfully", "success");
+        showSnackbar("Footer section updated successfully", "success");
       } else {
         // Create new section
         await createFooterSection(data);
-        showNotification("Footer section created successfully", "success");
+        showSnackbar("Footer section created successfully", "success");
       }
       handleDialogClose();
       fetchFooterSections();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to save footer section:", error);
-      showNotification("Failed to save footer section", "error");
+
+      // Display specific error messages if available
+      if (error?.errors) {
+        showSnackbar(
+          error.errors[0]?.msg || "Failed to save footer section",
+          "error"
+        );
+      } else {
+        const errorMessage = error?.message || "Failed to save footer section";
+        showSnackbar(errorMessage, "error");
+      }
+
+      // Handle API validation errors
+      if (error?.error && typeof error.error === "object") {
+        Object.entries(error.error).forEach(([field, message]) => {
+          if (typeof message === "string") {
+            showSnackbar(message, "error");
+          }
+        });
+      }
     } finally {
       setSubmitting(false);
     }
@@ -168,17 +205,24 @@ export default function FooterSectionsApp() {
 
   // Handle section deletion
   const handleDeleteSection = async (section: FooterSection) => {
-    if (!window.confirm(`Are you sure you want to delete the section "${section.title}"?`)) {
+    if (
+      !window.confirm(
+        `Are you sure you want to delete the section "${section.title}"?`
+      )
+    ) {
       return;
     }
-    
+
     try {
       await deleteFooterSection(section.id);
-      showNotification("Footer section deleted successfully", "success");
+      showSnackbar("Footer section deleted successfully", "success");
       fetchFooterSections();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to delete footer section:", error);
-      showNotification("Failed to delete footer section", "error");
+      showSnackbar(
+        error?.message || "Failed to delete footer section",
+        "error"
+      );
     }
   };
 
@@ -188,9 +232,74 @@ export default function FooterSectionsApp() {
     setOpenLinksDialog(true);
   };
 
+  // Toggle reordering mode
+  const toggleReordering = () => {
+    setReordering(!reordering);
+  };
+
+  // Move section up
+  const moveSectionUp = async (section: FooterSection, index: number) => {
+    if (index === 0) return; // Already at top
+
+    try {
+      const newOrder = sections[index - 1].order;
+      await reorderFooterSection(section.id, newOrder);
+      await fetchFooterSections();
+      showSnackbar("Section order updated successfully", "success");
+    } catch (error: any) {
+      console.error("Failed to reorder section:", error);
+      showSnackbar(error?.message || "Failed to reorder section", "error");
+    }
+  };
+
+  // Move section down
+  const moveSectionDown = async (section: FooterSection, index: number) => {
+    if (index === sections.length - 1) return; // Already at bottom
+
+    try {
+      const newOrder = sections[index + 1].order;
+      await reorderFooterSection(section.id, newOrder);
+      await fetchFooterSections();
+      showSnackbar("Section order updated successfully", "success");
+    } catch (error: any) {
+      console.error("Failed to reorder section:", error);
+      showSnackbar(error?.message || "Failed to reorder section", "error");
+    }
+  };
+
   // Table columns
   const columns = useMemo<MRT_ColumnDef<FooterSection>[]>(
     () => [
+      ...(reordering
+        ? [
+            {
+              accessorKey: "reorder",
+              header: "Reorder",
+              size: 100,
+              Cell: ({ row, table }) => {
+                const index = row.index;
+                return (
+                  <Box className="flex items-center">
+                    <IconButton
+                      size="small"
+                      disabled={index === 0}
+                      onClick={() => moveSectionUp(row.original, index)}
+                    >
+                      <ArrowUpwardIcon fontSize="small" />
+                    </IconButton>
+                    <IconButton
+                      size="small"
+                      disabled={index === sections.length - 1}
+                      onClick={() => moveSectionDown(row.original, index)}
+                    >
+                      <ArrowDownwardIcon fontSize="small" />
+                    </IconButton>
+                  </Box>
+                );
+              },
+            },
+          ]
+        : []),
       {
         accessorKey: "title",
         header: "Title",
@@ -206,7 +315,11 @@ export default function FooterSectionsApp() {
         header: "Status",
         size: 100,
         Cell: ({ row }) => (
-          <div className={row.original.is_active ? "text-green-600" : "text-red-600"}>
+          <div
+            className={
+              row.original.is_active ? "text-green-600" : "text-red-600"
+            }
+          >
             {row.original.is_active ? "Active" : "Inactive"}
           </div>
         ),
@@ -229,22 +342,14 @@ export default function FooterSectionsApp() {
         header: "Created At",
         size: 150,
         Cell: ({ row }) => {
-          return row.original.created_at 
-            ? new Date(row.original.created_at).toLocaleDateString() 
+          return row.original.created_at
+            ? new Date(row.original.created_at).toLocaleDateString()
             : "N/A";
         },
       },
     ],
-    []
+    [reordering, sections]
   );
-
-  // Handle notification close
-  const handleNotificationClose = () => {
-    setNotification({
-      ...notification,
-      open: false,
-    });
-  };
 
   // Handle links dialog close
   const handleLinksDialogClose = () => {
@@ -288,10 +393,19 @@ export default function FooterSectionsApp() {
                   }
                   label="Show active only"
                 />
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={reordering}
+                      onChange={toggleReordering}
+                      color="primary"
+                    />
+                  }
+                  label="Reorder mode"
+                />
                 <AppButton
-                  label="Add Section"
+                  label={<>Add Section</>}
                   onClick={handleAddSection}
-                  startIcon={<AddIcon />}
                 />
               </Box>
             </Box>
@@ -302,7 +416,7 @@ export default function FooterSectionsApp() {
               <DataTable
                 columns={columns}
                 data={sections}
-                enableRowActions
+                enableRowActions={!reordering}
                 renderRowActionMenuItems={({ closeMenu, row }) => [
                   <MenuItem
                     key="edit"
@@ -350,7 +464,12 @@ export default function FooterSectionsApp() {
       </motion.div>
 
       {/* Add/Edit Section Dialog */}
-      <Dialog open={openDialog} onClose={handleDialogClose} maxWidth="sm" fullWidth>
+      <Dialog
+        open={openDialog}
+        onClose={handleDialogClose}
+        maxWidth="sm"
+        fullWidth
+      >
         <DialogTitle>
           {currentSection ? "Edit Footer Section" : "Add Footer Section"}
         </DialogTitle>
@@ -358,6 +477,12 @@ export default function FooterSectionsApp() {
           <FormProvider {...methods}>
             <form onSubmit={methods.handleSubmit(handleSubmit)}>
               <Box sx={{ mt: 2 }}>
+                {errors?.root?.message && (
+                  <Alert className="mb-4" severity="error">
+                    {errors?.root?.message}
+                  </Alert>
+                )}
+
                 <FormInputField
                   name="title"
                   control={methods.control}
@@ -365,7 +490,7 @@ export default function FooterSectionsApp() {
                   required
                   autoFocus
                 />
-                
+
                 <FormInputField
                   name="order"
                   control={methods.control}
@@ -373,25 +498,34 @@ export default function FooterSectionsApp() {
                   type="number"
                   required
                 />
-                
+
                 <FormControlLabel
                   control={
                     <Switch
                       checked={methods.watch("is_active")}
-                      onChange={(e) => methods.setValue("is_active", e.target.checked)}
+                      onChange={(e) =>
+                        methods.setValue("is_active", e.target.checked)
+                      }
                       color="primary"
                     />
                   }
                   label="Active"
                   sx={{ mt: 1 }}
                 />
-                
-                <Box sx={{ display: "flex", justifyContent: "flex-end", mt: 3, gap: 2 }}>
+
+                <Box
+                  sx={{
+                    display: "flex",
+                    justifyContent: "flex-end",
+                    mt: 3,
+                    gap: 2,
+                  }}
+                >
                   <Button onClick={handleDialogClose}>Cancel</Button>
                   <AppButton
                     label={currentSection ? "Update" : "Create"}
                     type="submit"
-                    disabled={!methods.watch("title")}
+                    disabled={!isValid || submitting}
                     loading={submitting}
                   />
                 </Box>
@@ -407,21 +541,10 @@ export default function FooterSectionsApp() {
           open={openLinksDialog}
           onClose={handleLinksDialogClose}
           section={selectedSection}
-          onSuccess={(message) => showNotification(message, "success")}
-          onError={(message) => showNotification(message, "error")}
+          onSuccess={(message) => showSnackbar(message, "success")}
+          onError={(message) => showSnackbar(message, "error")}
         />
       )}
-
-      {/* Notifications */}
-      <Snackbar
-        open={notification.open}
-        autoHideDuration={6000}
-        onClose={handleNotificationClose}
-      >
-        <Alert onClose={handleNotificationClose} severity={notification.severity}>
-          {notification.message}
-        </Alert>
-      </Snackbar>
     </Container>
   );
-} 
+}
