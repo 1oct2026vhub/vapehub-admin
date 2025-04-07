@@ -61,6 +61,35 @@ const navigationConfig: FuseNavItemType[] = [
     ],
   },
   {
+    id: "blog",
+    title: "Blog",
+    type: "collapse",
+    icon: "heroicons-outline:pencil-square",
+    children: [
+      {
+        id: "blog.posts",
+        title: "Posts",
+        type: "item",
+        url: "/apps/blog/posts",
+        end: true,
+      },
+      {
+        id: "blog.categories",
+        title: "Categories",
+        type: "item",
+        url: "/apps/blog/categories",
+        end: true,
+      },
+      {
+        id: "blog.tags",
+        title: "Tags",
+        type: "item",
+        url: "/apps/blog/tags",
+        end: true,
+      },
+    ],
+  },
+  {
     id: "user",
     title: "Users",
     type: "item",
