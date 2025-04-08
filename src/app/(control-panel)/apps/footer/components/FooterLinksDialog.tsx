@@ -18,6 +18,8 @@ import {
   ListItemIcon,
   Alert,
 } from "@mui/material";
+import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
+import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { useForm, FormProvider } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -79,6 +81,8 @@ export default function FooterLinksDialog({
   const [currentLink, setCurrentLink] = useState<FooterLink | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [reordering, setReordering] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [linkToDelete, setLinkToDelete] = useState<FooterLink | null>(null);
   
   // Form state with react-hook-form and Zod validation
   const methods = useForm<LinkFormType>({
@@ -137,7 +141,7 @@ export default function FooterLinksDialog({
         await createFooterLink({
           ...data,
           section_id: section.id,
-        });
+        } as { section_id: number; label: string; url: string; order: number; is_active: boolean });
         onSuccess("Footer link created successfully");
       }
       
@@ -198,23 +202,36 @@ export default function FooterLinksDialog({
   };
 
   // Handle delete link
-  const handleDeleteLink = async (link: FooterLink) => {
-    if (!window.confirm(`Are you sure you want to delete the link "${link.label}"?`)) {
-      return;
-    }
+  const handleDeleteLink = (link: FooterLink) => {
+    setLinkToDelete(link);
+    setDeleteDialogOpen(true);
+  };
+
+  // Confirm delete link
+  const confirmDeleteLink = async () => {
+    if (!linkToDelete) return;
     
     try {
-      if (link.id) {
-        await deleteFooterLink(link.id);
+      if (linkToDelete.id) {
+        await deleteFooterLink(linkToDelete.id);
         onSuccess("Footer link deleted successfully");
       }
       
       // Update local links array
-      setLinks(links.filter((l) => l.id !== link.id));
+      setLinks(links.filter((l) => l.id !== linkToDelete.id));
     } catch (error: any) {
       console.error("Failed to delete footer link:", error);
       onError(error?.message || "Failed to delete footer link");
+    } finally {
+      setDeleteDialogOpen(false);
+      setLinkToDelete(null);
     }
+  };
+
+  // Close delete dialog
+  const handleCloseDeleteDialog = () => {
+    setDeleteDialogOpen(false);
+    setLinkToDelete(null);
   };
 
   // Toggle reordering mode
@@ -228,7 +245,7 @@ export default function FooterLinksDialog({
     
     try {
       const newOrder = links[index - 1].order;
-      await reorderFooterLink(link.id, newOrder);
+      await reorderFooterLink(link.id, { new_order: newOrder });
       
       // Update local state for immediate feedback
       const updatedLinks = [...links];
@@ -253,7 +270,7 @@ export default function FooterLinksDialog({
     
     try {
       const newOrder = links[index + 1].order;
-      await reorderFooterLink(link.id, newOrder);
+      await reorderFooterLink(link.id, { new_order: newOrder });
       
       // Update local state for immediate feedback
       const updatedLinks = [...links];
@@ -340,161 +357,195 @@ export default function FooterLinksDialog({
   );
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
-      <DialogTitle>
-        <Box display="flex" justifyContent="space-between" alignItems="center">
-          <Typography variant="h6">
-            Manage Links for Section: <strong>{section.title}</strong>
-          </Typography>
-          <FormControlLabel
-            control={
-              <Switch
-                checked={reordering}
-                onChange={toggleReordering}
-                color="primary"
-                size="small"
-              />
-            }
-            label="Reorder mode"
-          />
-        </Box>
-      </DialogTitle>
-      <DialogContent>
-        <FormProvider {...methods}>
-          <form onSubmit={methods.handleSubmit(handleSubmit)}>
-            <Box sx={{ mb: 4, mt: 1 }}>
-              <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
-                {editMode ? "Edit Link" : "Add New Link"}
-              </Typography>
-              
-              {errors?.root?.message && (
-                <Alert className="mb-4" severity="error">
-                  {errors?.root?.message}
-                </Alert>
-              )}
-              
-              <Box
-                sx={{
-                  display: "flex",
-                  flexDirection: { xs: "column", md: "row" },
-                  gap: 2,
-                  alignItems: "flex-start",
-                  flexWrap: "wrap",
-                }}
-              >
-                <Box sx={{ width: { xs: "100%", md: "45%" } }}>
-                  <FormInputField
-                    name="label"
-                    control={methods.control}
-                    label="Label"
-                    required
-                  />
-                </Box>
-                <Box sx={{ width: { xs: "100%", md: "45%" } }}>
-                  <FormInputField
-                    name="url"
-                    control={methods.control}
-                    label="URL"
-                    required
-                  />
-                </Box>
-                <Box sx={{ width: { xs: "100%", md: "15%" } }}>
-                  <FormInputField
-                    name="order"
-                    control={methods.control}
-                    label="Order"
-                    type="number"
-                    required
-                  />
-                </Box>
-                <Box sx={{ width: { xs: "100%", md: "20%" }, mt: { xs: 1, md: 2 } }}>
-                  <FormControlLabel
-                    control={
-                      <Switch
-                        checked={methods.watch("is_active")}
-                        onChange={(e) => methods.setValue("is_active", e.target.checked)}
-                        color="primary"
-                        size="small"
-                      />
-                    }
-                    label="Active"
-                  />
-                </Box>
-                <Box sx={{ display: "flex", gap: 1, mt: { xs: 1, md: 2 }, ml: { xs: 0, md: "auto" } }}>
-                  <AppButton
-                    label={editMode ? "Update" : "Add"}
-                    type="submit"
-                    disabled={!isValid || submitting}
-                    loading={submitting}
-                  />
-                  {editMode && (
-                    <AppButton
-                      label="Cancel"
-                      onClick={handleCancel}
-                      variant="outlined"
+    <LocalizationProvider dateAdapter={AdapterDayjs}>
+      <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
+        <DialogTitle>
+          <Box display="flex" justifyContent="space-between" alignItems="center">
+            <Typography variant="h6">
+              Manage Links for Section: <strong>{section.title}</strong>
+            </Typography>
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={reordering}
+                  onChange={toggleReordering}
+                  color="primary"
+                  size="small"
+                />
+              }
+              label="Reorder mode"
+            />
+          </Box>
+        </DialogTitle>
+        <DialogContent>
+          <FormProvider {...methods}>
+            <form onSubmit={methods.handleSubmit(handleSubmit)}>
+              <Box sx={{ mb: 4, mt: 1 }}>
+                <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
+                  {editMode ? "Edit Link" : "Add New Link"}
+                </Typography>
+                
+                {errors?.root?.message && (
+                  <Alert className="mb-4" severity="error">
+                    {errors?.root?.message}
+                  </Alert>
+                )}
+                
+                <Box
+                  sx={{
+                    display: "flex",
+                    flexDirection: { xs: "column", md: "row" },
+                    gap: 2,
+                    alignItems: "flex-start",
+                    flexWrap: "wrap",
+                  }}
+                >
+                  <Box sx={{ width: { xs: "100%", md: "45%" } }}>
+                    <FormInputField
+                      name="label"
+                      control={methods.control}
+                      label="Label"
+                      required
                     />
-                  )}
+                  </Box>
+                  <Box sx={{ width: { xs: "100%", md: "45%" } }}>
+                    <FormInputField
+                      name="url"
+                      control={methods.control}
+                      label="URL"
+                      required
+                    />
+                  </Box>
+                  <Box sx={{ width: { xs: "100%", md: "15%" } }}>
+                    <FormInputField
+                      name="order"
+                      control={methods.control}
+                      label="Order"
+                      type="number"
+                      required
+                    />
+                  </Box>
+                  <Box sx={{ width: { xs: "100%", md: "20%" }, mt: { xs: 1, md: 2 } }}>
+                    <FormControlLabel
+                      control={
+                        <Switch
+                          checked={methods.watch("is_active")}
+                          onChange={(e) => methods.setValue("is_active", e.target.checked)}
+                          color="primary"
+                          size="small"
+                        />
+                      }
+                      label="Active"
+                    />
+                  </Box>
+                  <Box sx={{ display: "flex", gap: 1, mt: { xs: 1, md: 2 }, ml: { xs: 0, md: "auto" } }}>
+                    <AppButton
+                      label={editMode ? "Update" : "Add"}
+                      type="submit"
+                      disabled={!isValid || submitting}
+                      loading={submitting}
+                    />
+                    {editMode && (
+                      <AppButton
+                        label="Cancel"
+                        onClick={handleCancel}
+                        variant="outlined"
+                      />
+                    )}
+                  </Box>
                 </Box>
               </Box>
-            </Box>
-          </form>
-        </FormProvider>
+            </form>
+          </FormProvider>
 
-        <Divider sx={{ my: 2 }} />
+          <Divider sx={{ my: 2 }} />
 
-        <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
-          Section Links
-        </Typography>
-        
-        {links.length === 0 ? (
-          <Paper sx={{ p: 3, textAlign: "center" }}>
-            <Typography color="text.secondary">
-              No links added to this section yet. Add your first link above.
-            </Typography>
-          </Paper>
-        ) : (
-          <DataTable
-            columns={columns}
-            data={links}
-            enableRowActions={!reordering}
-            renderRowActionMenuItems={({ closeMenu, row }) => [
-              <MenuItem
-                key="edit"
-                onClick={() => {
-                  handleEditLink(row.original);
-                  closeMenu();
-                }}
-              >
-                <ListItemIcon>
-                  <FuseSvgIcon>heroicons-outline:pencil</FuseSvgIcon>
-                </ListItemIcon>
-                Edit
-              </MenuItem>,
-              <MenuItem
-                key="delete"
-                onClick={() => {
-                  handleDeleteLink(row.original);
-                  closeMenu();
-                }}
-              >
-                <ListItemIcon>
-                  <FuseSvgIcon className="text-red-500">
-                    heroicons-outline:trash
-                  </FuseSvgIcon>
-                </ListItemIcon>
-                <Typography color="error">Delete</Typography>
-              </MenuItem>,
-            ]}
+          <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
+            Section Links
+          </Typography>
+          
+          {links.length === 0 ? (
+            <Paper sx={{ p: 3, textAlign: "center" }}>
+              <Typography color="text.secondary">
+                No links added to this section yet. Add your first link above.
+              </Typography>
+            </Paper>
+          ) : (
+            <DataTable
+              columns={columns}
+              data={links}
+              enableRowActions={!reordering}
+              renderRowActionMenuItems={({ closeMenu, row }) => [
+                <MenuItem
+                  key="edit"
+                  onClick={() => {
+                    handleEditLink(row.original);
+                    closeMenu();
+                  }}
+                >
+                  <ListItemIcon>
+                    <FuseSvgIcon>heroicons-outline:pencil</FuseSvgIcon>
+                  </ListItemIcon>
+                  Edit
+                </MenuItem>,
+                <MenuItem
+                  key="delete"
+                  onClick={() => {
+                    handleDeleteLink(row.original);
+                    closeMenu();
+                  }}
+                >
+                  <ListItemIcon>
+                    <FuseSvgIcon className="text-red-500">
+                      heroicons-outline:trash
+                    </FuseSvgIcon>
+                  </ListItemIcon>
+                  <Typography color="error">Delete</Typography>
+                </MenuItem>,
+              ]}
+            />
+          )}
+        </DialogContent>
+        <DialogActions>
+          <AppButton
+            label="Close"
+            onClick={onClose}
+            variant="outlined"
           />
-        )}
-      </DialogContent>
-      <DialogActions>
-        <AppButton
-          label="Close"
-          onClick={onClose}
-          variant="outlined"
-        />
-      </DialogActions>
-    </Dialog>
+        </DialogActions>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog
+        open={deleteDialogOpen}
+        onClose={handleCloseDeleteDialog}
+        aria-labelledby="delete-link-dialog-title"
+        aria-describedby="delete-link-dialog-description"
+      >
+        <DialogTitle id="delete-link-dialog-title">
+          Confirm Deletion
+        </DialogTitle>
+        <DialogContent>
+          {linkToDelete && (
+            <Typography variant="body1">
+              Are you sure you want to delete the link "{linkToDelete.label}"?
+            </Typography>
+          )}
+        </DialogContent>
+        <Box sx={{ display: 'flex', justifyContent: 'flex-end', p: 2 }}>
+          <Button onClick={handleCloseDeleteDialog} color="primary" sx={{ mr: 1 }}>
+            Cancel
+          </Button>
+          <Button 
+            onClick={confirmDeleteLink} 
+            color="error" 
+            variant="contained"
+            disabled={submitting}
+          >
+            {submitting ? "Deleting..." : "Delete"}
+          </Button>
+        </Box>
+      </Dialog>
+    </LocalizationProvider>
   );
 } 

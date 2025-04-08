@@ -12,14 +12,10 @@ export const poster = (url, data) =>
 
 // Generic updater for PUT requests
 export const updater = (url, data) => {
-  console.log(`PUT request to ${url}`, { data });
   return axiosInstance.put(url, data)
-    .then((res) => {
-      console.log(`PUT response from ${url}:`, res.data);
-      return res.data;
-    })
+    .then((res) => res.data)
     .catch((error) => {
-      console.error(`PUT error to ${url}:`, error);
+      console.error(`PUT request failed for ${url}:`, error.message);
       throw error;
     });
 };

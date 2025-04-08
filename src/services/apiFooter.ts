@@ -35,16 +35,22 @@ export const createFooterSection = async (section: {
   order: number;
   is_active: boolean;
 }) => {
-  const response = await poster('/api/admin/footer/sections', section);
-  return response?.data;
+  try {
+    console.log("Creating footer section:", section);
+    const response = await poster("/api/admin/footer/sections", section);
+    return response?.data;
+  } catch (error) {
+    console.error("Error creating footer section:", error);
+    throw error;
+  }
 };
 
 export const updateFooterSection = async (
   id: number,
   section: {
-    title?: string;
-    order?: number;
-    is_active?: boolean;
+    title: string;
+    order: number;
+    is_active: boolean;
   }
 ) => {
   const response = await updater(`/api/admin/footer/sections/${id}`, section);
@@ -58,13 +64,11 @@ export const deleteFooterSection = async (id: number) => {
 
 export const reorderFooterSection = async (
   id: number,
-  new_order: number
+  newOrderData: { new_order: number }
 ) => {
   try {
-    console.log(`Reordering section ID ${id} to position ${new_order}`);
-    const response = await updater(`/api/admin/footer/sections/${id}/reorder`, { new_order });
-    console.log('Section reorder response:', response);
-    return response?.data;
+    // Make the API call directly and return the result
+    return await updater(`/api/admin/footer/sections/${id}/reorder`, newOrderData);
   } catch (error) {
     console.error(`Error reordering section ${id}:`, error);
     throw error;
@@ -90,16 +94,22 @@ export const createFooterLink = async (link: {
 
 export const updateFooterLink = async (
   id: number,
-  link: {
-    section_id?: number;
+  linkData: {
     label?: string;
     url?: string;
     order?: number;
     is_active?: boolean;
+    section_id?: number;
   }
 ) => {
-  const response = await updater(`/api/admin/footer/links/${id}`, link);
-  return response?.data;
+  try {
+    console.log(`Updating link ${id} with data:`, linkData);
+    const response = await updater(`/api/admin/footer/links/${id}`, linkData);
+    return response?.data;
+  } catch (error) {
+    console.error(`Failed to update link ${id}:`, error);
+    throw error;
+  }
 };
 
 export const deleteFooterLink = async (id: number) => {
@@ -109,13 +119,10 @@ export const deleteFooterLink = async (id: number) => {
 
 export const reorderFooterLink = async (
   id: number,
-  new_order: number
+  payload: { new_order: number }
 ) => {
   try {
-    console.log(`Reordering link ID ${id} to position ${new_order}`);
-    const response = await updater(`/api/admin/footer/links/${id}/reorder`, { new_order });
-    console.log('Link reorder response:', response);
-    return response?.data;
+    return await updater(`/api/admin/footer/links/${id}/reorder`, payload);
   } catch (error) {
     console.error(`Error reordering link ${id}:`, error);
     throw error;
