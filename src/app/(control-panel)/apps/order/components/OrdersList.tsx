@@ -90,8 +90,8 @@ const OrdersList = ({
         limit: rowsPerPage,
       });
 
-      setOrders(response.data);
-      setTotalOrders(response.total);
+      setOrders(response.data.orders);
+      setTotalOrders(response.data.pagination.total);
     } catch (error) {
       console.error("Failed to fetch orders:", error);
     } finally {
@@ -218,11 +218,11 @@ const OrdersList = ({
                 <TableRow key={order.id}>
                   <TableCell>
                     <Typography variant="body2" fontWeight="medium">
-                      {order.order_number}
+                      {order.order_unique_id}
                     </Typography>
                   </TableCell>
                   <TableCell>
-                    {new Date(order.created_at).toLocaleDateString()}
+                    {new Date(order.createdAt).toLocaleDateString()}
                   </TableCell>
                   <TableCell>
                     {order.user
@@ -233,7 +233,7 @@ const OrdersList = ({
                     {new Intl.NumberFormat("en-US", {
                       style: "currency",
                       currency: "USD",
-                    }).format(order.total)}
+                    }).format(Number(order.total))}
                   </TableCell>
                   <TableCell>
                     <OrderStatusChip
@@ -244,7 +244,7 @@ const OrdersList = ({
                   <TableCell>
                     <PaymentStatusChip status={order.payment_status} />
                   </TableCell>
-                  <TableCell>{order.total_items}</TableCell>
+                  <TableCell>{order.orderItems.length}</TableCell>
                   <TableCell align="right">
                     <Tooltip title="View Details">
                       <IconButton
@@ -277,7 +277,7 @@ const OrdersList = ({
         <DialogTitle>Update Order Status</DialogTitle>
         <DialogContent>
           <DialogContentText sx={{ mb: 2 }}>
-            Change the status for order #{selectedOrder?.order_number}
+            Change the status for order #{selectedOrder?.order_unique_id}
           </DialogContentText>
           <FormControl fullWidth sx={{ mt: 1 }}>
             <InputLabel id="update-status-label">Status</InputLabel>

@@ -16,9 +16,6 @@ import {
   SelectChangeEvent,
   Grid,
 } from "@mui/material";
-import { DatePicker } from "@mui/x-date-pickers/DatePicker";
-import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
-import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import dayjs, { Dayjs } from "dayjs";
 import DownloadIcon from "@mui/icons-material/Download";
 import OrdersList from "./components/OrdersList";
@@ -82,26 +79,15 @@ const OrderApp = () => {
       const formattedStartDate = startDate ? startDate.format("YYYY-MM-DD") : undefined;
       const formattedEndDate = endDate ? endDate.format("YYYY-MM-DD") : undefined;
       
-      const reportBlob = await generateOrderReport(
+      await generateOrderReport(
         status || undefined,
         paymentStatus || undefined,
         formattedStartDate,
         formattedEndDate
       );
-
-      // Create a URL for the blob
-      const url = window.URL.createObjectURL(reportBlob);
       
-      // Create a temporary link and trigger download
-      const link = document.createElement("a");
-      link.href = url;
-      link.setAttribute("download", `orders-report-${dayjs().format("YYYY-MM-DD")}.xlsx`);
-      document.body.appendChild(link);
-      link.click();
-      
-      // Clean up
-      link.parentNode?.removeChild(link);
-      window.URL.revokeObjectURL(url);
+      // The download is likely handled by the API directly
+      // No need to create URL and link
     } catch (error) {
       console.error("Failed to generate report:", error);
       // You could add a snackbar/toast notification here
@@ -128,68 +114,72 @@ const OrderApp = () => {
           </Button>
         </Box>
 
-        <LocalizationProvider dateAdapter={AdapterDayjs}>
-          <Grid container spacing={2} sx={{ mb: 2 }}>
-            <Grid item xs={12} sm={6} md={3}>
-              <FormControl fullWidth size="small">
-                <InputLabel id="status-select-label">Order Status</InputLabel>
-                <Select
-                  labelId="status-select-label"
-                  value={status}
-                  label="Order Status"
-                  onChange={handleStatusChange}
-                >
-                  <MenuItem value="">All Statuses</MenuItem>
-                  <MenuItem value="draft">Draft</MenuItem>
-                  <MenuItem value="pending">Pending</MenuItem>
-                  <MenuItem value="processing">Processing</MenuItem>
-                  <MenuItem value="shipped">Shipped</MenuItem>
-                  <MenuItem value="delivered">Delivered</MenuItem>
-                  <MenuItem value="completed">Completed</MenuItem>
-                  <MenuItem value="fail">Failed</MenuItem>
-                  <MenuItem value="cancel">Cancelled</MenuItem>
-                  <MenuItem value="return_requested">Return Requested</MenuItem>
-                  <MenuItem value="return_approved">Return Approved</MenuItem>
-                  <MenuItem value="return_received">Return Received</MenuItem>
-                  <MenuItem value="refunded">Refunded</MenuItem>
-                </Select>
-              </FormControl>
-            </Grid>
-            <Grid item xs={12} sm={6} md={3}>
-              <FormControl fullWidth size="small">
-                <InputLabel id="payment-status-select-label">Payment Status</InputLabel>
-                <Select
-                  labelId="payment-status-select-label"
-                  value={paymentStatus}
-                  label="Payment Status"
-                  onChange={handlePaymentStatusChange}
-                >
-                  <MenuItem value="">All Payment Statuses</MenuItem>
-                  <MenuItem value="pending">Pending</MenuItem>
-                  <MenuItem value="paid">Paid</MenuItem>
-                  <MenuItem value="failed">Failed</MenuItem>
-                  <MenuItem value="refunded">Refunded</MenuItem>
-                </Select>
-              </FormControl>
-            </Grid>
-            <Grid item xs={12} sm={6} md={3}>
-              <DatePicker
-                label="Start Date"
-                value={startDate}
-                onChange={(newValue) => setStartDate(newValue)}
-                slotProps={{ textField: { size: 'small', fullWidth: true } }}
-              />
-            </Grid>
-            <Grid item xs={12} sm={6} md={3}>
-              <DatePicker
-                label="End Date"
-                value={endDate}
-                onChange={(newValue) => setEndDate(newValue)}
-                slotProps={{ textField: { size: 'small', fullWidth: true } }}
-              />
-            </Grid>
+        <Grid container spacing={2} sx={{ mb: 2 }}>
+          <Grid item xs={12} sm={6} md={3}>
+            <FormControl fullWidth size="small">
+              <InputLabel id="status-select-label">Order Status</InputLabel>
+              <Select
+                labelId="status-select-label"
+                value={status}
+                label="Order Status"
+                onChange={handleStatusChange}
+              >
+                <MenuItem value="">All Statuses</MenuItem>
+                <MenuItem value="draft">Draft</MenuItem>
+                <MenuItem value="pending">Pending</MenuItem>
+                <MenuItem value="processing">Processing</MenuItem>
+                <MenuItem value="shipped">Shipped</MenuItem>
+                <MenuItem value="delivered">Delivered</MenuItem>
+                <MenuItem value="completed">Completed</MenuItem>
+                <MenuItem value="fail">Failed</MenuItem>
+                <MenuItem value="cancel">Cancelled</MenuItem>
+                <MenuItem value="return_requested">Return Requested</MenuItem>
+                <MenuItem value="return_approved">Return Approved</MenuItem>
+                <MenuItem value="return_received">Return Received</MenuItem>
+                <MenuItem value="refunded">Refunded</MenuItem>
+              </Select>
+            </FormControl>
           </Grid>
-        </LocalizationProvider>
+          <Grid item xs={12} sm={6} md={3}>
+            <FormControl fullWidth size="small">
+              <InputLabel id="payment-status-select-label">Payment Status</InputLabel>
+              <Select
+                labelId="payment-status-select-label"
+                value={paymentStatus}
+                label="Payment Status"
+                onChange={handlePaymentStatusChange}
+              >
+                <MenuItem value="">All Payment Statuses</MenuItem>
+                <MenuItem value="pending">Pending</MenuItem>
+                <MenuItem value="paid">Paid</MenuItem>
+                <MenuItem value="failed">Failed</MenuItem>
+                <MenuItem value="refunded">Refunded</MenuItem>
+              </Select>
+            </FormControl>
+          </Grid>
+          <Grid item xs={12} sm={6} md={3}>
+            <TextField
+              label="Start Date"
+              type="date"
+              value={startDate ? startDate.format('YYYY-MM-DD') : ''}
+              onChange={(e) => setStartDate(e.target.value ? dayjs(e.target.value) : null)}
+              size="small"
+              fullWidth
+              InputLabelProps={{ shrink: true }}
+            />
+          </Grid>
+          <Grid item xs={12} sm={6} md={3}>
+            <TextField
+              label="End Date"
+              type="date"
+              value={endDate ? endDate.format('YYYY-MM-DD') : ''}
+              onChange={(e) => setEndDate(e.target.value ? dayjs(e.target.value) : null)}
+              size="small"
+              fullWidth
+              InputLabelProps={{ shrink: true }}
+            />
+          </Grid>
+        </Grid>
 
         <Box sx={{ borderBottom: 1, borderColor: "divider" }}>
           <Tabs

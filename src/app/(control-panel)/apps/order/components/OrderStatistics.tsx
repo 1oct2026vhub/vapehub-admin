@@ -8,18 +8,15 @@ import {
   Grid,
   Box,
   Paper,
-  Divider,
   Chip,
   CircularProgress,
   Button,
 } from "@mui/material";
-import { DatePicker } from "@mui/x-date-pickers/DatePicker";
-import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
-import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import dayjs, { Dayjs } from "dayjs";
 import DownloadIcon from "@mui/icons-material/Download";
 import { getOrderStatistics, OrderStatusStatistics } from "@/services/apiOrder";
 import { useSnackbar } from "@/contexts/SnackbarContext";
+import FuseLoading from "@fuse/core/FuseLoading";
 
 interface OrderStatisticsProps {
   className?: string;
@@ -47,32 +44,18 @@ const OrderStatistics = ({
   useEffect(() => {
     if (externalStartDate) {
       setStartDate(dayjs(externalStartDate));
+      fetchStatistics(dayjs(externalStartDate), endDate);
     }
   }, [externalStartDate]);
 
   useEffect(() => {
     if (externalEndDate) {
       setEndDate(dayjs(externalEndDate));
+      fetchStatistics(startDate, dayjs(externalEndDate));
     }
   }, [externalEndDate]);
 
-  // Calculate total orders and amount
-  const totalStats = useMemo(() => {
-    if (!statistics.length) {
-      return { orders: 0, amount: 0 };
-    }
-
-    return statistics.reduce(
-      (acc, curr) => {
-        acc.orders += curr.count;
-        acc.amount += parseFloat(curr.total_amount);
-        return acc;
-      },
-      { orders: 0, amount: 0 }
-    );
-  }, [statistics]);
-
-  // Define status colors
+  // Define status colors and match UI from screenshot
   const getStatusColor = (status: string) => {
     const colors: Record<string, string> = {
       pending: "#FF9800", // Orange
@@ -80,8 +63,9 @@ const OrderStatistics = ({
       shipped: "#9C27B0", // Purple
       delivered: "#4CAF50", // Green
       completed: "#009688", // Teal
-      fail: "#F44336", // Red
+      fail: "#E53935", // Red
       cancel: "#795548", // Brown
+      draft: "#9E9E9E", // Grey
       return_requested: "#FF5722", // Deep Orange
       return_approved: "#FF9800", // Orange
       return_received: "#9E9E9E", // Grey
@@ -91,14 +75,17 @@ const OrderStatistics = ({
   };
 
   // Fetch statistics
-  const fetchStatistics = async () => {
-    if (!startDate || !endDate) return;
+  const fetchStatistics = async (start: Dayjs | null = null, end: Dayjs | null = null) => {
+    const useStart = start || startDate;
+    const useEnd = end || endDate;
+    
+    if (!useStart || !useEnd) return;
 
     try {
       setLoading(true);
       const response = await getOrderStatistics(
-        startDate.format("YYYY-MM-DD"),
-        endDate.format("YYYY-MM-DD")
+        useStart.format("YYYY-MM-DD"),
+        useEnd.format("YYYY-MM-DD")
       );
 
       if (response.success && response.data.order_status) {
@@ -108,16 +95,16 @@ const OrderStatistics = ({
       }
     } catch (error) {
       console.error("Error fetching order statistics:", error);
-      showSnackbar("Error loading statistics", "error");
+      // showSnackbar("Error loading statistics", "error");
     } finally {
       setLoading(false);
     }
   };
 
-  // Fetch data when dates change
+  // Fetch data when component mounts
   useEffect(() => {
     fetchStatistics();
-  }, [startDate, endDate]);
+  }, []);
 
   // Handle Excel export
   const handleExportExcel = () => {
@@ -131,11 +118,6 @@ const OrderStatistics = ({
           stat.total_amount
         ).toFixed(2)}\n`;
       });
-
-      // Add total row
-      csvContent += `Total,${totalStats.orders},$${totalStats.amount.toFixed(
-        2
-      )}\n`;
 
       // Create blob and download
       const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
@@ -162,110 +144,70 @@ const OrderStatistics = ({
   };
 
   return (
-    <LocalizationProvider dateAdapter={AdapterDayjs}>
-      <Paper className={`${className} overflow-hidden`} elevation={1}>
-        <Box className="p-4 bg-gray-50 border-b">
-          <Typography variant="h6" className="font-medium mb-4">
-            Order Statistics
-          </Typography>
+      <Box className="p-4">
+        {/* Title */}
+        {/* <Typography variant="h6" className="mb-3">
+          Orders by Status
+        </Typography> */}
 
-          <Grid container spacing={2} alignItems="center">
-            <Grid item xs={12} sm={5}>
-              <DatePicker
-                label="Start Date"
-                value={startDate}
-                onChange={(newValue) => {
-                  setStartDate(newValue);
-                }}
-                slotProps={{ textField: { size: "small", fullWidth: true } }}
-              />
+        {loading ? (
+          <Box className="flex justify-center p-4">
+            <FuseLoading />
+          </Box>
+        ) : (
+          <Box>
+            {/* Status Cards */}
+            <Grid container spacing={3}>
+              {statistics.map((stat) => {
+                const status = stat.status.toUpperCase();
+                const backgroundColor = getStatusColor(stat.status);
+                
+                return (
+                  <Grid item xs={12} sm={6} md={4} key={stat.status}>
+                    <Card variant="outlined" className="h-full">
+                      <CardContent>
+                        <Box className="mb-4">
+                          <Chip
+                            label={status}
+                            size="small"
+                            style={{
+                              backgroundColor,
+                              color: "white",
+                              fontWeight: "bold",
+                              padding: "4px 8px",
+                              borderRadius: "16px"
+                            }}
+                          />
+                        </Box>
+                        
+                        <Grid container>
+                          <Grid item xs={6}>
+                            <Typography variant="body2" color="text.secondary">
+                              Orders
+                            </Typography>
+                            <Typography variant="h5" component="div" className="font-bold mt-1">
+                              {stat.count}
+                            </Typography>
+                          </Grid>
+                          
+                          <Grid item xs={6} className="text-right">
+                            <Typography variant="body2" color="text.secondary">
+                              Revenue
+                            </Typography>
+                            <Typography variant="h5" component="div" className="font-bold mt-1">
+                              ${parseFloat(stat.total_amount).toFixed(2)}
+                            </Typography>
+                          </Grid>
+                        </Grid>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                );
+              })}
             </Grid>
-            <Grid item xs={12} sm={5}>
-              <DatePicker
-                label="End Date"
-                value={endDate}
-                onChange={(newValue) => {
-                  setEndDate(newValue);
-                }}
-                slotProps={{ textField: { size: "small", fullWidth: true } }}
-              />
-            </Grid>
-          </Grid>
-        </Box>
-
-        <Box className="p-4">
-          {/* Summary Cards */}
-          {/* <Grid container spacing={3} className="mb-4">
-            <Grid item xs={12} sm={6}>
-              <Card variant="outlined">
-                <CardContent>
-                  <Typography color="text.secondary" gutterBottom>
-                    Total Orders
-                  </Typography>
-                  <Typography variant="h4" component="div">
-                    {totalStats.orders}
-                  </Typography>
-                </CardContent>
-              </Card>
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <Card variant="outlined">
-                <CardContent>
-                  <Typography color="text.secondary" gutterBottom>
-                    Total Revenue
-                  </Typography>
-                  <Typography variant="h4" component="div">
-                    ${totalStats.amount.toFixed(2)}
-                  </Typography>
-                </CardContent>
-              </Card>
-            </Grid>
-          </Grid> */}
-
-          {/* Status Breakdown */}
-          <Typography variant="subtitle1" className="mb-3 font-medium">
-            Orders by Status
-          </Typography>
-
-          <Grid container spacing={2}>
-            {statistics.map((stat) => (
-              <Grid item xs={12} sm={6} md={4} key={stat.status}>
-                <Card variant="outlined">
-                  <CardContent>
-                    <Box className="flex items-center mb-2">
-                      <Chip
-                        label={stat.status.toUpperCase()}
-                        size="small"
-                        style={{
-                          backgroundColor: getStatusColor(stat.status),
-                          color: "white",
-                        }}
-                      />
-                    </Box>
-                    <Box className="flex justify-between items-end">
-                      <Box>
-                        <Typography variant="body2" color="text.secondary">
-                          Orders
-                        </Typography>
-                        <Typography variant="h6">{stat.count}</Typography>
-                      </Box>
-                      <Box className="text-right">
-                        <Typography variant="body2" color="text.secondary">
-                          Revenue
-                        </Typography>
-                        <Typography variant="h6">
-                          ${parseFloat(stat.total_amount).toFixed(2)}
-                        </Typography>
-                      </Box>
-                    </Box>
-                  </CardContent>
-                </Card>
-              </Grid>
-            ))}
-          </Grid>
-        </Box>
-      </Paper>
-    </LocalizationProvider>
+          </Box>
+        )}
+      </Box>
   );
 };
 

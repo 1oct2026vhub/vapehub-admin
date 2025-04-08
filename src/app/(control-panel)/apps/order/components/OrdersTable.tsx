@@ -27,6 +27,7 @@ import PaymentStatusChip from "./PaymentStatusChip";
 import OrderFilters from "./OrderFilters";
 import OrderFilterDrawer from "./OrderFilterDrawer";
 import GenerateReportButton from "./GenerateReportButton";
+import OrderStatistics from "./OrderStatistics";
 
 interface OrdersTableProps {
   statusFilter?: OrderStatus;
@@ -57,11 +58,13 @@ const OrdersTable = ({
   const [search, setSearch] = useState(initialSearch || "");
   const [status, setStatus] = useState<OrderStatus | "">("");
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus | "">("");
+  
+  // Set default date filters - from 1 month ago to today
   const [startDateFilter, setStartDateFilter] = useState<dayjs.Dayjs | null>(
-    initialStartDate ? dayjs(initialStartDate) : null
+    initialStartDate ? dayjs(initialStartDate) : dayjs().subtract(1, 'month')
   );
   const [endDateFilter, setEndDateFilter] = useState<dayjs.Dayjs | null>(
-    initialEndDate ? dayjs(initialEndDate) : null
+    initialEndDate ? dayjs(initialEndDate) : dayjs()
   );
 
   const queryParams = useMemo(
@@ -209,16 +212,23 @@ const OrdersTable = ({
 
   return (
     <>
-    <div className="flex items-end justify-end mb-4">
-    <Box className="flex items-end gap-2 juustify-end">
-            <GenerateReportButton 
-              status={status || undefined}
-              paymentStatus={paymentStatus || undefined}
-              startDate={startDateFilter ? startDateFilter.format("YYYY-MM-DD") : undefined}
-              endDate={endDateFilter ? endDateFilter.format("YYYY-MM-DD") : undefined}
-            />
-          </Box>
-          </div>
+      <OrderStatistics 
+        externalStartDate={startDateFilter?.format("YYYY-MM-DD")}
+        externalEndDate={endDateFilter?.format("YYYY-MM-DD")}
+        className="mb-6"
+      />
+      
+      <div className="flex items-end justify-end mb-4">
+        <Box className="flex items-end gap-2 juustify-end">
+          <GenerateReportButton 
+            status={status || undefined}
+            paymentStatus={paymentStatus || undefined}
+            startDate={startDateFilter ? startDateFilter.format("YYYY-MM-DD") : undefined}
+            endDate={endDateFilter ? endDateFilter.format("YYYY-MM-DD") : undefined}
+          />
+        </Box>
+      </div>
+      
       <Paper
         className="flex flex-col flex-auto shadow-1 overflow-hidden"
         elevation={0}

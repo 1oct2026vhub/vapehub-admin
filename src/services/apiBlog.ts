@@ -64,8 +64,8 @@ interface BlogPostParams {
   page?: number;
   limit?: number;
   search?: string;
-  sort?: 'title' | 'created_at' | 'published_at';
-  order?: 'ASC' | 'DESC';
+  sort?: "title" | "created_at" | "published_at";
+  order?: "ASC" | "DESC";
   deleted?: boolean;
   is_active?: boolean;
 }
@@ -88,8 +88,10 @@ export interface BlogCategoryParams {
 }
 
 // Blog Posts API Functions
-export const getBlogPosts = async (params: BlogPostParams = {}): Promise<BlogPostResponse> => {
-  const response = await fetcher('/api/admin/blog/posts', params);
+export const getBlogPosts = async (
+  params: BlogPostParams = {}
+): Promise<BlogPostResponse> => {
+  const response = await fetcher("/api/admin/blog/posts", params);
   return response;
 };
 
@@ -99,7 +101,7 @@ export const getBlogPost = async (id: number) => {
 };
 
 export const createBlogPost = async (formData: FormData) => {
-  const response = await poster('/api/admin/blog/posts', formData);
+  const response = await poster("/api/admin/blog/posts", formData);
   return response?.data;
 };
 
@@ -123,9 +125,25 @@ export const unpublishBlogPost = async (id: number) => {
   return response?.data;
 };
 
+/**
+ * Restore a soft-deleted blog post
+ * @param id - The ID of the post to restore
+ * @returns Promise containing the API response
+ */
+export async function restoreBlogPost(id: number) {
+  try {
+    const response = await updater(`/api/admin/blog/posts/${id}/restore`, {});
+    return response;
+  } catch (error) {
+    throw error;
+  }
+}
+
 // Blog Categories API Functions
-export const getBlogCategories = async (params: BlogCategoryParams = {}): Promise<BlogCategoryResponse> => {
-  const response = await fetcher('/api/admin/blog/categories', params);
+export const getBlogCategories = async (
+  params: BlogCategoryParams = {}
+): Promise<BlogCategoryResponse> => {
+  const response = await fetcher("/api/admin/blog/categories", params);
   return response;
 };
 
@@ -135,7 +153,7 @@ export const getBlogCategory = async (id: number) => {
 };
 
 export const createBlogCategory = async (formData: FormData) => {
-  const response = await poster('/api/admin/blog/categories', formData);
+  const response = await poster("/api/admin/blog/categories", formData);
   return response?.data;
 };
 
@@ -148,6 +166,20 @@ export const deleteBlogCategory = async (id: number) => {
   const response = await deleter(`/api/admin/blog/categories/${id}`);
   return response;
 };
+
+/**
+ * Restore a soft-deleted blog category
+ * @param id - The ID of the category to restore
+ * @returns Promise containing the API response
+ */
+export async function restoreBlogCategory(id: number) {
+  try {
+    const response = await updater(`/api/admin/blog/categories/${id}/restore`, {});
+    return response;
+  } catch (error) {
+    throw error;
+  }
+}
 
 // Blog Tag Types
 export interface BlogTagResponse {
@@ -164,14 +196,16 @@ export interface BlogTagParams {
   page?: number;
   limit?: number;
   search?: string;
-  sort?: 'name' | 'slug' | 'created_at' | 'updated_at';
-  order?: 'ASC' | 'DESC';
+  sort?: "name" | "slug" | "created_at" | "updated_at";
+  order?: "ASC" | "DESC";
   deleted?: boolean;
 }
 
 // Blog Tag API Functions
-export const getBlogTags = async (params: BlogTagParams = {}): Promise<BlogTagResponse> => {
-  const response = await fetcher('/api/admin/blog/tags', params);
+export const getBlogTags = async (
+  params: BlogTagParams = {}
+): Promise<BlogTagResponse> => {
+  const response = await fetcher("/api/admin/blog/tags", params);
   return response;
 };
 
@@ -180,11 +214,8 @@ export const getBlogTag = async (id: number) => {
   return response;
 };
 
-export const createBlogTag = async (tag: {
-  name: string;
-  slug: string;
-}) => {
-  const response = await poster('/api/admin/blog/tags', tag);
+export const createBlogTag = async (tag: { name: string; slug: string }) => {
+  const response = await poster("/api/admin/blog/tags", tag);
   return response?.data;
 };
 
@@ -210,7 +241,9 @@ export interface BlogTagDetailResponse {
   data: BlogTag;
 }
 
-export const getBlogTagById = async (id: number): Promise<BlogTagDetailResponse> => {
+export const getBlogTagById = async (
+  id: number
+): Promise<BlogTagDetailResponse> => {
   try {
     const response = await fetcher(`/api/admin/blog/tags/${id}`);
     return response;

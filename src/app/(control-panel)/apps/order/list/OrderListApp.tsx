@@ -90,24 +90,6 @@ function OrderListApp() {
 
           {/* Order Statistics */}
           <Grid item xs={12}>
-            <OrderStatistics className="mb-4" />
-          </Grid>
-
-          {/* Export Excel Button */}
-          {/* <Grid item xs={12}>
-            <div className="flex items-end justify-end mb-4">
-              <Box className="flex items-end gap-2 juustify-end">
-                <GenerateReportButton 
-                  status={statusFilter || undefined}
-                  paymentStatus={paymentStatusFilter || undefined}
-                  startDate={startDate ? startDate.format("YYYY-MM-DD") : undefined}
-                  endDate={endDate ? endDate.format("YYYY-MM-DD") : undefined}
-                />
-              </Box>
-            </div>
-          </Grid> */}
-
-          <Grid item xs={12}>
             <OrdersTable
               statusFilter={statusFilter || undefined}
               paymentStatusFilter={paymentStatusFilter || undefined}

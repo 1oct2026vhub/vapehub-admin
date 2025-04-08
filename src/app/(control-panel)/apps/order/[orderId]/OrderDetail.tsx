@@ -153,12 +153,12 @@ const OrderDetail = ({ orderId }: OrderDetailProps) => {
       <Paper sx={{ p: 3, mb: 3 }}>
         <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
           <Typography variant="h4" fontWeight="bold">
-            Order #{order.order_number}
+            Order #{order.order_unique_id}
           </Typography>
           <OrderStatusChip status={order.status} />
         </Box>
         <Typography variant="body2" color="text.secondary" gutterBottom>
-          Placed on {new Date(order.created_at).toLocaleString()}
+          Placed on {new Date(order.createdAt).toLocaleString()}
         </Typography>
 
         <Grid container spacing={3} mt={1}>
@@ -199,7 +199,7 @@ const OrderDetail = ({ orderId }: OrderDetailProps) => {
                 <Box display="flex" justifyContent="space-between" mb={1}>
                   <Typography variant="body2">Method:</Typography>
                   <Typography variant="body2" fontWeight="medium">
-                    {order.payment_method}
+                    Credit Card
                   </Typography>
                 </Box>
                 <Box display="flex" justifyContent="space-between">
@@ -220,39 +220,26 @@ const OrderDetail = ({ orderId }: OrderDetailProps) => {
                 </Box>
                 <Divider sx={{ mb: 2 }} />
                 <Typography variant="body2" fontWeight="medium" gutterBottom>
-                  {order.shipping_address.first_name} {order.shipping_address.last_name}
+                  {order.shippingAddress.name} {order.shippingAddress.last_name}
                 </Typography>
                 <Typography variant="body2">
-                  {order.shipping_address.address_line1}
+                  {order.shippingAddress.street}
                 </Typography>
-                {order.shipping_address.address_line2 && (
+                {order.shippingAddress.apartment && (
                   <Typography variant="body2">
-                    {order.shipping_address.address_line2}
+                    {order.shippingAddress.apartment}
                   </Typography>
                 )}
                 <Typography variant="body2">
-                  {order.shipping_address.city}, {order.shipping_address.state}{" "}
-                  {order.shipping_address.postal_code}
+                  {order.shippingAddress.town}, {order.shippingAddress.county && `${order.shippingAddress.county}, `} 
+                  {order.shippingAddress.post_code}
                 </Typography>
                 <Typography variant="body2" gutterBottom>
-                  {order.shipping_address.country}
+                  {order.shippingAddress.country}
                 </Typography>
                 <Typography variant="body2">
-                  {order.shipping_address.phone}
+                  {order.shippingAddress.phone}
                 </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  {order.shipping_address.email}
-                </Typography>
-                {order.tracking_number && (
-                  <Box mt={2}>
-                    <Typography variant="body2" color="text.secondary">
-                      Tracking Number:
-                    </Typography>
-                    <Typography variant="body1" fontWeight="medium">
-                      {order.tracking_number}
-                    </Typography>
-                  </Box>
-                )}
               </CardContent>
             </Card>
           </Grid>
@@ -267,28 +254,25 @@ const OrderDetail = ({ orderId }: OrderDetailProps) => {
                 </Box>
                 <Divider sx={{ mb: 2 }} />
                 <Typography variant="body2" fontWeight="medium" gutterBottom>
-                  {order.billing_address.first_name} {order.billing_address.last_name}
+                  {order.billingAddress.name} {order.billingAddress.last_name}
                 </Typography>
                 <Typography variant="body2">
-                  {order.billing_address.address_line1}
+                  {order.billingAddress.street}
                 </Typography>
-                {order.billing_address.address_line2 && (
+                {order.billingAddress.apartment && (
                   <Typography variant="body2">
-                    {order.billing_address.address_line2}
+                    {order.billingAddress.apartment}
                   </Typography>
                 )}
                 <Typography variant="body2">
-                  {order.billing_address.city}, {order.billing_address.state}{" "}
-                  {order.billing_address.postal_code}
+                  {order.billingAddress.town}, {order.billingAddress.county && `${order.billingAddress.county}, `} 
+                  {order.billingAddress.post_code}
                 </Typography>
                 <Typography variant="body2" gutterBottom>
-                  {order.billing_address.country}
+                  {order.billingAddress.country}
                 </Typography>
                 <Typography variant="body2">
-                  {order.billing_address.phone}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  {order.billing_address.email}
+                  {order.billingAddress.phone}
                 </Typography>
               </CardContent>
             </Card>
@@ -316,11 +300,11 @@ const OrderDetail = ({ orderId }: OrderDetailProps) => {
               </TableRow>
             </TableHead>
             <TableBody>
-              {order.items.map((item) => (
+              {order.orderItems.map((item) => (
                 <TableRow key={item.id}>
                   <TableCell>
                     <Box display="flex" alignItems="center">
-                      {item.product.image && (
+                      {item.product.ProductImages && item.product.ProductImages.length > 0 && (
                         <Box
                           component="img"
                           sx={{
@@ -330,7 +314,7 @@ const OrderDetail = ({ orderId }: OrderDetailProps) => {
                             mr: 2,
                             borderRadius: 1,
                           }}
-                          src={item.product.image}
+                          src={item.product.ProductImages[0].url}
                           alt={item.product.name}
                         />
                       )}
@@ -340,24 +324,24 @@ const OrderDetail = ({ orderId }: OrderDetailProps) => {
                     </Box>
                   </TableCell>
                   <TableCell>
-                    {item.variant?.attributes?.map((attr, index) => (
-                      <Typography key={index} variant="body2" color="text.secondary">
-                        {attr.attribute}: {attr.value}
+                    {item.variant && (
+                      <Typography variant="body2" color="text.secondary">
+                        {item.variant.slug}
                       </Typography>
-                    ))}
+                    )}
                   </TableCell>
                   <TableCell align="right">
                     {new Intl.NumberFormat("en-US", {
                       style: "currency",
                       currency: "USD",
-                    }).format(item.price)}
+                    }).format(Number(item.unit_price))}
                   </TableCell>
                   <TableCell align="right">{item.quantity}</TableCell>
                   <TableCell align="right">
                     {new Intl.NumberFormat("en-US", {
                       style: "currency",
                       currency: "USD",
-                    }).format(item.total)}
+                    }).format(Number(item.total))}
                   </TableCell>
                 </TableRow>
               ))}
@@ -370,33 +354,15 @@ const OrderDetail = ({ orderId }: OrderDetailProps) => {
             <Grid item xs={12} sm={6} md={8} />
             <Grid item xs={12} sm={6} md={4}>
               <Box display="flex" justifyContent="space-between" mb={1}>
-                <Typography variant="body2">Subtotal:</Typography>
+                <Typography variant="body2">Total:</Typography>
                 <Typography variant="body2" fontWeight="medium">
                   {new Intl.NumberFormat("en-US", {
                     style: "currency",
                     currency: "USD",
-                  }).format(order.subtotal)}
+                  }).format(Number(order.total))}
                 </Typography>
               </Box>
-              <Box display="flex" justifyContent="space-between" mb={1}>
-                <Typography variant="body2">Shipping:</Typography>
-                <Typography variant="body2" fontWeight="medium">
-                  {new Intl.NumberFormat("en-US", {
-                    style: "currency",
-                    currency: "USD",
-                  }).format(order.shipping_cost)}
-                </Typography>
-              </Box>
-              <Box display="flex" justifyContent="space-between" mb={1}>
-                <Typography variant="body2">Tax:</Typography>
-                <Typography variant="body2" fontWeight="medium">
-                  {new Intl.NumberFormat("en-US", {
-                    style: "currency",
-                    currency: "USD",
-                  }).format(order.tax)}
-                </Typography>
-              </Box>
-              {order.discount > 0 && (
+              {order.discount_price && Number(order.discount_price) > 0 && (
                 <Box display="flex" justifyContent="space-between" mb={1}>
                   <Typography variant="body2">Discount:</Typography>
                   <Typography variant="body2" fontWeight="medium" color="error">
@@ -404,20 +370,20 @@ const OrderDetail = ({ orderId }: OrderDetailProps) => {
                     {new Intl.NumberFormat("en-US", {
                       style: "currency",
                       currency: "USD",
-                    }).format(order.discount)}
+                    }).format(Number(order.discount_price))}
                   </Typography>
                 </Box>
               )}
               <Divider sx={{ my: 1 }} />
               <Box display="flex" justifyContent="space-between">
                 <Typography variant="subtitle1" fontWeight="bold">
-                  Total:
+                  Final Total:
                 </Typography>
                 <Typography variant="subtitle1" fontWeight="bold">
                   {new Intl.NumberFormat("en-US", {
                     style: "currency",
                     currency: "USD",
-                  }).format(order.total)}
+                  }).format(Number(order.total))}
                 </Typography>
               </Box>
             </Grid>
@@ -426,7 +392,7 @@ const OrderDetail = ({ orderId }: OrderDetailProps) => {
       </Paper>
 
       {/* Notes */}
-      {order.notes && (
+      {order?.notes && (
         <Paper sx={{ p: 3 }}>
           <Typography variant="h6" gutterBottom>
             Order Notes
@@ -441,7 +407,7 @@ const OrderDetail = ({ orderId }: OrderDetailProps) => {
         <DialogTitle>Update Order Status</DialogTitle>
         <DialogContent>
           <DialogContentText sx={{ mb: 2 }}>
-            Change the status for order #{order.order_number}
+            Change the status for order #{order.order_unique_id}
           </DialogContentText>
           <FormControl fullWidth sx={{ mt: 1 }}>
             <InputLabel id="update-status-label">Status</InputLabel>
