@@ -387,7 +387,7 @@ const TransactionDetailApp = () => {
               </Box>
             )}
 
-            {transaction.metadata && (
+            {/* {transaction.metadata && (
               <Box className="mt-4 p-3 bg-gray-50 rounded-lg">
                 <Typography variant="subtitle2" className="mb-1">
                   Metadata:
@@ -396,7 +396,7 @@ const TransactionDetailApp = () => {
                   {JSON.stringify(transaction.metadata, null, 2)}
                 </pre>
               </Box>
-            )}
+            )} */}
           </Paper>
 
           {/* Order Details Section */}
@@ -558,7 +558,7 @@ const TransactionDetailApp = () => {
                 <Typography variant="h6" className="font-medium">
                   Customer Details
                 </Typography>
-                <Button
+                {/* <Button
                   size="small"
                   variant="text"
                   sx={{ color: "#6366F1" }}
@@ -567,7 +567,7 @@ const TransactionDetailApp = () => {
                   }
                 >
                   View Profile
-                </Button>
+                </Button> */}
               </div>
 
               <div className="p-4 border-b border-gray-200">

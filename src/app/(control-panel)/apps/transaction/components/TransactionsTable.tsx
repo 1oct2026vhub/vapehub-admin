@@ -78,7 +78,7 @@ const TransactionsTable = ({
       const date = dayjs(initialStartDate);
       setStartDateFilter(date);
     }
-    
+
     if (!endDateFilter && initialEndDate) {
       const date = dayjs(initialEndDate);
       setEndDateFilter(date);
@@ -87,11 +87,18 @@ const TransactionsTable = ({
 
   // Update filters when props change
   useEffect(() => {
-    if (initialStartDate && (!startDateFilter || initialStartDate !== startDateFilter.format("YYYY-MM-DD"))) {
+    if (
+      initialStartDate &&
+      (!startDateFilter ||
+        initialStartDate !== startDateFilter.format("YYYY-MM-DD"))
+    ) {
       setStartDateFilter(dayjs(initialStartDate));
     }
-    
-    if (initialEndDate && (!endDateFilter || initialEndDate !== endDateFilter.format("YYYY-MM-DD"))) {
+
+    if (
+      initialEndDate &&
+      (!endDateFilter || initialEndDate !== endDateFilter.format("YYYY-MM-DD"))
+    ) {
       setEndDateFilter(dayjs(initialEndDate));
     }
   }, [initialStartDate, initialEndDate]);
@@ -150,11 +157,11 @@ const TransactionsTable = ({
     setEndDateFilter(null);
     setSearch("");
     setPage(1);
-    
+
     if (onStartDateChange) {
       onStartDateChange(null);
     }
-    
+
     if (onEndDateChange) {
       onEndDateChange(null);
     }
@@ -200,7 +207,15 @@ const TransactionsTable = ({
           const user = row.original.user;
           return user
             ? `${user.first_name || ""} ${user.last_name || ""}`
-            : "Guest";
+            : "N/A";
+        },
+      },
+      {
+        accessorKey: "email",
+        header: "Email",
+        Cell: ({ row }) => {
+          const user = row.original.user;
+          return user ? `${user.email}` : "N/A";
         },
       },
       {

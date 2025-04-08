@@ -1,13 +1,13 @@
 import { useState } from "react";
-import { Controller } from "react-hook-form";
+import { Controller, Control } from "react-hook-form";
 import TextField from "@mui/material/TextField";
 import InputAdornment from "@mui/material/InputAdornment";
 import IconButton from "@mui/material/IconButton";
 import { Visibility, VisibilityOff } from "@mui/icons-material";
 
-interface ReusableTextFieldProps {
+export interface ReusableTextFieldProps {
   name: string;
-  control: any;
+  control: Control<any>;
   label: string;
   type?: string;
   required?: boolean;
@@ -15,6 +15,8 @@ interface ReusableTextFieldProps {
   multiline?: boolean;
   rows?: number;
   inputProps?: any;
+  onChange?: (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
+  helperText?: string;
 }
 
 const FormInputField: React.FC<ReusableTextFieldProps> = ({
@@ -27,6 +29,8 @@ const FormInputField: React.FC<ReusableTextFieldProps> = ({
   autoFocus = false,
   rows = 1,
   inputProps,
+  onChange,
+  helperText,
 }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [touched, setTouched] = useState(false);
@@ -64,7 +68,7 @@ const FormInputField: React.FC<ReusableTextFieldProps> = ({
           }
           autoFocus={autoFocus}
           error={touched && !!error}
-          helperText={touched && error ? error.message : ""}
+          helperText={touched && error ? error.message : helperText}
           variant="outlined"
           fullWidth
           multiline={multiline}
@@ -111,6 +115,10 @@ const FormInputField: React.FC<ReusableTextFieldProps> = ({
             "& input::-ms-reveal, & input::-ms-clear": {
               display: "none",
             },
+          }}
+          onChange={(e) => {
+            field.onChange(e);
+            onChange?.(e);
           }}
         />
       )}
