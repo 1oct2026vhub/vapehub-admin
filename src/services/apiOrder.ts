@@ -108,6 +108,7 @@ export interface Order {
   shippingAddress: Address;
   billingAddress: Address;
   orderItems: OrderItem[];
+  notes: string | null;
   payment_status?: PaymentStatus; // Added for backward compatibility
 }
 
