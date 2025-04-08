@@ -103,7 +103,7 @@ export default function BlogTagsApp() {
       }
     } catch (error) {
       console.error("Failed to fetch tags:", error);
-      showSnackbar("Failed to load tags", "error");
+      // showSnackbar("Failed to load tags", "error");
     } finally {
       setLoading(false);
     }

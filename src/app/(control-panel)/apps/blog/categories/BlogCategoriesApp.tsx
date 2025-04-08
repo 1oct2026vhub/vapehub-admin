@@ -27,7 +27,14 @@ import FuseSvgIcon from "@fuse/core/FuseSvgIcon";
 import { useSnackbar } from "@/contexts/SnackbarContext";
 import { formatDate } from "@/utils/actions";
 import { useRouter } from "next/navigation";
-import { BlogCategory, BlogCategoryResponse, getBlogCategories, deleteBlogCategory } from "@/services/apiBlog";
+import {
+  BlogCategory,
+  BlogCategoryResponse,
+  getBlogCategories,
+  deleteBlogCategory,
+  restoreBlogCategory,
+} from "@/services/apiBlog";
+import DeleteConfirmationModal from "./components/DeleteConfirmationModal";
 
 // Add pagination interface
 interface Pagination {
@@ -53,6 +60,11 @@ export default function BlogCategoriesApp() {
 
   // Add deleted filter state
   const [showDeleted, setShowDeleted] = useState(false);
+
+  // Add delete modal state
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [categoryToDelete, setCategoryToDelete] = useState<BlogCategory | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   // Debounce search input
   useEffect(() => {
@@ -114,21 +126,37 @@ export default function BlogCategoriesApp() {
 
   // Handle category deletion
   const handleDeleteCategory = async (category: BlogCategory) => {
-    if (
-      !window.confirm(
-        `Are you sure you want to delete the category "${category.name}"?`
-      )
-    ) {
-      return;
-    }
+    setCategoryToDelete(category);
+    setDeleteModalOpen(true);
+  };
 
+  const confirmDelete = async () => {
+    if (!categoryToDelete) return;
+    
     try {
-      await deleteBlogCategory(category.id);
+      setDeleteLoading(true);
+      await deleteBlogCategory(categoryToDelete.id);
       showSnackbar("Category deleted successfully", "success");
       fetchCategories();
     } catch (error: any) {
       console.error("Failed to delete category:", error);
       showSnackbar(error?.message || "Failed to delete category", "error");
+    } finally {
+      setDeleteLoading(false);
+      setDeleteModalOpen(false);
+      setCategoryToDelete(null);
+    }
+  };
+
+  // Handle category restoration
+  const handleRestoreCategory = async (category: BlogCategory) => {
+    try {
+      await restoreBlogCategory(category.id);
+      showSnackbar("Category restored successfully", "success");
+      fetchCategories();
+    } catch (error: any) {
+      console.error("Failed to restore category:", error);
+      showSnackbar(error?.message || "Failed to restore category", "error");
     }
   };
 
@@ -145,11 +173,11 @@ export default function BlogCategoriesApp() {
         header: "Slug",
         size: 150,
       },
-      {
-        accessorKey: "description",
-        header: "Description",
-        size: 300,
-      },
+      // {
+      //   accessorKey: "description",
+      //   header: "Description",
+      //   size: 300,
+      // },
       {
         accessorKey: "parent",
         header: "Parent Category",
@@ -162,7 +190,9 @@ export default function BlogCategoriesApp() {
         Cell: ({ row }) => (
           <div
             className={
-              row.original.status === "active" ? "text-green-600" : "text-red-600"
+              row.original.status === "active"
+                ? "text-green-600"
+                : "text-red-600"
             }
           >
             {row.original.status}
@@ -259,46 +289,69 @@ export default function BlogCategoriesApp() {
                 columns={columns}
                 data={categories}
                 enableRowActions
-                renderRowActionMenuItems={({ closeMenu, row }) => [
-                  <MenuItem
-                    key="view"
-                    onClick={() => {
-                      router.push(`/apps/blog/categories/${row.original.id}`);
-                      closeMenu();
-                    }}
-                  >
-                    <ListItemIcon>
-                      <FuseSvgIcon>heroicons-outline:eye</FuseSvgIcon>
-                    </ListItemIcon>
-                    View Details
-                  </MenuItem>,
-                  <MenuItem
-                    key="edit"
-                    onClick={() => {
-                      handleEditCategory(row.original);
-                      closeMenu();
-                    }}
-                  >
-                    <ListItemIcon>
-                      <FuseSvgIcon>heroicons-outline:pencil</FuseSvgIcon>
-                    </ListItemIcon>
-                    Edit
-                  </MenuItem>,
-                  <MenuItem
-                    key="delete"
-                    onClick={() => {
-                      handleDeleteCategory(row.original);
-                      closeMenu();
-                    }}
-                  >
-                    <ListItemIcon>
-                      <FuseSvgIcon className="text-red-500">
-                        heroicons-outline:trash
-                      </FuseSvgIcon>
-                    </ListItemIcon>
-                    <Typography color="error">Delete</Typography>
-                  </MenuItem>,
-                ]}
+                renderRowActionMenuItems={({ closeMenu, row }) => {
+                  const isDeleted = !!row.original.deletedAt;
+
+                  if (isDeleted) {
+                    return [
+                      <MenuItem
+                        key="restore"
+                        onClick={() => {
+                          handleRestoreCategory(row.original);
+                          closeMenu();
+                        }}
+                      >
+                        <ListItemIcon>
+                          <FuseSvgIcon>
+                            heroicons-outline:arrow-path
+                          </FuseSvgIcon>
+                        </ListItemIcon>
+                        Restore
+                      </MenuItem>,
+                    ];
+                  }
+
+                  return [
+                    <MenuItem
+                      key="view"
+                      onClick={() => {
+                        router.push(`/apps/blog/categories/${row.original.id}`);
+                        closeMenu();
+                      }}
+                    >
+                      <ListItemIcon>
+                        <FuseSvgIcon>heroicons-outline:eye</FuseSvgIcon>
+                      </ListItemIcon>
+                      View Details
+                    </MenuItem>,
+                    <MenuItem
+                      key="edit"
+                      onClick={() => {
+                        handleEditCategory(row.original);
+                        closeMenu();
+                      }}
+                    >
+                      <ListItemIcon>
+                        <FuseSvgIcon>heroicons-outline:pencil</FuseSvgIcon>
+                      </ListItemIcon>
+                      Edit
+                    </MenuItem>,
+                    <MenuItem
+                      key="delete"
+                      onClick={() => {
+                        handleDeleteCategory(row.original);
+                        closeMenu();
+                      }}
+                    >
+                      <ListItemIcon>
+                        <FuseSvgIcon className="text-red-500">
+                          heroicons-outline:trash
+                        </FuseSvgIcon>
+                      </ListItemIcon>
+                      <Typography color="error">Delete</Typography>
+                    </MenuItem>,
+                  ];
+                }}
               />
 
               <Box sx={{ display: "flex", justifyContent: "center", p: 2 }}>
@@ -330,6 +383,17 @@ export default function BlogCategoriesApp() {
           </Grid>
         </Grid>
       </motion.div>
+
+      <DeleteConfirmationModal
+        open={deleteModalOpen}
+        onClose={() => {
+          setDeleteModalOpen(false);
+          setCategoryToDelete(null);
+        }}
+        onConfirm={confirmDelete}
+        itemName={categoryToDelete?.name || ""}
+        loading={deleteLoading}
+      />
     </Container>
   );
-} 
+}

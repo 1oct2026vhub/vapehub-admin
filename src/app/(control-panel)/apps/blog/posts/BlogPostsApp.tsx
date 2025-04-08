@@ -17,6 +17,8 @@ import {
   Pagination,
   PaginationItem,
   Chip,
+  Autocomplete,
+  Button,
 } from "@mui/material";
 import { motion } from "motion/react";
 import { MRT_ColumnDef } from "material-react-table";
@@ -34,6 +36,9 @@ import {
   deleteBlogPost,
   publishBlogPost,
   unpublishBlogPost,
+  getBlogCategories,
+  getBlogTags,
+  restoreBlogPost,
 } from "@/services/apiBlog";
 import { formatDate } from "@/utils/actions";
 import { useRouter } from "next/navigation";
@@ -55,6 +60,20 @@ interface BlogPostResponse {
   };
 }
 
+// Extend BlogPostParams to include the additional filters
+interface ExtendedBlogPostParams {
+  page?: number;
+  limit?: number;
+  search?: string;
+  sort?: SortField;
+  order?: SortOrder;
+  deleted?: boolean;
+  is_active?: boolean;
+  category_id?: string;
+  tag_id?: string;
+  status?: string;
+}
+
 export default function BlogPostsApp() {
   const { showSnackbar } = useSnackbar();
   const router = useRouter();
@@ -72,6 +91,19 @@ export default function BlogPostsApp() {
   const [sortField, setSortField] = useState<SortField>("created_at");
   const [sortOrder, setSortOrder] = useState<SortOrder>("DESC");
   const [showDeleted, setShowDeleted] = useState(false);
+  
+  // New filter states
+  const [categories, setCategories] = useState<BlogCategory[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<BlogCategory | null>(null);
+  const [categoryLoading, setCategoryLoading] = useState(false);
+  const [categorySearch, setCategorySearch] = useState("");
+  
+  const [tags, setTags] = useState<BlogTag[]>([]);
+  const [selectedTag, setSelectedTag] = useState<BlogTag | null>(null);
+  const [tagLoading, setTagLoading] = useState(false);
+  const [tagSearch, setTagSearch] = useState("");
+  
+  const [status, setStatus] = useState<string>("");
 
   // Debounce search input
   useEffect(() => {
@@ -81,6 +113,86 @@ export default function BlogPostsApp() {
 
     return () => clearTimeout(timer);
   }, [search]);
+  
+  // Load categories with search
+  useEffect(() => {
+    const fetchCategories = async () => {
+      if (categorySearch !== "") {
+        setCategoryLoading(true);
+        try {
+          const response = await getBlogCategories({
+            search: categorySearch,
+            limit: 10,
+          });
+          if (response?.data?.categories) {
+            setCategories(response.data.categories);
+          }
+        } catch (error) {
+          console.error("Failed to fetch categories:", error);
+        } finally {
+          setCategoryLoading(false);
+        }
+      }
+    };
+    
+    const timer = setTimeout(() => {
+      fetchCategories();
+    }, 500);
+    
+    return () => clearTimeout(timer);
+  }, [categorySearch]);
+  
+  // Load tags with search
+  useEffect(() => {
+    const fetchTags = async () => {
+      if (tagSearch !== "") {
+        setTagLoading(true);
+        try {
+          const response = await getBlogTags({
+            search: tagSearch,
+            limit: 10,
+          });
+          if (response?.data?.tags) {
+            setTags(response.data.tags);
+          }
+        } catch (error) {
+          console.error("Failed to fetch tags:", error);
+        } finally {
+          setTagLoading(false);
+        }
+      }
+    };
+    
+    const timer = setTimeout(() => {
+      fetchTags();
+    }, 500);
+    
+    return () => clearTimeout(timer);
+  }, [tagSearch]);
+  
+  // Load initial categories and tags
+  useEffect(() => {
+    const fetchFilters = async () => {
+      try {
+        const [categoriesResponse, tagsResponse] = await Promise.all([
+          getBlogCategories({ limit: 20 }),
+          getBlogTags({ limit: 20 }),
+        ]);
+        
+        if (categoriesResponse?.data?.categories) {
+          setCategories(categoriesResponse.data.categories);
+        }
+        
+        if (tagsResponse?.data?.tags) {
+          setTags(tagsResponse.data.tags);
+        }
+      } catch (error) {
+        console.error("Failed to fetch filters:", error);
+      }
+    };
+    
+    fetchFilters();
+  }, []);
 
   // Fetch posts when filters change
   useEffect(() => {
@@ -94,7 +206,10 @@ export default function BlogPostsApp() {
           sort: sortField,
           order: sortOrder,
           deleted: showDeleted,
-        }) as BlogPostResponse;
+          category_id: selectedCategory?.id?.toString() || undefined,
+          tag_id: selectedTag?.id?.toString() || undefined,
+          status: status || undefined,
+        } as ExtendedBlogPostParams) as BlogPostResponse;
 
         if (response?.data) {
           setPosts(response.data.blogs);
@@ -105,22 +220,33 @@ export default function BlogPostsApp() {
         }
       } catch (error) {
         console.error("Failed to fetch posts:", error);
-        // Commented as per your change
-        // showSnackbar("Failed to load posts", "error");
       } finally {
         setLoading(false);
       }
     };
 
     fetchPosts();
-  }, [debouncedSearch, pagination.page, pagination.limit, sortField, sortOrder, showDeleted]);
+  }, [debouncedSearch, pagination.page, pagination.limit, sortField, sortOrder, showDeleted, selectedCategory, selectedTag, status]);
+
+  // Reset pagination when filters change
+  useEffect(() => {
+    setPagination(prev => ({ ...prev, page: 1 }));
+  }, [debouncedSearch, sortField, sortOrder, showDeleted, selectedCategory, selectedTag, status]);
 
   const handleDeletePost = async (post: BlogPost) => {
     try {
       await deleteBlogPost(post.id);
+      
+      // Immediately remove the deleted post from the current list
+      setPosts(currentPosts => currentPosts.filter(p => p.id !== post.id));
+      
+      // Update total count in pagination
+      setPagination(prev => ({
+        ...prev,
+        total: Math.max(0, prev.total - 1)
+      }));
+      
       showSnackbar("Post deleted successfully", "success");
-      // Refresh the posts list
-      setPagination(prev => ({ ...prev, page: 1 }));
     } catch (error) {
       console.error("Failed to delete post:", error);
       showSnackbar("Failed to delete post", "error");
@@ -141,6 +267,30 @@ export default function BlogPostsApp() {
     } catch (error) {
       console.error("Failed to toggle publish status:", error);
       showSnackbar("Failed to update publish status", "error");
+    }
+  };
+
+  const handleRestorePost = async (post: BlogPost) => {
+    try {
+      await restoreBlogPost(post.id);
+      
+      // If we're viewing deleted posts, remove the restored post from view
+      if (showDeleted) {
+        setPosts(currentPosts => currentPosts.filter(p => p.id !== post.id));
+        
+        // Update total count in pagination
+        setPagination(prev => ({
+          ...prev,
+          total: Math.max(0, prev.total - 1)
+        }));
+      } 
+      // If not viewing deleted posts, we could add it to the current view,
+      // but that might disrupt sorting/filtering, so we'll just show a message
+      
+      showSnackbar("Post restored successfully", "success");
+    } catch (error) {
+      console.error("Failed to restore post:", error);
+      showSnackbar("Failed to restore post", "error");
     }
   };
 
@@ -283,7 +433,7 @@ export default function BlogPostsApp() {
 
           <Grid item xs={12}>
             <Paper className="overflow-hidden">
-              <div className="flex items-center gap-5 p-3">
+              <div className="flex flex-wrap items-center gap-3 p-3">
                 <TextField
                   label="Search"
                   variant="outlined"
@@ -306,10 +456,61 @@ export default function BlogPostsApp() {
                     "& .MuiInputLabel-root.Mui-focused": {
                       color: "#2E9970",
                     },
+                    minWidth: '180px',
                   }}
                 />
 
-                <FormControl size="small">
+                <Autocomplete
+                  options={categories}
+                  getOptionLabel={(option) => option.name}
+                  value={selectedCategory}
+                  onChange={(_, newValue) => setSelectedCategory(newValue)}
+                  onInputChange={(_, newInputValue) => setCategorySearch(newInputValue)}
+                  loading={categoryLoading}
+                  renderInput={(params) => (
+                    <TextField 
+                      {...params} 
+                      label="Category" 
+                      size="small"
+                      variant="outlined"
+                      sx={{ minWidth: '200px' }}
+                    />
+                  )}
+                />
+
+                <Autocomplete
+                  options={tags}
+                  getOptionLabel={(option) => option.name}
+                  value={selectedTag}
+                  onChange={(_, newValue) => setSelectedTag(newValue)}
+                  onInputChange={(_, newInputValue) => setTagSearch(newInputValue)}
+                  loading={tagLoading}
+                  renderInput={(params) => (
+                    <TextField 
+                      {...params} 
+                      label="Tag" 
+                      size="small"
+                      variant="outlined"
+                      sx={{ minWidth: '200px' }}
+                    />
+                  )}
+                />
+
+                <FormControl size="small" sx={{ minWidth: '150px' }}>
+                  <InputLabel>Status</InputLabel>
+                  <Select
+                    value={status}
+                    onChange={(e) => setStatus(e.target.value)}
+                    label="Status"
+                  >
+                    <MenuItem value="">All Statuses</MenuItem>
+                    <MenuItem value="draft">Draft</MenuItem>
+                    <MenuItem value="published">Published</MenuItem>
+                    <MenuItem value="archived">Archived</MenuItem>
+                  </Select>
+                </FormControl>
+
+                <FormControl size="small" sx={{ minWidth: '120px' }}>
                   <InputLabel>Sort By</InputLabel>
                   <Select
                     value={sortField}
@@ -322,7 +523,7 @@ export default function BlogPostsApp() {
                   </Select>
                 </FormControl>
 
-                <FormControl size="small">
+                <FormControl size="small" sx={{ minWidth: '120px' }}>
                   <InputLabel>Order</InputLabel>
                   <Select
                     value={sortOrder}
@@ -334,19 +535,33 @@ export default function BlogPostsApp() {
                   </Select>
                 </FormControl>
 
-                <FormControl size="small">
-                  <InputLabel>Status</InputLabel>
+                <FormControl size="small" sx={{ minWidth: '120px' }}>
+                  <InputLabel>Show</InputLabel>
                   <Select
                     value={showDeleted ? "deleted" : "active"}
                     onChange={(e) =>
                       setShowDeleted(e.target.value === "deleted")
                     }
-                    label="Status"
+                    label="Show"
                   >
                     <MenuItem value="active">Active</MenuItem>
                     <MenuItem value="deleted">Deleted</MenuItem>
                   </Select>
                 </FormControl>
+                
+                {(selectedCategory || selectedTag || status) && (
+                  <Button 
+                    size="small" 
+                    color="primary" 
+                    onClick={() => {
+                      setSelectedCategory(null);
+                      setSelectedTag(null);
+                      setStatus("");
+                    }}
+                  >
+                    Clear Filters
+                  </Button>
+                )}
               </div>
 
               {loading ? (
@@ -360,44 +575,61 @@ export default function BlogPostsApp() {
                     data={posts}
                     enableRowActions
                     renderRowActionMenuItems={({ closeMenu, row }) => [
-                      <MenuItem
-                        key="view"
-                        onClick={() => {
-                          router.push(`/apps/blog/posts/${row.original.id}`);
-                          closeMenu();
-                        }}
-                      >
-                        <ListItemIcon>
-                          <FuseSvgIcon>heroicons-outline:eye</FuseSvgIcon>
-                        </ListItemIcon>
-                        View Details
-                      </MenuItem>,
-                      <MenuItem
-                        key="edit"
-                        onClick={() => {
-                          router.push(`/apps/blog/posts/${row.original.id}/edit`);
-                          closeMenu();
-                        }}
-                      >
-                        <ListItemIcon>
-                          <FuseSvgIcon>heroicons-outline:pencil</FuseSvgIcon>
-                        </ListItemIcon>
-                        Edit
-                      </MenuItem>,
-                      <MenuItem
-                        key="delete"
-                        onClick={() => {
-                          handleDeletePost(row.original);
-                          closeMenu();
-                        }}
-                      >
-                        <ListItemIcon>
-                          <FuseSvgIcon className="text-red-500">
-                            heroicons-outline:trash
-                          </FuseSvgIcon>
-                        </ListItemIcon>
-                        <Typography color="error">Delete</Typography>
-                      </MenuItem>,
+                      ...(showDeleted && row.original.deleted_at 
+                        ? [
+                            <MenuItem
+                              key="restore"
+                              onClick={() => {
+                                handleRestorePost(row.original);
+                                closeMenu();
+                              }}
+                            >
+                              <ListItemIcon>
+                                <FuseSvgIcon>heroicons-outline:refresh</FuseSvgIcon>
+                              </ListItemIcon>
+                              Restore
+                            </MenuItem>
+                          ] 
+                        : [
+                            <MenuItem
+                              key="view"
+                              onClick={() => {
+                                router.push(`/apps/blog/posts/${row.original.id}`);
+                                closeMenu();
+                              }}
+                            >
+                              <ListItemIcon>
+                                <FuseSvgIcon>heroicons-outline:eye</FuseSvgIcon>
+                              </ListItemIcon>
+                              View Details
+                            </MenuItem>,
+                            <MenuItem
+                              key="edit"
+                              onClick={() => {
+                                router.push(`/apps/blog/posts/${row.original.id}/edit`);
+                                closeMenu();
+                              }}
+                            >
+                              <ListItemIcon>
+                                <FuseSvgIcon>heroicons-outline:pencil</FuseSvgIcon>
+                              </ListItemIcon>
+                              Edit
+                            </MenuItem>,
+                            <MenuItem
+                              key="delete"
+                              onClick={() => {
+                                handleDeletePost(row.original);
+                                closeMenu();
+                              }}
+                            >
+                              <ListItemIcon>
+                                <FuseSvgIcon className="text-red-500">
+                                  heroicons-outline:trash
+                                </FuseSvgIcon>
+                              </ListItemIcon>
+                              <Typography color="error">Delete</Typography>
+                            </MenuItem>
+                          ])
                     ]}
                   />
                   <Box sx={{ display: "flex", justifyContent: "center", p: 2 }}>
