@@ -14,6 +14,10 @@ import {
   Autocomplete,
   TextField,
   Chip,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
 } from "@mui/material";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -24,6 +28,7 @@ import FormInputField from "@/components/Shared/FormInputField";
 import FormTextareaField from "@/components/Shared/FormTextareaField";
 import FormDateTimeField from "@/components/Shared/FormDateTimeField";
 import FormFileUploadField from "@/components/Shared/FormFileUploadField";
+import FormCKEditor from "@/components/Shared/FormCKEditor";
 import { useSnackbar } from "@/contexts/SnackbarContext";
 import {
   getBlogPost,
@@ -53,6 +58,7 @@ const postSchema = z.object({
       "Slug must be in valid format (lowercase letters, numbers, and hyphens)"
     ),
   image: z.any().optional(),
+  status: z.enum(["draft", "published", "archived"]).default("draft"),
   published_at: z.string().nullable().optional(),
   categories: z.array(z.object({
     id: z.number(),
@@ -151,6 +157,7 @@ export default function EditBlogPost() {
             title: response.data.title,
             content: response.data.content,
             slug: response.data.slug,
+            status: response.data.status || "draft",
             published_at: response.data.published_at || null,
             categories: response.data.categories || [],
             tags: response.data.tags || [],
@@ -200,6 +207,7 @@ export default function EditBlogPost() {
       formData.append("title", data.title);
       formData.append("content", data.content);
       formData.append("slug", data.slug);
+      formData.append("status", data.status);
       formData.append("is_active", data.is_active.toString());
 
       if (data.published_at) {
@@ -301,12 +309,10 @@ export default function EditBlogPost() {
                   helperText="URL-friendly identifier (e.g., my-post)"
                 />
 
-                <FormTextareaField
+                <FormCKEditor
                   name="content"
                   control={control}
                   label="Content"
-                  required
-                  rows={10}
                 />
 
                 <FormFileUploadField
@@ -314,6 +320,27 @@ export default function EditBlogPost() {
                   control={control}
                   label="Featured Image"
                   onFileChange={setSelectedFile}
+                />
+
+                <Controller
+                  name="status"
+                  control={control}
+                  render={({ field }) => (
+                    <FormControl fullWidth margin="normal">
+                      <InputLabel id="status-label">Status</InputLabel>
+                      <Select
+                        labelId="status-label"
+                        id="status"
+                        value={field.value}
+                        onChange={field.onChange}
+                        label="Status"
+                      >
+                        <MenuItem value="draft">Draft</MenuItem>
+                        <MenuItem value="published">Published</MenuItem>
+                        <MenuItem value="archived">Archived</MenuItem>
+                      </Select>
+                    </FormControl>
+                  )}
                 />
 
                 <FormDateTimeField

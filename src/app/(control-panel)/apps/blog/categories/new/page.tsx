@@ -23,6 +23,7 @@ import { motion } from "motion/react";
 import AppButton from "@/components/Shared/AppButton";
 import FormInputField from "@/components/Shared/FormInputField";
 import FormTextareaField from "@/components/Shared/FormTextareaField";
+import FormCKEditor from "@/components/Shared/FormCKEditor";
 import { useSnackbar } from "@/contexts/SnackbarContext";
 import { createBlogCategory, getBlogCategories, type BlogCategory } from "@/services/apiBlog";
 import FormFileUploadField from "@/components/Shared/FormFileUploadField";
@@ -191,11 +192,10 @@ export default function CreateBlogCategory() {
                   helperText="URL-friendly identifier (e.g., my-category)"
                 />
 
-                <FormTextareaField
+                <FormCKEditor
                   name="description"
                   control={control}
                   label="Description"
-                  rows={4}
                 />
 
                 <Controller
@@ -203,11 +203,11 @@ export default function CreateBlogCategory() {
                   control={control}
                   render={({ field }) => (
                     <FormControl fullWidth margin="normal">
-                      <InputLabel>Parent Category</InputLabel>
+                      <InputLabel>Parent Category (Optional)</InputLabel>
                       <Select
                         {...field}
                         value={field.value || ""}
-                        label="Parent Category"
+                        label="Parent Category (Optional)"
                       >
                         <MenuItem value="">
                           <em>None</em>

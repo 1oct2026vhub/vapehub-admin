@@ -24,6 +24,7 @@ import FuseLoading from "@fuse/core/FuseLoading";
 import AppButton from "@/components/Shared/AppButton";
 import FormInputField from "@/components/Shared/FormInputField";
 import FormTextareaField from "@/components/Shared/FormTextareaField";
+import FormCKEditor from "@/components/Shared/FormCKEditor";
 import { useSnackbar } from "@/contexts/SnackbarContext";
 import { getBlogCategory, updateBlogCategory, getBlogCategories, type BlogCategory } from "@/services/apiBlog";
 import FormFileUploadField from "@/components/Shared/FormFileUploadField";
@@ -248,11 +249,10 @@ export default function EditBlogCategory() {
                   helperText="URL-friendly identifier (e.g., my-category)"
                 />
 
-                <FormTextareaField
+                <FormCKEditor
                   name="description"
                   control={control}
                   label="Description"
-                  rows={4}
                 />
 
                 <Controller
@@ -265,11 +265,11 @@ export default function EditBlogCategory() {
                     
                     return (
                       <FormControl fullWidth margin="normal">
-                        <InputLabel>Parent Category</InputLabel>
+                        <InputLabel>Parent Category (Optional)</InputLabel>
                         <Select
                           {...field}
                           value={value}
-                          label="Parent Category"
+                          label="Parent Category (Optional)"
                           onChange={(e) => {
                             // Handle empty string as null
                             const newValue = e.target.value === "" ? null : e.target.value;
