@@ -1,0 +1,657 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { useParams } from "next/navigation";
+import {
+  Paper,
+  Typography,
+  Grid,
+  Box,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Button,
+  Divider,
+  Chip,
+  LinearProgress,
+  IconButton,
+  MenuItem,
+  Select,
+  FormControl,
+  InputLabel,
+  SelectChangeEvent,
+  Snackbar,
+  Alert,
+} from "@mui/material";
+import {
+  getOrderById,
+  Order,
+  updateOrderStatus,
+  OrderStatus,
+} from "@/services/apiOrder";
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import EditIcon from "@mui/icons-material/Edit";
+import DownloadIcon from "@mui/icons-material/Download";
+import DeleteIcon from "@mui/icons-material/Delete";
+import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
+import MailOutlineIcon from "@mui/icons-material/MailOutline";
+import LocalShippingOutlinedIcon from "@mui/icons-material/LocalShippingOutlined";
+import DeliveryDiningOutlinedIcon from "@mui/icons-material/DeliveryDiningOutlined";
+import PersonOutlineOutlinedIcon from "@mui/icons-material/PersonOutlineOutlined";
+import HomeOutlinedIcon from "@mui/icons-material/HomeOutlined";
+import AttachMoneyIcon from "@mui/icons-material/AttachMoney";
+import PhoneIcon from "@mui/icons-material/Phone";
+import LocationOnIcon from "@mui/icons-material/LocationOn";
+import OrderStatusTimeline from "./OrderStatusTimeline";
+import { useSnackbar } from "@/contexts/SnackbarContext";
+
+const OrderDetailApp = () => {
+  const params = useParams();
+  const [order, setOrder] = useState<Order | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [updatingStatus, setUpdatingStatus] = useState(false);
+  const { showSnackbar } = useSnackbar();
+
+  // const [snackbar, setSnackbar] = useState({
+  //   open: false,
+  //   message: "",
+  //   severity: "success" as "success" | "error",
+  // });
+
+  // Sample order history data - in a real app, this would come from the API
+  const [orderHistory, setOrderHistory] = useState([
+    {
+      status: "pending",
+      description: "An order has been placed.",
+      createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(), // 5 days ago
+    },
+    {
+      status: "processing",
+      description: "Seller has processed your order.",
+      createdAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(), // 4 days ago
+    },
+    {
+      status: "packed",
+      description: "Your item has been picked up by courier partner",
+      createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(), // 3 days ago
+    },
+    {
+      status: "shipped",
+      description: "Your item has been shipped.",
+      trackingInfo: "MFDS1400457854",
+      createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(), // 2 days ago
+    },
+  ]);
+
+  useEffect(() => {
+    const fetchOrder = async () => {
+      try {
+        const orderId = parseInt(params.orderId as string);
+        const response = await getOrderById(orderId);
+        setOrder(response);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchOrder();
+  }, [params.orderId]);
+
+  // Format date function
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      hour: "numeric",
+      minute: "numeric",
+      hour12: true,
+    });
+  };
+
+  // Calculate status progress
+  const getStatusProgress = (status: string) => {
+    const statuses = [
+      "pending",
+      "processing",
+      "shipped",
+      "delivered",
+      "completed",
+    ];
+    const currentIndex = statuses.indexOf(status);
+    return currentIndex !== -1
+      ? (currentIndex / (statuses.length - 1)) * 100
+      : 0;
+  };
+
+  // Handle status change
+  const handleStatusChange = async (event: SelectChangeEvent<string>) => {
+    if (!order) return;
+
+    const newStatus = event.target.value as OrderStatus;
+    setUpdatingStatus(true);
+
+    try {
+      const response = await updateOrderStatus(order.id, newStatus);
+      setOrder({ ...order, status: newStatus });
+      if (response) {
+        showSnackbar(response?.message, "success");
+      }
+    } catch (error) {
+      console.error("Failed to update order status:", error);
+      showSnackbar("Failed to update order status", error);
+    } finally {
+      setUpdatingStatus(false);
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-4 p-4 bg-gray-50 min-h-screen">
+      {/* Order Header */}
+      <Paper className="p-4">
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2">
+            <IconButton size="small">
+              <ArrowBackIcon />
+            </IconButton>
+            <Typography variant="h5" className="font-bold">
+              #{order?.order_unique_id || ""}
+            </Typography>
+          </div>
+          <div className="flex items-center gap-4">
+            {updatingStatus && <LinearProgress className="w-20" />}
+            <FormControl size="small" sx={{ minWidth: 150 }}>
+              <InputLabel id="order-status-label">Status</InputLabel>
+              <Select
+                labelId="order-status-label"
+                id="order-status"
+                value={order?.status || ""}
+                label="Status"
+                onChange={handleStatusChange}
+                disabled={updatingStatus}
+                className="bg-white"
+              >
+                <MenuItem value="draft">Draft</MenuItem>
+                <MenuItem value="pending">Pending</MenuItem>
+                <MenuItem value="processing">Processing</MenuItem>
+                <MenuItem value="shipped">Shipped</MenuItem>
+                <MenuItem value="delivered">Delivered</MenuItem>
+                <MenuItem value="completed">Completed</MenuItem>
+                <MenuItem value="fail">Failed</MenuItem>
+                <MenuItem value="cancel">Cancelled</MenuItem>
+                <MenuItem value="return_requested">Return Requested</MenuItem>
+                <MenuItem value="return_approved">Return Approved</MenuItem>
+                <MenuItem value="return_received">Return Received</MenuItem>
+                <MenuItem value="refunded">Refunded</MenuItem>
+              </Select>
+            </FormControl>
+          </div>
+        </div>
+        <Typography variant="body2" color="text.secondary">
+          Order History / Order Details / {order?.order_unique_id} -{" "}
+          {formatDate(order?.createdAt || "")}
+        </Typography>
+      </Paper>
+
+      <Grid container spacing={3}>
+        {/* Left Column - Progress and Products */}
+        <Grid item xs={12} md={8}>
+          {/* Product Section */}
+          <Paper className="p-4 mb-4">
+            <div className="flex justify-between items-center mb-3">
+              <Typography variant="h6" className="font-medium">
+                Order #{order?.order_unique_id || ""}
+              </Typography>
+              <Button
+                startIcon={<DownloadIcon />}
+                size="small"
+                variant="outlined"
+                sx={{
+                  borderColor: "#2E9970",
+                  color: "#2E9970",
+                  "&:hover": {
+                    borderColor: "#1d7d59",
+                    backgroundColor: "rgba(46, 153, 112, 0.04)",
+                  },
+                }}
+              >
+                Export Invoice
+              </Button>
+            </div>
+            <Typography variant="body2" color="text.secondary" className="mb-4">
+              Your Shipment
+            </Typography>
+
+            <TableContainer className="border border-gray-200 rounded-md overflow-hidden">
+              <Table>
+                <TableHead className="bg-[#f0f7f4]">
+                  <TableRow>
+                    <TableCell
+                      className="font-semibold text-gray-700"
+                      sx={{ borderBottom: "2px solid #c9e7dc", py: 2 }}
+                    >
+                      Item
+                    </TableCell>
+                    <TableCell
+                      className="font-semibold text-gray-700"
+                      sx={{ borderBottom: "2px solid #c9e7dc", py: 2 }}
+                    >
+                      Status
+                    </TableCell>
+                    <TableCell
+                      align="center"
+                      className="font-semibold text-gray-700"
+                      sx={{ borderBottom: "2px solid #c9e7dc", py: 2 }}
+                    >
+                      Quantity
+                    </TableCell>
+                    <TableCell
+                      align="right"
+                      className="font-semibold text-gray-700"
+                      sx={{ borderBottom: "2px solid #c9e7dc", py: 2 }}
+                    >
+                      Price
+                    </TableCell>
+                    <TableCell
+                      align="right"
+                      className="font-semibold text-gray-700"
+                      sx={{ borderBottom: "2px solid #c9e7dc", py: 2 }}
+                    >
+                      Tax
+                    </TableCell>
+                    <TableCell
+                      align="right"
+                      className="font-semibold text-gray-700"
+                      sx={{ borderBottom: "2px solid #c9e7dc", py: 2 }}
+                    >
+                      Amount
+                    </TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {order?.orderItems?.map((item) => (
+                    <TableRow
+                      key={item.id}
+                      hover
+                      sx={{
+                        "&:nth-of-type(even)": { backgroundColor: "#fafafa" },
+                        "&:last-child td, &:last-child th": { border: 0 },
+                        transition: "background-color 0.2s ease",
+                        "&:hover": {
+                          backgroundColor: "#f5f5f5",
+                        },
+                      }}
+                    >
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          <div className="w-16 h-16 bg-gray-100 rounded-md flex items-center justify-center overflow-hidden">
+                            {item.product?.ProductImages &&
+                            item.product.ProductImages.length > 0 ? (
+                              <img
+                                src={
+                                  (item.product.ProductImages[0] as any)
+                                    .image_url ||
+                                  item.product.ProductImages[0].url
+                                }
+                                alt={item.product.name}
+                                className="w-full h-full object-contain"
+                                onError={(e) => {
+                                  (e.target as HTMLImageElement).src =
+                                    "/placeholder-image.png";
+                                }}
+                              />
+                            ) : (
+                              <span className="text-xs text-gray-500">
+                                No img
+                              </span>
+                            )}
+                          </div>
+                          <div>
+                            <Typography
+                              variant="body1"
+                              className="font-medium text-gray-800"
+                            >
+                              {item.product.name}
+                            </Typography>
+                            {item.variant?.slug && (
+                              <Typography
+                                variant="body2"
+                                color="text.secondary"
+                              >
+                                Variant: {item.variant.slug}
+                              </Typography>
+                            )}
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Chip
+                          label={order.status.toUpperCase()}
+                          size="small"
+                          sx={{
+                            backgroundColor:
+                              order.status === "pending"
+                                ? "#FFF4E5"
+                                : order.status === "processing"
+                                ? "#E8F4FD"
+                                : order.status === "delivered"
+                                ? "#E6F6EC"
+                                : order.status === "fail"
+                                ? "#FEEBEB"
+                                : order.status === "cancel"
+                                ? "#F5F5F5"
+                                : "#E6F6EC",
+                            color:
+                              order.status === "pending"
+                                ? "#FF9800"
+                                : order.status === "processing"
+                                ? "#2196F3"
+                                : order.status === "delivered"
+                                ? "#4CAF50"
+                                : order.status === "fail"
+                                ? "#F44336"
+                                : order.status === "cancel"
+                                ? "#9E9E9E"
+                                : "#4CAF50",
+                            fontWeight: 600,
+                            fontSize: "0.75rem",
+                          }}
+                        />
+                      </TableCell>
+                      <TableCell align="center" className="font-medium">
+                        {item.quantity}
+                      </TableCell>
+                      <TableCell align="right" className="font-medium">
+                        ${Number(item.unit_price).toFixed(2)}
+                      </TableCell>
+                      <TableCell align="right" className="font-medium">
+                        $0.00
+                      </TableCell>
+                      <TableCell
+                        align="right"
+                        className="font-medium text-gray-800"
+                      >
+                        ${Number(item.total).toFixed(2)}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+
+                  {/* Total Row */}
+                  <TableRow
+                    sx={{
+                      backgroundColor: "#f0f7f4",
+                      fontWeight: "bold",
+                      "& td": {
+                        borderTop: "2px solid #c9e7dc",
+                        fontWeight: 600,
+                        py: 2,
+                      },
+                    }}
+                  >
+                    <TableCell colSpan={3} className="text-right font-semibold">
+                      Sub Total:
+                    </TableCell>
+                    <TableCell align="right" className="font-semibold">
+                      $
+                      {order?.orderItems
+                        ?.reduce(
+                          (sum, item) =>
+                            sum + Number(item.unit_price) * item.quantity,
+                          0
+                        )
+                        .toFixed(2) || "0.00"}
+                    </TableCell>
+                    <TableCell align="right" className="font-semibold">
+                      $0.00
+                    </TableCell>
+                    <TableCell align="right" className="font-semibold">
+                      ${Number(order?.total || 0).toFixed(2)}
+                    </TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </Paper>
+
+          {/* Order Status Timeline */}
+          {order && (
+            <OrderStatusTimeline
+              status={order.status}
+              orderDate={order.createdAt}
+              orderHistory={orderHistory}
+              orderId={order.id}
+              onStatusUpdate={(newStatus) => {
+                setOrder({ ...order, status: newStatus });
+              }}
+            />
+          )}
+        </Grid>
+
+        {/* Right Column - Payment and Customer Info */}
+        <Grid item xs={12} md={4}>
+          {/* Payment Section */}
+          <Paper className="p-4 mb-3">
+            <div className="flex justify-between items-center mb-3">
+              <Typography variant="h6" className="font-medium">
+                Payment
+              </Typography>
+              <Button
+                startIcon={<DownloadIcon />}
+                size="small"
+                variant="outlined"
+                sx={{
+                  borderColor: "#2E9970",
+                  color: "#2E9970",
+                  "&:hover": {
+                    borderColor: "#1d7d59",
+                    backgroundColor: "rgba(46, 153, 112, 0.04)",
+                  },
+                }}
+              >
+                Download Invoice
+              </Button>
+            </div>
+            <Typography variant="body2" color="text.secondary" className="mb-4">
+              Final Payment Amount
+            </Typography>
+
+            <div className="space-y-3">
+              <div className="flex justify-between">
+                <Typography variant="body2">Subtotal</Typography>
+                <Typography variant="body2">
+                  ${Number(order?.total || 0).toFixed(2)}
+                </Typography>
+              </div>
+              {order?.discount_price && (
+                <div className="flex justify-between">
+                  <Typography variant="body2">Discount (10%)</Typography>
+                  <Typography variant="body2" color="error">
+                    -${Number(order.discount_price).toFixed(2)}
+                  </Typography>
+                </div>
+              )}
+              <div className="flex justify-between">
+                <Typography variant="body2">Shipping Cost</Typography>
+                <Typography variant="body2">$0.00</Typography>
+              </div>
+              <div className="flex justify-between">
+                <Typography variant="body2">Tax (8%)</Typography>
+                <Typography variant="body2">$0.00</Typography>
+              </div>
+              <Divider />
+              <div className="flex justify-between">
+                <Typography variant="subtitle1" fontWeight="bold">
+                  Total
+                </Typography>
+                <Typography variant="subtitle1" fontWeight="bold">
+                  ${Number(order?.total || 0).toFixed(2)}
+                </Typography>
+              </div>
+            </div>
+          </Paper>
+
+          {/* Customer Details */}
+          <Paper className="p-0 mb-3 overflow-hidden">
+            {/* Header with View Profile button */}
+            <div className="flex items-center justify-between p-4 border-b border-gray-200">
+              <Typography variant="h6" className="font-medium">
+                Customer Details
+              </Typography>
+              <Button size="small" variant="text" sx={{ color: "#6366F1" }}>
+                View Profile
+              </Button>
+            </div>
+
+            {/* Customer basic info with profile image */}
+            <div className="p-4 border-b border-gray-200">
+              <div className="flex items-center gap-3">
+                <div className="w-14 h-14 rounded-md overflow-hidden bg-orange-100">
+                  {order?.user?.profile_pic_url ? (
+                    <img
+                      src={order.user.profile_pic_url}
+                      alt={`${order.user.first_name} ${order.user.last_name}`}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-r from-orange-300 to-orange-400 text-white text-xl font-bold">
+                      {order?.user?.first_name?.charAt(0) || ""}
+                      {order?.user?.last_name?.charAt(0) || ""}
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <Typography variant="h6" className="font-medium">
+                    {order?.user?.first_name} {order?.user?.last_name}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Customer
+                  </Typography>
+                </div>
+              </div>
+
+              {/* Contact info */}
+              <div className="mt-4">
+                <div className="flex items-center gap-2 mt-3 text-gray-600">
+                  <MailOutlineIcon fontSize="small" sx={{ color: "#6B7280" }} />
+                  <Typography variant="body2">{order?.user?.email}</Typography>
+                </div>
+                {order?.user?.phone && (
+                  <div className="flex items-center gap-2 mt-2 text-gray-600">
+                    <PhoneIcon fontSize="small" sx={{ color: "#6B7280" }} />
+                    <Typography variant="body2">
+                      {order?.user?.phone}
+                    </Typography>
+                  </div>
+                )}
+              </div>
+            </div>
+          </Paper>
+
+          {/* Billing Address */}
+          <Paper className="p-0 mb-3 overflow-hidden">
+            {/* Header with View Profile button */}
+            <div className="flex items-center gap-2 p-4 border-b border-gray-200">
+              <LocationOnIcon fontSize="small" sx={{ color: "#6B7280" }} />
+              <Typography variant="h6" className="font-medium">
+                Billing Address
+              </Typography>
+            </div>
+
+            {order?.billingAddress && (
+              <div className="p-4">
+                <Typography variant="body1" className="font-medium">
+                  {order.billingAddress.name} {order.billingAddress.last_name}
+                </Typography>
+
+                {order.billingAddress.phone && (
+                  <Typography variant="body2" className="text-gray-600 mt-2">
+                    {order.billingAddress.phone}
+                  </Typography>
+                )}
+
+                <Typography variant="body2" className="text-gray-600 mt-2">
+                  {order.billingAddress.street}
+                  {order.billingAddress.apartment
+                    ? `, ${order.billingAddress.apartment}`
+                    : ""}
+                </Typography>
+
+                <Typography variant="body2" className="text-gray-600">
+                  {order.billingAddress.town} - {order.billingAddress.post_code}
+                </Typography>
+
+                <Typography variant="body2" className="text-gray-600">
+                  {order.billingAddress.country}
+                </Typography>
+              </div>
+            )}
+          </Paper>
+
+          {/* Shipping Address */}
+          <Paper className="p-0 overflow-hidden">
+            <div className="flex items-center gap-2 p-4 border-b border-gray-200">
+              <LocationOnIcon fontSize="small" sx={{ color: "#6B7280" }} />
+              <Typography variant="h6" className="font-medium">
+                Shipping Address
+              </Typography>
+            </div>
+
+            {order?.shippingAddress && (
+              <div className="p-4">
+                <Typography variant="body1" className="font-medium">
+                  {order.shippingAddress.name} {order.shippingAddress.last_name}
+                </Typography>
+
+                {order.shippingAddress.phone && (
+                  <Typography variant="body2" className="text-gray-600 mt-2">
+                    {order.shippingAddress.phone}
+                  </Typography>
+                )}
+
+                <Typography variant="body2" className="text-gray-600 mt-2">
+                  {order.shippingAddress.street}
+                  {order.shippingAddress.apartment
+                    ? `, ${order.shippingAddress.apartment}`
+                    : ""}
+                </Typography>
+
+                <Typography variant="body2" className="text-gray-600">
+                  {order.shippingAddress.town} -{" "}
+                  {order.shippingAddress.post_code}
+                </Typography>
+
+                <Typography variant="body2" className="text-gray-600">
+                  {order.shippingAddress.country}
+                </Typography>
+              </div>
+            )}
+          </Paper>
+        </Grid>
+      </Grid>
+
+      {/* Snackbar for notifications */}
+      {/* <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={handleCloseSnackbar}
+        anchorOrigin={{ vertical: "top", horizontal: "right" }}
+      >
+        <Alert
+          onClose={handleCloseSnackbar}
+          severity={snackbar.severity}
+          variant="filled"
+          sx={{ width: "100%" }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar> */}
+    </div>
+  );
+};
+
+export default OrderDetailApp;

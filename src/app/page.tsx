@@ -1,8 +1,9 @@
 import { redirect } from "next/navigation";
 
 function MainPage() {
-  // redirect(`/example`);
-  redirect(`/dashboards/project`);
+  // redirect(`/example`)
+  redirect(`/dashboards/admin`);
+  // redirect(`/dashboards/project`);
   return null;
 }
 

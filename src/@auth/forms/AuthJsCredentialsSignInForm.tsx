@@ -266,12 +266,13 @@ function AuthJsCredentialsSignInForm() {
       }
 
       showSnackbar("Login successful! Redirecting...", "success");
-      router.push("/dashboards/project");
+      router.replace("/dashboards/admin");
+      // router.push("/dashboards/project");
     } catch (error) {
       console.log("Login Error:", error);
       showSnackbar(
         error?.message || "Login failed. Please try again.",
-        "error",
+        "error"
       );
     }
   }

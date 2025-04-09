@@ -10,7 +10,7 @@ import ListSubheader from "@mui/material/ListSubheader";
 import SwipeableDrawer from "@mui/material/SwipeableDrawer";
 import Switch from "@mui/material/Switch";
 import Typography from "@mui/material/Typography";
-import { format } from "date-fns/format";
+// import { format } from "date-fns/format";
 import { useState } from "react";
 import { useAppDispatch, useAppSelector } from "src/store/hooks";
 import FuseSvgIcon from "@fuse/core/FuseSvgIcon";
@@ -62,14 +62,14 @@ function QuickPanel() {
 
         <div className="mb-0 px-6 py-4">
           <Typography className="mb-3 text-5xl" color="text.secondary">
-            {format(new Date(), "eeee")}
+            {/* {format(new Date(), "eeee")} */}
           </Typography>
           <div className="flex">
             <Typography
               className="text-5xl leading-none"
               color="text.secondary"
             >
-              {format(new Date(), "dd")}
+              {/* {format(new Date(), "dd")} */}
             </Typography>
             <Typography className="text-lg leading-none" color="text.secondary">
               th
@@ -78,7 +78,7 @@ function QuickPanel() {
               className="text-5xl leading-none"
               color="text.secondary"
             >
-              {format(new Date(), "MMMM")}
+              {/* {format(new Date(), "MMMM")} */}
             </Typography>
           </div>
         </div>

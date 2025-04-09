@@ -11,8 +11,18 @@ export const poster = (url, data) =>
   axiosInstance.post(url, data).then((res) => res.data);
 
 // Generic updater for PUT requests
-export const updater = (url, data) =>
-  axiosInstance.put(url, data).then((res) => res.data);
+export const updater = (url, data) => {
+  return axiosInstance.put(url, data)
+    .then((res) => res.data)
+    .catch((error) => {
+      console.error(`PUT request failed for ${url}:`, error.message);
+      throw error;
+    });
+};
+
+// Generic patcher for PATCH requests
+export const patcher = (url, data) =>
+  axiosInstance.patch(url, data).then((res) => res.data);
 
 // Generic deleter for DELETE requests
 export const deleter = (url) =>

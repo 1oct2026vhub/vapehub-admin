@@ -36,10 +36,11 @@ function AuthGuardRedirect({ children }: AuthGuardProps) {
       if (
         token &&
         ["/sign-in", "/sign-up", "/email-verify", "/reset-password"].includes(
-          pathname,
+          pathname
         )
       ) {
-        router.replace("/dashboards/project"); // Change this to your dashboard route
+        router.replace("/dashboards/admin");
+        // router.replace("/dashboards/project"); // Change this to your dashboard route
       }
       setIsAuthenticated(true);
       return;

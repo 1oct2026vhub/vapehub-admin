@@ -9,13 +9,15 @@ interface FormCKEditorProps {
   label?: string;
   defaultValue?: string;
   trigger?: any;
+  required?: boolean;
 }
 
-const FormCKEditor = ({
-  name,
-  control,
-  label,
+const FormCKEditor = ({ 
+  name, 
+  control, 
+  label, 
   defaultValue = "",
+  required = false 
 }: FormCKEditorProps) => {
   const editorRef = useRef<any>(null);
   const uniqueId = useRef(`editor-${Math.random().toString(36).substr(2, 9)}`);
@@ -245,6 +247,7 @@ const FormCKEditor = ({
       name={name}
       control={control}
       defaultValue={defaultValue}
+      rules={{ required: required ? `${label || 'This field'} is required` : false }}
       render={({ field: f, fieldState }) => {
         // Store field reference for use in useEffect
         field = f;
@@ -265,9 +268,9 @@ const FormCKEditor = ({
           });
 
           // Handle blur event
-          editor.on("blur", function () {
+          editor.on('blur', function() {
             const data = editor.getData();
-            console.log("CKEditor blur event:", data);
+            console.log('CKEditor blur event:', data);
             field.onChange(data);
             field.onBlur();
           });
@@ -276,7 +279,9 @@ const FormCKEditor = ({
         return (
           <div className="mb-6" ref={containerRef}>
             {label && (
-              <label className="block mb-2 text-sm font-medium">{label}</label>
+              <label className="block mb-2 text-sm font-medium">
+                {label} {required && <span style={{ color: "red" }}>*</span>}
+              </label>
             )}
             <div className="ckeditor-wrapper relative w-full">
               <textarea
@@ -299,12 +304,10 @@ const FormCKEditor = ({
               />
             </div>
             <style jsx global>{`
-              /* Target the outer container */
-              .ckeditor-container,
-              .cke_chrome {
-                border: 1px solid #d1d5db !important;
-                border-radius: 0.375rem !important;
-                overflow: hidden !important;
+              .ckeditor-container {
+                border: 1px solid #2E9970;
+                border-radius: 0;
+                overflow: hidden;
                 width: 100% !important;
                 box-shadow: none !important;
               }
@@ -312,11 +315,18 @@ const FormCKEditor = ({
               /* Keep only toolbar borders */
               .cke_top {
                 background: #f9fafb !important;
-                border-bottom: 1px solid #e5e7eb !important;
+                border-bottom: 1px solid #2E9970 !important;
               }
               .cke_bottom {
                 background: #f9fafb !important;
-                border-top: 1px solid #e5e7eb !important;
+                border-top: 1px solid #2E9970 !important;
+              }
+              .cke_chrome {
+                border: 1px solid #2E9970 !important;
+                border-radius: 0 !important;
+              }
+              .cke_focus {
+                border: 1px solid #1E7A56 !important;
               }
 
               /* Aggressively remove ALL other borders */
@@ -379,7 +389,7 @@ const FormCKEditor = ({
               // }
             `}</style>
             {fieldState?.error && (
-              <p className="mt-1 text-sm text-red-500">
+              <p className="mt-2 text-sm text-red-600">
                 {fieldState.error.message}
               </p>
             )}
