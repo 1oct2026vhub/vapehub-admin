@@ -152,13 +152,13 @@ export const getBlogCategory = async (id: number) => {
   return response?.data;
 };
 
-export const createBlogCategory = async (formData: FormData) => {
-  const response = await poster("/api/admin/blog/categories", formData);
+export const createBlogCategory = async (data: FormData | Record<string, any>) => {
+  const response = await poster("/api/admin/blog/categories", data);
   return response?.data;
 };
 
-export const updateBlogCategory = async (id: number, formData: FormData) => {
-  const response = await updater(`/api/admin/blog/categories/${id}`, formData);
+export const updateBlogCategory = async (id: number, data: FormData | Record<string, any>) => {
+  const response = await updater(`/api/admin/blog/categories/${id}`, data);
   return response?.data;
 };
 

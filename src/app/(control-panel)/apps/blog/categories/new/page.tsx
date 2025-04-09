@@ -42,7 +42,14 @@ const categorySchema = z.object({
       "Slug must be in valid format (lowercase letters, numbers, and hyphens)"
     ),
   description: z.string().optional(),
-  parent_id: z.number().nullable(),
+  parent_id: z.preprocess(
+    (val) => {
+      if (val === null || val === undefined || val === "") return null;
+      const parsed = Number(val);
+      return isNaN(parsed) ? null : parsed;
+    },
+    z.number().nullable()
+  ),
   status: z.enum(["active", "inactive"]).default("active"),
   image: z.any().optional(),
 });
@@ -108,21 +115,45 @@ export default function CreateBlogCategory() {
   const onSubmit = async (data: CategoryFormType) => {
     try {
       setSubmitting(true);
-      const formData = new FormData();
-      formData.append("name", data.name);
-      formData.append("slug", data.slug);
+      
+      // Use JSON data to ensure parent_id is sent as a number
+      const jsonData: Record<string, any> = {
+        name: data.name,
+        slug: data.slug,
+        status: data.status
+      };
+      
       if (data.description) {
-        formData.append("description", data.description);
-      }
-      if (data.parent_id) {
-        formData.append("parent_id", String(data.parent_id));
-      }
-      formData.append("status", data.status);
-      if (selectedFile) {
-        formData.append("image", selectedFile);
+        jsonData.description = data.description;
       }
       
-      await createBlogCategory(formData);
+      if (data.parent_id) {
+        jsonData.parent_id = Number(data.parent_id);
+      }
+      
+      // If we have a file, we need to use FormData
+      if (selectedFile) {
+        const formData = new FormData();
+        
+        // Add all JSON data to FormData
+        Object.entries(jsonData).forEach(([key, value]) => {
+          if (key === 'parent_id') {
+            // Handle parent_id specially to ensure it's treated as a number
+            formData.append(key, JSON.stringify(value));
+          } else {
+            formData.append(key, String(value));
+          }
+        });
+        
+        // Add the file
+        formData.append("image", selectedFile);
+        
+        await createBlogCategory(formData);
+      } else {
+        // Without file, use JSON directly
+        await createBlogCategory(jsonData);
+      }
+      
       showSnackbar("Category created successfully", "success");
       router.push("/apps/blog/categories");
     } catch (error: any) {

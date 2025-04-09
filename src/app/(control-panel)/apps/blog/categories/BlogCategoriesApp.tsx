@@ -63,7 +63,9 @@ export default function BlogCategoriesApp() {
 
   // Add delete modal state
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
-  const [categoryToDelete, setCategoryToDelete] = useState<BlogCategory | null>(null);
+  const [categoryToDelete, setCategoryToDelete] = useState<BlogCategory | null>(
+    null
+  );
   const [deleteLoading, setDeleteLoading] = useState(false);
 
   // Debounce search input
@@ -132,7 +134,7 @@ export default function BlogCategoriesApp() {
 
   const confirmDelete = async () => {
     if (!categoryToDelete) return;
-    
+
     try {
       setDeleteLoading(true);
       await deleteBlogCategory(categoryToDelete.id);
@@ -182,6 +184,18 @@ export default function BlogCategoriesApp() {
         accessorKey: "parent",
         header: "Parent Category",
         size: 150,
+        Cell: ({ row }) => {
+          const parent = row.original.parent;
+          // Check if parent is an object or string and handle accordingly
+          if (parent === null || parent === undefined) {
+            return "N/A";
+          }
+          if (typeof parent === 'object' && parent !== null) {
+            // Use type assertion to tell TypeScript this is a valid object with a name property
+            return (parent as {name: string}).name || "N/A";
+          }
+          return String(parent) || "N/A";
+        },
       },
       {
         accessorKey: "status",
@@ -203,7 +217,7 @@ export default function BlogCategoriesApp() {
         accessorKey: "createdAt",
         header: "Created At",
         size: 150,
-        Cell: ({ row }) => formatDate(row.original.createdAt || ""),
+        Cell: ({ row }) => formatDate(row.original.createdAt || "N/A"),
       },
     ],
     []

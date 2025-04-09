@@ -43,7 +43,14 @@ const categorySchema = z.object({
       "Slug must be in valid format (lowercase letters, numbers, and hyphens)"
     ),
   description: z.string().optional(),
-  parent_id: z.number().nullable(),
+  parent_id: z.preprocess(
+    (val) => {
+      if (val === null || val === undefined || val === "") return null;
+      const parsed = Number(val);
+      return isNaN(parsed) ? null : parsed;
+    },
+    z.number().nullable()
+  ),
   status: z.enum(["active", "inactive"]).default("active"),
   image: z.any().optional(),
 });
@@ -151,30 +158,56 @@ export default function EditBlogCategory() {
     
     try {
       setSubmitting(true);
-      console.log("Submitting form with data:", data); // Debug
+      console.log("Submitting form with data:", data);
       
-      const formData = new FormData();
-      formData.append("name", data.name);
-      formData.append("slug", data.slug);
-      if (data.description) {
-        formData.append("description", data.description);
-      }
-      if (data.parent_id) {
-        formData.append("parent_id", String(data.parent_id));
-      }
-      formData.append("status", data.status);
-      
-      // Handle image upload - if there's a new file, use it
+      // Solution: For normal data send JSON, and for file send FormData
       if (selectedFile) {
-        console.log("Using new uploaded image");
+        // With file, use FormData
+        const formData = new FormData();
+        formData.append("name", data.name);
+        formData.append("slug", data.slug);
+        formData.append("status", data.status);
+        
+        if (data.description) {
+          formData.append("description", data.description);
+        }
+        
+        // Special handling for parent_id - convert to JSON string
+        if (data.parent_id !== null && data.parent_id !== undefined) {
+          formData.append("parent_id", JSON.stringify(Number(data.parent_id)));
+        }
+        
+        // Add the file
         formData.append("image", selectedFile);
-      } else if (category.image_url) {
-        // If keeping existing image, don't need to send anything
-        console.log("Keeping existing image", category.image_url);
+        
+        console.log("Form data entries with file:");
+        for (const pair of formData.entries()) {
+          console.log(pair[0], pair[1], typeof pair[1]);
+        }
+        
+        await updateBlogCategory(category.id, formData);
+      } else {
+        // Without file, use direct JSON - this will ensure parent_id is sent as an integer
+        const jsonData: Record<string, any> = {
+          name: data.name,
+          slug: data.slug,
+          status: data.status
+        };
+        
+        if (data.description) {
+          jsonData.description = data.description;
+        }
+        
+        // Properly handle parent_id as a number
+        if (data.parent_id !== null && data.parent_id !== undefined) {
+          jsonData.parent_id = Number(data.parent_id);
+          console.log("Parent ID as number:", jsonData.parent_id, "Type:", typeof jsonData.parent_id);
+        }
+        
+        console.log("Sending JSON data:", jsonData);
+        await updateBlogCategory(category.id, jsonData);
       }
       
-      console.log("Sending form data to API");
-      await updateBlogCategory(category.id, formData);
       showSnackbar("Category updated successfully", "success");
       router.push("/apps/blog/categories");
     } catch (error: any) {
@@ -258,36 +291,33 @@ export default function EditBlogCategory() {
                 <Controller
                   name="parent_id"
                   control={control}
-                  render={({ field }) => {
-                    // Ensure field.value is treated correctly
-                    const value = field.value === null ? "" : field.value;
-                    console.log("Parent ID field value:", value);
-                    
-                    return (
-                      <FormControl fullWidth margin="normal">
-                        <InputLabel>Parent Category (Optional)</InputLabel>
-                        <Select
-                          {...field}
-                          value={value}
-                          label="Parent Category (Optional)"
-                          onChange={(e) => {
-                            // Handle empty string as null
-                            const newValue = e.target.value === "" ? null : e.target.value;
-                            field.onChange(newValue);
-                          }}
-                        >
-                          <MenuItem value="">
-                            <em>None</em>
+                  render={({ field }) => (
+                    <FormControl fullWidth margin="normal">
+                      <InputLabel id="parent-category-label">
+                        Parent Category
+                      </InputLabel>
+                      <Select
+                        labelId="parent-category-label"
+                        label="Parent Category"
+                        value={field.value === null ? "" : field.value}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          // Convert to number or null
+                          const parentId = value === "" ? null : Number(value);
+                          field.onChange(parentId);
+                        }}
+                      >
+                        <MenuItem value="">
+                          <em>None</em>
+                        </MenuItem>
+                        {categories.map((cat) => (
+                          <MenuItem key={cat.id} value={cat.id}>
+                            {cat.name}
                           </MenuItem>
-                          {categories.map((cat) => (
-                            <MenuItem key={cat.id} value={cat.id}>
-                              {cat.name}
-                            </MenuItem>
-                          ))}
-                        </Select>
-                      </FormControl>
-                    );
-                  }}
+                        ))}
+                      </Select>
+                    </FormControl>
+                  )}
                 />
 
                 <Controller

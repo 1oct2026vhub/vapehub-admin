@@ -38,7 +38,14 @@ const categorySchema = z.object({
       "Slug must be in valid format (lowercase letters, numbers, and hyphens)"
     ),
   description: z.string().optional(),
-  parent_id: z.number().nullable().optional(),
+  parent_id: z.preprocess(
+    (val) => {
+      if (val === null || val === undefined || val === "") return null;
+      const parsed = Number(val);
+      return isNaN(parsed) ? null : parsed;
+    },
+    z.number().nullable()
+  ),
   status: z.string().default("active"),
   image: z.any().optional(),
 });
@@ -119,30 +126,64 @@ export default function BlogCategoryEditModal({
   const handleSubmit = async (data: CategoryFormType) => {
     try {
       setSubmitting(true);
+      console.log("Submitting form with data:", data);
 
-      const formData = new FormData();
-      formData.append("name", data.name);
-      formData.append("slug", data.slug);
-      if (data.description) {
-        formData.append("description", data.description);
-      }
-      if (data.parent_id) {
-        formData.append("parent_id", data.parent_id.toString());
-      }
-      formData.append("status", data.status);
-
+      // Solution: For normal data send JSON, and for file send FormData
       if (selectedFile) {
+        // If we have a file, we need to use FormData
+        const formData = new FormData();
+        formData.append("name", data.name);
+        formData.append("slug", data.slug);
+        formData.append("status", data.status);
+        
+        if (data.description) {
+          formData.append("description", data.description);
+        }
+
+        // Convert parent_id to a JSON string and set special header
+        if (data.parent_id !== null && data.parent_id !== undefined) {
+          const parentId = Number(data.parent_id);
+          formData.append("parent_id", JSON.stringify(parentId));
+        }
+        
         formData.append("image", selectedFile);
-      }
-
-      if (category?.id) {
-        await updateBlogCategory(category.id, formData);
-        showSnackbar("Category updated successfully", "success");
+        
+        console.log("Form data entries with file:");
+        for (const pair of formData.entries()) {
+          console.log(pair[0], pair[1], typeof pair[1]);
+        }
+        
+        if (category?.id) {
+          await updateBlogCategory(category.id, formData);
+        } else {
+          await createBlogCategory(formData);
+        }
       } else {
-        await createBlogCategory(formData);
-        showSnackbar("Category created successfully", "success");
+        // Without file, use direct JSON - this will ensure parent_id is sent as an integer
+        const jsonData: Record<string, any> = {
+          name: data.name,
+          slug: data.slug,
+          status: data.status
+        };
+        
+        if (data.description) {
+          jsonData.description = data.description;
+        }
+        
+        if (data.parent_id !== null && data.parent_id !== undefined) {
+          jsonData.parent_id = Number(data.parent_id);
+        }
+        
+        console.log("Sending JSON data:", jsonData);
+        
+        if (category?.id) {
+          await updateBlogCategory(category.id, jsonData);
+        } else {
+          await createBlogCategory(jsonData);
+        }
       }
 
+      showSnackbar(category ? "Category updated successfully" : "Category created successfully", "success");
       onSave();
       onClose();
     } catch (error: any) {
@@ -217,13 +258,13 @@ export default function BlogCategoryEditModal({
                 </InputLabel>
                 <Select
                   labelId="parent-category-label"
-                  value={methods.watch("parent_id") || ""}
-                  onChange={(e) =>
-                    methods.setValue(
-                      "parent_id",
-                      e.target.value ? Number(e.target.value) : null
-                    )
-                  }
+                  value={methods.watch("parent_id") === null ? "" : methods.watch("parent_id")}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    // Convert empty string to null, otherwise convert to number
+                    const parentId = value === "" ? null : Number(value);
+                    methods.setValue("parent_id", parentId);
+                  }}
                   label="Parent Category"
                 >
                   <MenuItem value="">
