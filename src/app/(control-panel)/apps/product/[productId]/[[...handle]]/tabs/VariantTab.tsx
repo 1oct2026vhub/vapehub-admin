@@ -20,6 +20,9 @@ import {
   DialogContentText,
   DialogTitle,
   InputAdornment,
+  Accordion,
+  AccordionSummary,
+  AccordionDetails,
 } from "@mui/material";
 import AppButton from "@/components/Shared/AppButton";
 import FormCheckboxField from "@/components/Shared/FormCheckboxField";
@@ -45,6 +48,9 @@ import { useSearchParams, useRouter } from "next/navigation";
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import CloseIcon from "@mui/icons-material/Close";
 import { styled } from "@mui/material/styles";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
+import AttributeTermSelector from "@/components/AttributeTermSelector";
 
 // Create a styled version of TextField with the app's styling
 const StyledTextField = styled(TextField)(({ theme }) => ({
@@ -386,6 +392,9 @@ function VariantTab() {
     {}
   );
 
+  // Track whether we're in the process of navigating away
+  const [isNavigatingAway, setIsNavigatingAway] = useState(false);
+
   // Compute available terms for each attribute
   const variationAttributes = (formData.attributes || [])
     .filter((attr) => attr.used_in_variation && attr.attribute_id > 0)
@@ -482,7 +491,7 @@ function VariantTab() {
                   attribute_id: Number(attr.attribute_id),
                   term_id: Number(attr.term_id),
                 })) || [],
-              status: "active" as const,
+              status: variant.status || ("active" as const),
             }))
           : [createDefaultVariant([])],
     },
@@ -498,44 +507,117 @@ function VariantTab() {
   // Watch all variants to track used terms
   const formVariants = watch("variants") || [];
 
-  // Helper functions to display attribute and term names
-  const getTermName = (attributeId, termId) => {
-    const term = (
-      formData.attributesResponse?.productAttributeTerms || []
-    ).find((t) => t.attribute_id === attributeId && t.term_id === termId);
-    return term?.term?.name || `Term ${termId}`;
-  };
-
-  // Update the getAttributeName function to use the correct property access
-  const getAttributeName = (attributeId: number) => {
-    // First try to find the attribute in the attributesResponse
-    const responseAttribute =
-      formData.attributesResponse?.productAttributeTerms?.find(
-        (term) => term.attribute_id === attributeId
-      )?.attribute;
-    if (responseAttribute?.name) {
-      return responseAttribute.name;
+  // Add useEffect to update variant terms when attribute data changes
+  useEffect(() => {
+    if (
+      !formData.attributesResponse?.productAttributeTerms ||
+      formVariants.length === 0
+    ) {
+      return;
     }
 
-    // If not found, return a default name
-    return `Attribute ${attributeId}`;
-  };
+    // Check each variant and update its term labels if needed
+    formVariants.forEach((variant, variantIndex) => {
+      if (!variant.attributes) return;
+
+      variant.attributes.forEach((attr, attrIndex) => {
+        if (!attr || !attr.attribute_id || !attr.term_id) return;
+
+        // Force re-render of select fields by temporarily updating controlled value
+        // This trick forces react-hook-form to update the displayed values
+        const currentTermId = attr.term_id;
+
+        // Schedule a micro-task to update the values
+        Promise.resolve().then(() => {
+          setValue(
+            `variants.${variantIndex}.attributes.${attrIndex}.term_id`,
+            currentTermId,
+            {
+              shouldValidate: true,
+              shouldDirty: false,
+              shouldTouch: false,
+            }
+          );
+        });
+      });
+    });
+  }, [
+    formData.attributesResponse?.productAttributeTerms,
+    formVariants,
+    setValue,
+  ]);
 
   // Function to get all available terms for an attribute
   const getAllTermsForAttribute = useCallback(
     (attributeId: number) => {
-      return (formData.attributesResponse?.productAttributeTerms || [])
+      // Get all terms for this specific attribute
+      const attributeTerms = (
+        formData.attributesResponse?.productAttributeTerms || []
+      )
         .filter(
-          (term) => term.attribute_id === attributeId && term.used_in_variation
+          (term) =>
+            term.attribute_id === attributeId &&
+            term.used_in_variation &&
+            term.term?.id && // Ensure term exists
+            term.attribute?.id === attributeId // Double check attribute match
         )
         .map((term) => ({
           value: term.term_id,
           label: term.term?.name || `Term ${term.term_id}`,
           attributeId: term.attribute_id,
+          attributeName: term.attribute?.name, // Include attribute name for reference
         }));
+
+      // Sort terms by name for consistency
+      return attributeTerms.sort((a, b) => a.label.localeCompare(b.label));
     },
     [formData.attributesResponse?.productAttributeTerms]
   );
+
+  // Helper functions to display attribute and term names
+  const getTermName = (attributeId: number, termId: number) => {
+    // Find the exact term that matches both attribute and term IDs
+    const matchingTerm = (
+      formData.attributesResponse?.productAttributeTerms || []
+    ).find((t) => t.attribute_id === attributeId && t.term_id === termId);
+
+    if (matchingTerm?.term?.name) {
+      // Store this term in the global map for future reference
+      if (typeof window !== "undefined") {
+        // Ensure the maps exist
+        if (!(window as any).directTermLabelMap) {
+          (window as any).directTermLabelMap = {};
+        }
+
+        if (!(window as any).directTermLabelMap[attributeId]) {
+          (window as any).directTermLabelMap[attributeId] = {};
+        }
+
+        // Store the term name
+        (window as any).directTermLabelMap[attributeId][termId] =
+          matchingTerm.term.name;
+      }
+
+      return matchingTerm.term.name;
+    }
+
+    // Return the name if found, otherwise fallback
+    return matchingTerm?.term?.name || `Term ${termId}`;
+  };
+
+  // Update the getAttributeName function to use the correct property access
+  const getAttributeName = (attributeId: number) => {
+    // Look up the attribute in the attributesResponse
+    const matchingAttribute = (
+      formData.attributesResponse?.productAttributeTerms || []
+    ).find((term) => term.attribute_id === attributeId)?.attribute;
+
+    if (matchingAttribute?.name) {
+      return matchingAttribute.name;
+    }
+
+    return matchingAttribute?.name || `Attribute ${attributeId}`;
+  };
 
   // Function to generate all possible combinations of attributes
   const generateAllAttributeCombinations = useCallback(() => {
@@ -819,7 +901,9 @@ function VariantTab() {
               status:
                 variant.status === true ||
                 (typeof variant.status === "string" &&
-                  variant.status === "active"),
+                  variant.status === "active")
+                  ? "active"
+                  : "inactive",
               discount_price: variant.discount_price
                 ? typeof variant.discount_price === "string"
                   ? parseFloat(variant.discount_price)
@@ -888,8 +972,8 @@ function VariantTab() {
               // Get images directly from the variant's variantImages array
               const images = variant.images.map((img: any) => ({
                 id: img.id,
-                image_url: img.image_url,
-                is_primary: img.is_primary,
+                image_url: img.image_url || img.url,
+                is_primary: !!img.is_primary,
               }));
 
               if (images.length > 0) {
@@ -2517,6 +2601,60 @@ function VariantTab() {
     }
   `;
 
+  // Trigger global refresh of attribute terms when data changes
+  useEffect(() => {
+    if (
+      !formData.attributesResponse?.productAttributeTerms ||
+      !Array.isArray(formData.attributesResponse.productAttributeTerms) ||
+      formData.attributesResponse.productAttributeTerms.length === 0
+    ) {
+      return;
+    }
+
+    // Update the global attribute-term map
+    const attributeTermMap: Record<string, Record<string, string>> = {};
+
+    // Populate the map with all terms from the attributes response
+    formData.attributesResponse.productAttributeTerms.forEach((term) => {
+      const attributeId = String(term.attribute_id);
+      const termId = String(term.term_id);
+      const termName = term.term?.name || `Term ${termId}`;
+
+      if (!attributeTermMap[attributeId]) {
+        attributeTermMap[attributeId] = {};
+      }
+
+      attributeTermMap[attributeId][termId] = termName;
+    });
+
+    // Update the global map
+    if (typeof window !== "undefined") {
+      // Update the global map
+      (window as any).attributeTermsMap = {
+        ...(window as any).attributeTermsMap,
+        ...attributeTermMap,
+      };
+
+      // Force all select fields to refresh
+      document.querySelectorAll("select").forEach((select) => {
+        const event = new Event("focus");
+        select.dispatchEvent(event);
+
+        // Dispatch a blur event to trigger onChange
+        setTimeout(() => {
+          const blurEvent = new Event("blur");
+          select.dispatchEvent(blurEvent);
+        }, 10);
+      });
+
+      // Force re-render of all form elements
+      document.querySelectorAll("form").forEach((form) => {
+        form.classList.add("refreshing");
+        setTimeout(() => form.classList.remove("refreshing"), 10);
+      });
+    }
+  }, [formData.attributesResponse?.productAttributeTerms]);
+
   return (
     <>
       <style jsx global>
@@ -2530,7 +2668,7 @@ function VariantTab() {
       >
         {fields.map((field, index) => {
           const variantId = watch(`variants.${index}.id`);
-          const variantImages_ = variantId
+          const variantImagesForDisplay = variantId
             ? variantImages[variantId] || []
             : [];
           const isUploading = variantId ? uploading[variantId] || false : false;
@@ -2540,620 +2678,837 @@ function VariantTab() {
 
           return (
             <Paper key={field.id} className="p-4 relative">
-              <Grid container spacing={2}>
-                {variationAttributes.map((attr, attrIndex) => (
-                  <Grid item xs={12} sm={6} key={attr.attribute_id}>
-                    <FormSelectField
-                      name={`variants.${index}.attributes.${attrIndex}.term_id`}
-                      control={control}
-                      label={getAttributeName(attr.attribute_id)}
-                      options={getAllTermsForAttribute(attr.attribute_id).map(
-                        (term) => ({
-                          value: term.value,
-                          label: term.label,
-                        })
-                      )}
-                      required
-                      onChange={(event: SelectChangeEvent<unknown>) =>
-                        handleTermChange(event, index, attrIndex)
-                      }
-                    />
-
-                    {/* Set attribute_id as hidden field */}
-                    <input
-                      type="hidden"
-                      {...register(
-                        `variants.${index}.attributes.${attrIndex}.attribute_id`
-                      )}
-                      defaultValue={Number(attr.attribute_id)}
-                    />
-                  </Grid>
-                ))}
-
-                {/* Add visual separator between attributes and product details */}
-                <Grid item xs={12}>
-                  <Box
+              {/* Add visual separator between attributes and product details */}
+              <Grid item xs={12}>
+                <Box
+                  sx={{
+                    borderBottom: "1px solid #e0e0e0",
+                    my: 2,
+                    position: "relative",
+                    marginBottom: "10px",
+                    mb: 6,
+                  }}
+                >
+                  <Typography
+                    variant="subtitle2"
+                    component="span"
                     sx={{
-                      borderBottom: "1px solid #e0e0e0",
-                      my: 2,
-                      position: "relative",
+                      position: "absolute",
+                      top: "-10px",
+                      left: "10px",
+                      backgroundColor: "white",
+                      px: 1,
+                      display: "flex",
+                      alignItems: "center",
                     }}
                   >
-                    <Typography
-                      variant="subtitle2"
-                      component="span"
+                    Variant Attributes
+                    <span style={{ color: "red", marginLeft: "3px" }}>*</span>
+                  </Typography>
+                </Box>
+              </Grid>
+              <Grid container spacing={2}>
+                {variationAttributes.map((attr, attrIndex) => {
+                  const attributeId = attr.attribute_id;
+
+                  // Get the currently selected term for this attribute
+                  const currentTermId = formVariants[index]?.attributes?.find(
+                    (a) => a.attribute_id === attributeId
+                  )?.term_id;
+
+                  // Get all available terms for this attribute with proper mapping
+                  const availableTerms = (
+                    formData.attributesResponse?.productAttributeTerms || []
+                  )
+                    .filter(
+                      (term) =>
+                        term.attribute_id === attributeId &&
+                        term.used_in_variation &&
+                        term.term && // Ensure term exists
+                        term.term.id // Ensure term has ID
+                    )
+                    .map((term) => {
+                      // Store this term in the global map for future reference
+                      if (typeof window !== "undefined") {
+                        // Ensure the maps exist
+                        if (!(window as any).directTermLabelMap) {
+                          (window as any).directTermLabelMap = {};
+                        }
+
+                        if (!(window as any).directTermLabelMap[attributeId]) {
+                          (window as any).directTermLabelMap[attributeId] = {};
+                        }
+
+                        // Store the term name
+                        (window as any).directTermLabelMap[attributeId][
+                          term.term_id
+                        ] = term.term.name;
+                      }
+
+                      return {
+                        value: term.term_id,
+                        label: term.term.name || `Term ${term.term_id}`,
+                        attributeId,
+                      };
+                    });
+
+                  // Create a unique instance ID to reference this specific field
+                  const instanceId = `variant-${index}-attr-${attributeId}`;
+
+                  // Get the current term name to properly display
+                  const currentTermName = currentTermId
+                    ? getTermName(attributeId, currentTermId)
+                    : "";
+
+                  return (
+                    <Grid
+                      item
+                      xs={12}
+                      sm={6}
+                      key={`${attributeId}-${index}-${Date.now()}`}
+                    >
+                      <AttributeTermSelector
+                        instanceId={instanceId}
+                        name={`variants.${index}.attributes.${attrIndex}.term_id`}
+                        control={control}
+                        attributeId={attributeId}
+                        termId={currentTermId}
+                        options={availableTerms}
+                        attributeName={getAttributeName(attributeId)}
+                        getTermName={getTermName}
+                        index={index}
+                        attrIndex={attrIndex}
+                        handleTermChange={handleTermChange}
+                      />
+
+                      {/* Set attribute_id as hidden field */}
+                      <input
+                        type="hidden"
+                        {...register(
+                          `variants.${index}.attributes.${attrIndex}.attribute_id`
+                        )}
+                        defaultValue={Number(attributeId)}
+                      />
+                    </Grid>
+                  );
+                })}
+
+                {/* Collapsible Variant Details Section */}
+                <Grid item xs={12}>
+                  <Accordion
+                    defaultExpanded={!isEditMode}
+                    sx={{
+                      boxShadow: "none",
+                      "&:before": { display: "none" },
+                      border: "1px solid #e0e0e0",
+                      borderRadius: "4px",
+                      mb: 2,
+                    }}
+                  >
+                    <AccordionSummary
+                      expandIcon={<ExpandMoreIcon />}
+                      aria-controls={`variant-${index}-details-content`}
+                      id={`variant-${index}-details-header`}
                       sx={{
-                        position: "absolute",
-                        top: "-10px",
-                        left: "10px",
-                        backgroundColor: "white",
-                        px: 1,
-                        display: "flex",
-                        alignItems: "center",
+                        backgroundColor: "#f5f5f5",
+                        "&.Mui-expanded": {
+                          minHeight: "48px",
+                        },
                       }}
                     >
-                      Variant Attributes
-                      <span style={{ color: "red", marginLeft: "3px" }}>*</span>
-                    </Typography>
-                  </Box>
-                </Grid>
-
-                <Grid item xs={12} sm={6}>
-                  <FormInputField
-                    name={`variants.${index}.slug`}
-                    control={control}
-                    label="Slug"
-                    required
-                  />
-                </Grid>
-                <Grid item xs={12} sm={6}>
-                  <FormInputField
-                    name={`variants.${index}.price`}
-                    control={control}
-                    label="Price"
-                    type="number"
-                    required
-                    inputProps={{
-                      step: "1",
-                      min: "0",
-                      onKeyDown: (e) => {
-                        if (
-                          /[a-zA-Z]/.test(e.key) &&
-                          e.key !== "Backspace" &&
-                          e.key !== "Delete" &&
-                          e.key !== "ArrowLeft" &&
-                          e.key !== "ArrowRight" &&
-                          e.key !== "Tab"
-                        ) {
-                          e.preventDefault();
-                        }
-                      },
-                    }}
-                  />
-                </Grid>
-                <Grid item xs={12} sm={6}>
-                  <FormInputField
-                    name={`variants.${index}.discount_price`}
-                    control={control}
-                    label="Discount Price"
-                    type="number"
-                    // required
-                    inputProps={{
-                      step: "1",
-                      min: "0",
-                      onKeyDown: (e) => {
-                        // Allow digits, Backspace, Delete, Arrow keys, and Tab
-                        if (
-                          /[a-zA-Z]/.test(e.key) && // Restrict letters
-                          e.key !== "Backspace" &&
-                          e.key !== "Delete" &&
-                          e.key !== "ArrowLeft" &&
-                          e.key !== "ArrowRight" &&
-                          e.key !== "Tab"
-                        ) {
-                          e.preventDefault();
-                        }
-                      },
-                    }}
-                  />
-                </Grid>
-                <Grid item xs={12} sm={6}>
-                  <FormInputField
-                    name={`variants.${index}.purchase_price`}
-                    control={control}
-                    label="Purchase Price"
-                    type="number"
-                    required
-                    inputProps={{
-                      step: "1",
-                      min: "0",
-                      onKeyDown: (e) => {
-                        // Allow digits, Backspace, Delete, Arrow keys, and Tab
-                        if (
-                          /[a-zA-Z]/.test(e.key) && // Restrict letters
-                          e.key !== "Backspace" &&
-                          e.key !== "Delete" &&
-                          e.key !== "ArrowLeft" &&
-                          e.key !== "ArrowRight" &&
-                          e.key !== "Tab"
-                        ) {
-                          e.preventDefault();
-                        }
-                      },
-                    }}
-                  />
-                </Grid>
-                <Grid item xs={12} sm={6}>
-                  <FormInputField
-                    name={`variants.${index}.stock`}
-                    control={control}
-                    label="Stock"
-                    type="number"
-                    required
-                    inputProps={{
-                      step: "1",
-                      min: "0",
-                      onKeyDown: (e) => {
-                        if (
-                          !/[0-9]/.test(e.key) &&
-                          e.key !== "Backspace" &&
-                          e.key !== "Delete" &&
-                          e.key !== "ArrowLeft" &&
-                          e.key !== "ArrowRight" &&
-                          e.key !== "Tab"
-                        ) {
-                          e.preventDefault();
-                        }
-                        if (e.key === "." || e.key === ",") {
-                          e.preventDefault();
-                        }
-                      },
-                    }}
-                  />
-                </Grid>
-                <Grid item xs={12} sm={6}>
-                  <FormInputField
-                    name={`variants.${index}.low_stock_threshold`}
-                    control={control}
-                    label="Low Stock Threshold"
-                    type="number"
-                    required
-                    inputProps={{
-                      step: "1",
-                      min: "0",
-                      onKeyDown: (e) => {
-                        if (
-                          !/[0-9]/.test(e.key) &&
-                          e.key !== "Backspace" &&
-                          e.key !== "Delete" &&
-                          e.key !== "ArrowLeft" &&
-                          e.key !== "ArrowRight" &&
-                          e.key !== "Tab"
-                        ) {
-                          e.preventDefault();
-                        }
-                        if (e.key === "." || e.key === ",") {
-                          e.preventDefault();
-                        }
-                      },
-                    }}
-                  />
-                </Grid>
-
-                {/* Group dimensions and weight in a single row */}
-                <Grid item xs={12}>
-                  <Box sx={{ borderBottom: "1px dashed #eee", mb: 2, pb: 1 }}>
-                    <Typography variant="caption" color="text.secondary">
-                      Dimensions & Weight
-                    </Typography>
-                  </Box>
-                  <Grid container spacing={2}>
-                    <Grid item xs={6} sm={3}>
-                      <FormInputField
-                        name={`variants.${index}.weight`}
-                        control={control}
-                        label="Weight"
-                        type="number"
-                        inputProps={{
-                          step: "1",
-                          min: "0",
-                          onKeyDown: (e) => {
-                            // Allow digits, Backspace, Delete, Arrow keys, and Tab
-                            if (
-                              /[a-zA-Z]/.test(e.key) && // Restrict letters
-                              e.key !== "Backspace" &&
-                              e.key !== "Delete" &&
-                              e.key !== "ArrowLeft" &&
-                              e.key !== "ArrowRight" &&
-                              e.key !== "Tab"
-                            ) {
-                              e.preventDefault();
-                            }
-                          },
-                          endAdornment: (
-                            <InputAdornment position="end">gm</InputAdornment>
-                          ), // Move inside inputProps
-                        }}
-                      />
-                    </Grid>
-                    <Grid item xs={6} sm={3}>
-                      <FormInputField
-                        name={`variants.${index}.length`}
-                        control={control}
-                        label="Length"
-                        type="number"
-                        inputProps={{
-                          step: "1",
-                          min: "0",
-                          onKeyDown: (e) => {
-                            // Allow digits, Backspace, Delete, Arrow keys, and Tab
-                            if (
-                              /[a-zA-Z]/.test(e.key) && // Restrict letters
-                              e.key !== "Backspace" &&
-                              e.key !== "Delete" &&
-                              e.key !== "ArrowLeft" &&
-                              e.key !== "ArrowRight" &&
-                              e.key !== "Tab"
-                            ) {
-                              e.preventDefault();
-                            }
-                          },
-                          endAdornment: (
-                            <InputAdornment position="end">cm</InputAdornment>
-                          ), // Move inside inputProps
-                        }}
-                      />
-                    </Grid>
-                    <Grid item xs={6} sm={3}>
-                      <FormInputField
-                        name={`variants.${index}.width`}
-                        control={control}
-                        label="Width"
-                        type="number"
-                        inputProps={{
-                          step: "1",
-                          min: "0",
-                          onKeyDown: (e) => {
-                            // Allow digits, Backspace, Delete, Arrow keys, and Tab
-                            if (
-                              /[a-zA-Z]/.test(e.key) && // Restrict letters
-                              e.key !== "Backspace" &&
-                              e.key !== "Delete" &&
-                              e.key !== "ArrowLeft" &&
-                              e.key !== "ArrowRight" &&
-                              e.key !== "Tab"
-                            ) {
-                              e.preventDefault();
-                            }
-                          },
-                          endAdornment: (
-                            <InputAdornment position="end">cm</InputAdornment>
-                          ), // Move inside inputProps
-                        }}
-                      />
-                    </Grid>
-                    <Grid item xs={6} sm={3}>
-                      <FormInputField
-                        name={`variants.${index}.height`}
-                        control={control}
-                        label="Height"
-                        type="number"
-                        inputProps={{
-                          step: "1",
-                          min: "0",
-                          onKeyDown: (e) => {
-                            // Allow digits, Backspace, Delete, Arrow keys, and Tab
-                            if (
-                              /[a-zA-Z]/.test(e.key) && // Restrict letters
-                              e.key !== "Backspace" &&
-                              e.key !== "Delete" &&
-                              e.key !== "ArrowLeft" &&
-                              e.key !== "ArrowRight" &&
-                              e.key !== "Tab"
-                            ) {
-                              e.preventDefault();
-                            }
-                          },
-                          endAdornment: (
-                            <InputAdornment position="end">cm</InputAdornment>
-                          ), // Move inside inputProps
-                        }}
-                      />
-                    </Grid>
-                  </Grid>
-                </Grid>
-                <Grid item xs={12}>
-                  <FormInputField
-                    name={`variants.${index}.barcode`}
-                    control={control}
-                    label="Barcode"
-                    inputProps={{
-                      maxLength: 50,
-                      onBlur: (e) => {
-                        const value = e.target.value.trim();
-                        if (!value) {
-                          setValue(`variants.${index}.barcode`, "");
-                          trigger(`variants.${index}.barcode`);
-                        }
-                      },
-                    }}
-                  />
-                </Grid>
-                <Grid item xs={12}>
-                  <FormInputField
-                    name={`variants.${index}.description`}
-                    control={control}
-                    label="Description"
-                    multiline
-                    rows={3}
-                  />
-                </Grid>
-
-                {/* Show variant images if they exist */}
-                <Grid item xs={12}>
-                  <Box
-                    sx={{
-                      marginBottom: 2,
-                      padding: 2,
-                      border: "1px dashed #ccc",
-                      borderRadius: 1,
-                    }}
-                  >
-                    <Typography variant="subtitle1" gutterBottom>
-                      Images
-                    </Typography>
-
-                    {isUploading && (
-                      <Box
-                        display="flex"
-                        justifyContent="center"
-                        alignItems="center"
-                        p={2}
+                      <Typography
+                        variant="subtitle2"
+                        component="span"
+                        sx={{ display: "flex", alignItems: "center" }}
                       >
-                        <CircularProgress size={24} sx={{ mr: 1 }} />
-                        <Typography>Uploading images...</Typography>
-                      </Box>
-                    )}
+                        Variant Details
+                      </Typography>
+                    </AccordionSummary>
+                    <AccordionDetails sx={{ pt: 2 }}>
+                      <Grid container spacing={2}>
+                        <Grid item xs={12} sm={6}>
+                          <FormInputField
+                            name={`variants.${index}.slug`}
+                            control={control}
+                            label="Slug"
+                            required
+                          />
+                        </Grid>
+                        <Grid item xs={12} sm={6}>
+                          <FormInputField
+                            name={`variants.${index}.price`}
+                            control={control}
+                            label="Price"
+                            type="number"
+                            required
+                            inputProps={{
+                              step: "1",
+                              min: "0",
+                              onKeyDown: (e) => {
+                                if (
+                                  /[a-zA-Z]/.test(e.key) &&
+                                  e.key !== "Backspace" &&
+                                  e.key !== "Delete" &&
+                                  e.key !== "ArrowLeft" &&
+                                  e.key !== "ArrowRight" &&
+                                  e.key !== "Tab"
+                                ) {
+                                  e.preventDefault();
+                                }
+                              },
+                            }}
+                          />
+                        </Grid>
+                        <Grid item xs={12} sm={6}>
+                          <FormInputField
+                            name={`variants.${index}.discount_price`}
+                            control={control}
+                            label="Discount Price"
+                            type="number"
+                            // required
+                            inputProps={{
+                              step: "1",
+                              min: "0",
+                              onKeyDown: (e) => {
+                                // Allow digits, Backspace, Delete, Arrow keys, and Tab
+                                if (
+                                  /[a-zA-Z]/.test(e.key) && // Restrict letters
+                                  e.key !== "Backspace" &&
+                                  e.key !== "Delete" &&
+                                  e.key !== "ArrowLeft" &&
+                                  e.key !== "ArrowRight" &&
+                                  e.key !== "Tab"
+                                ) {
+                                  e.preventDefault();
+                                }
+                              },
+                            }}
+                          />
+                        </Grid>
+                        <Grid item xs={12} sm={6}>
+                          <FormInputField
+                            name={`variants.${index}.purchase_price`}
+                            control={control}
+                            label="Purchase Price"
+                            type="number"
+                            required
+                            inputProps={{
+                              step: "1",
+                              min: "0",
+                              onKeyDown: (e) => {
+                                // Allow digits, Backspace, Delete, Arrow keys, and Tab
+                                if (
+                                  /[a-zA-Z]/.test(e.key) && // Restrict letters
+                                  e.key !== "Backspace" &&
+                                  e.key !== "Delete" &&
+                                  e.key !== "ArrowLeft" &&
+                                  e.key !== "ArrowRight" &&
+                                  e.key !== "Tab"
+                                ) {
+                                  e.preventDefault();
+                                }
+                              },
+                            }}
+                          />
+                        </Grid>
+                        <Grid item xs={12} sm={6}>
+                          <FormInputField
+                            name={`variants.${index}.stock`}
+                            control={control}
+                            label="Stock"
+                            type="number"
+                            required
+                            inputProps={{
+                              step: "1",
+                              min: "0",
+                              onKeyDown: (e) => {
+                                if (
+                                  !/[0-9]/.test(e.key) &&
+                                  e.key !== "Backspace" &&
+                                  e.key !== "Delete" &&
+                                  e.key !== "ArrowLeft" &&
+                                  e.key !== "ArrowRight" &&
+                                  e.key !== "Tab"
+                                ) {
+                                  e.preventDefault();
+                                }
+                                if (e.key === "." || e.key === ",") {
+                                  e.preventDefault();
+                                }
+                              },
+                            }}
+                          />
+                        </Grid>
+                        <Grid item xs={12} sm={6}>
+                          <FormInputField
+                            name={`variants.${index}.low_stock_threshold`}
+                            control={control}
+                            label="Low Stock Threshold"
+                            type="number"
+                            required
+                            inputProps={{
+                              step: "1",
+                              min: "0",
+                              onKeyDown: (e) => {
+                                if (
+                                  !/[0-9]/.test(e.key) &&
+                                  e.key !== "Backspace" &&
+                                  e.key !== "Delete" &&
+                                  e.key !== "ArrowLeft" &&
+                                  e.key !== "ArrowRight" &&
+                                  e.key !== "Tab"
+                                ) {
+                                  e.preventDefault();
+                                }
+                                if (e.key === "." || e.key === ",") {
+                                  e.preventDefault();
+                                }
+                              },
+                            }}
+                          />
+                        </Grid>
+                        <Grid item xs={12} sm={6}>
+                          <FormSelectField
+                            name={`variants.${index}.status`}
+                            control={control}
+                            label="Status"
+                            options={[
+                              { value: "active", label: "Active" },
+                              { value: "inactive", label: "Inactive" },
+                            ]}
+                            required
+                          />
+                        </Grid>
 
-                    {!isUploading && (
-                      <>
-                        <Box
-                          sx={{
-                            display: "flex",
-                            flexWrap: "wrap",
-                            gap: 1,
-                            marginBottom: 2,
-                          }}
-                        >
-                          {/* Show existing images if variant has ID */}
-                          {variantId &&
-                          variantImages[variantId] &&
-                          variantImages[variantId].length > 0 ? (
-                            variantImages[variantId].map((image, imgIndex) => (
-                              <Box
-                                key={image.id || imgIndex}
-                                sx={{
-                                  position: "relative",
-                                  width: 100,
-                                  height: 130, // Increased height to accommodate controls
-                                  borderRadius: 1,
-                                  overflow: "visible", // Changed to visible to allow controls outside
-                                }}
-                              >
-                                {/* Control box above the image */}
-                                <Box
-                                  sx={{
-                                    position: "absolute",
-                                    top: -30, // Position above the image
-                                    left: 0,
-                                    right: 0,
-                                    display: "flex",
-                                    justifyContent: "space-between",
-                                    alignItems: "center",
-                                    zIndex: 2,
-                                    marginTop: 4,
-                                  }}
-                                >
-                                  <Checkbox
-                                    checked={image.is_primary}
-                                    onChange={() =>
-                                      handleSetPrimary(
-                                        variantId,
-                                        image.id ? image.id.toString() : ""
-                                      )
-                                    }
-                                    disabled={isUploading || image.is_primary}
-                                    size="small"
-                                    sx={{ padding: "2px" }}
-                                  />
-                                  <IconButton
-                                    size="small"
-                                    onClick={() =>
-                                      handleDeleteImage(
-                                        variantId,
-                                        image.id ? image.id.toString() : ""
-                                      )
-                                    }
-                                    disabled={isUploading}
-                                    color="error"
-                                    sx={{ padding: "2px" }}
-                                  >
-                                    <DeleteIcon fontSize="small" />
-                                  </IconButton>
-                                </Box>
-
-                                {/* Image container */}
-                                <Box
-                                  sx={{
-                                    position: "relative",
-                                    width: 100,
-                                    height: 100,
-                                    border: (theme) =>
-                                      image.is_primary
-                                        ? `2px solid ${theme.palette.primary.main}`
-                                        : "1px solid #ddd",
-                                    borderRadius: 1,
-                                    overflow: "hidden",
-                                  }}
-                                >
-                                  <img
-                                    src={
-                                      typeof image.url === "string"
-                                        ? image.url
-                                        : typeof image.image_url === "string"
-                                        ? image.image_url
-                                        : ""
-                                    }
-                                    alt={`Variant ${variantId} image ${imgIndex}`}
-                                    style={{
-                                      width: "100%",
-                                      height: "100%",
-                                      objectFit: "cover",
-                                    }}
-                                    onError={(e) => {
-                                      console.error(
-                                        "Image failed to load:",
-                                        image
-                                      );
-                                      e.currentTarget.src =
-                                        "https://via.placeholder.com/100?text=Image+Error";
-                                    }}
-                                  />
-                                </Box>
-                              </Box>
-                            ))
-                          ) : hasPendingImages ? (
-                            // Show temporary images for new variants with controls above
-                            pendingImageUrls.map((url, imgIndex) => (
-                              <Box
-                                key={`pending-${index}-${imgIndex}`}
-                                sx={{
-                                  position: "relative",
-                                  width: 100,
-                                  height: 130, // Increased height to accommodate controls
-                                  borderRadius: 1,
-                                  overflow: "visible", // Changed to visible to allow controls outside
-                                }}
-                              >
-                                {/* Control box above the image */}
-                                <Box
-                                  sx={{
-                                    position: "absolute",
-                                    top: -30, // Position above the image
-                                    right: 0,
-                                    display: "flex",
-                                    zIndex: 2,
-                                  }}
-                                >
-                                  <IconButton
-                                    size="small"
-                                    onClick={() => {
-                                      // Remove this pending image
-                                      setPendingImages((prev) => {
-                                        const updated = { ...prev };
-                                        if (updated[index]) {
-                                          const files = [...updated[index]];
-                                          files.splice(imgIndex, 1);
-                                          updated[index] = files;
-                                        }
-                                        return updated;
-                                      });
-
-                                      // Revoke the URL and remove it
-                                      URL.revokeObjectURL(url);
-                                      setTempImageUrls((prev) => {
-                                        const updated = { ...prev };
-                                        if (updated[index]) {
-                                          const urls = [...updated[index]];
-                                          urls.splice(imgIndex, 1);
-                                          updated[index] = urls;
-                                        }
-                                        return updated;
-                                      });
-                                    }}
-                                    color="error"
-                                    sx={{ padding: "2px" }}
-                                  >
-                                    <DeleteIcon fontSize="small" />
-                                  </IconButton>
-                                </Box>
-
-                                {/* Image container */}
-                                <Box
-                                  sx={{
-                                    position: "relative",
-                                    width: 100,
-                                    height: 100,
-                                    border: "1px solid #ddd",
-                                    borderRadius: 1,
-                                    overflow: "hidden",
-                                  }}
-                                >
-                                  <img
-                                    src={url}
-                                    alt={`Pending image ${imgIndex}`}
-                                    style={{
-                                      width: "100%",
-                                      height: "100%",
-                                      objectFit: "cover",
-                                    }}
-                                  />
-                                </Box>
-                              </Box>
-                            ))
-                          ) : (
-                            <Typography color="text.secondary">
-                              No images uploaded. Click "Upload Images" to add
-                              images for this variant.
-                            </Typography>
-                          )}
-                        </Box>
-
-                        {/* Show the file input regardless of variant ID */}
-                        <input
-                          type="file"
-                          multiple
-                          onChange={(event) =>
-                            handleFileSelect(event, variantId, index)
-                          }
-                          ref={(el) => {
-                            if (el)
-                              fileInputRefs.current[variantId || index] = el;
-                          }}
-                          style={{ display: "none" }}
-                          accept="image/jpeg,image/png,image/webp"
-                        />
-                        <Button
-                          variant="outlined"
-                          startIcon={<CloudUploadIcon />}
-                          onClick={() =>
-                            fileInputRefs.current[variantId || index]?.click()
-                          }
-                          disabled={isUploading}
-                          title={
-                            variantId
-                              ? "Select images to upload immediately"
-                              : "Select images first, then click Update to complete the upload"
-                          }
-                        >
-                          {variantId ? "Upload Images" : "Select Images"}
-                        </Button>
-
-                        {/* Show message for pending images */}
-                        {hasPendingImages && (
-                          <Typography
-                            variant="caption"
-                            color="text.secondary"
-                            sx={{ display: "block", mt: 1 }}
+                        {/* Group dimensions and weight in a single row */}
+                        <Grid item xs={12}>
+                          <Box
+                            sx={{
+                              borderBottom: "1px dashed #eee",
+                              mb: 2,
+                              pb: 1,
+                            }}
                           >
-                            {pendingImages[index].length} image(s) selected.
-                            {!variantId &&
-                              " They will be uploaded after saving the variant."}
-                          </Typography>
-                        )}
-                      </>
-                    )}
-                  </Box>
+                            <Typography
+                              variant="caption"
+                              color="text.secondary"
+                            >
+                              Dimensions & Weight
+                            </Typography>
+                          </Box>
+                          <Grid container spacing={2}>
+                            <Grid item xs={6} sm={3}>
+                              <FormInputField
+                                name={`variants.${index}.weight`}
+                                control={control}
+                                label="Weight"
+                                type="number"
+                                inputProps={{
+                                  step: "1",
+                                  min: "0",
+                                  onKeyDown: (e) => {
+                                    // Allow digits, Backspace, Delete, Arrow keys, and Tab
+                                    if (
+                                      /[a-zA-Z]/.test(e.key) && // Restrict letters
+                                      e.key !== "Backspace" &&
+                                      e.key !== "Delete" &&
+                                      e.key !== "ArrowLeft" &&
+                                      e.key !== "ArrowRight" &&
+                                      e.key !== "Tab"
+                                    ) {
+                                      e.preventDefault();
+                                    }
+                                  },
+                                  endAdornment: (
+                                    <InputAdornment position="end">
+                                      gm
+                                    </InputAdornment>
+                                  ), // Move inside inputProps
+                                }}
+                              />
+                            </Grid>
+                            <Grid item xs={6} sm={3}>
+                              <FormInputField
+                                name={`variants.${index}.length`}
+                                control={control}
+                                label="Length"
+                                type="number"
+                                inputProps={{
+                                  step: "1",
+                                  min: "0",
+                                  onKeyDown: (e) => {
+                                    // Allow digits, Backspace, Delete, Arrow keys, and Tab
+                                    if (
+                                      /[a-zA-Z]/.test(e.key) && // Restrict letters
+                                      e.key !== "Backspace" &&
+                                      e.key !== "Delete" &&
+                                      e.key !== "ArrowLeft" &&
+                                      e.key !== "ArrowRight" &&
+                                      e.key !== "Tab"
+                                    ) {
+                                      e.preventDefault();
+                                    }
+                                  },
+                                  endAdornment: (
+                                    <InputAdornment position="end">
+                                      cm
+                                    </InputAdornment>
+                                  ), // Move inside inputProps
+                                }}
+                              />
+                            </Grid>
+                            <Grid item xs={6} sm={3}>
+                              <FormInputField
+                                name={`variants.${index}.width`}
+                                control={control}
+                                label="Width"
+                                type="number"
+                                inputProps={{
+                                  step: "1",
+                                  min: "0",
+                                  onKeyDown: (e) => {
+                                    // Allow digits, Backspace, Delete, Arrow keys, and Tab
+                                    if (
+                                      /[a-zA-Z]/.test(e.key) && // Restrict letters
+                                      e.key !== "Backspace" &&
+                                      e.key !== "Delete" &&
+                                      e.key !== "ArrowLeft" &&
+                                      e.key !== "ArrowRight" &&
+                                      e.key !== "Tab"
+                                    ) {
+                                      e.preventDefault();
+                                    }
+                                  },
+                                  endAdornment: (
+                                    <InputAdornment position="end">
+                                      cm
+                                    </InputAdornment>
+                                  ), // Move inside inputProps
+                                }}
+                              />
+                            </Grid>
+                            <Grid item xs={6} sm={3}>
+                              <FormInputField
+                                name={`variants.${index}.height`}
+                                control={control}
+                                label="Height"
+                                type="number"
+                                inputProps={{
+                                  step: "1",
+                                  min: "0",
+                                  onKeyDown: (e) => {
+                                    // Allow digits, Backspace, Delete, Arrow keys, and Tab
+                                    if (
+                                      /[a-zA-Z]/.test(e.key) && // Restrict letters
+                                      e.key !== "Backspace" &&
+                                      e.key !== "Delete" &&
+                                      e.key !== "ArrowLeft" &&
+                                      e.key !== "ArrowRight" &&
+                                      e.key !== "Tab"
+                                    ) {
+                                      e.preventDefault();
+                                    }
+                                  },
+                                  endAdornment: (
+                                    <InputAdornment position="end">
+                                      cm
+                                    </InputAdornment>
+                                  ), // Move inside inputProps
+                                }}
+                              />
+                            </Grid>
+                          </Grid>
+                        </Grid>
+                        <Grid item xs={12}>
+                          <FormInputField
+                            name={`variants.${index}.barcode`}
+                            control={control}
+                            label="Barcode"
+                            inputProps={{
+                              maxLength: 50,
+                              onBlur: (e) => {
+                                const value = e.target.value.trim();
+                                if (!value) {
+                                  setValue(`variants.${index}.barcode`, "");
+                                  trigger(`variants.${index}.barcode`);
+                                }
+                              },
+                            }}
+                          />
+                        </Grid>
+                        <Grid item xs={12}>
+                          <FormInputField
+                            name={`variants.${index}.description`}
+                            control={control}
+                            label="Description"
+                            multiline
+                            rows={3}
+                          />
+                        </Grid>
+
+                        {/* Show variant images if they exist */}
+                        <Grid item xs={12}>
+                          <Box
+                            sx={{
+                              marginBottom: 2,
+                              padding: 2,
+                              border: "1px dashed #ccc",
+                              borderRadius: 1,
+                            }}
+                          >
+                            <Typography
+                              className="mb-10"
+                              variant="subtitle1"
+                              gutterBottom
+                            >
+                              Images
+                            </Typography>
+
+                            {isUploading && (
+                              <Box
+                                display="flex"
+                                justifyContent="center"
+                                alignItems="center"
+                                p={2}
+                              >
+                                <CircularProgress size={24} sx={{ mr: 1 }} />
+                                <Typography>Uploading images...</Typography>
+                              </Box>
+                            )}
+
+                            {/* Display images container */}
+                            {!isUploading && (
+                              <>
+                                {/* Flex container for images */}
+                                <Box
+                                  sx={{
+                                    display: "flex",
+                                    flexWrap: "wrap",
+                                    gap: 2,
+                                    mb: 2,
+                                  }}
+                                >
+                                  {variantImagesForDisplay.length > 0 ? (
+                                    // Existing images for saved variants
+                                    variantImagesForDisplay.map(
+                                      (image, imgIndex) => (
+                                        <Box
+                                          key={`image-${variantId}-${
+                                            image.id || imgIndex
+                                          }`}
+                                          sx={{
+                                            position: "relative",
+                                            width: 100,
+                                            height: 130, // Increased height to accommodate controls
+                                            borderRadius: 1,
+                                            overflow: "visible", // Changed to visible to allow controls outside
+                                          }}
+                                        >
+                                          {/* Control box above image */}
+                                          <Box
+                                            sx={{
+                                              position: "absolute",
+                                              top: -30, // Position above the image
+                                              right: 0,
+                                              display: "flex",
+                                              zIndex: 2,
+                                              gap: 0.5,
+                                            }}
+                                          >
+                                            {/* Primary image checkbox */}
+                                            <Box
+                                              sx={{
+                                                display: "flex",
+                                                alignItems: "center",
+                                                backgroundColor:
+                                                  image.is_primary
+                                                    ? "rgba(46, 153, 112, 0.1)"
+                                                    : "rgba(0, 0, 0, 0.05)",
+                                                borderRadius: "4px",
+                                                padding: "2px 4px",
+                                              }}
+                                            >
+                                              <Checkbox
+                                                size="small"
+                                                checked={image.is_primary}
+                                                onChange={() => {
+                                                  if (!image.is_primary) {
+                                                    handleSetPrimary(
+                                                      variantId,
+                                                      image.id
+                                                        ? image.id.toString()
+                                                        : ""
+                                                    );
+                                                  }
+                                                }}
+                                                sx={{
+                                                  padding: "2px",
+                                                  color: image.is_primary
+                                                    ? "#2E9970"
+                                                    : "inherit",
+                                                  "&.Mui-checked": {
+                                                    color: "#2E9970",
+                                                  },
+                                                }}
+                                              />
+                                              <Typography
+                                                variant="caption"
+                                                sx={{
+                                                  fontSize: "10px",
+                                                  color: image.is_primary
+                                                    ? "#2E9970"
+                                                    : "text.secondary",
+                                                  fontWeight: image.is_primary
+                                                    ? 600
+                                                    : 400,
+                                                }}
+                                              >
+                                                Primary
+                                              </Typography>
+                                            </Box>
+
+                                            {/* Delete button */}
+                                            <IconButton
+                                              size="small"
+                                              onClick={() =>
+                                                handleDeleteImage(
+                                                  variantId,
+                                                  image.id
+                                                    ? image.id.toString()
+                                                    : ""
+                                                )
+                                              }
+                                              disabled={isUploading}
+                                              color="error"
+                                              sx={{
+                                                padding: "2px",
+                                                backgroundColor:
+                                                  "rgba(211, 47, 47, 0.1)",
+                                                "&:hover": {
+                                                  backgroundColor:
+                                                    "rgba(211, 47, 47, 0.2)",
+                                                },
+                                              }}
+                                            >
+                                              <DeleteIcon fontSize="small" />
+                                            </IconButton>
+                                          </Box>
+
+                                          {/* Image container */}
+                                          <Box
+                                            sx={{
+                                              position: "relative",
+                                              width: 100,
+                                              height: 100,
+                                              border: (theme) =>
+                                                image.is_primary
+                                                  ? `2px solid ${theme.palette.primary.main}`
+                                                  : "1px solid #ddd",
+                                              borderRadius: 1,
+                                              overflow: "hidden",
+                                              cursor: "pointer",
+                                              "&:hover": {
+                                                boxShadow:
+                                                  "0 0 0 2px rgba(46, 153, 112, 0.3)",
+                                              },
+                                              transition: "box-shadow 0.2s",
+                                            }}
+                                            onClick={() => {
+                                              if (!image.is_primary) {
+                                                handleSetPrimary(
+                                                  variantId,
+                                                  image.id
+                                                    ? image.id.toString()
+                                                    : ""
+                                                );
+                                              }
+                                            }}
+                                          >
+                                            <img
+                                              src={
+                                                typeof image.url === "string"
+                                                  ? image.url
+                                                  : typeof image.image_url ===
+                                                    "string"
+                                                  ? image.image_url
+                                                  : ""
+                                              }
+                                              alt={`Variant ${variantId} image ${imgIndex}`}
+                                              style={{
+                                                width: "100%",
+                                                height: "100%",
+                                                objectFit: "cover",
+                                              }}
+                                              onError={(e) => {
+                                                console.error(
+                                                  "Image failed to load:",
+                                                  image
+                                                );
+                                                e.currentTarget.src =
+                                                  "https://via.placeholder.com/100?text=Image+Error";
+                                              }}
+                                            />
+                                          </Box>
+                                        </Box>
+                                      )
+                                    )
+                                  ) : hasPendingImages ? (
+                                    // Show temporary images for new variants with controls above
+                                    pendingImageUrls.map((url, imgIndex) => (
+                                      <Box
+                                        key={`pending-${index}-${imgIndex}`}
+                                        sx={{
+                                          position: "relative",
+                                          width: 100,
+                                          height: 130, // Increased height to accommodate controls
+                                          borderRadius: 1,
+                                          overflow: "visible", // Changed to visible to allow controls outside
+                                        }}
+                                      >
+                                        {/* Control box above the image */}
+                                        <Box
+                                          sx={{
+                                            position: "absolute",
+                                            top: -30, // Position above the image
+                                            right: 0,
+                                            display: "flex",
+                                            zIndex: 2,
+                                            gap: 0.5,
+                                          }}
+                                        >
+                                          {/* Delete button */}
+                                          <IconButton
+                                            size="small"
+                                            onClick={() => {
+                                              // Remove this pending image
+                                              setPendingImages((prev) => {
+                                                const updated = { ...prev };
+                                                if (updated[index]) {
+                                                  const files = [
+                                                    ...updated[index],
+                                                  ];
+                                                  files.splice(imgIndex, 1);
+                                                  updated[index] = files;
+                                                }
+                                                return updated;
+                                              });
+
+                                              // Revoke the URL and remove it
+                                              URL.revokeObjectURL(url);
+                                              setTempImageUrls((prev) => {
+                                                const updated = { ...prev };
+                                                if (updated[index]) {
+                                                  const urls = [
+                                                    ...updated[index],
+                                                  ];
+                                                  urls.splice(imgIndex, 1);
+                                                  updated[index] = urls;
+                                                }
+                                                return updated;
+                                              });
+                                            }}
+                                            color="error"
+                                            sx={{
+                                              padding: "2px",
+                                              backgroundColor:
+                                                "rgba(211, 47, 47, 0.1)",
+                                              "&:hover": {
+                                                backgroundColor:
+                                                  "rgba(211, 47, 47, 0.2)",
+                                              },
+                                            }}
+                                          >
+                                            <DeleteIcon fontSize="small" />
+                                          </IconButton>
+                                        </Box>
+
+                                        {/* Image container */}
+                                        <Box
+                                          sx={{
+                                            position: "relative",
+                                            width: 100,
+                                            height: 100,
+                                            border: "1px solid #ddd",
+                                            borderRadius: 1,
+                                            overflow: "hidden",
+                                          }}
+                                        >
+                                          <img
+                                            src={url}
+                                            alt={`Pending image ${imgIndex}`}
+                                            style={{
+                                              width: "100%",
+                                              height: "100%",
+                                              objectFit: "cover",
+                                            }}
+                                          />
+                                        </Box>
+                                      </Box>
+                                    ))
+                                  ) : (
+                                    <Typography color="text.secondary">
+                                      No images uploaded. Click "Upload Images"
+                                      to add images for this variant.
+                                    </Typography>
+                                  )}
+                                </Box>
+
+                                {/* Show the file input regardless of variant ID */}
+                                <input
+                                  type="file"
+                                  multiple
+                                  onChange={(event) =>
+                                    handleFileSelect(event, variantId, index)
+                                  }
+                                  ref={(el) => {
+                                    if (el)
+                                      fileInputRefs.current[
+                                        variantId || index
+                                      ] = el;
+                                  }}
+                                  style={{ display: "none" }}
+                                  accept="image/jpeg,image/png,image/webp"
+                                />
+                                <Button
+                                  variant="outlined"
+                                  startIcon={<CloudUploadIcon />}
+                                  onClick={() =>
+                                    fileInputRefs.current[
+                                      variantId || index
+                                    ]?.click()
+                                  }
+                                  disabled={isUploading}
+                                  title={
+                                    variantId
+                                      ? "Select images to upload immediately"
+                                      : "Select images first, then click Update to complete the upload"
+                                  }
+                                >
+                                  {variantId
+                                    ? "Upload Images"
+                                    : "Select Images"}
+                                </Button>
+
+                                {/* Show message for pending images */}
+                                {hasPendingImages && (
+                                  <Typography
+                                    variant="caption"
+                                    color="text.secondary"
+                                    sx={{ display: "block", mt: 1 }}
+                                  >
+                                    {pendingImages[index].length} image(s)
+                                    selected.
+                                    {!variantId &&
+                                      " They will be uploaded after saving the variant."}
+                                  </Typography>
+                                )}
+                              </>
+                            )}
+                          </Box>
+                        </Grid>
+                      </Grid>
+                    </AccordionDetails>
+                  </Accordion>
                 </Grid>
               </Grid>
 

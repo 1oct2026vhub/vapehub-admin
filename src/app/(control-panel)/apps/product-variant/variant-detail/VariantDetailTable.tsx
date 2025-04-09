@@ -28,7 +28,7 @@ export default function VariantDetailTable() {
   const id = params?.id;
 
   const [variantDetail, setVariantDetail] = useState<VariantDetailType | null>(
-    null,
+    null
   );
 
   if (!id || isNaN(Number(id))) {
@@ -36,7 +36,7 @@ export default function VariantDetailTable() {
   }
 
   const { data, error, isLoading } = useFetch(["variantDetail", id], () =>
-    getVariantDetails(Number(id)),
+    getVariantDetails(Number(id))
   );
 
   useEffect(() => {
@@ -66,22 +66,20 @@ export default function VariantDetailTable() {
     { accessorKey: "stock", header: "Stock Quantity" },
     {
       accessorKey: "status",
-      header: "Stock Status",
+      header: "Status",
       Cell: ({ row }) => {
         const statusMap = {
           in_stock: "In Stock",
           out_of_stock: "Out of Stock",
           low_stock: "Low Stock",
         };
-        return (
-          statusMap[row.original.status] || row.original.status
-        );
+        return statusMap[row.original.status] || row.original.status;
       },
     },
     {
       accessorKey: "created_at",
       header: "Created At",
-        Cell: ({ row }) => formatDate(row.original.created_at),
+      Cell: ({ row }) => formatDate(row.original.created_at),
     },
     {
       accessorKey: "updated_at",
