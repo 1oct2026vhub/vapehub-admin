@@ -9,6 +9,7 @@ import {
 } from "@mui/material";
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import DeleteIcon from "@mui/icons-material/Delete";
+import { SxProps, Theme } from "@mui/material/styles";
 
 const ACCEPTED_IMAGE_TYPES = ["image/png", "image/jpeg", "image/jpg", "image/webp"];
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
@@ -21,6 +22,7 @@ export interface FormFileUploadFieldProps {
   accept?: string;
   helperText?: string;
   onFileChange?: (file: File | null) => void;
+  sx?: SxProps<Theme>;
 }
 
 const FormFileUploadField: React.FC<FormFileUploadFieldProps> = ({
@@ -31,6 +33,7 @@ const FormFileUploadField: React.FC<FormFileUploadFieldProps> = ({
   accept = "image/*",
   helperText = "Supported formats: PNG, JPG, JPEG, WebP (max 5MB)",
   onFileChange,
+  sx,
 }) => {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [touched, setTouched] = useState(false);
@@ -103,7 +106,7 @@ const FormFileUploadField: React.FC<FormFileUploadFieldProps> = ({
         validate: validateFile 
       }}
       render={({ field: { onChange, value }, fieldState: { error } }) => (
-        <Box className="mb-6">
+        <Box className="mb-6" sx={sx}>
           <Typography className="mb-2">
             {label} {required && <span style={{ color: "red" }}>*</span>}
           </Typography>
@@ -111,7 +114,7 @@ const FormFileUploadField: React.FC<FormFileUploadFieldProps> = ({
           {/* Preview for image files */}
           {previewUrl && (
             <Box className="mb-3 flex flex-col items-center">
-              <Box className="relative w-full max-w-xs h-56 border rounded-lg overflow-hidden mb-2">
+              <Box className="relative w-full max-w-xs h-56 border rounded-none overflow-hidden mb-2">
                 <img
                   src={previewUrl}
                   alt="Preview"
@@ -123,11 +126,11 @@ const FormFileUploadField: React.FC<FormFileUploadFieldProps> = ({
                   onClick={() => handleRemoveFile(onChange)}
                   sx={{
                     "& .MuiSvgIcon-root": {
-                      color: "#ef4444", // Red color
+                      color: "#ef4444",
                     },
                     "&:hover": {
                       "& .MuiSvgIcon-root": {
-                        color: "#dc2626", // Darker red on hover
+                        color: "#dc2626",
                       },
                     },
                   }}
@@ -141,7 +144,7 @@ const FormFileUploadField: React.FC<FormFileUploadFieldProps> = ({
           {/* Upload button/area */}
           {!previewUrl && (
             <Box
-              className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer hover:border-[#2E9970] transition-colors mb-2"
+              className="border-2 border-dashed border-[#2E9970] rounded-none p-6 text-center cursor-pointer hover:border-[#1E7A56] transition-colors mb-2"
               onClick={() => document.getElementById(name)?.click()}
               sx={{
                 "&:hover": {

@@ -122,11 +122,19 @@ export default function EditBlogTag() {
 
       router.push("/apps/blog/tags");
     } catch (error: any) {
-      console.error("Failed to save tag:", error);
       if (error?.errors) {
-        showSnackbar(error.errors[0]?.msg || "Failed to save tag", "error");
+        showSnackbar(error?.errors[0]?.msg, "error");
       } else {
-        showSnackbar(error?.message || "Failed to save tag", "error");
+        const errorMessage = error?.message || "An unexpected error occurred";
+        showSnackbar(errorMessage, "error");
+      }
+      const errorData = error || error;
+      if (errorData?.error && typeof errorData.error === "object") {
+        Object.entries(errorData.error).forEach(([field, message]) => {
+          if (typeof message === "string") {
+            showSnackbar(message, "error");
+          }
+        });
       }
     } finally {
       setSubmitting(false);

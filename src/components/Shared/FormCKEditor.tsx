@@ -9,9 +9,16 @@ interface FormCKEditorProps {
   label?: string;
   defaultValue?: string;
   trigger?: any;
+  required?: boolean;
 }
 
-const FormCKEditor = ({ name, control, label, defaultValue = "" }: FormCKEditorProps) => {
+const FormCKEditor = ({ 
+  name, 
+  control, 
+  label, 
+  defaultValue = "",
+  required = false 
+}: FormCKEditorProps) => {
   const editorRef = useRef<any>(null);
   const uniqueId = useRef(`editor-${Math.random().toString(36).substr(2, 9)}`);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -159,10 +166,11 @@ const FormCKEditor = ({ name, control, label, defaultValue = "" }: FormCKEditorP
   let field: any;
 
   return (
-      <Controller
-        name={name}
-        control={control}
+    <Controller
+      name={name}
+      control={control}
       defaultValue={defaultValue}
+      rules={{ required: required ? `${label || 'This field'} is required` : false }}
       render={({ field: f, fieldState }) => {
         // Store field reference for use in useEffect
         field = f;
@@ -184,9 +192,9 @@ const FormCKEditor = ({ name, control, label, defaultValue = "" }: FormCKEditorP
           
           // Handle blur event
           editor.on('blur', function() {
-              const data = editor.getData();
+            const data = editor.getData();
             console.log('CKEditor blur event:', data);
-              field.onChange(data);
+            field.onChange(data);
             field.onBlur();
           });
         }
@@ -195,7 +203,7 @@ const FormCKEditor = ({ name, control, label, defaultValue = "" }: FormCKEditorP
           <div className="mb-6" ref={containerRef}>
             {label && (
               <label className="block mb-2 text-sm font-medium">
-                {label}
+                {label} {required && <span style={{ color: "red" }}>*</span>}
               </label>
             )}
             <div className="ckeditor-wrapper relative w-full">
@@ -216,22 +224,29 @@ const FormCKEditor = ({ name, control, label, defaultValue = "" }: FormCKEditorP
             </div>
             <style jsx global>{`
               .ckeditor-container {
-                border: 1px solid #d1d5db;
-                border-radius: 0.375rem;
+                border: 1px solid #2E9970;
+                border-radius: 0;
                 overflow: hidden;
                 width: 100% !important;
               }
               .cke_top {
                 background: #f9fafb !important;
-                border-bottom: 1px solid #e5e7eb !important;
+                border-bottom: 1px solid #2E9970 !important;
               }
               .cke_bottom {
                 background: #f9fafb !important;
-                border-top: 1px solid #e5e7eb !important;
+                border-top: 1px solid #2E9970 !important;
+              }
+              .cke_chrome {
+                border: 1px solid #2E9970 !important;
+                border-radius: 0 !important;
+              }
+              .cke_focus {
+                border: 1px solid #1E7A56 !important;
               }
             `}</style>
             {fieldState?.error && (
-              <p className="mt-1 text-sm text-red-500">
+              <p className="mt-2 text-sm text-red-600">
                 {fieldState.error.message}
               </p>
             )}

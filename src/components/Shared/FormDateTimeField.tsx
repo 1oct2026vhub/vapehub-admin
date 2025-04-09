@@ -6,6 +6,7 @@ import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { DateTimePicker } from "@mui/x-date-pickers/DateTimePicker";
 import dayjs from 'dayjs';
 import 'dayjs/locale/en';
+import { SxProps, Theme } from "@mui/material/styles";
 
 export interface FormDateTimeFieldProps {
   name: string;
@@ -16,6 +17,7 @@ export interface FormDateTimeFieldProps {
   minDateTime?: Date;
   maxDateTime?: Date;
   disabled?: boolean;
+  sx?: SxProps<Theme>;
 }
 
 const FormDateTimeField: React.FC<FormDateTimeFieldProps> = ({
@@ -27,6 +29,7 @@ const FormDateTimeField: React.FC<FormDateTimeFieldProps> = ({
   minDateTime,
   maxDateTime,
   disabled = false,
+  sx,
 }) => {
   const [touched, setTouched] = React.useState(false);
 
@@ -61,14 +64,17 @@ const FormDateTimeField: React.FC<FormDateTimeFieldProps> = ({
                   sx: {
                     width: "100%",
                     "& .MuiOutlinedInput-root": {
+                      borderRadius: "0",
                       "& fieldset": {
-                        borderImage: "linear-gradient(to right, #2E9970, #005434) 1",
+                        borderColor: "#2E9970",
+                        borderRadius: "0",
                       },
                       "&:hover fieldset": {
-                        borderImage: "linear-gradient(to right, #247C5C, #003F29) 1",
+                        borderColor: "#247C5C",
                       },
                       "&.Mui-focused fieldset": {
-                        borderImage: "linear-gradient(to right, #1E7A56, #004C30) 1",
+                        borderColor: "#1E7A56",
+                        borderWidth: "2px",
                       },
                     },
                     "& .MuiInputLabel-root": {
@@ -77,6 +83,7 @@ const FormDateTimeField: React.FC<FormDateTimeFieldProps> = ({
                     "& .MuiInputLabel-root.Mui-focused": {
                       color: "#2E9970",
                     },
+                    ...sx,
                   }
                 }
               }}

@@ -19,6 +19,7 @@ import {
   Select,
   MenuItem,
 } from "@mui/material";
+import { SxProps, Theme } from "@mui/material/styles";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -44,12 +45,12 @@ const postSchema = z.object({
   title: z
     .string()
     .min(1, "Title is required")
-    .max(150, "Title must not exceed 150 characters"),
+    .max(50, "Title must not exceed 50 characters"),
   content: z.string().min(1, "Content is required"),
   slug: z
     .string()
     .min(1, "Slug is required")
-    .max(150, "Slug must not exceed 150 characters")
+    .max(50, "Slug must not exceed 50 characters")
     .regex(
       /^[a-z0-9]+(?:-[a-z0-9]+)*$/,
       "Slug must be in valid format (lowercase letters, numbers, and hyphens)"
@@ -69,6 +70,29 @@ const postSchema = z.object({
 });
 
 type PostFormType = z.infer<typeof postSchema>;
+
+const commonFieldStyles: SxProps<Theme> = {
+  "& .MuiOutlinedInput-root": {
+    borderRadius: "0",
+    "& fieldset": {
+      borderColor: "#2E9970",
+      borderRadius: "0",
+    },
+    "&:hover fieldset": {
+      borderColor: "#247C5C",
+    },
+    "&.Mui-focused fieldset": {
+      borderColor: "#1E7A56",
+      borderWidth: "2px",
+    },
+  },
+  "& .MuiInputLabel-root": {
+    color: "#2E9970",
+  },
+  "& .MuiInputLabel-root.Mui-focused": {
+    color: "#2E9970",
+  },
+} as const;
 
 export default function CreateBlogPost() {
   const router = useRouter();
@@ -194,11 +218,19 @@ export default function CreateBlogPost() {
       showSnackbar("Post created successfully", "success");
       router.push("/apps/blog/posts");
     } catch (error: any) {
-      console.error("Failed to create post:", error);
       if (error?.errors) {
-        showSnackbar(error.errors[0]?.msg || "Failed to create post", "error");
+        showSnackbar(error?.errors[0]?.msg, "error");
       } else {
-        showSnackbar(error?.message || "Failed to create post", "error");
+        const errorMessage = error?.message || "An unexpected error occurred";
+        showSnackbar(errorMessage, "error");
+      }
+      const errorData = error || error;
+      if (errorData?.error && typeof errorData.error === "object") {
+        Object.entries(errorData.error).forEach(([field, message]) => {
+          if (typeof message === "string") {
+            showSnackbar(message, "error");
+          }
+        });
       }
     } finally {
       setSubmitting(false);
@@ -206,199 +238,189 @@ export default function CreateBlogPost() {
   };
 
   return (
-    <Container maxWidth={false} sx={{ py: 3 }}>
+    <Container maxWidth="lg" sx={{ py: 4 }}>
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
       >
-        <Grid container spacing={3}>
-          <Grid item xs={12}>
-            <Box
-              sx={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                mb: 3,
-              }}
-            >
-              <div>
-                <Breadcrumbs aria-label="breadcrumb" sx={{ mb: 1 }}>
-                  <Link
-                    color="inherit"
-                    href="/apps/blog/posts"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      router.push("/apps/blog/posts");
-                    }}
-                    sx={{ cursor: "pointer" }}
-                  >
-                    Posts
-                  </Link>
-                  <Typography color="text.primary">New Post</Typography>
-                </Breadcrumbs>
-                <Typography variant="h4" fontWeight="bold">
-                  Create New Post
-                </Typography>
-              </div>
+        <Box
+          sx={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            width: "100%",
+          }}
+        >
+          <Box sx={{ width: "100%", maxWidth: 900, mb: 4 }}>
+            <Box sx={{ mb: 3 }}>
+              <Typography variant="h4" component="h1" fontWeight="bold">
+                Create New Blog Post
+              </Typography>
             </Box>
-          </Grid>
 
-          <Grid item xs={12} md={8}>
-            <Paper className="p-6">
+            <Paper sx={{ p: 4 }}>
               <form onSubmit={handleSubmit(onSubmit)}>
-                <FormInputField
-                  name="title"
-                  control={control}
-                  label="Title"
-                  required
-                  autoFocus
-                  onChange={handleTitleChange}
-                />
+                <Grid container spacing={3}>
+                  <Grid item xs={12}>
+                    <FormInputField
+                      name="title"
+                      control={control}
+                      label="Title"
+                      required
+                      onChange={handleTitleChange}
+                      sx={commonFieldStyles}
+                    />
+                  </Grid>
 
-                <FormInputField
-                  name="slug"
-                  control={control}
-                  label="Slug"
-                  required
-                  helperText="URL-friendly identifier (e.g., my-post)"
-                />
+                  <Grid item xs={12}>
+                    <FormInputField
+                      name="slug"
+                      control={control}
+                      label="Slug"
+                      required
+                      helperText="URL-friendly identifier (e.g., my-blog-post)"
+                      sx={commonFieldStyles}
+                    />
+                  </Grid>
 
-                <FormCKEditor
-                  name="content"
-                  control={control}
-                  label="Content"
-                />
+                  <Grid item xs={12}>
+                    <FormCKEditor
+                      name="content"
+                      control={control}
+                      label="Content"
+                      required
+                    />
+                  </Grid>
 
-                <FormFileUploadField
-                  name="image"
-                  control={control}
-                  label="Featured Image"
-                  onFileChange={setSelectedFile}
-                />
+                  <Grid item xs={12}>
+                    <FormFileUploadField
+                      name="image"
+                      control={control}
+                      label="Featured Image"
+                      onFileChange={setSelectedFile}
+                      accept="image/*"
+                      helperText="Upload a featured image for the blog post"
+                      sx={commonFieldStyles}
+                    />
+                  </Grid>
 
-                <Controller
-                  name="status"
-                  control={control}
-                  render={({ field }) => (
-                    <FormControl fullWidth margin="normal">
-                      <InputLabel id="status-label">Status</InputLabel>
-                      <Select
-                        labelId="status-label"
-                        id="status"
-                        value={field.value}
-                        onChange={field.onChange}
-                        label="Status"
-                      >
-                        <MenuItem value="draft">Draft</MenuItem>
-                        <MenuItem value="published">Published</MenuItem>
-                        <MenuItem value="archived">Archived</MenuItem>
-                      </Select>
+                  <Grid item xs={12} md={6}>
+                    <FormControl fullWidth>
+                      <InputLabel id="status-label" sx={{ color: "#2E9970" }}>Status</InputLabel>
+                      <Controller
+                        name="status"
+                        control={control}
+                        render={({ field }) => (
+                          <Select
+                            {...field}
+                            labelId="status-label"
+                            label="Status"
+                            sx={commonFieldStyles}
+                          >
+                            <MenuItem value="draft">Draft</MenuItem>
+                            <MenuItem value="published">Published</MenuItem>
+                            <MenuItem value="archived">Archived</MenuItem>
+                          </Select>
+                        )}
+                      />
                     </FormControl>
-                  )}
-                />
+                  </Grid>
 
-                <FormDateTimeField
-                  name="published_at"
-                  control={control}
-                  label="Publish Date"
-                />
+                  <Grid item xs={12} md={6}>
+                    <FormDateTimeField
+                      name="published_at"
+                      control={control}
+                      label="Published Date"
+                      // helperText="Leave blank to save as draft"
+                      sx={commonFieldStyles}
+                    />
+                  </Grid>
 
-                <Controller
-                  name="categories"
-                  control={control}
-                  render={({ field: { onChange, value } }) => (
-                    <Autocomplete
-                      multiple
-                      options={categories}
-                      getOptionLabel={(option) => option.name}
-                      value={value}
-                      onChange={(_, newValue) => onChange(newValue)}
-                      onInputChange={(_, value) => setCategorySearch(value)}
-                      renderInput={(params) => (
-                        <TextField
-                          {...params}
-                          label="Categories"
-                          variant="outlined"
-                          margin="normal"
-                          fullWidth
+                  <Grid item xs={12}>
+                    <Controller
+                      name="categories"
+                      control={control}
+                      render={({ field: { value, onChange } }) => (
+                        <Autocomplete
+                          multiple
+                          options={categories}
+                          getOptionLabel={(option) => option.name}
+                          value={value}
+                          onChange={(_, newValue) => onChange(newValue)}
+                          onInputChange={(_, newInputValue) => setCategorySearch(newInputValue)}
+                          renderInput={(params) => (
+                            <TextField
+                              {...params}
+                              label="Categories"
+                              variant="outlined"
+                              sx={commonFieldStyles}
+                            />
+                          )}
+                          renderTags={(value, getTagProps) =>
+                            value.map((option, index) => (
+                              <Chip
+                                label={option.name}
+                                {...getTagProps({ index })}
+                                key={option.id}
+                              />
+                            ))
+                          }
                         />
                       )}
-                      renderTags={(value, getTagProps) =>
-                        value.map((option, index) => (
-                          <Chip
-                            key={option.id}
-                            label={option.name}
-                            {...getTagProps({ index })}
-                            color="primary"
-                            variant="outlined"
-                          />
-                        ))
-                      }
                     />
-                  )}
-                />
+                  </Grid>
 
-                <Controller
-                  name="tags"
-                  control={control}
-                  render={({ field: { onChange, value } }) => (
-                    <Autocomplete
-                      multiple
-                      options={tags}
-                      getOptionLabel={(option) => option.name}
-                      value={value}
-                      onChange={(_, newValue) => onChange(newValue)}
-                      onInputChange={(_, value) => setTagSearch(value)}
-                      renderInput={(params) => (
-                        <TextField
-                          {...params}
-                          label="Tags"
-                          variant="outlined"
-                          margin="normal"
-                          fullWidth
+                  <Grid item xs={12}>
+                    <Controller
+                      name="tags"
+                      control={control}
+                      render={({ field: { value, onChange } }) => (
+                        <Autocomplete
+                          multiple
+                          options={tags}
+                          getOptionLabel={(option) => option.name}
+                          value={value}
+                          onChange={(_, newValue) => onChange(newValue)}
+                          onInputChange={(_, newInputValue) => setTagSearch(newInputValue)}
+                          renderInput={(params) => (
+                            <TextField
+                              {...params}
+                              label="Tags"
+                              variant="outlined"
+                              sx={commonFieldStyles}
+                            />
+                          )}
+                          renderTags={(value, getTagProps) =>
+                            value.map((option, index) => (
+                              <Chip
+                                label={option.name}
+                                {...getTagProps({ index })}
+                                key={option.id}
+                              />
+                            ))
+                          }
                         />
                       )}
-                      renderTags={(value, getTagProps) =>
-                        value.map((option, index) => (
-                          <Chip
-                            key={option.id}
-                            label={option.name}
-                            {...getTagProps({ index })}
-                            color="secondary"
-                            variant="outlined"
-                          />
-                        ))
-                      }
                     />
-                  )}
-                />
+                  </Grid>
 
-                <Box
-                  sx={{
-                    display: "flex",
-                    justifyContent: "flex-end",
-                    gap: 2,
-                    mt: 4,
-                  }}
-                >
-                  <Button
-                    variant="outlined"
-                    onClick={() => router.push("/apps/blog/posts")}
-                  >
-                    Cancel
-                  </Button>
-                  <AppButton
-                    label="Create"
-                    type="submit"
-                    disabled={!isValid || submitting}
-                    loading={submitting}
-                  />
-                </Box>
+                  <Grid item xs={12}>
+                    <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 2, mt: 2 }}>
+                      <Button onClick={() => router.back()}>Cancel</Button>
+                      <AppButton
+                        label="Create Post"
+                        type="submit"
+                        disabled={!isValid || submitting}
+                        loading={submitting}
+                      />
+                    </Box>
+                  </Grid>
+                </Grid>
               </form>
             </Paper>
-          </Grid>
-        </Grid>
+          </Box>
+        </Box>
       </motion.div>
     </Container>
   );

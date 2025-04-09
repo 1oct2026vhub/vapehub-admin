@@ -4,6 +4,7 @@ import TextField from "@mui/material/TextField";
 import InputAdornment from "@mui/material/InputAdornment";
 import IconButton from "@mui/material/IconButton";
 import { Visibility, VisibilityOff } from "@mui/icons-material";
+import { SxProps, Theme } from "@mui/material/styles";
 
 export interface ReusableTextFieldProps {
   name: string;
@@ -17,6 +18,7 @@ export interface ReusableTextFieldProps {
   inputProps?: any;
   onChange?: (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
   helperText?: string;
+  sx?: SxProps<Theme>;
 }
 
 const FormInputField: React.FC<ReusableTextFieldProps> = ({
@@ -31,6 +33,7 @@ const FormInputField: React.FC<ReusableTextFieldProps> = ({
   inputProps,
   onChange,
   helperText,
+  sx,
 }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [touched, setTouched] = useState(false);
@@ -95,14 +98,17 @@ const FormInputField: React.FC<ReusableTextFieldProps> = ({
           inputProps={inputProps}
           sx={{
             "& .MuiOutlinedInput-root": {
+              borderRadius: "0",
               "& fieldset": {
-                borderImage: "linear-gradient(to right, #2E9970, #005434) 1",
+                borderColor: "#2E9970",
+                borderRadius: "0",
               },
               "&:hover fieldset": {
-                borderImage: "linear-gradient(to right, #247C5C, #003F29) 1",
+                borderColor: "#247C5C",
               },
               "&.Mui-focused fieldset": {
-                borderImage: "linear-gradient(to right, #1E7A56, #004C30) 1",
+                borderColor: "#1E7A56",
+                borderWidth: "2px",
               },
             },
             "& .MuiInputLabel-root": {
@@ -115,6 +121,7 @@ const FormInputField: React.FC<ReusableTextFieldProps> = ({
             "& input::-ms-reveal, & input::-ms-clear": {
               display: "none",
             },
+            ...sx,
           }}
           onChange={(e) => {
             field.onChange(e);

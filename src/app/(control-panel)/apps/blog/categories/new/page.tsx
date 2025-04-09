@@ -157,150 +157,161 @@ export default function CreateBlogCategory() {
       showSnackbar("Category created successfully", "success");
       router.push("/apps/blog/categories");
     } catch (error: any) {
-      console.error("Failed to create category:", error);
-      showSnackbar(error?.message || "Failed to create category", "error");
+        if (error?.errors) {
+        showSnackbar(error?.errors[0]?.msg, "error");
+      } else {
+        const errorMessage = error?.message || "An unexpected error occurred";
+        showSnackbar(errorMessage, "error");
+      }
+
+      const errorData = error || error;
+      if (errorData?.error && typeof errorData.error === "object") {
+        Object.entries(errorData.error).forEach(([field, message]) => {
+          if (typeof message === "string") {
+            showSnackbar(message, "error");
+          }
+        });
+      }
     } finally {
       setSubmitting(false);
     }
   };
 
   return (
-    <Container maxWidth={false} sx={{ py: 3 }}>
+    <Container maxWidth="lg" sx={{ py: 4 }}>
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
       >
-        <Grid container spacing={3}>
-          <Grid item xs={12}>
-            <Box
-              sx={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                mb: 3,
-              }}
-            >
-              <div>
-                <Breadcrumbs aria-label="breadcrumb" sx={{ mb: 1 }}>
-                  <Link
-                    color="inherit"
-                    href="/apps/blog/categories"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      router.push("/apps/blog/categories");
-                    }}
-                    sx={{ cursor: "pointer" }}
-                  >
-                    Categories
-                  </Link>
-                  <Typography color="text.primary">New Category</Typography>
-                </Breadcrumbs>
-                <Typography variant="h4" fontWeight="bold">
-                  Create New Category
-                </Typography>
-              </div>
+        <Box
+          sx={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            width: "100%",
+          }}
+        >
+          <Box sx={{ width: "100%", maxWidth: 800, mb: 4 }}>
+            <Box sx={{ mb: 3 }}>
+              <Typography variant="h4" component="h1" fontWeight="bold">
+                Create New Category
+              </Typography>
             </Box>
-          </Grid>
 
-          <Grid item xs={12} md={8}>
-            <Paper className="p-6">
+            <Paper sx={{ p: 4 }}>
               <form onSubmit={handleSubmit(onSubmit)}>
-                <FormInputField
-                  name="name"
-                  control={control}
-                  label="Name"
-                  required
-                  autoFocus
-                  onChange={handleNameChange}
-                />
+                <Grid container spacing={3}>
+                  <Grid item xs={12}>
+                    <FormInputField
+                      name="name"
+                      control={control}
+                      label="Name"
+                      required
+                      autoFocus
+                      onChange={handleNameChange}
+                    />
+                  </Grid>
 
-                <FormInputField
-                  name="slug"
-                  control={control}
-                  label="Slug"
-                  required
-                  helperText="URL-friendly identifier (e.g., my-category)"
-                />
+                  <Grid item xs={12}>
+                    <FormInputField
+                      name="slug"
+                      control={control}
+                      label="Slug"
+                      required
+                      helperText="URL-friendly identifier (e.g., my-category)"
+                    />
+                  </Grid>
 
-                <FormCKEditor
-                  name="description"
-                  control={control}
-                  label="Description"
-                />
+                  <Grid item xs={12}>
+                    <FormCKEditor
+                      name="description"
+                      control={control}
+                      label="Description"
+                    />
+                  </Grid>
 
-                <Controller
-                  name="parent_id"
-                  control={control}
-                  render={({ field }) => (
-                    <FormControl fullWidth margin="normal">
-                      <InputLabel>Parent Category (Optional)</InputLabel>
-                      <Select
-                        {...field}
-                        value={field.value || ""}
-                        label="Parent Category (Optional)"
+                  <Grid item xs={12} md={6}>
+                    <Controller
+                      name="parent_id"
+                      control={control}
+                      render={({ field }) => (
+                        <FormControl fullWidth>
+                          <InputLabel>Parent Category (Optional)</InputLabel>
+                          <Select
+                            {...field}
+                            value={field.value || ""}
+                            label="Parent Category (Optional)"
+                          >
+                            <MenuItem value="">
+                              <em>None</em>
+                            </MenuItem>
+                            {categories.map((category) => (
+                              <MenuItem key={category.id} value={category.id}>
+                                {category.name}
+                              </MenuItem>
+                            ))}
+                          </Select>
+                        </FormControl>
+                      )}
+                    />
+                  </Grid>
+
+                  <Grid item xs={12} md={6}>
+                    <Controller
+                      name="status"
+                      control={control}
+                      render={({ field }) => (
+                        <FormControl fullWidth>
+                          <InputLabel>Status</InputLabel>
+                          <Select {...field} label="Status">
+                            <MenuItem value="active">Active</MenuItem>
+                            <MenuItem value="inactive">Inactive</MenuItem>
+                          </Select>
+                        </FormControl>
+                      )}
+                    />
+                  </Grid>
+
+                  <Grid item xs={12}>
+                    <FormFileUploadField
+                      name="image"
+                      control={control}
+                      label="Category Image"
+                      onFileChange={setSelectedFile}
+                      accept="image/png,image/jpeg,image/jpg,image/webp"
+                      helperText="Supported formats: PNG, JPG, JPEG, WebP"
+                    />
+                  </Grid>
+
+                  <Grid item xs={12}>
+                    <Box
+                      sx={{
+                        display: "flex",
+                        justifyContent: "flex-end",
+                        gap: 2,
+                        mt: 2,
+                      }}
+                    >
+                      <Button
+                        variant="outlined"
+                        onClick={() => router.push("/apps/blog/categories")}
                       >
-                        <MenuItem value="">
-                          <em>None</em>
-                        </MenuItem>
-                        {categories.map((category) => (
-                          <MenuItem key={category.id} value={category.id}>
-                            {category.name}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    </FormControl>
-                  )}
-                />
-
-                <Controller
-                  name="status"
-                  control={control}
-                  render={({ field }) => (
-                    <FormControl fullWidth margin="normal">
-                      <InputLabel>Status</InputLabel>
-                      <Select {...field} label="Status">
-                        <MenuItem value="active">Active</MenuItem>
-                        <MenuItem value="inactive">Inactive</MenuItem>
-                      </Select>
-                    </FormControl>
-                  )}
-                />
-
-                <FormFileUploadField
-                  name="image"
-                  control={control}
-                  label="Category Image"
-                  onFileChange={setSelectedFile}
-                  accept="image/png,image/jpeg,image/jpg,image/webp"
-                  helperText="Supported formats: PNG, JPG, JPEG, WebP"
-                />
-
-                <Box
-                  sx={{
-                    display: "flex",
-                    justifyContent: "flex-end",
-                    gap: 2,
-                    mt: 4,
-                  }}
-                >
-                  <Button
-                    variant="outlined"
-                    onClick={() => router.push("/apps/blog/categories")}
-                  >
-                    Cancel
-                  </Button>
-                  <AppButton
-                    label="Create"
-                    type="submit"
-                    disabled={!isValid || submitting}
-                    loading={submitting}
-                  />
-                </Box>
+                        Cancel
+                      </Button>
+                      <AppButton
+                        label="Create"
+                        type="submit"
+                        disabled={!isValid || submitting}
+                        loading={submitting}
+                      />
+                    </Box>
+                  </Grid>
+                </Grid>
               </form>
             </Paper>
-          </Grid>
-        </Grid>
+          </Box>
+        </Box>
       </motion.div>
     </Container>
   );
