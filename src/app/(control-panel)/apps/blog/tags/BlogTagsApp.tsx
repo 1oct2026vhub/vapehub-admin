@@ -27,7 +27,7 @@ import SearchIcon from "@mui/icons-material/Search";
 import FuseSvgIcon from "@fuse/core/FuseSvgIcon";
 import { useSnackbar } from "@/contexts/SnackbarContext";
 import { formatDate } from "@/utils/actions";
-import { BlogTag, BlogTagResponse, getBlogTags, createBlogTag, updateBlogTag, deleteBlogTag } from "@/services/apiBlog";
+import { BlogTag, BlogTagResponse, getBlogTags, createBlogTag, updateBlogTag, deleteBlogTag, restoreBlogTag } from "@/services/apiBlog";
 import { useRouter } from "next/navigation";
 import DeleteConfirmationModal from "./components/DeleteConfirmationModal";
 
@@ -194,6 +194,26 @@ export default function BlogTagsApp() {
     }
   };
 
+  // Add the restore tag handler function near the other handlers
+  const handleRestoreTag = async (tag: BlogTag) => {
+    try {
+      await restoreBlogTag(tag.id);
+      showSnackbar("Tag restored successfully", "success");
+      
+      // If we're viewing deleted tags, remove the restored tag from the list
+      if (showDeleted) {
+        setTags(currentTags => currentTags.filter(t => t.id !== tag.id));
+        setPagination(prev => ({
+          ...prev,
+          total: Math.max(0, prev.total - 1)
+        }));
+      }
+    } catch (error: any) {
+      console.error("Failed to restore tag:", error);
+      showSnackbar(error?.message || "Failed to restore tag", "error");
+    }
+  };
+
   if (loading && tags.length === 0) {
     return <FuseLoading />;
   }
@@ -299,44 +319,59 @@ export default function BlogTagsApp() {
                 data={tags}
                 enableRowActions
                 renderRowActionMenuItems={({ closeMenu, row }) => [
-                  <MenuItem
-                    key="view"
-                    onClick={() => {
-                      router.push(`/apps/blog/tags/${row.original.id}`);
-                      closeMenu();
-                    }}
-                  >
-                    <ListItemIcon>
-                      <FuseSvgIcon>heroicons-outline:eye</FuseSvgIcon>
-                    </ListItemIcon>
-                    View Details
-                  </MenuItem>,
-                  <MenuItem
-                    key="edit"
-                    onClick={() => {
-                      router.push(`/apps/blog/tags/${row.original.id}/edit`);
-                      closeMenu();
-                    }}
-                  >
-                    <ListItemIcon>
-                      <FuseSvgIcon>heroicons-outline:pencil</FuseSvgIcon>
-                    </ListItemIcon>
-                    Edit
-                  </MenuItem>,
-                  <MenuItem
-                    key="delete"
-                    onClick={() => {
-                      handleDeleteTag(row.original);
-                      closeMenu();
-                    }}
-                  >
-                    <ListItemIcon>
-                      <FuseSvgIcon className="text-red-500">
-                        heroicons-outline:trash
-                      </FuseSvgIcon>
-                    </ListItemIcon>
-                    <Typography color="error">Delete</Typography>
-                  </MenuItem>,
+                  ...(row.original.deleted_at ? [
+                    <MenuItem
+                      key="restore"
+                      onClick={() => {
+                        handleRestoreTag(row.original);
+                        closeMenu();
+                      }}
+                    >
+                      <ListItemIcon>
+                        <FuseSvgIcon>heroicons-outline:arrow-path</FuseSvgIcon>
+                      </ListItemIcon>
+                      Restore
+                    </MenuItem>
+                  ] : [
+                    <MenuItem
+                      key="view"
+                      onClick={() => {
+                        router.push(`/apps/blog/tags/${row.original.id}`);
+                        closeMenu();
+                      }}
+                    >
+                      <ListItemIcon>
+                        <FuseSvgIcon>heroicons-outline:eye</FuseSvgIcon>
+                      </ListItemIcon>
+                      View Details
+                    </MenuItem>,
+                    <MenuItem
+                      key="edit"
+                      onClick={() => {
+                        router.push(`/apps/blog/tags/${row.original.id}/edit`);
+                        closeMenu();
+                      }}
+                    >
+                      <ListItemIcon>
+                        <FuseSvgIcon>heroicons-outline:pencil</FuseSvgIcon>
+                      </ListItemIcon>
+                      Edit
+                    </MenuItem>,
+                    <MenuItem
+                      key="delete"
+                      onClick={() => {
+                        handleDeleteTag(row.original);
+                        closeMenu();
+                      }}
+                    >
+                      <ListItemIcon>
+                        <FuseSvgIcon className="text-red-500">
+                          heroicons-outline:trash
+                        </FuseSvgIcon>
+                      </ListItemIcon>
+                      <Typography color="error">Delete</Typography>
+                    </MenuItem>
+                  ])
                 ]}
               />
 

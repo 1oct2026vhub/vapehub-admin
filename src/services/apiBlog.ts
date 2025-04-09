@@ -235,6 +235,20 @@ export const deleteBlogTag = async (id: number) => {
   return response;
 };
 
+/**
+ * Restore a soft-deleted blog tag
+ * @param id - The ID of the tag to restore
+ * @returns Promise containing the API response
+ */
+export async function restoreBlogTag(id: number) {
+  try {
+    const response = await updater(`/api/admin/blog/tags/${id}/restore`, {});
+    return response;
+  } catch (error) {
+    throw error;
+  }
+}
+
 export interface BlogTagDetailResponse {
   success: boolean;
   message: string;

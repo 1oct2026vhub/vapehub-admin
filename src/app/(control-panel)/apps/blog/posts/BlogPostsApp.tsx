@@ -290,7 +290,7 @@ export default function BlogPostsApp() {
       showSnackbar("Post restored successfully", "success");
     } catch (error) {
       console.error("Failed to restore post:", error);
-      showSnackbar("Failed to restore post", "error");
+      showSnackbar(error.message, "error");
     }
   };
 
@@ -575,61 +575,61 @@ export default function BlogPostsApp() {
                     data={posts}
                     enableRowActions
                     renderRowActionMenuItems={({ closeMenu, row }) => [
-                      ...(showDeleted && row.original.deleted_at 
-                        ? [
-                            <MenuItem
-                              key="restore"
-                              onClick={() => {
-                                handleRestorePost(row.original);
-                                closeMenu();
-                              }}
-                            >
-                              <ListItemIcon>
-                                <FuseSvgIcon>heroicons-outline:refresh</FuseSvgIcon>
-                              </ListItemIcon>
-                              Restore
-                            </MenuItem>
-                          ] 
-                        : [
-                            <MenuItem
-                              key="view"
-                              onClick={() => {
-                                router.push(`/apps/blog/posts/${row.original.id}`);
-                                closeMenu();
-                              }}
-                            >
-                              <ListItemIcon>
-                                <FuseSvgIcon>heroicons-outline:eye</FuseSvgIcon>
-                              </ListItemIcon>
-                              View Details
-                            </MenuItem>,
-                            <MenuItem
-                              key="edit"
-                              onClick={() => {
-                                router.push(`/apps/blog/posts/${row.original.id}/edit`);
-                                closeMenu();
-                              }}
-                            >
-                              <ListItemIcon>
-                                <FuseSvgIcon>heroicons-outline:pencil</FuseSvgIcon>
-                              </ListItemIcon>
-                              Edit
-                            </MenuItem>,
-                            <MenuItem
-                              key="delete"
-                              onClick={() => {
-                                handleDeletePost(row.original);
-                                closeMenu();
-                              }}
-                            >
-                              <ListItemIcon>
-                                <FuseSvgIcon className="text-red-500">
-                                  heroicons-outline:trash
-                                </FuseSvgIcon>
-                              </ListItemIcon>
-                              <Typography color="error">Delete</Typography>
-                            </MenuItem>
-                          ])
+                      ...(row.original.deleted_at ? [
+                        <MenuItem
+                          key="restore"
+                          onClick={() => {
+                            handleRestorePost(row.original);
+                            closeMenu();
+                          }}
+                        >
+                          <ListItemIcon>
+                            <FuseSvgIcon>
+                              heroicons-outline:arrow-path                            
+                            </FuseSvgIcon>
+                          </ListItemIcon>
+                          Restore
+                        </MenuItem>
+                      ] : [
+                        <MenuItem
+                          key="view"
+                          onClick={() => {
+                            router.push(`/apps/blog/posts/${row.original.id}`);
+                            closeMenu();
+                          }}
+                        >
+                          <ListItemIcon>
+                            <FuseSvgIcon>heroicons-outline:eye</FuseSvgIcon>
+                          </ListItemIcon>
+                          View Details
+                        </MenuItem>,
+                        <MenuItem
+                          key="edit"
+                          onClick={() => {
+                            router.push(`/apps/blog/posts/${row.original.id}/edit`);
+                            closeMenu();
+                          }}
+                        >
+                          <ListItemIcon>
+                            <FuseSvgIcon>heroicons-outline:pencil</FuseSvgIcon>
+                          </ListItemIcon>
+                          Edit
+                        </MenuItem>,
+                        <MenuItem
+                          key="delete"
+                          onClick={() => {
+                            handleDeletePost(row.original);
+                            closeMenu();
+                          }}
+                        >
+                          <ListItemIcon>
+                            <FuseSvgIcon className="text-red-500">
+                              heroicons-outline:trash
+                            </FuseSvgIcon>
+                          </ListItemIcon>
+                          <Typography color="error">Delete</Typography>
+                        </MenuItem>
+                      ])
                     ]}
                   />
                   <Box sx={{ display: "flex", justifyContent: "center", p: 2 }}>

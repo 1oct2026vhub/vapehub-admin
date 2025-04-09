@@ -304,9 +304,7 @@ export default function BlogCategoriesApp() {
                 data={categories}
                 enableRowActions
                 renderRowActionMenuItems={({ closeMenu, row }) => {
-                  const isDeleted = !!row.original.deletedAt;
-
-                  if (isDeleted) {
+                  if (row.original.deletedAt) {
                     return [
                       <MenuItem
                         key="restore"
