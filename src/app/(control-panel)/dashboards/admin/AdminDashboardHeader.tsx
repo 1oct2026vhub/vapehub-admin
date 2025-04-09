@@ -1,10 +1,10 @@
 "use client";
 
-import { Typography, Box, Button, Paper, Breadcrumbs } from '@mui/material';
-import Link from 'next/link';
-import HomeIcon from '@mui/icons-material/Home';
-import DashboardIcon from '@mui/icons-material/Dashboard';
-import { usePathname } from 'next/navigation';
+import { Typography, Box, Button, Paper, Breadcrumbs } from "@mui/material";
+import Link from "next/link";
+import HomeIcon from "@mui/icons-material/Home";
+import DashboardIcon from "@mui/icons-material/Dashboard";
+import { usePathname } from "next/navigation";
 
 const AdminDashboardHeader = () => {
   const pathname = usePathname();
@@ -18,23 +18,42 @@ const AdminDashboardHeader = () => {
           </Typography>
           <Breadcrumbs aria-label="breadcrumb">
             <Link href="/" passHref>
-              <Box component="span" sx={{ display: 'flex', alignItems: 'center', color: 'text.secondary', textDecoration: 'none' }}>
+              <Box
+                component="span"
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  color: "text.secondary",
+                  textDecoration: "none",
+                }}
+              >
                 <HomeIcon sx={{ mr: 0.5 }} fontSize="inherit" />
                 Home
               </Box>
             </Link>
             <Link href="/dashboards" passHref>
-              <Box component="span" sx={{ display: 'flex', alignItems: 'center', color: 'text.secondary', textDecoration: 'none' }}>
+              <Box
+                component="span"
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  color: "text.secondary",
+                  textDecoration: "none",
+                }}
+              >
                 <DashboardIcon sx={{ mr: 0.5 }} fontSize="inherit" />
                 Dashboards
               </Box>
             </Link>
-            <Typography color="text.primary" sx={{ display: 'flex', alignItems: 'center' }}>
+            <Typography
+              color="text.primary"
+              sx={{ display: "flex", alignItems: "center" }}
+            >
               Admin
             </Typography>
           </Breadcrumbs>
         </Box>
-        <Box>
+        {/* <Box>
           <Button 
             variant="contained" 
             color="primary"
@@ -49,10 +68,10 @@ const AdminDashboardHeader = () => {
           >
             Export Reports
           </Button>
-        </Box>
+        </Box> */}
       </Box>
     </Paper>
   );
 };
 
-export default AdminDashboardHeader; 
+export default AdminDashboardHeader;

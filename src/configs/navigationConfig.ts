@@ -10,7 +10,8 @@ const navigationConfig: FuseNavItemType[] = [
     // translate: 'EXAMPLE',
     type: "item",
     icon: "heroicons-outline:squares-2x2",
-    url: "/dashboards/project",
+    url: "/dashboards/admin",
+    // url: "/dashboards/project",
   },
   {
     id: "attributes",
@@ -152,7 +153,7 @@ const navigationConfig: FuseNavItemType[] = [
         type: "item",
         url: "/apps/footer",
         end: true,
-      }
+      },
     ],
   },
   // {

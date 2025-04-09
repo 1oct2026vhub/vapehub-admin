@@ -9,7 +9,8 @@ export const metadata: Metadata = {
 
 function DashboardsPage() {
   // Default to project dashboard, but now users can navigate to /dashboards/admin as well
-  redirect("/dashboards/project");
+  redirect(`/dashboards/admin`);
+  // redirect("/dashboards/project");
   return null;
 }
 

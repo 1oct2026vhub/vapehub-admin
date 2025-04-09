@@ -25,7 +25,7 @@ function EmailVerifyConfirmationForm() {
     ["verifyEmail", { token }], // Key to trigger fetch
     verifyEmail,
     { token },
-    { skip: !!accessToken },
+    { skip: !!accessToken }
   );
 
   useEffect(() => {
@@ -34,7 +34,8 @@ function EmailVerifyConfirmationForm() {
     if (data?.success) {
       // showSnackbar(data?.message, "success");
       storeAuthToken(data?.data?.accessToken);
-      setTimeout(() => router.push("/dashboards/project"), 3000);
+      setTimeout(() => router.push("/dashboards/admin"), 3000);
+      // setTimeout(() => router.push("/dashboards/project"), 3000);
     } else if (error || !data?.success) {
       // showSnackbar("Invalid link or link expired", "error");
     }
@@ -65,7 +66,8 @@ function EmailVerifyConfirmationForm() {
               <span>Return to</span>
               <Link
                 className="text-[#2E9970] ml-1 hover:underline"
-                to="/dashboards/project"
+                to="/dashboards/admin"
+                // to="/dashboards/project"
               >
                 Sign_in
               </Link>
@@ -108,7 +110,8 @@ function EmailVerifyConfirmationForm() {
             <span>Return to</span>
             <Link
               className="text-[#2E9970] ml-1 hover:underline"
-              to="/dashboards/project"
+              to="/dashboards/admin"
+              // to="/dashboards/project"
             >
               Dashboard
             </Link>
