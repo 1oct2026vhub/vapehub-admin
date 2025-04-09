@@ -36,8 +36,18 @@ const schema = z.object({
       "Slug must be a valid URL-friendly string (lowercase letters, numbers, and hyphens only)"
     ),
   description: z.string().optional().default(""),
-  category_id: z.number().min(1, "Category is required"),
-  brand_id: z.number().min(1, "Brand is required"),
+  category_id: z
+    .any()
+    .refine((val) => val && Number(val) > 0, {
+      message: "Category is required",
+    })
+    .transform((val) => Number(val)),
+  brand_id: z
+    .any()
+    .refine((val) => val && Number(val) > 0, {
+      message: "Brand is required",
+    })
+    .transform((val) => Number(val)),
   is_new: z.boolean().optional(),
 });
 
@@ -231,34 +241,6 @@ function BasicInfoTab() {
     } finally {
       setIsLoading(false);
     }
-    //   console.error("Detailed error in BasicInfoTab:", {
-    //     error,
-    //     message: error.message,
-    //     response: error.response,
-    //     request: error.request,
-    //     config: error.config,
-    //     stack: error.stack,
-    //   });
-
-    //   updateFormData({ hasErrors: true });
-
-    //   // Show more specific error messages
-    //   if (error.message === "Authentication required. Please login again.") {
-    //     showSnackbar(error.message, "error");
-    //     window.location.href = "/sign-in";
-    //   } else if (error.message) {
-    //     showSnackbar(error.message, "error");
-    //   } else if (error.response?.data?.message) {
-    //     showSnackbar(error.response.data.message, "error");
-    //   } else {
-    //     showSnackbar(
-    //       "Failed to save product details. Please try again.",
-    //       "error",
-    //     );
-    //   }
-    // } finally {
-    //   setIsLoading(false);
-    // }
   };
 
   return (
@@ -309,6 +291,7 @@ function BasicInfoTab() {
         }
         required
         loading={!categories}
+        errorMessage={errors.category_id?.message}
       />
 
       <FormSearchableSelectField
@@ -323,6 +306,7 @@ function BasicInfoTab() {
         }
         required
         loading={!brands}
+        errorMessage={errors.brand_id?.message}
       />
       <AppButton
         label={isEditMode ? "Update" : "Next"}

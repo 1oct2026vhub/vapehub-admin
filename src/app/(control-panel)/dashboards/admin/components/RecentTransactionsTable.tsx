@@ -32,9 +32,7 @@ const RecentTransactionsTable = ({
     );
   }
 
-  const getOrderNumber = (transaction: RecentTransaction) => {
-    return transaction.orderId || "No Order ID";
-  };
+
 
   return (
     <TableContainer component={Paper} sx={{ boxShadow: "none" }}>
@@ -47,7 +45,6 @@ const RecentTransactionsTable = ({
             <TableCell sx={{ fontWeight: "bold" }}>Status</TableCell>
             <TableCell sx={{ fontWeight: "bold" }}>Reference Number</TableCell>
             <TableCell sx={{ fontWeight: "bold" }}>Transaction Type</TableCell>
-
             <TableCell sx={{ fontWeight: "bold", textAlign: "right" }}>
               Amount
             </TableCell>
@@ -56,12 +53,12 @@ const RecentTransactionsTable = ({
         <TableBody>
           {transactions.map((transaction, index) => (
             <TableRow
-              key={`transaction-${getOrderNumber(transaction)}-${index}`}
+              key={`transaction-${index}`}
               sx={{ "&:last-child td, &:last-child th": { border: 0 } }}
             >
               <TableCell component="th" scope="row">
                 <Chip
-                  label={getOrderNumber(transaction)}
+                  label={transaction?.orderId || "No ID"}
                   size="small"
                   color="secondary"
                   sx={{ fontWeight: "medium" }}
@@ -72,6 +69,7 @@ const RecentTransactionsTable = ({
                   ? format(new Date(transaction.createdAt), "MMM dd, yyyy")
                   : "N/A"}
               </TableCell>
+              {/* These fields don't exist in the RecentTransaction interface */}
               <TableCell>{transaction.paymentMethod || "N/A"}</TableCell>
               <TableCell>{transaction.status || "N/A"}</TableCell>
               <TableCell>{transaction.referenceNumber || "N/A"}</TableCell>

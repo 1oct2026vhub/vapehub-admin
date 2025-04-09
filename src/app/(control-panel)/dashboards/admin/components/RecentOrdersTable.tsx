@@ -59,7 +59,7 @@ const RecentOrdersTable = ({ orders }: RecentOrdersTableProps) => {
         <TableBody>
           {orders.map((order, index) => (
             <TableRow
-              key={`order-${order.id || ""}-${index}`}
+              key={`order-${order.order_unique_id || ""}-${index}`}
               sx={{ "&:last-child td, &:last-child th": { border: 0 } }}
             >
               <TableCell component="th" scope="row">
@@ -71,7 +71,7 @@ const RecentOrdersTable = ({ orders }: RecentOrdersTableProps) => {
                 />
               </TableCell>
               <TableCell>
-                {order?.user?.first_name ||
+               {order?.user?.first_name ||
                   order?.user?.last_name ||
                   order?.user?.email ||
                   "N/A"}
@@ -81,25 +81,9 @@ const RecentOrdersTable = ({ orders }: RecentOrdersTableProps) => {
                   ? format(new Date(order.createdAt), "MMM dd, yyyy")
                   : "N/A"}
               </TableCell>
-              <TableCell>{order?.total || "N/A"}</TableCell>
-              {/* <TableCell>{formatName(order)}</TableCell> */}
-              <TableCell>{order?.status || "N/A"}</TableCell>
+              <TableCell>{order.total || "N/A"}</TableCell>
+              <TableCell>{order.status ||"N/A"}</TableCell>
 
-              {/* <TableCell>
-                {Array.isArray(order?.user)
-                  ? order.user
-                      .map((user) => {
-                        const name =
-                          [user.first_name, user.last_name]
-                            .filter(Boolean)
-                            .join(" ") ||
-                          user.email ||
-                          "N/A";
-                        return name;
-                      })
-                      .join(", ")
-                  : "N/A"}
-              </TableCell> */}
             </TableRow>
           ))}
         </TableBody>

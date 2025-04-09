@@ -21,19 +21,29 @@ export interface TransactionChartData {
 export interface RecentTransaction {
   amount: number;
   createdAt: string;
-  orderId: {
-    orderNumber: string;
-  };
+  orderId: string;
+  paymentMethod?: string;
+  status?: string;
+  referenceNumber?: string;
+  transactionType?: string;
 }
 
 export interface RecentOrder {
   orderNumber: string;
+  order_unique_id?: string;
   createdAt: string;
   userId: {
     firstName: string;
     lastName: string;
     email: string;
   };
+  user?: {
+    first_name: string;
+    last_name: string;
+    email: string;
+  };
+  total?: string | number;
+  status?: string;
 }
 
 export interface OrderCount {

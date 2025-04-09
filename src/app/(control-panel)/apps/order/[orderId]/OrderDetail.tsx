@@ -31,7 +31,7 @@ import {
   TableHead,
   TableRow,
 } from "@mui/material";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import { getOrderById, updateOrderStatus, OrderStatus, Order } from "@/services/apiOrder";
 import OrderStatusChip from "../components/OrderStatusChip";
 import PaymentStatusChip from "../components/PaymentStatusChip";
@@ -43,12 +43,9 @@ import PersonIcon from "@mui/icons-material/Person";
 import ShoppingCartIcon from "@mui/icons-material/ShoppingCart";
 import FuseLoading from "@fuse/core/FuseLoading";
 
-interface OrderDetailProps {
-  orderId: number;
-}
-
-const OrderDetail = ({ orderId }: OrderDetailProps) => {
+const OrderDetail = () => {
   const router = useRouter();
+  const params = useParams();
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
   const [openStatusDialog, setOpenStatusDialog] = useState(false);
@@ -56,12 +53,13 @@ const OrderDetail = ({ orderId }: OrderDetailProps) => {
 
   useEffect(() => {
     fetchOrderDetails();
-  }, [orderId]);
+  }, []);
 
   const fetchOrderDetails = async () => {
     try {
       setLoading(true);
-      const data = await getOrderById(orderId);
+      const id = parseInt(params.orderId as string);
+      const data = await getOrderById(id);
       setOrder(data);
       setNewStatus(data.status);
     } catch (error) {

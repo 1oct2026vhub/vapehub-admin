@@ -1,68 +1,3 @@
-// import React from 'react';
-// import { Controller } from 'react-hook-form';
-// import { Autocomplete, TextField, CircularProgress } from '@mui/material';
-
-// interface Option {
-//   value: number | string;
-//   label: string;
-// }
-
-// interface FormSearchableSelectFieldProps {
-//   name: string;
-//   control: any;
-//   label: string;
-//   options: Option[];
-//   required?: boolean;
-//   loading?: boolean;
-// }
-
-// const FormSearchableSelectField: React.FC<FormSearchableSelectFieldProps> = ({
-//   name,
-//   control,
-//   label,
-//   options,
-//   required = false,
-//   loading = false
-// }) => {
-//   return (
-//     <Controller
-//       name={name}
-//       control={control}
-//       render={({ field }) => (
-//         <Autocomplete
-//           {...field}
-//           options={options}
-//           getOptionLabel={(option) => option.label}
-//           isOptionEqualToValue={(option, value) => option.value === value}
-//           onChange={(_, newValue) => field.onChange(newValue ? newValue.value : '')}
-//           loading={loading}
-//           renderInput={(params) => (
-//             <TextField
-//               {...params}
-//               label={label}
-//               variant="outlined"
-//               required={required}
-//               error={!!field.error}
-//               helperText={field.error ? field.error.message : ''}
-//               InputProps={{
-//                 ...params.InputProps,
-//                 endAdornment: (
-//                   <>
-//                     {loading ? <CircularProgress color="inherit" size={20} /> : null}
-//                     {params.InputProps.endAdornment}
-//                   </>
-//                 )
-//               }}
-//             />
-//           )}
-//         />
-//       )}
-//     />
-//   );
-// };
-
-// export default FormSearchableSelectField;
-
 import React, { useState } from "react";
 import { Controller } from "react-hook-form";
 import { Autocomplete, TextField, CircularProgress } from "@mui/material";
@@ -79,6 +14,7 @@ interface FormSearchableSelectFieldProps {
   options: Option[];
   required?: boolean;
   loading?: boolean;
+  errorMessage?: string;
 }
 
 const FormSearchableSelectField: React.FC<FormSearchableSelectFieldProps> = ({
@@ -88,6 +24,7 @@ const FormSearchableSelectField: React.FC<FormSearchableSelectFieldProps> = ({
   options,
   required = false,
   loading = false,
+  errorMessage,
 }) => {
   const [touched, setTouched] = useState(false);
 
@@ -105,7 +42,6 @@ const FormSearchableSelectField: React.FC<FormSearchableSelectFieldProps> = ({
         <Autocomplete
           options={options}
           getOptionLabel={(option) => option.label}
-          // isOptionEqualToValue={(option, value) => option.value === value}
           isOptionEqualToValue={(option, value) => 
             option.value === (value as Option)?.value  // ✅ Proper type assertion
           }
@@ -125,8 +61,8 @@ const FormSearchableSelectField: React.FC<FormSearchableSelectFieldProps> = ({
               }
               variant="outlined"
               fullWidth
-              error={touched && !!error}
-              helperText={touched && error ? error.message : ""}
+              error={!!errorMessage || (touched && !!error)}
+              helperText={errorMessage || (touched && error ? error.message : "")}
               InputProps={{
                 ...params.InputProps,
                 endAdornment: (
