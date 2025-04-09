@@ -2,8 +2,8 @@
 
 import { SnackbarProvider } from "notistack";
 import { useMemo } from "react";
-import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFnsV3";
-import { enUS } from "date-fns/locale/en-US";
+import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
+import enUS from "date-fns/locale/en-US";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { Provider } from "react-redux";
 import ErrorBoundary from "@fuse/utils/ErrorBoundary";

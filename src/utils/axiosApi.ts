@@ -153,6 +153,11 @@ const axiosApi = axios.create({
 // Request Interceptor - Attach Token & Set Content-Type
 axiosApi.interceptors.request.use(
   (config) => {
+    console.log(`Request: ${config.method?.toUpperCase()} ${config.url}`, {
+      data: config.data,
+      params: config.params,
+    });
+    
     if (typeof window !== "undefined") {
       const token = getAuthToken();
       if (token) {
@@ -170,13 +175,29 @@ axiosApi.interceptors.request.use(
 
     return config;
   },
-  (error) => Promise.reject(error),
+  (error) => {
+    console.error("Request error:", error);
+    return Promise.reject(error);
+  },
 );
 
 // Response Interceptor - Handle Expired Tokens & Errors
 axiosApi.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    console.log(`Response: ${response.status} ${response.config.method?.toUpperCase()} ${response.config.url}`, {
+      data: response.data,
+    });
+    return response;
+  },
   (error) => {
+    console.error("Response error:", {
+      url: error.config?.url,
+      method: error.config?.method,
+      status: error.response?.status,
+      data: error.response?.data,
+      message: error.message,
+    });
+    
     if (error.response) {
       const { status, data } = error.response;
 

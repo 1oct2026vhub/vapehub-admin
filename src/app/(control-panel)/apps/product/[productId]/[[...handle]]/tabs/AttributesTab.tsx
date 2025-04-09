@@ -1189,9 +1189,7 @@ function AttributesTab() {
                           // Map the selected options to their value property and ensure they are numbers
                           const termIds = newValue.map((item) => Number(item.value));
                           
-                          // Log selection for debugging
-                          console.log("Selected term IDs:", termIds);
-                          
+                                
                           // Update form value
                           onChange(termIds);
                           

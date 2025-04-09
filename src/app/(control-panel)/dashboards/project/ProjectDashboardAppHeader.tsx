@@ -1,3 +1,5 @@
+"use client";
+
 import Avatar from "@mui/material/Avatar";
 import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
@@ -11,6 +13,7 @@ import PageBreadcrumb from "src/components/PageBreadcrumb";
 import useUser from "@auth/useUser";
 import { useGetProjectDashboardProjectsQuery } from "./ProjectDashboardApi";
 import { getAuthToken } from "@/utils/auth";
+import { Box } from "@mui/material";
 
 /**
  * The ProjectDashboardAppHeader page.
@@ -103,24 +106,22 @@ function ProjectDashboardAppHeader() {
 						</div> */}
           </div>
         </div>
-        {/* <div className="flex items-center mt-6 sm:mt-0 sm:mx-2 space-x-2">
-					<Button
-						className="whitespace-nowrap"
-						variant="contained"
-						color="primary"
-						startIcon={<FuseSvgIcon size={20}>heroicons-solid:envelope</FuseSvgIcon>}
-					>
-						Messages
-					</Button>
-					<Button
-						className="whitespace-nowrap"
-						variant="contained"
-						color="secondary"
-						startIcon={<FuseSvgIcon size={20}>heroicons-solid:cog-6-tooth</FuseSvgIcon>}
-					>
-						Settings
-					</Button>
-				</div> */}
+        <Box>
+          <Button 
+            variant="contained" 
+            color="primary"
+            href="/dashboards/admin"
+            sx={{ mr: 2 }}
+          >
+            Admin Dashboard
+          </Button>
+          <Button 
+            variant="outlined" 
+            color="primary"
+          >
+            Export Reports
+          </Button>
+        </Box>
       </div>
       {/* <div className="flex items-center">
 				<Button
