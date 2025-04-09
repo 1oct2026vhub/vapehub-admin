@@ -407,42 +407,46 @@ export default function FooterSectionsApp() {
       animate={{ opacity: 1, transition: { delay: 0.1 } }}
       className="w-full"
     >
-      <Container maxWidth="lg">
+      <Container maxWidth={false} sx={{ pl: 3, pr: 3 }}>
         <Box className="sm:py-12 py-8">
-                    <Box
+          <Box
+            display="flex"
+            flexDirection={{ xs: "column", sm: "row" }}
+            alignItems={{ xs: "flex-start", sm: "center" }}
+            justifyContent="space-between"
+            mb={3}
+            gap={2}
+          >
+            <Typography variant="h4" component="h1" fontWeight={600}>
+              Footer Sections
+            </Typography>
+
+            <Box
               display="flex"
               flexDirection={{ xs: "column", sm: "row" }}
-              alignItems={{ xs: "flex-start", sm: "center" }}
-              justifyContent="space-between"
-              mb={3}
               gap={2}
             >
-              <Typography variant="h4" component="h1" fontWeight={600}>
-                Footer Sections
-              </Typography>
-
-              <Box
-                display="flex"
-                flexDirection={{ xs: "column", sm: "row" }}
-                gap={2}
-              >
-                <FormControlLabel
-                  control={
-                    <Switch
-                      checked={showActiveOnly}
-                      onChange={(e) => setShowActiveOnly(e.target.checked)}
-                      color="primary"
-                    />
-                  }
-                  label="Show active only"
-                />
-                <AppButton
-                  label="Add Section"
-                  onClick={handleAddSection}
-                />
-              </Box>
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={showActiveOnly}
+                    onChange={(e) => setShowActiveOnly(e.target.checked)}
+                    color="primary"
+                  />
+                }
+                label="Show active only"
+              />
+              <AppButton
+                label="Add Section"
+                onClick={handleAddSection}
+              />
             </Box>
+          </Box>
           <div
+            style={{
+              maxWidth: '50%',
+              width: '100%'
+            }}
           >
 {/* <Paper
             className="flex flex-col flex-auto p-6 shadow-none rounded"

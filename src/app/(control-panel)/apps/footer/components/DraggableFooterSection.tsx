@@ -209,11 +209,20 @@ export default function DraggableFooterSection({
       >
         <CardHeader
           title={
-            <Box display="flex" alignItems="center">
+            <Box 
+              display="flex" 
+              alignItems="center" 
+              sx={{ 
+                width: '100%',
+                cursor: 'pointer'
+              }}
+              onClick={onToggleExpand}
+            >
               <IconButton
                 {...attributes}
                 {...listeners}
                 size="small"
+                onClick={(e) => e.stopPropagation()} // Prevent expand when clicking drag handle
                 sx={{
                   mr: 1,
                   cursor: 'grab',
@@ -228,7 +237,7 @@ export default function DraggableFooterSection({
             </Box>
           }
           action={
-            <Box>
+            <Box onClick={(e) => e.stopPropagation()}> {/* Prevent expand when clicking action buttons */}
               <Tooltip title="Manage Links">
                 <IconButton onClick={onManageLinks}>
                   <LinkIcon />
@@ -245,7 +254,10 @@ export default function DraggableFooterSection({
                 </IconButton>
               </Tooltip>
               <Tooltip title={isExpanded ? "Collapse" : "Expand"}>
-                <IconButton onClick={onToggleExpand}>
+                <IconButton onClick={(e) => {
+                  e.stopPropagation();
+                  onToggleExpand();
+                }}>
                   {isExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
                 </IconButton>
               </Tooltip>
@@ -258,61 +270,54 @@ export default function DraggableFooterSection({
         />
         <Collapse in={isExpanded} timeout="auto" unmountOnExit>
           <CardContent>
-            <Typography variant="body2" color="text.secondary" paragraph>
+            {/* <Typography variant="body2" color="text.secondary" paragraph>
               <strong>Order:</strong> {section.order}
             </Typography>
             <Typography variant="body2" color="text.secondary">
               <strong>Status:</strong> {section.is_active ? 'Active' : 'Inactive'}
-            </Typography>
-            {section.links && section.links.length > 0 && (
-              <Box mt={2}>
-                <Typography variant="subtitle2" gutterBottom>
-                  Links ({section.links.length})
-                </Typography>
-                
-                {onReorderLinks ? (
-                  <DndContext
-                    sensors={sensors}
-                    collisionDetection={closestCenter}
-                    onDragEnd={handleDragEnd}
+            </Typography> */}
+            <Box mt={2}>
+              {section.links && section.links.length > 0 ? (
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragEnd={handleDragEnd}
+                >
+                  <SortableContext
+                    items={section.links.map(link => link.id.toString())}
+                    strategy={verticalListSortingStrategy}
                   >
-                    <SortableContext
-                      items={section.links.map(link => link.id.toString())}
-                      strategy={verticalListSortingStrategy}
-                    >
-                      <List sx={{ pl: 2, maxHeight: '300px', overflow: 'auto' }}>
-                        {section.links.map((link) => (
-                          <DraggableFooterLink
-                            key={link.id}
-                            link={link}
-                            onEdit={() => handleEditLink(link)}
-                            onDelete={() => handleDeleteLink(link)}
-                          />
-                        ))}
-                      </List>
-                    </SortableContext>
-                  </DndContext>
-                ) : (
-                  <Box pl={2} sx={{ borderLeft: '1px solid #e0e0e0' }}>
-                    {section.links.slice(0, 3).map((link) => (
-                      <Typography
-                        key={link.id}
-                        variant="body2"
-                        color={link.is_active ? 'text.primary' : 'text.disabled'}
-                        sx={{ mb: 0.5 }}
-                      >
-                        • {link.label} ({link.url})
-                      </Typography>
-                    ))}
-                    {section.links.length > 3 && (
-                      <Typography variant="body2" color="primary">
-                        + {section.links.length - 3} more links...
-                      </Typography>
-                    )}
-                  </Box>
-                )}
-              </Box>
-            )}
+                    <List sx={{ pl: 2, maxHeight: '300px', overflow: 'auto' }}>
+                      {section.links.map((link) => (
+                        <DraggableFooterLink
+                          key={link.id}
+                          link={link}
+                          onEdit={() => handleEditLink(link)}
+                          onDelete={() => handleDeleteLink(link)}
+                        />
+                      ))}
+                    </List>
+                  </SortableContext>
+                </DndContext>
+              ) : (
+                <Box 
+                  sx={{ 
+                    pl: 2, 
+                    py: 2,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    borderLeft: '1px solid #e0e0e0',
+                    backgroundColor: 'rgba(0, 0, 0, 0.02)',
+                    borderRadius: 1
+                  }}
+                >
+                  <Typography variant="body2" color="text.secondary">
+                    No links found in this section
+                  </Typography>
+                </Box>
+              )}
+            </Box>
           </CardContent>
         </Collapse>
       </Card>
