@@ -27,6 +27,7 @@ import {
   ListItemSecondaryAction,
   Divider,
   Tooltip,
+  DialogActions,
 } from "@mui/material";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
@@ -39,11 +40,6 @@ import { MRT_ColumnDef } from "material-react-table";
 import DataTable from "@/components/data-table/DataTable";
 import FuseLoading from "@fuse/core/FuseLoading";
 import AddIcon from "@mui/icons-material/Add";
-import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
-import ArrowUpwardIcon from "@mui/icons-material/ArrowUpward";
-import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import LinkIcon from "@mui/icons-material/Link";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -64,7 +60,24 @@ import {
   reorderFooterLink,
 } from "@/services/apiFooter";
 import FooterLinksDialog from "./components/FooterLinksDialog";
-import { DragDropContext, Droppable, Draggable } from "react-beautiful-dnd";
+
+// dnd-kit imports
+import {
+  DndContext,
+  DragEndEvent,
+  KeyboardSensor,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  arrayMove,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import DraggableFooterSection from "./components/DraggableFooterSection";
 
 // Define validation schema using Zod
 const sectionSchema = z.object({
@@ -101,6 +114,19 @@ export default function FooterSectionsApp() {
   const [expandedSections, setExpandedSections] = useState<Record<number, boolean>>({});
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [sectionToDelete, setSectionToDelete] = useState<FooterSection | null>(null);
+  const [reorderingInProgress, setReorderingInProgress] = useState(false);
+
+  // Define sensors for drag interactions
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8, // 8px movement required before activation
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   // Form with react-hook-form and Zod validation
   const methods = useForm<SectionFormType>({
@@ -288,406 +314,270 @@ export default function FooterSectionsApp() {
   };
 
   // Handle drag end for sections
-  const handleDragEnd = async (result: any) => {
-    if (!result.destination) return;
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
     
-    const { source, destination, type } = result;
+    // Return if no change
+    if (!over || active.id === over.id) {
+      return;
+    }
     
-    if (source.index === destination.index) return;
+    // Set reordering in progress
+    setReorderingInProgress(true);
     
-    if (type === 'section') {
-      // Reorder sections
-      const reorderedSections = [...sections];
-      const [movedSection] = reorderedSections.splice(source.index, 1);
-      reorderedSections.splice(destination.index, 0, movedSection);
-      
-      // Update orders
-      const updatedSections = reorderedSections.map((section, index) => ({
-        ...section,
-        order: index + 1
-      }));
-      
-      setSections(updatedSections);
-      
-      // Call API to persist the change
-      try {
-        const sectionId = movedSection.id;
-        const newOrder = destination.index + 1;
-        await reorderFooterSection(sectionId, { new_order: newOrder });
-        showSnackbar("Section reordered successfully", "success");
-      } catch (error) {
-        console.error("Failed to reorder section:", error);
-        showSnackbar("Failed to reorder section", "error");
-        fetchFooterSections(); // Reset to original order
-      }
-    } else if (type.startsWith('link-')) {
-      // Extract section ID from the type
-      const sectionId = parseInt(type.replace('link-', ''));
-      const section = sections.find(s => s.id === sectionId);
-      
-      if (!section || !section.links) return;
-      
-      // Reorder links within the section
-      const reorderedLinks = [...section.links];
-      const [movedLink] = reorderedLinks.splice(source.index, 1);
-      reorderedLinks.splice(destination.index, 0, movedLink);
-      
-      // Update orders
-      const updatedLinks = reorderedLinks.map((link, index) => ({
-        ...link,
-        order: index + 1
-      }));
-      
-      // Update the section with reordered links
-      const updatedSections = sections.map(s => 
-        s.id === sectionId ? { ...s, links: updatedLinks } : s
+    try {
+      // Find the indices
+      const activeIndex = sections.findIndex(
+        (section) => section.id.toString() === active.id
+      );
+      const overIndex = sections.findIndex(
+        (section) => section.id.toString() === over.id
       );
       
-      setSections(updatedSections);
-      
-      // Call API to persist the change
-      try {
-        const linkId = movedLink.id;
-        const newOrder = destination.index + 1;
-        await reorderFooterLink(linkId, { new_order: newOrder });
-        showSnackbar("Link reordered successfully", "success");
-      } catch (error) {
-        console.error("Failed to reorder link:", error);
-        showSnackbar("Failed to reorder link", "error");
-        fetchFooterSections(); // Reset to original order
+      if (activeIndex !== -1 && overIndex !== -1) {
+        // Update UI immediately
+        const newSections = arrayMove(sections, activeIndex, overIndex);
+        
+        // Update orders to match new positions
+        const updatedSections = newSections.map((section, index) => ({
+          ...section,
+          order: index + 1,
+        }));
+        
+        // Update state
+        setSections(updatedSections);
+        
+        // Call API to persist changes
+        const movedSection = sections[activeIndex];
+        await reorderFooterSection(movedSection.id, { new_order: overIndex + 1 });
+        
+        // Success message
+        showSnackbar(`Section "${movedSection.title}" reordered successfully`, "success");
       }
+    } catch (error) {
+      console.error("Failed to reorder section:", error);
+      showSnackbar("Failed to reorder section", "error");
+      // Reset to original order
+      fetchFooterSections();
+    } finally {
+      setReorderingInProgress(false);
+    }
+  };
+
+  // Handle link reordering within a section
+  const handleReorderLinks = async (sectionId: number, updatedLinks: FooterLink[]) => {
+    try {
+      // Update local state immediately for better UX
+      setSections(prevSections => 
+        prevSections.map(section => 
+          section.id === sectionId 
+            ? { ...section, links: updatedLinks } 
+            : section
+        )
+      );
+
+      // Find the section with the updated links
+      const section = sections.find(s => s.id === sectionId);
+      
+      if (section) {
+        // Get the moved link
+        const movedLink = updatedLinks.find(link => 
+          link.order !== section.links?.find(l => l.id === link.id)?.order
+        );
+
+        if (movedLink) {
+          // API call to update order
+          await reorderFooterLink(movedLink.id, { new_order: movedLink.order });
+          showSnackbar(`Link "${movedLink.label}" reordered successfully`, "success");
+        }
+      }
+    } catch (error) {
+      console.error("Failed to reorder link:", error);
+      showSnackbar("Failed to reorder link", "error");
+      // Reset to original order
+      fetchFooterSections();
     }
   };
 
   if (loading) return <FuseLoading />;
 
   return (
-    <LocalizationProvider dateAdapter={AdapterDayjs}>
-      <Container maxWidth="lg" className="py-4">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3 }}
-        >
-          <Box className="flex justify-between items-center mb-6">
-            <Typography variant="h4" fontWeight="bold">
-              Footer Management
-            </Typography>
-            <Box className="flex items-center gap-4">
-              <FormControlLabel
-                control={
-                  <Switch
-                    checked={showActiveOnly}
-                    onChange={(e) => setShowActiveOnly(e.target.checked)}
-                    color="primary"
-                  />
-                }
-                label="Show Active Only"
-              />
-              <AppButton
-                label="Add Section"
-                onClick={handleAddSection}
-              />
-            </Box>
-          </Box>
-
-          {sections.length === 0 ? (
-            <Paper sx={{ p: 4, textAlign: "center" }}>
-              <Typography color="text.secondary" gutterBottom>
-                No footer sections found.
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1, transition: { delay: 0.1 } }}
+      className="w-full"
+    >
+      <Container maxWidth="lg">
+        <Box className="sm:py-12 py-8">
+                    <Box
+              display="flex"
+              flexDirection={{ xs: "column", sm: "row" }}
+              alignItems={{ xs: "flex-start", sm: "center" }}
+              justifyContent="space-between"
+              mb={3}
+              gap={2}
+            >
+              <Typography variant="h4" component="h1" fontWeight={600}>
+                Footer Sections
               </Typography>
-              <Button
-                variant="outlined"
-                startIcon={<AddIcon />}
-                onClick={handleAddSection}
-                sx={{ mt: 2 }}
+
+              <Box
+                display="flex"
+                flexDirection={{ xs: "column", sm: "row" }}
+                gap={2}
               >
-                Add Your First Section
-              </Button>
-            </Paper>
-          ) : (
-            <DragDropContext onDragEnd={handleDragEnd}>
-              <Droppable droppableId="footer-sections" type="section">
-                {(provided) => (
-                  <div
-                    {...provided.droppableProps}
-                    ref={provided.innerRef}
-                    className="space-y-4"
-                  >
-                    {sections.map((section, index) => (
-                      <Draggable
-                        key={section.id.toString()}
-                        draggableId={section.id.toString()}
-                        index={index}
-                      >
-                        {(provided) => (
-                          <Paper
-                            ref={provided.innerRef}
-                            {...provided.draggableProps}
-                            elevation={1}
-                            className="overflow-hidden"
-                          >
-                            <Card>
-                              <CardHeader
-                                avatar={
-                                  <div {...provided.dragHandleProps}>
-                                    <DragIndicatorIcon color="action" />
-                                  </div>
-                                }
-                                title={
-                                  <Box className="flex items-center justify-between">
-                                    <Typography variant="h6" className="font-medium">
-                                      {section.title}
-                                    </Typography>
-                                    <Box className="flex items-center gap-1">
-                                      <Typography variant="body2" color="text.secondary">
-                                        Order: {section.order}
-                                      </Typography>
-                                      {!section.is_active && (
-                                        <Typography
-                                          variant="caption"
-                                          className="ml-2 bg-red-100 text-red-800 px-2 py-0.5 rounded"
-                                        >
-                                          Inactive
-                                        </Typography>
-                                      )}
-                                    </Box>
-                                  </Box>
-                                }
-                                action={
-                                  <Box className="flex items-center">
-                                    <Tooltip title="Manage Links">
-                                      <IconButton
-                                        size="small"
-                                        onClick={() => handleShowLinks(section)}
-                                      >
-                                        <LinkIcon />
-                                      </IconButton>
-                                    </Tooltip>
-                                    <Tooltip title="Edit Section">
-                                      <IconButton
-                                        size="small"
-                                        onClick={() => handleEditSection(section)}
-                                      >
-                                        <EditIcon />
-                                      </IconButton>
-                                    </Tooltip>
-                                    <Tooltip title="Delete Section">
-                                      <IconButton
-                                        size="small"
-                                        onClick={() => handleDeleteSection(section)}
-                                      >
-                                        <DeleteIcon />
-                                      </IconButton>
-                                    </Tooltip>
-                                    <Tooltip title={expandedSections[section.id] ? "Collapse" : "Expand"}>
-                                      <IconButton
-                                        size="small"
-                                        onClick={() => handleToggleExpand(section.id)}
-                                      >
-                                        {expandedSections[section.id] ? <ExpandLessIcon /> : <ExpandMoreIcon />}
-                                      </IconButton>
-                                    </Tooltip>
-                                  </Box>
-                                }
-                              />
-                              <Collapse in={expandedSections[section.id]} timeout="auto" unmountOnExit>
-                                <CardContent className="pt-0">
-                                  {section.links && section.links.length > 0 ? (
-                                    <Droppable droppableId={`links-${section.id}`} type={`link-${section.id}`}>
-                                      {(provided) => (
-                                        <List
-                                          ref={provided.innerRef}
-                                          {...provided.droppableProps}
-                                          className="w-full"
-                                          dense
-                                        >
-                                          {section.links.map((link, linkIndex) => (
-                                            <Draggable
-                                              key={link.id.toString()}
-                                              draggableId={link.id.toString()}
-                                              index={linkIndex}
-                                            >
-                                              {(provided) => (
-                                                <>
-                                                  <ListItem
-                                                    ref={provided.innerRef}
-                                                    {...provided.draggableProps}
-                                                    {...provided.dragHandleProps}
-                                                    className={`${
-                                                      link.is_active ? "" : "opacity-60"
-                                                    }`}
-                                                  >
-                                                    <DragIndicatorIcon className="mr-2 text-gray-400" fontSize="small" />
-                                                    <ListItemText
-                                                      primary={link.label}
-                                                      secondary={
-                                                        <Box component="span" className="flex items-center gap-2">
-                                                          <span>{link.url}</span>
-                                                          <span className="text-xs text-gray-500">
-                                                            (Order: {link.order})
-                                                          </span>
-                                                          {!link.is_active && (
-                                                            <span className="text-xs bg-red-100 text-red-800 px-1 py-0.5 rounded">
-                                                              Inactive
-                                                            </span>
-                                                          )}
-                                                        </Box>
-                                                      }
-                                                    />
-                                                  </ListItem>
-                                                  {linkIndex < section.links.length - 1 && <Divider />}
-                                                </>
-                                              )}
-                                            </Draggable>
-                                          ))}
-                                          {provided.placeholder}
-                                        </List>
-                                      )}
-                                    </Droppable>
-                                  ) : (
-                                    <Typography color="text.secondary" className="py-2 text-center">
-                                      No links added to this section yet
-                                    </Typography>
-                                  )}
-                                  <Box className="mt-3 flex justify-end">
-                                    <Button
-                                      size="small"
-                                      startIcon={<AddIcon />}
-                                      onClick={() => handleShowLinks(section)}
-                                    >
-                                      Manage Links
-                                    </Button>
-                                  </Box>
-                                </CardContent>
-                              </Collapse>
-                            </Card>
-                          </Paper>
-                        )}
-                      </Draggable>
-                    ))}
-                    {provided.placeholder}
-                  </div>
-                )}
-              </Droppable>
-            </DragDropContext>
-          )}
-
-          {/* Add/Edit Section Dialog */}
-          <Dialog open={openDialog} onClose={handleDialogClose} maxWidth="sm" fullWidth>
-            <DialogTitle>
-              {currentSection ? "Edit Footer Section" : "Add Footer Section"}
-            </DialogTitle>
-            <DialogContent>
-              <FormProvider {...methods}>
-                <form onSubmit={methods.handleSubmit(handleSubmit)}>
-                  <Box sx={{ mt: 2 }}>
-                    {errors?.root?.message && (
-                      <Alert className="mb-4" severity="error">
-                        {errors?.root?.message}
-                      </Alert>
-                    )}
-
-                    <Grid container spacing={2}>
-                      <Grid item xs={12}>
-                        <FormInputField
-                          name="title"
-                          control={methods.control}
-                          label="Section Title"
-                          required
-                        />
-                      </Grid>
-                      <Grid item xs={12} sm={6}>
-                        <FormInputField
-                          name="order"
-                          control={methods.control}
-                          label="Display Order"
-                          type="number"
-                          required
-                        />
-                      </Grid>
-                      <Grid item xs={12} sm={6}>
-                        <FormControlLabel
-                          control={
-                            <Switch
-                              checked={methods.watch("is_active")}
-                              onChange={(e) =>
-                                methods.setValue("is_active", e.target.checked)
-                              }
-                              color="primary"
-                            />
-                          }
-                          label="Active"
-                        />
-                      </Grid>
-                    </Grid>
-
-                    <Box sx={{ mt: 3, display: "flex", justifyContent: "flex-end", gap: 2 }}>
-                      <Button
-                        variant="outlined"
-                        color="inherit"
-                        onClick={handleDialogClose}
-                      >
-                        Cancel
-                      </Button>
-                      <AppButton
-                        label="Save"
-                        type="submit"
-                        disabled={!isValid || submitting}
-                        loading={submitting}
-                      />
-                    </Box>
-                  </Box>
-                </form>
-              </FormProvider>
-            </DialogContent>
-          </Dialog>
-
-          {/* Manage Links Dialog */}
-          {selectedSection && (
-            <FooterLinksDialog
-              open={openLinksDialog}
-              onClose={handleLinksDialogClose}
-              section={selectedSection}
-              onSuccess={(message) => showSnackbar(message, "success")}
-              onError={(message) => showSnackbar(message, "error")}
-            />
-          )}
-
-          {/* Delete Confirmation Dialog */}
-          <Dialog
-            open={deleteDialogOpen}
-            onClose={handleCloseDeleteDialog}
-            aria-labelledby="delete-dialog-title"
-            aria-describedby="delete-dialog-description"
-          >
-            <DialogTitle id="delete-dialog-title">
-              Confirm Deletion
-            </DialogTitle>
-            <DialogContent>
-              {sectionToDelete && (
-                <Typography variant="body1">
-                  Are you sure you want to delete the section "{sectionToDelete.title}"?
-                </Typography>
-              )}
-            </DialogContent>
-            <Box sx={{ display: 'flex', justifyContent: 'flex-end', p: 2 }}>
-              <Button onClick={handleCloseDeleteDialog} color="primary" sx={{ mr: 1 }}>
-                Cancel
-              </Button>
-              <Button 
-                onClick={confirmDeleteSection} 
-                color="error" 
-                variant="contained"
-                disabled={submitting}
-              >
-                {submitting ? "Deleting..." : "Delete"}
-              </Button>
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={showActiveOnly}
+                      onChange={(e) => setShowActiveOnly(e.target.checked)}
+                      color="primary"
+                    />
+                  }
+                  label="Show active only"
+                />
+                <AppButton
+                  label="Add Section"
+                  onClick={handleAddSection}
+                />
+              </Box>
             </Box>
-          </Dialog>
-        </motion.div>
+          <div
+          >
+{/* <Paper
+            className="flex flex-col flex-auto p-6 shadow-none rounded"
+            elevation={0}
+          ></Paper> */}
+
+            {sections.length === 0 ? (
+              <Alert severity="info">
+                No footer sections available. Click the &quot;Add Section&quot;
+                button to create your first section.
+              </Alert>
+            ) : (
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleDragEnd}
+              >
+                <SortableContext
+                  items={sections.map(section => section.id.toString())}
+                  strategy={verticalListSortingStrategy}
+                >
+                  <Box className="grid grid-cols-1 gap-4">
+                    {sections.map((section) => (
+                      <DraggableFooterSection
+                        key={section.id}
+                        section={section}
+                        isExpanded={expandedSections[section.id] || false}
+                        onToggleExpand={() => handleToggleExpand(section.id)}
+                        onEdit={() => handleEditSection(section)}
+                        onDelete={() => handleDeleteSection(section)}
+                        onManageLinks={() => handleShowLinks(section)}
+                        onReorderLinks={handleReorderLinks}
+                        onSuccess={(message) => showSnackbar(message, "success")}
+                        onError={(message) => showSnackbar(message, "error")}
+                      />
+                    ))}
+                  </Box>
+                </SortableContext>
+              </DndContext>
+            )}
+          </div>
+        </Box>
       </Container>
-    </LocalizationProvider>
+
+      {/* Section dialog */}
+      <Dialog open={openDialog} onClose={handleDialogClose} maxWidth="sm" fullWidth>
+        <DialogTitle>
+          {currentSection ? "Edit Section" : "Add New Section"}
+        </DialogTitle>
+        <DialogContent>
+          <Box py={1}>
+            <FormProvider {...methods}>
+              <form onSubmit={methods.handleSubmit(handleSubmit)}>
+                <Box display="grid" gridTemplateColumns="1fr" gap={2}>
+                  <FormInputField
+                    name="title"
+                    control={methods.control}
+                    label="Section Title"
+                    required
+                  />
+                  <FormInputField
+                    name="order"
+                    control={methods.control}
+                    label="Order"
+                    type="number"
+                    required
+                  />
+                  <FormControlLabel
+                    control={
+                      <Switch
+                        checked={methods.watch("is_active")}
+                        onChange={(e) =>
+                          methods.setValue("is_active", e.target.checked)
+                        }
+                      />
+                    }
+                    label="Active"
+                  />
+                </Box>
+
+                <Box display="flex" justifyContent="flex-end" gap={2} mt={3}>
+                  <Button onClick={handleDialogClose}>Cancel</Button>
+                  <AppButton
+                    type="submit"
+                    loading={submitting}
+                    disabled={!isValid || submitting}
+                    label={currentSection ? "Update" : "Create"}
+                  />
+                </Box>
+              </form>
+            </FormProvider>
+          </Box>
+        </DialogContent>
+      </Dialog>
+
+      {/* Links dialog */}
+      {selectedSection && (
+        <FooterLinksDialog
+          open={openLinksDialog}
+          onClose={handleLinksDialogClose}
+          section={selectedSection}
+          onSuccess={(message) => showSnackbar(message, "success")}
+          onError={(message) => showSnackbar(message, "error")}
+        />
+      )}
+
+      {/* Delete confirmation dialog */}
+      <Dialog
+        open={deleteDialogOpen}
+        onClose={handleCloseDeleteDialog}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle>Delete Section</DialogTitle>
+        <DialogContent>
+          <Typography>
+            Are you sure you want to delete section &quot;
+            {sectionToDelete?.title || ""}&quot;? This will also delete all links
+            within this section.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseDeleteDialog} color="inherit">
+            Cancel
+          </Button>
+          <Button
+            onClick={confirmDeleteSection}
+            color="error"
+            variant="contained"
+          >
+            Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </motion.div>
   );
 }
 

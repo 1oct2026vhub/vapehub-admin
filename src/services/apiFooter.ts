@@ -67,8 +67,12 @@ export const reorderFooterSection = async (
   newOrderData: { new_order: number }
 ) => {
   try {
-    // Make the API call directly and return the result
-    return await updater(`/api/admin/footer/sections/${id}/reorder`, newOrderData);
+    // Log the reordering attempt
+    console.log(`Reordering section ${id} to order ${newOrderData.new_order}`);
+    
+    // Make the API call
+    const response = await updater(`/api/admin/footer/sections/${id}/reorder`, newOrderData);
+    return response;
   } catch (error) {
     console.error(`Error reordering section ${id}:`, error);
     throw error;
@@ -122,7 +126,18 @@ export const reorderFooterLink = async (
   payload: { new_order: number }
 ) => {
   try {
-    return await updater(`/api/admin/footer/links/${id}/reorder`, payload);
+    console.log(`Reordering link ${id} to order ${payload.new_order}`);
+    // Ensure we're sending a valid payload
+    if (!id || typeof payload.new_order !== 'number') {
+      throw new Error('Invalid reorder parameters');
+    }
+    
+    // Make the API call with proper error handling
+    const response = await updater(`/api/admin/footer/links/${id}/reorder`, payload);
+    
+    // Log success and return the response data
+    console.log(`Successfully reordered link ${id}`, response);
+    return response?.data || response;
   } catch (error) {
     console.error(`Error reordering link ${id}:`, error);
     throw error;

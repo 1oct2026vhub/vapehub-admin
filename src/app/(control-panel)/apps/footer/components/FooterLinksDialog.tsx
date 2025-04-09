@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   Dialog,
   DialogTitle,
@@ -17,6 +17,7 @@ import {
   MenuItem,
   ListItemIcon,
   Alert,
+  List,
 } from "@mui/material";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
@@ -24,10 +25,7 @@ import { useForm, FormProvider } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import AddIcon from "@mui/icons-material/Add";
-import ArrowUpwardIcon from "@mui/icons-material/ArrowUpward";
-import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
 import { MRT_ColumnDef } from "material-react-table";
-import DataTable from "@/components/data-table/DataTable";
 import FuseSvgIcon from "@fuse/core/FuseSvgIcon";
 import AppButton from "@/components/Shared/AppButton";
 import FormInputField from "@/components/Shared/FormInputField";
@@ -39,6 +37,24 @@ import {
   deleteFooterLink,
   reorderFooterLink,
 } from "@/services/apiFooter";
+
+// dnd-kit imports
+import {
+  DndContext,
+  DragEndEvent,
+  KeyboardSensor,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  arrayMove,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import DraggableFooterLink from "./DraggableFooterLink";
 
 // Define validation schema using Zod
 const linkSchema = z.object({
@@ -80,10 +96,21 @@ export default function FooterLinksDialog({
   const [editMode, setEditMode] = useState(false);
   const [currentLink, setCurrentLink] = useState<FooterLink | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [reordering, setReordering] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [linkToDelete, setLinkToDelete] = useState<FooterLink | null>(null);
   
+  // Define sensors for drag interactions
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 5, // 5px movement required before activation
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
   // Form state with react-hook-form and Zod validation
   const methods = useForm<LinkFormType>({
     mode: "all",
@@ -234,127 +261,54 @@ export default function FooterLinksDialog({
     setLinkToDelete(null);
   };
 
-  // Toggle reordering mode
-  const toggleReordering = () => {
-    setReordering(!reordering);
-  };
-
-  // Move link up
-  const moveLinkUp = async (link: FooterLink, index: number) => {
-    if (index === 0) return; // Already at top
+  // Handle drag end for links reordering
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+    
+    // Return if no change
+    if (!over || active.id === over.id) {
+      return;
+    }
     
     try {
-      const newOrder = links[index - 1].order;
-      await reorderFooterLink(link.id, { new_order: newOrder });
+      // Find indices
+      const activeIndex = links.findIndex(link => link.id.toString() === active.id);
+      const overIndex = links.findIndex(link => link.id.toString() === over.id);
       
-      // Update local state for immediate feedback
-      const updatedLinks = [...links];
-      const temp = updatedLinks[index].order;
-      updatedLinks[index].order = updatedLinks[index - 1].order;
-      updatedLinks[index - 1].order = temp;
-      
-      // Sort by order
-      updatedLinks.sort((a, b) => a.order - b.order);
-      setLinks(updatedLinks);
-      
-      onSuccess("Link order updated successfully");
+      if (activeIndex !== -1 && overIndex !== -1) {
+        // Update UI immediately
+        const newLinks = arrayMove(links, activeIndex, overIndex);
+        
+        // Update orders
+        const updatedLinks = newLinks.map((link, index) => ({
+          ...link,
+          order: index + 1
+        }));
+        
+        setLinks(updatedLinks);
+        
+        // Get the moved link
+        const movedLink = links[activeIndex];
+        const newOrder = overIndex + 1;
+        
+        // API call to update order
+        await reorderFooterLink(movedLink.id, { new_order: newOrder });
+        onSuccess(`Link "${movedLink.label}" reordered successfully`);
+      }
     } catch (error: any) {
       console.error("Failed to reorder link:", error);
       onError(error?.message || "Failed to reorder link");
+      
+      // Reset to original order
+      const originalLinks = [...links].sort((a, b) => a.order - b.order);
+      setLinks(originalLinks);
     }
   };
 
-  // Move link down
-  const moveLinkDown = async (link: FooterLink, index: number) => {
-    if (index === links.length - 1) return; // Already at bottom
-    
-    try {
-      const newOrder = links[index + 1].order;
-      await reorderFooterLink(link.id, { new_order: newOrder });
-      
-      // Update local state for immediate feedback
-      const updatedLinks = [...links];
-      const temp = updatedLinks[index].order;
-      updatedLinks[index].order = updatedLinks[index + 1].order;
-      updatedLinks[index + 1].order = temp;
-      
-      // Sort by order
-      updatedLinks.sort((a, b) => a.order - b.order);
-      setLinks(updatedLinks);
-      
-      onSuccess("Link order updated successfully");
-    } catch (error: any) {
-      console.error("Failed to reorder link:", error);
-      onError(error?.message || "Failed to reorder link");
-    }
-  };
-
-  // Cancel edit
+  // Handle cancel
   const handleCancel = () => {
     resetForm();
   };
-
-  // Table columns
-  const columns = useMemo<MRT_ColumnDef<FooterLink>[]>(
-    () => [
-      ...(reordering
-        ? [
-            {
-              accessorKey: "reorder",
-              header: "Reorder",
-              size: 100,
-              Cell: ({ row }) => {
-                const index = row.index;
-                return (
-                  <Box className="flex items-center">
-                    <IconButton
-                      size="small"
-                      disabled={index === 0}
-                      onClick={() => moveLinkUp(row.original, index)}
-                    >
-                      <ArrowUpwardIcon fontSize="small" />
-                    </IconButton>
-                    <IconButton
-                      size="small"
-                      disabled={index === links.length - 1}
-                      onClick={() => moveLinkDown(row.original, index)}
-                    >
-                      <ArrowDownwardIcon fontSize="small" />
-                    </IconButton>
-                  </Box>
-                );
-              },
-            },
-          ]
-        : []),
-      {
-        accessorKey: "label",
-        header: "Label",
-        size: 200,
-      },
-      {
-        accessorKey: "url",
-        header: "URL",
-        size: 200,
-      },
-      {
-        accessorKey: "order",
-        header: "Order",
-        size: 100,
-      },
-      {
-        accessorKey: "is_active",
-        header: "Status",
-        size: 100,
-        Cell: ({ row }) => (
-          <div className={row.original.is_active ? "text-green-600" : "text-red-600"}>
-            {row.original.is_active ? "Active" : "Inactive"}
-          </div>
-        ),
-      },
-    ],
-    [reordering, links]
-  );
 
   return (
     <LocalizationProvider dateAdapter={AdapterDayjs}>
@@ -364,17 +318,6 @@ export default function FooterLinksDialog({
             <Typography variant="h6">
               Manage Links for Section: <strong>{section.title}</strong>
             </Typography>
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={reordering}
-                  onChange={toggleReordering}
-                  color="primary"
-                  size="small"
-                />
-              }
-              label="Reorder mode"
-            />
           </Box>
         </DialogTitle>
         <DialogContent>
@@ -471,39 +414,27 @@ export default function FooterLinksDialog({
               </Typography>
             </Paper>
           ) : (
-            <DataTable
-              columns={columns}
-              data={links}
-              enableRowActions={!reordering}
-              renderRowActionMenuItems={({ closeMenu, row }) => [
-                <MenuItem
-                  key="edit"
-                  onClick={() => {
-                    handleEditLink(row.original);
-                    closeMenu();
-                  }}
-                >
-                  <ListItemIcon>
-                    <FuseSvgIcon>heroicons-outline:pencil</FuseSvgIcon>
-                  </ListItemIcon>
-                  Edit
-                </MenuItem>,
-                <MenuItem
-                  key="delete"
-                  onClick={() => {
-                    handleDeleteLink(row.original);
-                    closeMenu();
-                  }}
-                >
-                  <ListItemIcon>
-                    <FuseSvgIcon className="text-red-500">
-                      heroicons-outline:trash
-                    </FuseSvgIcon>
-                  </ListItemIcon>
-                  <Typography color="error">Delete</Typography>
-                </MenuItem>,
-              ]}
-            />
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+            >
+              <SortableContext
+                items={links.map(link => link.id.toString())}
+                strategy={verticalListSortingStrategy}
+              >
+                <List sx={{ maxHeight: '400px', overflow: 'auto' }}>
+                  {links.map((link) => (
+                    <DraggableFooterLink
+                      key={link.id}
+                      link={link}
+                      onEdit={() => handleEditLink(link)}
+                      onDelete={() => handleDeleteLink(link)}
+                    />
+                  ))}
+                </List>
+              </SortableContext>
+            </DndContext>
           )}
         </DialogContent>
         <DialogActions>
