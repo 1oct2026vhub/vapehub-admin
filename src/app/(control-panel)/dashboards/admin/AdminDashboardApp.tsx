@@ -157,202 +157,230 @@ const AdminDashboardApp = () => {
         </Grid> */}
       </Grid>
 
-      {/* Product Inventory Status Section */}
-      <Box
-        sx={{
-          p: 3,
-        }}
-      >
-        <Paper sx={{ p: 2, mb: 4 }}>
-          <Typography variant="h6" gutterBottom>
-            Product Inventory Status
-          </Typography>
-          <Grid container spacing={2}>
-            <Grid item xs={12} md={4}>
-              <Box
-                sx={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  flexDirection: "column",
-                  p: 2,
-                }}
-              >
-                <Box
-                  sx={{ position: "relative", display: "inline-flex", mb: 1 }}
-                >
+      {/* Combined Status Sections */}
+      <Grid container spacing={2} sx={{ px: 3, pb: 3 }}>
+        {/* Product Inventory Status */}
+        <Grid item xs={12} md={4}>
+          <Paper sx={{ p: 2, height: '100%', minHeight: '240px' }}>
+            <Typography variant="h6" gutterBottom sx={{ mb: 2, color: '#333' }}>
+              Product Inventory Status
+            </Typography>
+            <Box sx={{ height: 'calc(100% - 50px)', display: 'flex', alignItems: 'center' }}>
+              <Grid container spacing={1.5}>
+                <Grid item xs={4}>
                   <Box
                     sx={{
-                      width: 120,
-                      height: 120,
-                      borderRadius: "50%",
-                      backgroundColor: "#E8F5E9",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
+                      p: 1.5,
+                      backgroundColor: '#fff',
+                      borderRadius: 1,
+                      border: '1px solid #e0e0e0',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      height: '100%'
                     }}
                   >
-                    <Typography variant="h4" color="#2E7D32" fontWeight="bold">
-                      {stats?.products.totalProducts || 0}
+                    <Box
+                      sx={{
+                        width: 60,
+                        height: 60,
+                        borderRadius: "50%",
+                        backgroundColor: "#E8F5E9",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        mb: 1,
+                      }}
+                    >
+                      <Typography variant="h6" color="#2E7D32" fontWeight="600">
+                        {stats?.products.totalProducts || 0}
+                      </Typography>
+                    </Box>
+                    <Typography sx={{ fontSize: '0.813rem', color: 'text.secondary', textAlign: 'center' }}>
+                      Total Products
                     </Typography>
                   </Box>
-                </Box>
-                <Typography variant="h6" align="center">
-                  Total Products
-                </Typography>
-              </Box>
-            </Grid>
-            <Grid item xs={12} md={4}>
-              <Box
-                sx={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  flexDirection: "column",
-                  p: 2,
-                }}
-              >
-                <Box
-                  sx={{ position: "relative", display: "inline-flex", mb: 1 }}
-                >
+                </Grid>
+                <Grid item xs={4}>
                   <Box
                     sx={{
-                      width: 120,
-                      height: 120,
-                      borderRadius: "50%",
-                      backgroundColor: "#FFF3E0",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
+                      p: 1.5,
+                      backgroundColor: '#fff',
+                      borderRadius: 1,
+                      border: '1px solid #e0e0e0',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      height: '100%'
                     }}
                   >
-                    <Typography variant="h4" color="#FF9800" fontWeight="bold">
-                      {stats?.products.lowStock || 0}
+                    <Box
+                      sx={{
+                        width: 60,
+                        height: 60,
+                        borderRadius: "50%",
+                        backgroundColor: "#FFF3E0",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        mb: 1,
+                      }}
+                    >
+                      <Typography variant="h6" color="#FF9800" fontWeight="600">
+                        {stats?.products.lowStock || 0}
+                      </Typography>
+                    </Box>
+                    <Typography sx={{ fontSize: '0.813rem', color: 'text.secondary', textAlign: 'center' }}>
+                      Low Stock
                     </Typography>
                   </Box>
-                </Box>
-                <Typography variant="h6" align="center">
-                  Low Stock
-                </Typography>
-                <Typography
-                  variant="body2"
-                  color="text.secondary"
-                  align="center"
-                >
-                  {Number(stats?.products.lowStock || 0) > 0
-                    ? "Needs attention"
-                    : "Inventory level good"}
-                </Typography>
-              </Box>
-            </Grid>
-            <Grid item xs={12} md={4}>
-              <Box
-                sx={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  flexDirection: "column",
-                  p: 2,
-                }}
-              >
-                <Box
-                  sx={{ position: "relative", display: "inline-flex", mb: 1 }}
-                >
+                </Grid>
+                <Grid item xs={4}>
                   <Box
                     sx={{
-                      width: 120,
-                      height: 120,
-                      borderRadius: "50%",
-                      backgroundColor: "#FFEBEE",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
+                      p: 1.5,
+                      backgroundColor: '#fff',
+                      borderRadius: 1,
+                      border: '1px solid #e0e0e0',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      height: '100%'
                     }}
                   >
-                    <Typography variant="h4" color="#D32F2F" fontWeight="bold">
-                      {stats?.products.outOfStock || 0}
+                    <Box
+                      sx={{
+                        width: 60,
+                        height: 60,
+                        borderRadius: "50%",
+                        backgroundColor: "#FFEBEE",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        mb: 1,
+                      }}
+                    >
+                      <Typography variant="h6" color="#D32F2F" fontWeight="600">
+                        {stats?.products.outOfStock || 0}
+                      </Typography>
+                    </Box>
+                    <Typography sx={{ fontSize: '0.813rem', color: 'text.secondary', textAlign: 'center' }}>
+                      Out of Stock
                     </Typography>
                   </Box>
-                </Box>
-                <Typography variant="h6" align="center">
-                  Out of Stock
-                </Typography>
-                <Typography
-                  variant="body2"
-                  color="text.secondary"
-                  align="center"
-                >
-                  {Number(stats?.products.outOfStock || 0) > 0
-                    ? "Urgent restock required"
-                    : "All products in stock"}
-                </Typography>
-              </Box>
-            </Grid>
-          </Grid>
-        </Paper>
-      </Box>
+                </Grid>
+              </Grid>
+            </Box>
+          </Paper>
+        </Grid>
 
-      {/* Order & User Status Section */}
-      <Grid
-        container
-        spacing={3}
-        className="status-container"
-        sx={{ mb: 4, p: 3 }}
-      >
-        <Grid item xs={12} md={6}>
-          <Paper sx={{ p: 2, height: "100%" }}>
-            <Typography variant="h6" gutterBottom>
+        {/* Orders Status */}
+        <Grid item xs={12} md={4}>
+          <Paper sx={{ p: 2, height: '100%', minHeight: '240px' }}>
+            <Typography variant="h6" gutterBottom sx={{ mb: 2, color: '#333' }}>
               Orders Status
             </Typography>
-            <Grid container spacing={2}>
-              {stats?.orders.map((order, index) => (
-                <Grid
-                  item
-                  xs={6}
-                  key={`order-${order.status || "unknown"}-${index}`}
-                >
-                  <Card>
-                    <CardContent>
-                      <Typography color="textSecondary" gutterBottom>
+            <Box sx={{ height: 'calc(100% - 50px)', display: 'flex', alignItems: 'center' }}>
+              <Grid container spacing={1.5}>
+                {stats?.orders.map((order, index) => (
+                  <Grid
+                    item
+                    xs={6}
+                    key={`order-${order.status || "unknown"}-${index}`}
+                  >
+                    <Box
+                      sx={{
+                        p: 1.5,
+                        backgroundColor: '#fff',
+                        borderRadius: 1,
+                        border: '1px solid #e0e0e0',
+                        minHeight: '60px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'center'
+                      }}
+                    >
+                      <Typography 
+                        color="textSecondary"
+                        sx={{ 
+                          fontSize: '0.813rem',
+                          mb: 0.5
+                        }}
+                      >
                         {order.status
                           ? order.status.charAt(0).toUpperCase() +
                             order.status.slice(1)
                           : "Unknown"}
                       </Typography>
-                      <Typography variant="h5">{order.count}</Typography>
-                    </CardContent>
-                  </Card>
-                </Grid>
-              ))}
-            </Grid>
+                      <Typography 
+                        sx={{ 
+                          fontWeight: 600,
+                          color: '#333',
+                          fontSize: '1.125rem'
+                        }}
+                      >
+                        {order.count}
+                      </Typography>
+                    </Box>
+                  </Grid>
+                ))}
+              </Grid>
+            </Box>
           </Paper>
         </Grid>
-        <Grid item xs={12} md={6}>
-          <Paper sx={{ p: 2, height: "100%" }}>
-            <Typography variant="h6" gutterBottom>
+
+        {/* User Status */}
+        <Grid item xs={12} md={4}>
+          <Paper sx={{ p: 2, height: '100%', minHeight: '240px' }}>
+            <Typography variant="h6" gutterBottom sx={{ mb: 2, color: '#333' }}>
               User Status
             </Typography>
-            <Grid container spacing={2}>
-              {stats?.users.map((user, index) => (
-                <Grid
-                  item
-                  xs={6}
-                  key={`user-${user.role || "unknown"}-${index}`}
-                >
-                  <Card>
-                    <CardContent>
-                      <Typography color="textSecondary" gutterBottom>
+            <Box sx={{ height: 'calc(100% - 50px)', display: 'flex', alignItems: 'center' }}>
+              <Grid container spacing={1.5}>
+                {stats?.users.map((user, index) => (
+                  <Grid
+                    item
+                    xs={6}
+                    key={`user-${user.role || "unknown"}-${index}`}
+                  >
+                    <Box
+                      sx={{
+                        p: 1.5,
+                        backgroundColor: '#fff',
+                        borderRadius: 1,
+                        border: '1px solid #e0e0e0',
+                        minHeight: '60px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'center'
+                      }}
+                    >
+                      <Typography 
+                        color="textSecondary"
+                        sx={{ 
+                          fontSize: '0.813rem',
+                          mb: 0.5
+                        }}
+                      >
                         {user.role
                           ? user.role.charAt(0).toUpperCase() +
                             user.role.slice(1)
                           : "Unknown"}
                       </Typography>
-                      <Typography variant="h5">{user.count}</Typography>
-                    </CardContent>
-                  </Card>
-                </Grid>
-              ))}
-            </Grid>
+                      <Typography 
+                        sx={{ 
+                          fontWeight: 600,
+                          color: '#333',
+                          fontSize: '1.125rem'
+                        }}
+                      >
+                        {user.count}
+                      </Typography>
+                    </Box>
+                  </Grid>
+                ))}
+              </Grid>
+            </Box>
           </Paper>
         </Grid>
       </Grid>

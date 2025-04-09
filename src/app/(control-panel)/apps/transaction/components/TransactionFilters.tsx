@@ -193,14 +193,14 @@ const TransactionFilters: React.FC<TransactionFiltersProps> = ({
         />
       </LocalizationProvider>
 
-      <Button
+      {/* <Button
         variant="outlined"
         size="small"
         onClick={onClearFilters}
         color="inherit"
       >
         Clear Filters
-      </Button>
+      </Button> */}
     </Box>
   );
 };

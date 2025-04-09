@@ -549,7 +549,7 @@ export default function BlogPostsApp() {
                   </Select>
                 </FormControl>
                 
-                {(selectedCategory || selectedTag || status) && (
+                {/* {(selectedCategory || selectedTag || status) && (
                   <Button 
                     size="small" 
                     color="primary" 
@@ -561,7 +561,7 @@ export default function BlogPostsApp() {
                   >
                     Clear Filters
                   </Button>
-                )}
+                )} */}
               </div>
 
               {loading ? (
