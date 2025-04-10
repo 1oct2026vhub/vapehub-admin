@@ -49,6 +49,7 @@ interface ProductVariant extends BaseProductVariant {
   product?: {
     name: string;
   };
+  status?: string; // Add this line to fix the TypeScript error
 }
 
 export type ProductType = {
@@ -64,6 +65,7 @@ export type ProductType = {
   is_new: boolean;
   deletedAt: string | null;
   createdAt: string;
+  status: string | null;
 };
 
 interface ProductVariantTableProps {
@@ -197,13 +199,23 @@ const ProductVariantTable = ({
         },
       },
       // { accessorKey: "stock_quantity", header: "Stock" },
+      // {
+      //   accessorKey: "deleted_at",
+      //   header: "Status",
+      //   Cell: ({ row }) => (
+      //     <Chip
+      //       label={row.original.deleted_at ? "Deleted" : "Active"}
+      //       color={row.original.deleted_at ? "error" : "success"}
+      //     />
+      //   ),
+      // },
       {
-        accessorKey: "deleted_at",
+        accessorKey: "status",
         header: "Status",
         Cell: ({ row }) => (
           <Chip
-            label={row.original.deleted_at ? "Deleted" : "Active"}
-            color={row.original.deleted_at ? "error" : "success"}
+            label={row.original.status === "active" ? "Active" : "InActive"}
+            color={row.original.status === "active" ? "success" : "warning"}
           />
         ),
       },
@@ -293,9 +305,9 @@ const ProductVariantTable = ({
               size="small"
             >
               <MenuItem value="id">Sort by ID</MenuItem>
-              <MenuItem value="name">Sort by Name</MenuItem>
+              <MenuItem value="product_name">Sort by Name</MenuItem>
               <MenuItem value="price">Sort by Price</MenuItem>
-              <MenuItem value="stock_quantity">Sort by Stock</MenuItem>
+              <MenuItem value="stock">Sort by Stock</MenuItem>
             </Select>
 
             <Select

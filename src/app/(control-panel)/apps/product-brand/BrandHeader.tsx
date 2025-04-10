@@ -287,7 +287,7 @@ function BrandHeader({ queryParams = {}, refreshData }: BrandHeaderProps) {
           }}
         >
           <Typography variant="h6" component="div">
-            Bulk Update Results
+            Bulk Upload Results
           </Typography>
           <IconButton
             aria-label="close"
