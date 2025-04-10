@@ -142,8 +142,7 @@ export default function BlogCategoryEditModal({
 
         // Convert parent_id to a JSON string and set special header
         if (data.parent_id !== null && data.parent_id !== undefined) {
-          const parentId = Number(data.parent_id);
-          formData.append("parent_id", JSON.stringify(parentId));
+          formData.append("parent_id", Number(data.parent_id).toString());
         }
         
         formData.append("image", selectedFile);
@@ -194,19 +193,8 @@ export default function BlogCategoryEditModal({
     }
   };
 
-  const generateSlug = (name: string) => {
-    return name
-      .toLowerCase()
-      .replace(/[^\w\s-]/g, "") // Remove special characters
-      .replace(/\s+/g, "-") // Replace spaces with hyphens
-      .replace(/-+/g, "-"); // Remove consecutive hyphens
-  };
-
   const handleNameChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const name = event.target.value;
-    if (!category || methods.getValues("slug") === "") {
-      methods.setValue("slug", generateSlug(name));
-    }
+    methods.setValue("name", event.target.value);
   };
 
   const handleFileChange = (file: File | null) => {
@@ -287,6 +275,7 @@ export default function BlogCategoryEditModal({
                 onFileChange={handleFileChange}
                 accept="image/*"
                 helperText="Upload a category image (PNG, JPG, JPEG, WebP)"
+                defaultImage={category?.image_url}
               />
 
               <FormControl fullWidth sx={{ mb: 3 }}>

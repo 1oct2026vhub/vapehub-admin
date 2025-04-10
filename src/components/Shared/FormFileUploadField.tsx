@@ -23,6 +23,7 @@ export interface FormFileUploadFieldProps {
   helperText?: string;
   onFileChange?: (file: File | null) => void;
   sx?: SxProps<Theme>;
+  defaultImage?: string;
 }
 
 const FormFileUploadField: React.FC<FormFileUploadFieldProps> = ({
@@ -34,9 +35,16 @@ const FormFileUploadField: React.FC<FormFileUploadFieldProps> = ({
   helperText = "Supported formats: PNG, JPG, JPEG, WebP (max 5MB)",
   onFileChange,
   sx,
+  defaultImage,
 }) => {
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(defaultImage || null);
   const [touched, setTouched] = useState(false);
+
+  useEffect(() => {
+    if (defaultImage && !previewUrl) {
+      setPreviewUrl(defaultImage);
+    }
+  }, [defaultImage]);
 
   const validateFile = (file: File) => {
     if (required && !file) return "File is required";
@@ -61,7 +69,7 @@ const FormFileUploadField: React.FC<FormFileUploadFieldProps> = ({
     const file = e.target.files?.[0] || null;
     
     // Clear existing preview if any
-    if (previewUrl) {
+    if (previewUrl && previewUrl !== defaultImage) {
       URL.revokeObjectURL(previewUrl);
       setPreviewUrl(null);
     }
@@ -80,11 +88,10 @@ const FormFileUploadField: React.FC<FormFileUploadFieldProps> = ({
   };
 
   const handleRemoveFile = (onChange: (file: null) => void) => {
-    if (previewUrl) {
+    if (previewUrl && previewUrl !== defaultImage) {
       URL.revokeObjectURL(previewUrl);
-      setPreviewUrl(null);
     }
-    
+    setPreviewUrl(defaultImage || null);
     onChange(null);
     if (onFileChange) onFileChange(null);
   };
@@ -92,11 +99,11 @@ const FormFileUploadField: React.FC<FormFileUploadFieldProps> = ({
   // Clean up preview URL when component unmounts
   useEffect(() => {
     return () => {
-      if (previewUrl) {
+      if (previewUrl && previewUrl !== defaultImage) {
         URL.revokeObjectURL(previewUrl);
       }
     };
-  }, [previewUrl]);
+  }, [previewUrl, defaultImage]);
 
   return (
     <Controller
@@ -111,13 +118,49 @@ const FormFileUploadField: React.FC<FormFileUploadFieldProps> = ({
             {label} {required && <span style={{ color: "red" }}>*</span>}
           </Typography>
           
-          {/* Preview for image files */}
-          {previewUrl && (
-            <Box className="mb-3 flex flex-col items-center">
-              <Box className="relative w-full max-w-xs h-56 border rounded-none overflow-hidden mb-2">
+          {/* Upload button/area - Always shown */}
+          <Box
+            className="border-2 border-dashed border-[#2E9970] rounded-none p-6 text-center cursor-pointer hover:border-[#1E7A56] transition-colors mb-2"
+            onClick={() => document.getElementById(name)?.click()}
+            sx={{
+              "&:hover": {
+                "& .MuiSvgIcon-root": {
+                  color: "#2E9970", 
+                },
+              },
+            }}
+          >
+            <input
+              id={name}
+              type="file"
+              accept={accept}
+              onChange={(e) => handleFileChange(e, onChange)}
+              style={{ display: "none" }}
+            />
+            <CloudUploadIcon 
+              style={{ fontSize: 48, color: "#9ca3af", margin: "0 auto" }} 
+              className="mb-2"
+            />
+            <Typography variant="body1" className="font-medium mb-1">
+              Click to upload or drag and drop
+            </Typography>
+            {helperText && (
+              <Typography variant="body2" color="textSecondary">
+                {helperText}
+              </Typography>
+            )}
+          </Box>
+
+          {/* Preview for newly uploaded image */}
+          {previewUrl && previewUrl !== defaultImage && (
+            <Box className="mb-3">
+              <Typography variant="subtitle2" color="textSecondary" className="mb-2">
+                New Image Preview:
+              </Typography>
+              <Box className="relative w-full max-w-xs h-40 border rounded-none overflow-hidden mb-2">
                 <img
                   src={previewUrl}
-                  alt="Preview"
+                  alt="New Preview"
                   className="w-full h-full object-contain"
                 />
                 <IconButton
@@ -141,38 +184,19 @@ const FormFileUploadField: React.FC<FormFileUploadFieldProps> = ({
             </Box>
           )}
           
-          {/* Upload button/area */}
-          {!previewUrl && (
-            <Box
-              className="border-2 border-dashed border-[#2E9970] rounded-none p-6 text-center cursor-pointer hover:border-[#1E7A56] transition-colors mb-2"
-              onClick={() => document.getElementById(name)?.click()}
-              sx={{
-                "&:hover": {
-                  "& .MuiSvgIcon-root": {
-                    color: "#2E9970", 
-                  },
-                },
-              }}
-            >
-              <input
-                id={name}
-                type="file"
-                accept={accept}
-                onChange={(e) => handleFileChange(e, onChange)}
-                style={{ display: "none" }}
-              />
-              <CloudUploadIcon 
-                style={{ fontSize: 48, color: "#9ca3af", margin: "0 auto" }} 
-                className="mb-2"
-              />
-              <Typography variant="body1" className="font-medium mb-1">
-                Click to upload or drag and drop
+          {/* Current/Default image preview - shown at bottom */}
+          {defaultImage && (
+            <Box className="mt-4">
+              <Typography variant="subtitle2" color="textSecondary" className="mb-2">
+                Current Image:
               </Typography>
-              {helperText && (
-                <Typography variant="body2" color="textSecondary">
-                  {helperText}
-                </Typography>
-              )}
+              <Box className="relative w-32 h-32 border rounded-none overflow-hidden">
+                <img
+                  src={defaultImage}
+                  alt="Current"
+                  className="w-full h-full object-contain"
+                />
+              </Box>
             </Box>
           )}
           

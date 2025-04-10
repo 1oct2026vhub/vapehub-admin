@@ -107,71 +107,84 @@ export default function CreateBlogCategory() {
   const handleNameChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const name = event.target.value;
     setValue("name", name);
-    if (getValues("slug") === "") {
-      setValue("slug", generateSlug(name));
-    }
+    // if (getValues("slug") === "") {
+    //   setValue("slug", generateSlug(name));
+    // }
   };
 
   const onSubmit = async (data: CategoryFormType) => {
     try {
       setSubmitting(true);
       
-      // Use JSON data to ensure parent_id is sent as a number
-      const jsonData: Record<string, any> = {
-        name: data.name,
-        slug: data.slug,
-        status: data.status
-      };
+      // Convert parent_id to number if it exists
+      const parentId = data.parent_id !== null && data.parent_id !== undefined 
+        ? Number(data.parent_id) 
+        : undefined;
       
-      if (data.description) {
-        jsonData.description = data.description;
-      }
-      
-      if (data.parent_id) {
-        jsonData.parent_id = Number(data.parent_id);
-      }
-      
-      // If we have a file, we need to use FormData
       if (selectedFile) {
+        // With file, use FormData
         const formData = new FormData();
+        formData.append("name", data.name);
+        formData.append("slug", data.slug);
+        formData.append("status", data.status);
         
-        // Add all JSON data to FormData
-        Object.entries(jsonData).forEach(([key, value]) => {
-          if (key === 'parent_id') {
-            // Handle parent_id specially to ensure it's treated as a number
-            formData.append(key, JSON.stringify(value));
-          } else {
-            formData.append(key, String(value));
-          }
-        });
+        if (data.description) {
+          formData.append("description", data.description);
+        }
+        
+        // Handle parent_id as integer
+        if (parentId !== undefined) {
+          formData.append("parent_id", String(parentId));
+        }
         
         // Add the file
         formData.append("image", selectedFile);
         
-        await createBlogCategory(formData);
+        // Convert FormData to JSON for API call
+        const jsonData = {
+          name: data.name,
+          slug: data.slug,
+          status: data.status,
+          ...(data.description && { description: data.description }),
+          ...(parentId !== undefined && { parent_id: parentId }),
+          image: selectedFile
+        };
+        
+        await createBlogCategory(jsonData);
       } else {
-        // Without file, use JSON directly
+        // Without file, use direct JSON
+        const jsonData = {
+          name: data.name,
+          slug: data.slug,
+          status: data.status,
+          ...(data.description && { description: data.description }),
+          ...(parentId !== undefined && { parent_id: parentId })
+        };
+        
         await createBlogCategory(jsonData);
       }
       
       showSnackbar("Category created successfully", "success");
       router.push("/apps/blog/categories");
     } catch (error: any) {
-        if (error?.errors && error?.errors.length > 0) {
-        showSnackbar(error.errors[0]?.msg, "error");
-      } else if (
-        error?.error &&
-        Array.isArray(error?.error) &&
-        error.error.length > 0
-      ) {
-        showSnackbar(error.error[0]?.message, "error");
-      } else if (error?.message) {
-        showSnackbar(error.message, "error");
-      } else {
-        const errorMessage = "An unexpected error occurred";
-        showSnackbar(errorMessage, "error");
-      }
-    } finally {
+  if (error?.errors && error?.errors.length > 0) {
+    showSnackbar(error.errors[0]?.msg, "error");
+  } else if (
+    error?.error &&
+    Array.isArray(error?.error) &&
+    error.error.length > 0
+  ) {
+    showSnackbar(error.error[0]?.message, "error");
+  } else if (error?.error?.message) {
+    showSnackbar(error.error.message, "error");
+  } else if (error?.message) {
+    showSnackbar(error.message, "error");
+  } else {
+    const errorMessage = "An unexpected error occurred";
+    showSnackbar(errorMessage, "error");
+  }
+}
+ finally {
       setSubmitting(false);
     }
   };

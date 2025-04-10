@@ -174,7 +174,7 @@ export default function EditBlogCategory() {
         
         // Special handling for parent_id - convert to JSON string
         if (data.parent_id !== null && data.parent_id !== undefined) {
-          formData.append("parent_id", JSON.stringify(Number(data.parent_id)));
+          formData.append("parent_id", Number(data.parent_id).toString());
         }
         
         // Add the file
@@ -212,22 +212,28 @@ export default function EditBlogCategory() {
       router.push("/apps/blog/categories");
     } catch (error: any) {
       if (error?.errors && error?.errors.length > 0) {
-        showSnackbar(error.errors[0]?.msg, "error");
-      } else if (
-        error?.error &&
-        Array.isArray(error?.error) &&
-        error.error.length > 0
-      ) {
-        showSnackbar(error.error[0]?.message, "error");
-      } else if (error?.message) {
-        showSnackbar(error.message, "error");
-      } else {
-        const errorMessage = "An unexpected error occurred";
-        showSnackbar(errorMessage, "error");
-      }
+    showSnackbar(error.errors[0]?.msg, "error");
+  } else if (
+    error?.error &&
+    Array.isArray(error?.error) &&
+    error.error.length > 0
+  ) {
+    showSnackbar(error.error[0]?.message, "error");
+  } else if (error?.error?.message) {
+    showSnackbar(error.error.message, "error");
+  } else if (error?.message) {
+    showSnackbar(error.message, "error");
+  } else {
+    const errorMessage = "An unexpected error occurred";
+    showSnackbar(errorMessage, "error");
+  }
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleNameChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setValue("name", event.target.value);
   };
 
   if (loading) {
@@ -336,6 +342,7 @@ export default function EditBlogCategory() {
                       onFileChange={setSelectedFile}
                       accept="image/png,image/jpeg,image/jpg,image/webp"
                       helperText="Supported formats: PNG, JPG, JPEG, WebP"
+                      defaultImage={category?.image_url}
                     />
                   </Grid>
 
