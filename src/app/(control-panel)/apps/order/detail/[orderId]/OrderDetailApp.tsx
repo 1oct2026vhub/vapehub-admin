@@ -224,7 +224,7 @@ const OrderDetailApp = () => {
               </Button>
             </div>
             <Typography variant="body2" color="text.secondary" className="mb-4">
-              Your Shipment
+              Shipping Details 
             </Typography>
 
             <TableContainer className="border border-gray-200 rounded-md overflow-hidden">

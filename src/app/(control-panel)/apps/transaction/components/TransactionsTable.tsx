@@ -200,6 +200,14 @@ const TransactionsTable = ({
             : "N/A";
         },
       },
+        {
+        accessorKey: "status",
+        header: "Status",
+        Cell: ({ row }) => {
+          const status = row.original.status.toLowerCase() as TransactionStatus;
+          return <TransactionStatusChip status={status} />;
+        },
+      },
       {
         accessorKey: "user",
         header: "Customer",
@@ -246,14 +254,7 @@ const TransactionsTable = ({
           }).format(amount);
         },
       },
-      {
-        accessorKey: "status",
-        header: "Status",
-        Cell: ({ row }) => {
-          const status = row.original.status.toLowerCase() as TransactionStatus;
-          return <TransactionStatusChip status={status} />;
-        },
-      },
+      
       {
         accessorKey: "createdAt",
         header: "Date",
