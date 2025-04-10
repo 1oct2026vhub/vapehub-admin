@@ -71,13 +71,17 @@ const OrderFilters = ({
           label="Status"
           onChange={(e) => onStatusChange(e.target.value as OrderStatus)}
         >
-          <MenuItem value="">All</MenuItem>
+          <MenuItem value="draft">Draft</MenuItem>
           <MenuItem value="pending">Pending</MenuItem>
           <MenuItem value="processing">Processing</MenuItem>
           <MenuItem value="shipped">Shipped</MenuItem>
           <MenuItem value="delivered">Delivered</MenuItem>
           <MenuItem value="completed">Completed</MenuItem>
-          <MenuItem value="cancelled">Cancelled</MenuItem>
+          <MenuItem value="cancel">Cancelled</MenuItem>
+          <MenuItem value="fail">Failed</MenuItem>
+          <MenuItem value="return_requested">Return Requested</MenuItem>
+          <MenuItem value="return_approved">Return Approved</MenuItem>
+          <MenuItem value="return_received">Return Received</MenuItem>
           <MenuItem value="refunded">Refunded</MenuItem>
         </Select>
       </FormControl>
@@ -91,12 +95,10 @@ const OrderFilters = ({
             onPaymentStatusChange(e.target.value as PaymentStatus)
           }
         >
-          <MenuItem value="">All</MenuItem>
           <MenuItem value="pending">Pending</MenuItem>
           <MenuItem value="paid">Paid</MenuItem>
           <MenuItem value="failed">Failed</MenuItem>
           <MenuItem value="refunded">Refunded</MenuItem>
-          <MenuItem value="cancelled">Cancelled</MenuItem>
         </Select>
       </FormControl>
 
