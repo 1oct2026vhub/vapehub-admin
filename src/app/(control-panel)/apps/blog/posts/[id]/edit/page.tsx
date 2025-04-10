@@ -129,7 +129,11 @@ export default function EditBlogPost() {
         limit: 50,
       });
       if (response?.data?.categories) {
-        setCategories(response.data.categories);
+        // Filter to only show active categories
+        const activeCategories = response.data.categories.filter(
+          category => category.status === "active"
+        );
+        setCategories(activeCategories);
       }
     } catch (error) {
       console.error("Failed to fetch categories:", error);
