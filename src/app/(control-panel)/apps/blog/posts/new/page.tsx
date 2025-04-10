@@ -40,6 +40,8 @@ import {
 } from "@/services/apiBlog";
 import debounce from "lodash/debounce";
 
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB in bytes
+
 // Define validation schema using Zod
 const postSchema = z.object({
   title: z
@@ -55,7 +57,12 @@ const postSchema = z.object({
       /^[a-z0-9]+(?:-[a-z0-9]+)*$/,
       "Slug must be in valid format (lowercase letters, numbers, and hyphens)"
     ),
-  image: z.any().optional(),
+  image: z.any()
+    .refine((file) => {
+      if (!file || !(file instanceof File)) return true;
+      return file.size <= MAX_FILE_SIZE;
+    }, "File size must be less than 5MB")
+    .optional(),
   status: z.enum(["draft", "published", "archived"]).default("draft"),
   published_at: z.string().nullable().optional(),
   categories: z.array(z.object({
@@ -293,9 +300,12 @@ export default function CreateBlogPost() {
                       name="image"
                       control={control}
                       label="Featured Image"
-                      onFileChange={setSelectedFile}
+                      onFileChange={(file) => {
+                        setSelectedFile(file);
+                        setValue("image", file, { shouldValidate: true });
+                      }}
                       accept="image/*"
-                      helperText="Upload a featured image for the blog post"
+                      helperText="Upload a featured image for the blog post (Max size: 5MB). Supported formats: PNG, JPG, JPEG, WebP"
                       sx={commonFieldStyles}
                     />
                   </Grid>

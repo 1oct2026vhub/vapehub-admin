@@ -171,7 +171,7 @@ export default function FooterSectionsApp() {
       }
     } catch (error) {
       console.error("Failed to fetch footer sections:", error);
-      showSnackbar("Failed to load footer sections", "error");
+      // showSnackbar("Failed to load footer sections", "error");
     } finally {
       setLoading(false);
     }
@@ -455,8 +455,7 @@ export default function FooterSectionsApp() {
 
             {sections.length === 0 ? (
               <Alert severity="info">
-                No footer sections available. Click the &quot;Add Section&quot;
-                button to create your first section.
+                Falied to load footer section
               </Alert>
             ) : (
               <DndContext

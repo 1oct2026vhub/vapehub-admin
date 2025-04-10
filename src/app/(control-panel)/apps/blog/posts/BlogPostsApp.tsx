@@ -105,6 +105,10 @@ export default function BlogPostsApp() {
   
   const [status, setStatus] = useState<string>("");
 
+  // State for tracking active search vs selection mode
+  const [isActivelySearchingCategory, setIsActivelySearchingCategory] = useState(false);
+  const [isActivelySearchingTag, setIsActivelySearchingTag] = useState(false);
+
   // Debounce search input
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -117,21 +121,20 @@ export default function BlogPostsApp() {
   // Load categories with search
   useEffect(() => {
     const fetchCategories = async () => {
-      if (categorySearch !== "") {
-        setCategoryLoading(true);
-        try {
-          const response = await getBlogCategories({
-            search: categorySearch,
-            limit: 10,
-          });
-          if (response?.data?.categories) {
-            setCategories(response.data.categories);
-          }
-        } catch (error) {
-          console.error("Failed to fetch categories:", error);
-        } finally {
-          setCategoryLoading(false);
+      setCategoryLoading(true);
+      try {
+        const response = await getBlogCategories({
+          // Only include search when actively searching, not after selection
+          ...(isActivelySearchingCategory && categorySearch ? { search: categorySearch } : {}),
+          limit: 50,
+        });
+        if (response?.data?.categories) {
+          setCategories(response.data.categories);
         }
+      } catch (error) {
+        console.error("Failed to fetch categories:", error);
+      } finally {
+        setCategoryLoading(false);
       }
     };
     
@@ -140,26 +143,25 @@ export default function BlogPostsApp() {
     }, 500);
     
     return () => clearTimeout(timer);
-  }, [categorySearch]);
+  }, [categorySearch, isActivelySearchingCategory]);
   
   // Load tags with search
   useEffect(() => {
     const fetchTags = async () => {
-      if (tagSearch !== "") {
-        setTagLoading(true);
-        try {
-          const response = await getBlogTags({
-            search: tagSearch,
-            limit: 10,
-          });
-          if (response?.data?.tags) {
-            setTags(response.data.tags);
-          }
-        } catch (error) {
-          console.error("Failed to fetch tags:", error);
-        } finally {
-          setTagLoading(false);
+      setTagLoading(true);
+      try {
+        const response = await getBlogTags({
+          // Only include search when actively searching, not after selection
+          ...(isActivelySearchingTag && tagSearch ? { search: tagSearch } : {}),
+          limit: 50,
+        });
+        if (response?.data?.tags) {
+          setTags(response.data.tags);
         }
+      } catch (error) {
+        console.error("Failed to fetch tags:", error);
+      } finally {
+        setTagLoading(false);
       }
     };
     
@@ -168,15 +170,15 @@ export default function BlogPostsApp() {
     }, 500);
     
     return () => clearTimeout(timer);
-  }, [tagSearch]);
+  }, [tagSearch, isActivelySearchingTag]);
   
   // Load initial categories and tags
   useEffect(() => {
     const fetchFilters = async () => {
       try {
         const [categoriesResponse, tagsResponse] = await Promise.all([
-          getBlogCategories({ limit: 20 }),
-          getBlogTags({ limit: 20 }),
+          getBlogCategories({ limit: 100 }), // Load more items initially without search param
+          getBlogTags({ limit: 100 }), // Load more items initially without search param
         ]);
         
         if (categoriesResponse?.data?.categories) {
@@ -453,9 +455,18 @@ export default function BlogPostsApp() {
                   options={categories}
                   getOptionLabel={(option) => option.name}
                   value={selectedCategory}
-                  onChange={(_, newValue) => setSelectedCategory(newValue)}
-                  onInputChange={(_, newInputValue) => setCategorySearch(newInputValue)}
+                  onChange={(_, newValue) => {
+                    setSelectedCategory(newValue);
+                    setIsActivelySearchingCategory(false);
+                  }}
+                  onInputChange={(_, newInputValue, reason) => {
+                    setCategorySearch(newInputValue);
+                    // Only set active searching when user is typing, not when selection changes
+                    setIsActivelySearchingCategory(reason === 'input');
+                  }}
                   loading={categoryLoading}
+                  filterOptions={(x) => x} // Don't filter options client-side
+                  openOnFocus
                   renderInput={(params) => (
                     <TextField 
                       {...params} 
@@ -471,9 +482,18 @@ export default function BlogPostsApp() {
                   options={tags}
                   getOptionLabel={(option) => option.name}
                   value={selectedTag}
-                  onChange={(_, newValue) => setSelectedTag(newValue)}
-                  onInputChange={(_, newInputValue) => setTagSearch(newInputValue)}
+                  onChange={(_, newValue) => {
+                    setSelectedTag(newValue);
+                    setIsActivelySearchingTag(false);
+                  }}
+                  onInputChange={(_, newInputValue, reason) => {
+                    setTagSearch(newInputValue);
+                    // Only set active searching when user is typing, not when selection changes
+                    setIsActivelySearchingTag(reason === 'input');
+                  }}
                   loading={tagLoading}
+                  filterOptions={(x) => x} // Don't filter options client-side
+                  openOnFocus
                   renderInput={(params) => (
                     <TextField 
                       {...params} 
@@ -537,19 +557,21 @@ export default function BlogPostsApp() {
                   </Select>
                 </FormControl>
                 
-                {/* {(selectedCategory || selectedTag || status) && (
+                {(selectedCategory || selectedTag || status) && (
                   <Button 
                     size="small" 
+                    variant="outlined"
                     color="primary" 
                     onClick={() => {
                       setSelectedCategory(null);
                       setSelectedTag(null);
                       setStatus("");
                     }}
+                    startIcon={<FuseSvgIcon>heroicons-outline:x</FuseSvgIcon>}
                   >
                     Clear Filters
                   </Button>
-                )} */}
+                )}
               </div>
 
               {loading ? (
