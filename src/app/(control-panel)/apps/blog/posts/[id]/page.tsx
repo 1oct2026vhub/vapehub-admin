@@ -212,11 +212,11 @@ export default function BlogPostDetailPage() {
 
                 <Box sx={{ mb: 2 }}>
                   <Typography variant="subtitle2" color="text.secondary">
-                    Published Date
+                    Published Date & Time
                   </Typography>
                   <Typography variant="body2">
                     {post.published_at
-                      ? formatDate(post.published_at)
+                      ? formatDate(post.published_at, 'MMMM D, YYYY h:mm A')
                       : "Not published"}
                   </Typography>
                 </Box>
