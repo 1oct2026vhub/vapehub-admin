@@ -164,7 +164,7 @@ const TransactionFilters: React.FC<TransactionFiltersProps> = ({
             onTransactionTypeChange(e.target.value as TransactionType | "")
           }
         >
-          <MenuItem value="payment">Payement</MenuItem>
+          <MenuItem value="payment">Payment</MenuItem>
           <MenuItem value="refund">Refund</MenuItem>
           <MenuItem value="partial_refund">Partial Refund</MenuItem>
 
