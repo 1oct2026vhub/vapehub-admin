@@ -192,16 +192,22 @@ export default function BlogPostDetailPage() {
                 </Typography>
 
                 <Box sx={{ mb: 2 }}>
-                  <Typography variant="subtitle2" color="text.secondary">
-                    Status
-                  </Typography>
-                  <Chip
-                    label={post.status || "N/A"}
-                    color="default"
-                    variant="outlined"
-                    size="small"
-                  />
-                </Box>
+  <Typography variant="subtitle2" color="text.secondary">
+    Status
+  </Typography>
+  <Chip
+    label={
+      post.status
+        ? post.status.charAt(0).toUpperCase() + post.status.slice(1)
+        : "N/A"
+    }
+     color="success"
+    variant="outlined"
+    size="small"
+    sx={{ fontWeight: 'bold' }}
+  />
+</Box>
+
 
                 <Box sx={{ mb: 2 }}>
                   <Typography variant="subtitle2" color="text.secondary">
@@ -245,21 +251,26 @@ export default function BlogPostDetailPage() {
                   Author Information
                 </Typography>
 
-                <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
-                  <Avatar sx={{ mr: 2 }}>
-                    {post.author?.first_name?.[0] || "N"}
-                    {post.author?.last_name?.[0] || "A"}
-                  </Avatar>
-                  <Box>
-                    <Typography>
-{post.author && (post.author.first_name || post.author.last_name)
-  ? `${post.author.first_name ?? ""} ${post.author.last_name ?? ""}`.trim()
-  : "N/A"}                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      {post.author?.email || "N/A"}
-                    </Typography>
-                  </Box>
-                </Box>
+              <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
+                      <Avatar sx={{ mr: 2 }}>
+                        {post.author?.first_name
+                          ? post.author.first_name[0]
+                          : post.author?.last_name
+                          ? post.author.last_name[0]
+                          : post.author?.email
+                          ? post.author.email[0]
+                          : "N/A"}
+                      </Avatar>
+
+                      <Box>
+                        <Typography variant="subtitle1" fontWeight="bold">
+                          {post.author?.first_name || post.author?.last_name
+                            ? `${post.author?.first_name || ""} ${post.author?.last_name || ""}`.trim()
+                            : post.author?.email || "N/A"}
+                        </Typography>
+                      </Box>
+                    </Box>
+
               </CardContent>
             </Card>
           </Grid>

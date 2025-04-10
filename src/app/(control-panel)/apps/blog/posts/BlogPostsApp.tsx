@@ -317,6 +317,23 @@ export default function BlogPostsApp() {
             : "Not published";
         },
       },
+        {
+  accessorKey: "status",
+  header: "Status",
+  size: 100,
+  Cell: ({ row }) => {
+    const status = row.original.status;
+    const capitalizedStatus =
+      status?.charAt(0).toUpperCase() + status?.slice(1) || "N/A";
+
+    return (
+      <div className={status ? "text-green-600" : ""}>
+        {capitalizedStatus}
+      </div>
+    );
+  },
+}
+,
       {
         accessorKey: "categories",
         header: "Categories",
@@ -359,20 +376,7 @@ export default function BlogPostsApp() {
           );
         },
       },
-      {
-        accessorKey: "is_active",
-        header: "Status",
-        size: 100,
-        Cell: ({ row }) => (
-          <div
-            className={
-              row.original.status ? "text-green-600" : ""
-            }
-          >
-            {row.original.status || "N/A"}
-          </div>
-        ),
-      },
+    
       {
         accessorKey: "created_at",
         header: "Created At",

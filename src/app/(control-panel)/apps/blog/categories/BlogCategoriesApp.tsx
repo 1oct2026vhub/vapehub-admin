@@ -198,21 +198,20 @@ export default function BlogCategoriesApp() {
         },
       },
       {
-        accessorKey: "status",
-        header: "Status",
-        size: 100,
-        Cell: ({ row }) => (
-          <div
-            className={
-              row.original.status === "active"
-                ? "text-green-600"
-                : "text-red-600"
-            }
-          >
-            {row.original.status}
-          </div>
-        ),
-      },
+  accessorKey: "status",
+  header: "Status",
+  size: 100,
+  Cell: ({ row }) => {
+    const status = row.original.status;
+    const capitalizedStatus = status.charAt(0).toUpperCase() + status.slice(1);
+    return (
+      <div className={status === "active" ? "text-green-600" : "text-red-600"}>
+        {capitalizedStatus}
+      </div>
+    );
+  },
+},
+
       {
         accessorKey: "createdAt",
         header: "Created At",
@@ -304,7 +303,9 @@ export default function BlogCategoriesApp() {
                 data={categories}
                 enableRowActions
                 renderRowActionMenuItems={({ closeMenu, row }) => {
-                  if (row.original.deletedAt) {
+                  const isDeleted = !!row.original.deletedAt;
+
+                  if (isDeleted) {
                     return [
                       <MenuItem
                         key="restore"
