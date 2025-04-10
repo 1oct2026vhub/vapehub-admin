@@ -33,6 +33,9 @@ const FormDateTimeField: React.FC<FormDateTimeFieldProps> = ({
 }) => {
   const [touched, setTouched] = React.useState(false);
 
+  // Get current date and time
+  const now = React.useMemo(() => dayjs(), []);
+
   return (
     <Controller
       name={name}
@@ -49,10 +52,18 @@ const FormDateTimeField: React.FC<FormDateTimeFieldProps> = ({
               }
               value={value ? dayjs(value) : null}
               onChange={(newValue) => {
-                onChange(newValue ? newValue.toISOString() : null);
+                if (newValue && newValue.isValid()) {
+                  // Only allow future dates and times
+                  if (newValue.isBefore(now)) {
+                    onChange(now.toISOString());
+                  } else {
+                    onChange(newValue.toISOString());
+                  }
+                } else {
+                  onChange(null);
+                }
               }}
-              minDate={minDateTime ? dayjs(minDateTime) : undefined}
-              maxDate={maxDateTime ? dayjs(maxDateTime) : undefined}
+              minDateTime={now}
               disabled={disabled}
               slotProps={{
                 textField: {
