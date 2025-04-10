@@ -47,7 +47,7 @@ const postSchema = z.object({
   title: z
     .string()
     .min(1, "Title is required")
-    .max(255, "Name must not exceed 255 characters"),
+    .max(255, "Title must not exceed 255 characters"),
   content: z.string().min(1, "Content is required"),
   slug: z
     .string()
