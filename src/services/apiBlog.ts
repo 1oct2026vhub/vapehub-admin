@@ -10,6 +10,7 @@ export interface BlogPost {
   image_url?: string;
   published_at?: string;
   is_active: boolean;
+  status?: string;
   created_at?: string;
   updated_at?: string;
   deleted_at?: string | null;

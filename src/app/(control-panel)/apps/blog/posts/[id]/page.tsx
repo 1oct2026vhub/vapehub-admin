@@ -34,7 +34,14 @@ export default function BlogPostDetailPage() {
     const fetchPost = async () => {
       try {
         setLoading(true);
-        const response = await getBlogPost(Number(id));
+        const postId = Number(id);
+        
+        if (isNaN(postId)) {
+          showSnackbar("Invalid blog post ID", "error");
+          return;
+        }
+        
+        const response = await getBlogPost(postId);
         console.log("response", response);
 
         if (response.success) {
@@ -92,7 +99,7 @@ export default function BlogPostDetailPage() {
             variant="contained"
             color="primary"
             onClick={() =>
-              router.push(`/apps/blog/posts/edit?postId=${post.id}`)
+              router.push(`/apps/blog/posts/${post.id}/edit`)
             }
             startIcon={<FuseSvgIcon>heroicons-outline:pencil</FuseSvgIcon>}
           >
@@ -148,7 +155,7 @@ export default function BlogPostDetailPage() {
                 </Box>
 
                 <Divider sx={{ my: 3 }} />
-
+                <Typography variant="subtitle2" color="text.secondary" className="mb-2">Categories</Typography>
                 <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap", mb: 2 }}>
                   {post.categories.map((category) => (
                     <Chip
@@ -160,7 +167,7 @@ export default function BlogPostDetailPage() {
                     />
                   ))}
                 </Box>
-
+                <Typography variant="subtitle2" color="text.secondary" className="mb-2">Tags</Typography>
                 <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
                   {post.tags.map((tag) => (
                     <Chip
@@ -189,8 +196,9 @@ export default function BlogPostDetailPage() {
                     Status
                   </Typography>
                   <Chip
-                    label={post.published_at ? "Published" : "Draft"}
-                    color={post.published_at ? "success" : "default"}
+                    label={post.status || "N/A"}
+                    color="default"
+                    variant="outlined"
                     size="small"
                   />
                 </Box>
@@ -244,8 +252,9 @@ export default function BlogPostDetailPage() {
                   </Avatar>
                   <Box>
                     <Typography>
-                      {post.author ? `${post.author.first_name} ${post.author.last_name}` : "N/A"}
-                    </Typography>
+{post.author && (post.author.first_name || post.author.last_name)
+  ? `${post.author.first_name ?? ""} ${post.author.last_name ?? ""}`.trim()
+  : "N/A"}                    </Typography>
                     <Typography variant="body2" color="text.secondary">
                       {post.author?.email || "N/A"}
                     </Typography>
