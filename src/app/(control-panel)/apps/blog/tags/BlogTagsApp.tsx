@@ -130,18 +130,6 @@ export default function BlogTagsApp() {
         accessorKey: "name",
         header: "Name",
         size: 200,
-        Cell: ({ row }) => (
-          <Link
-            component="button"
-            onClick={() => router.push(`/apps/blog/tags/${row.original.id}`)}
-            sx={{
-              textAlign: "left",
-              "&:hover": { textDecoration: "underline" },
-            }}
-          >
-            {row.original.name}
-          </Link>
-        ),
       },
       {
         accessorKey: "slug",

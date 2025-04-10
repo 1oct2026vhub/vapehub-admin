@@ -300,22 +300,7 @@ export default function BlogPostsApp() {
         accessorKey: "title",
         header: "Title",
         size: 200,
-        Cell: ({ row }) => (
-          <Link
-            href="#"
-            onClick={(e) => {
-              e.preventDefault();
-              router.push(`/apps/blog/posts/${row.original.id}`);
-            }}
-            sx={{
-              textAlign: "left",
-              cursor: "pointer",
-              "&:hover": { textDecoration: "underline" },
-            }}
-          >
-            {row.original.title}
-          </Link>
-        ),
+      
       },
       {
         accessorKey: "slug",

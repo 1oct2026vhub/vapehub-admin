@@ -26,7 +26,7 @@ const tagSchema = z.object({
   name: z
     .string()
     .min(1, "Name is required")
-    .max(50, "Name must not exceed 50 characters"),
+    .max(255, "Name must not exceed 255 characters"),
   slug: z
     .string()
     .min(1, "Slug is required")
@@ -51,7 +51,6 @@ export default function CreateBlogTag() {
     control,
     handleSubmit,
     setValue,
-    getValues,
     formState: { isValid },
   } = useForm<TagFormType>({
     mode: "all",
@@ -62,24 +61,9 @@ export default function CreateBlogTag() {
     resolver: zodResolver(tagSchema),
   });
 
-  // Generate slug from name
-  const generateSlug = (name: string) => {
-    return name
-      .toLowerCase()
-      .replace(/[^\w\s-]/g, "") // Remove special characters
-      .replace(/\s+/g, "-") // Replace spaces with hyphens
-      .replace(/-+/g, "-"); // Remove consecutive hyphens
-  };
-
-  // Auto-generate slug when name changes
+  // Remove auto-generate slug functionality
   const handleNameChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const name = event.target.value;
-    setValue("name", name);
-
-    // Only auto-generate slug if it hasn't been manually edited
-    if (getValues("slug") === "") {
-      setValue("slug", generateSlug(name));
-    }
+    setValue("name", event.target.value);
   };
 
   const onSubmit = async (data: TagFormType) => {
@@ -92,20 +76,22 @@ export default function CreateBlogTag() {
       showSnackbar("Tag created successfully", "success");
       router.push("/apps/blog/tags");
     } catch (error: any) {
-      if (error?.errors && error?.errors.length > 0) {
-        showSnackbar(error.errors[0]?.msg, "error");
-      } else if (
-        error?.error &&
-        Array.isArray(error?.error) &&
-        error.error.length > 0
-      ) {
-        showSnackbar(error.error[0]?.message, "error");
-      } else if (error?.message) {
-        showSnackbar(error.message, "error");
-      } else {
-        const errorMessage = "An unexpected error occurred";
-        showSnackbar(errorMessage, "error");
-      }
+    if (error?.errors && error?.errors.length > 0) {
+    showSnackbar(error.errors[0]?.msg, "error");
+  } else if (
+    error?.error &&
+    Array.isArray(error?.error) &&
+    error.error.length > 0
+  ) {
+    showSnackbar(error.error[0]?.message, "error");
+  } else if (error?.error?.message) {
+    showSnackbar(error.error.message, "error");
+  } else if (error?.message) {
+    showSnackbar(error.message, "error");
+  } else {
+    const errorMessage = "An unexpected error occurred";
+    showSnackbar(errorMessage, "error");
+  }
     } finally {
       setSubmitting(false);
     }
