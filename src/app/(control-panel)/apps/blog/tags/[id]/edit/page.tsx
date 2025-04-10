@@ -27,7 +27,7 @@ const tagSchema = z.object({
   name: z
     .string()
     .min(1, "Name is required")
-    .max(50, "Name must not exceed 50 characters"),
+    .max(255, "Name must not exceed 255 characters"),
   slug: z
     .string()
     .min(1, "Slug is required")
@@ -92,13 +92,7 @@ export default function EditBlogTag() {
 
   // Auto-generate slug when name changes
   const handleNameChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const name = event.target.value;
-    methods.setValue("name", name);
-
-    // Only auto-generate slug if it's a new tag or slug hasn't been manually edited
-    if (params.id === "new" || methods.getValues("slug") === "") {
-      methods.setValue("slug", generateSlug(name));
-    }
+    methods.setValue("name", event.target.value);
   };
 
   const onSubmit = async (data: TagFormType) => {
@@ -123,19 +117,21 @@ export default function EditBlogTag() {
       router.push("/apps/blog/tags");
     } catch (error: any) {
       if (error?.errors && error?.errors.length > 0) {
-        showSnackbar(error.errors[0]?.msg, "error");
-      } else if (
-        error?.error &&
-        Array.isArray(error?.error) &&
-        error.error.length > 0
-      ) {
-        showSnackbar(error.error[0]?.message, "error");
-      } else if (error?.message) {
-        showSnackbar(error.message, "error");
-      } else {
-        const errorMessage = "An unexpected error occurred";
-        showSnackbar(errorMessage, "error");
-      }
+    showSnackbar(error.errors[0]?.msg, "error");
+  } else if (
+    error?.error &&
+    Array.isArray(error?.error) &&
+    error.error.length > 0
+  ) {
+    showSnackbar(error.error[0]?.message, "error");
+  } else if (error?.error?.message) {
+    showSnackbar(error.error.message, "error");
+  } else if (error?.message) {
+    showSnackbar(error.message, "error");
+  } else {
+    const errorMessage = "An unexpected error occurred";
+    showSnackbar(errorMessage, "error");
+  }
     } finally {
       setSubmitting(false);
     }

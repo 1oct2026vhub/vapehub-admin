@@ -45,7 +45,7 @@ const postSchema = z.object({
   title: z
     .string()
     .min(1, "Title is required")
-    .max(50, "Title must not exceed 50 characters"),
+    .max(255, "Name must not exceed 255 characters"),
   content: z.string().min(1, "Content is required"),
   slug: z
     .string()
@@ -171,24 +171,9 @@ export default function CreateBlogPost() {
     fetchTags("");
   }, []);
 
-  // Generate slug from title
-  const generateSlug = (title: string) => {
-    return title
-      .toLowerCase()
-      .replace(/[^\w\s-]/g, "") // Remove special characters
-      .replace(/\s+/g, "-") // Replace spaces with hyphens
-      .replace(/-+/g, "-"); // Remove consecutive hyphens
-  };
-
-  // Auto-generate slug when title changes
+  // Remove auto-generate slug functionality
   const handleTitleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const title = event.target.value;
-    setValue("title", title);
-
-    // Only auto-generate slug if it hasn't been manually edited
-    if (getValues("slug") === "") {
-      setValue("slug", generateSlug(title));
-    }
+    setValue("title", event.target.value);
   };
 
   const onSubmit = async (data: PostFormType) => {
@@ -206,9 +191,13 @@ export default function CreateBlogPost() {
         formData.append("published_at", data.published_at);
       }
 
-      // Add categories and tags as arrays
-      formData.append("categories", data.categories.map(cat => cat.id).join(","));
-      formData.append("tags", data.tags.map(tag => tag.id).join(","));
+      // Convert category IDs to array of integers
+      const categoryIds = data.categories.map(cat => Number(cat.id));
+      formData.append("categories", JSON.stringify(categoryIds));
+      
+      // Convert tag IDs to array of integers
+      const tagIds = data.tags.map(tag => Number(tag.id));
+      formData.append("tags", JSON.stringify(tagIds));
 
       if (selectedFile) {
         formData.append("image", selectedFile);
@@ -219,19 +208,21 @@ export default function CreateBlogPost() {
       router.push("/apps/blog/posts");
     } catch (error: any) {
       if (error?.errors && error?.errors.length > 0) {
-        showSnackbar(error.errors[0]?.msg, "error");
-      } else if (
-        error?.error &&
-        Array.isArray(error?.error) &&
-        error.error.length > 0
-      ) {
-        showSnackbar(error.error[0]?.message, "error");
-      } else if (error?.message) {
-        showSnackbar(error.message, "error");
-      } else {
-        const errorMessage = "An unexpected error occurred";
-        showSnackbar(errorMessage, "error");
-      }
+    showSnackbar(error.errors[0]?.msg, "error");
+  } else if (
+    error?.error &&
+    Array.isArray(error?.error) &&
+    error.error.length > 0
+  ) {
+    showSnackbar(error.error[0]?.message, "error");
+  } else if (error?.error?.message) {
+    showSnackbar(error.error.message, "error");
+  } else if (error?.message) {
+    showSnackbar(error.message, "error");
+  } else {
+    const errorMessage = "An unexpected error occurred";
+    showSnackbar(errorMessage, "error");
+  }
     } finally {
       setSubmitting(false);
     }

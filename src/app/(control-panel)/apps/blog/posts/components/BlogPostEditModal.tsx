@@ -165,19 +165,8 @@ export default function BlogPostEditModal({
     }
   };
 
-  const generateSlug = (title: string) => {
-    return title
-      .toLowerCase()
-      .replace(/[^\w\s-]/g, "") // Remove special characters
-      .replace(/\s+/g, "-") // Replace spaces with hyphens
-      .replace(/-+/g, "-"); // Remove consecutive hyphens
-  };
-
   const handleTitleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const title = event.target.value;
-    if (!post || methods.getValues("slug") === "") {
-      methods.setValue("slug", generateSlug(title));
-    }
+    methods.setValue("title", event.target.value);
   };
 
   const handleFileChange = (file: File | null) => {
@@ -229,6 +218,7 @@ export default function BlogPostEditModal({
                 onFileChange={handleFileChange}
                 accept="image/*"
                 helperText="Upload a featured image for the blog post"
+                defaultImage={post?.image_url}
               />
 
               <FormDateTimeField
