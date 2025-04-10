@@ -340,13 +340,13 @@ export default function FooterSectionsApp() {
         
         // Update orders to match new positions
         const updatedSections = newSections.map((section, index) => ({
-          ...section,
+        ...section,
           order: index + 1,
-        }));
-        
+      }));
+      
         // Update state
-        setSections(updatedSections);
-        
+      setSections(updatedSections);
+      
         // Call API to persist changes
         const movedSection = sections[activeIndex];
         await reorderFooterSection(movedSection.id, { new_order: overIndex + 1 });
@@ -354,9 +354,9 @@ export default function FooterSectionsApp() {
         // Success message
         showSnackbar(`Section "${movedSection.title}" reordered successfully`, "success");
       }
-    } catch (error) {
-      console.error("Failed to reorder section:", error);
-      showSnackbar("Failed to reorder section", "error");
+      } catch (error) {
+        console.error("Failed to reorder section:", error);
+        showSnackbar("Failed to reorder section", "error");
       // Reset to original order
       fetchFooterSections();
     } finally {
@@ -388,12 +388,12 @@ export default function FooterSectionsApp() {
         if (movedLink) {
           // API call to update order
           await reorderFooterLink(movedLink.id, { new_order: movedLink.order });
-          showSnackbar(`Link "${movedLink.label}" reordered successfully`, "success");
+        showSnackbar(`Link "${movedLink.label}" reordered successfully`, "success");
         }
       }
-    } catch (error) {
-      console.error("Failed to reorder link:", error);
-      showSnackbar("Failed to reorder link", "error");
+      } catch (error) {
+        console.error("Failed to reorder link:", error);
+        showSnackbar("Failed to reorder link", "error");
       // Reset to original order
       fetchFooterSections();
     }
@@ -402,7 +402,7 @@ export default function FooterSectionsApp() {
   if (loading) return <FuseLoading />;
 
   return (
-    <motion.div
+        <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1, transition: { delay: 0.1 } }}
       className="w-full"
@@ -443,7 +443,7 @@ export default function FooterSectionsApp() {
             </Box>
           </Box>
           <div
-            style={{
+                                          style={{
               maxWidth: '50%',
               width: '100%'
             }}
@@ -487,101 +487,101 @@ export default function FooterSectionsApp() {
                 </SortableContext>
               </DndContext>
             )}
-          </div>
+                  </div>
         </Box>
       </Container>
 
       {/* Section dialog */}
-      <Dialog open={openDialog} onClose={handleDialogClose} maxWidth="sm" fullWidth>
-        <DialogTitle>
+          <Dialog open={openDialog} onClose={handleDialogClose} maxWidth="sm" fullWidth>
+            <DialogTitle>
           {currentSection ? "Edit Section" : "Add New Section"}
-        </DialogTitle>
-        <DialogContent>
+            </DialogTitle>
+            <DialogContent>
           <Box py={1}>
-            <FormProvider {...methods}>
-              <form onSubmit={methods.handleSubmit(handleSubmit)}>
+              <FormProvider {...methods}>
+                <form onSubmit={methods.handleSubmit(handleSubmit)}>
                 <Box display="grid" gridTemplateColumns="1fr" gap={2}>
-                  <FormInputField
-                    name="title"
-                    control={methods.control}
-                    label="Section Title"
-                    required
-                  />
-                  <FormInputField
-                    name="order"
-                    control={methods.control}
+                        <FormInputField
+                          name="title"
+                          control={methods.control}
+                          label="Section Title"
+                          required
+                        />
+                        <FormInputField
+                          name="order"
+                          control={methods.control}
                     label="Order"
-                    type="number"
-                    required
-                  />
-                  <FormControlLabel
-                    control={
-                      <Switch
-                        checked={methods.watch("is_active")}
-                        onChange={(e) =>
-                          methods.setValue("is_active", e.target.checked)
-                        }
-                      />
-                    }
-                    label="Active"
-                  />
+                          type="number"
+                          required
+                        />
+                        <FormControlLabel
+                          control={
+                            <Switch
+                              checked={methods.watch("is_active")}
+                              onChange={(e) =>
+                                methods.setValue("is_active", e.target.checked)
+                              }
+                            />
+                          }
+                          label="Active"
+                        />
                 </Box>
 
                 <Box display="flex" justifyContent="flex-end" gap={2} mt={3}>
                   <Button onClick={handleDialogClose}>Cancel</Button>
-                  <AppButton
-                    type="submit"
+                      <AppButton
+                        type="submit"
                     loading={submitting}
-                    disabled={!isValid || submitting}
+                        disabled={!isValid || submitting}
                     label={currentSection ? "Update" : "Create"}
-                  />
-                </Box>
-              </form>
-            </FormProvider>
+                      />
+                  </Box>
+                </form>
+              </FormProvider>
           </Box>
-        </DialogContent>
-      </Dialog>
+            </DialogContent>
+          </Dialog>
 
       {/* Links dialog */}
-      {selectedSection && (
-        <FooterLinksDialog
-          open={openLinksDialog}
-          onClose={handleLinksDialogClose}
-          section={selectedSection}
-          onSuccess={(message) => showSnackbar(message, "success")}
-          onError={(message) => showSnackbar(message, "error")}
-        />
-      )}
+          {selectedSection && (
+            <FooterLinksDialog
+              open={openLinksDialog}
+              onClose={handleLinksDialogClose}
+              section={selectedSection}
+              onSuccess={(message) => showSnackbar(message, "success")}
+              onError={(message) => showSnackbar(message, "error")}
+            />
+          )}
 
       {/* Delete confirmation dialog */}
-      <Dialog
-        open={deleteDialogOpen}
-        onClose={handleCloseDeleteDialog}
+          <Dialog
+            open={deleteDialogOpen}
+            onClose={handleCloseDeleteDialog}
         maxWidth="xs"
         fullWidth
-      >
+          >
         <DialogTitle>Delete Section</DialogTitle>
-        <DialogContent>
+            <DialogContent>
           <Typography>
             Are you sure you want to delete section &quot;
             {sectionToDelete?.title || ""}&quot;? This will also delete all links
             within this section.
-          </Typography>
-        </DialogContent>
+                </Typography>
+            </DialogContent>
         <DialogActions>
           <Button onClick={handleCloseDeleteDialog} color="inherit">
-            Cancel
-          </Button>
-          <Button
-            onClick={confirmDeleteSection}
-            color="error"
-            variant="contained"
-          >
+                Cancel
+              </Button>
+              <Button 
+                onClick={confirmDeleteSection} 
+                color="error" 
+                variant="contained"
+              >
             Delete
-          </Button>
+              </Button>
         </DialogActions>
-      </Dialog>
-    </motion.div>
+          </Dialog>
+        </motion.div>
   );
 }
 

@@ -218,19 +218,19 @@ export default function CreateBlogPost() {
       showSnackbar("Post created successfully", "success");
       router.push("/apps/blog/posts");
     } catch (error: any) {
-      if (error?.errors) {
-        showSnackbar(error?.errors[0]?.msg, "error");
+      if (error?.errors && error?.errors.length > 0) {
+        showSnackbar(error.errors[0]?.msg, "error");
+      } else if (
+        error?.error &&
+        Array.isArray(error?.error) &&
+        error.error.length > 0
+      ) {
+        showSnackbar(error.error[0]?.message, "error");
+      } else if (error?.message) {
+        showSnackbar(error.message, "error");
       } else {
-        const errorMessage = error?.message || "An unexpected error occurred";
+        const errorMessage = "An unexpected error occurred";
         showSnackbar(errorMessage, "error");
-      }
-      const errorData = error || error;
-      if (errorData?.error && typeof errorData.error === "object") {
-        Object.entries(errorData.error).forEach(([field, message]) => {
-          if (typeof message === "string") {
-            showSnackbar(message, "error");
-          }
-        });
       }
     } finally {
       setSubmitting(false);

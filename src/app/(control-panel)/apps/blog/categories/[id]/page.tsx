@@ -22,11 +22,24 @@ import { useSnackbar } from "@/contexts/SnackbarContext";
 import { formatDate } from "@/utils/actions";
 import FuseSvgIcon from "@fuse/core/FuseSvgIcon";
 
+// Define the category structure for both children and parent
+interface CategoryReference {
+  id: number;
+  name: string;
+  slug: string;
+}
+
+// Extend BlogCategory interface to match actual API response
+interface ExtendedBlogCategory extends Omit<BlogCategory, 'children' | 'parent'> {
+  children?: CategoryReference[];
+  parent?: CategoryReference | null;
+}
+
 export default function CategoryDetailPage() {
   const { id } = useParams();
   const router = useRouter();
   const { showSnackbar } = useSnackbar();
-  const [category, setCategory] = useState<BlogCategory | null>(null);
+  const [category, setCategory] = useState<ExtendedBlogCategory | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -37,7 +50,16 @@ export default function CategoryDetailPage() {
         console.log("Category response:", response);
 
         if (response) {
-          setCategory(response);
+          // Ensure parent is properly typed if it exists
+          const formattedCategory: ExtendedBlogCategory = {
+            ...response,
+            parent: response.parent ? {
+              id: response.parent_id!,
+              name: response.parent,
+              slug: '' // We don't have this in the response
+            } : null
+          };
+          setCategory(formattedCategory);
         }
       } catch (error) {
         console.error("Failed to fetch category:", error);
@@ -106,25 +128,43 @@ export default function CategoryDetailPage() {
               <CardContent>
                 <Box sx={{ mb: 3 }}>
                   {category.image_url ? (
-                    <img
-                      src={category.image_url}
-                      alt={category.name}
-                      style={{
-                        width: "100%",
-                        height: "auto",
-                        borderRadius: "8px",
+                    <Box
+                      sx={{
+                        width: '100%',
+                        height: '300px',
+                        borderRadius: 2,
+                        overflow: 'hidden',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        bgcolor: 'background.default',
+                        border: 1,
+                        borderColor: 'divider'
                       }}
-                    />
+                    >
+                      <img
+                        src={category.image_url}
+                        alt={category.name}
+                        style={{
+                          width: '100%',
+                          height: '100%',
+                          objectFit: 'contain',
+                          padding: '16px'
+                        }}
+                      />
+                    </Box>
                   ) : (
                     <Box
                       sx={{
-                        width: "100%",
-                        height: 200,
-                        backgroundColor: "#f5f5f5",
-                        borderRadius: "8px",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
+                        width: '100%',
+                        height: '300px',
+                        backgroundColor: 'background.default',
+                        borderRadius: 2,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        border: 1,
+                        borderColor: 'divider'
                       }}
                     >
                       <Typography color="text.secondary">
@@ -144,7 +184,7 @@ export default function CategoryDetailPage() {
                   </Typography>
                 </Box>
 
-                {category.children && Array.isArray(category.children) && category.children.length > 0 && (
+                {category?.children && Array.isArray(category.children) && category.children.length > 0 && (
                   <>
                     <Divider sx={{ my: 3 }} />
                     
@@ -153,7 +193,7 @@ export default function CategoryDetailPage() {
                     </Typography>
                     
                     <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
-                      {category.children.map((child: any) => (
+                      {category.children.map((child) => (
                         <Chip
                           key={child.id}
                           label={child.name}
@@ -200,13 +240,13 @@ export default function CategoryDetailPage() {
                   <Typography variant="subtitle2" color="text.secondary">
                     Parent Category
                   </Typography>
-                  {category.parent ? (
+                  {category.parent_id ? (
                     <Typography 
                       variant="body2" 
                       sx={{ cursor: "pointer", color: "primary.main" }}
                       onClick={() => router.push(`/apps/blog/categories/${category.parent_id}`)}
                     >
-                      {category.parent}
+                      {typeof category.parent === 'string' ? category.parent : 'N/A'}
                     </Typography>
                   ) : (
                     <Typography variant="body2">None</Typography>
