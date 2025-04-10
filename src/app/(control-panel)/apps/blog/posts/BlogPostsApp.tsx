@@ -366,10 +366,10 @@ export default function BlogPostsApp() {
         Cell: ({ row }) => (
           <div
             className={
-              row.original.is_active ? "text-green-600" : "text-red-600"
+              row.original.status ? "text-green-600" : ""
             }
           >
-            {row.original.is_active ? "Active" : "Inactive"}
+            {row.original.status || "N/A"}
           </div>
         ),
       },
