@@ -178,15 +178,15 @@ const OrdersTable = ({
         header: "Status",
         Cell: ({ row }) => <OrderStatusChip status={row.original.status} />,
       },
-      {
-        accessorKey: "payment_status",
-        header: "Payment",
-        Cell: ({ row }) => (
-          <PaymentStatusChip
-            status={row.original.payment_status || "pending"}
-          />
-        ),
-      },
+      // {
+      //   accessorKey: "payment_status",
+      //   header: "Payment",
+      //   Cell: ({ row }) => (
+      //     <PaymentStatusChip
+      //       status={row.original.payment_status || "N/A"}
+      //     />
+      //   ),
+      // },
       {
         accessorKey: "orderItems",
         header: "Items",
@@ -194,7 +194,7 @@ const OrdersTable = ({
       },
       {
         accessorKey: "createdAt",
-        header: "Date",
+        header: "Created At",
         Cell: ({ row }) => formatDate(row.original.createdAt),
       },
     ],
