@@ -222,13 +222,13 @@ export default function EditBlogPost() {
         formData.append("published_at", data.published_at);
       }
 
-      // Convert category IDs to array of integers
-      const categoryIds = data.categories.map(cat => Number(cat.id));
-      formData.append("categories", JSON.stringify(categoryIds));
+      // Convert category IDs to comma-separated string
+      const categoryIds = data.categories.map(cat => cat.id).join(',');
+      formData.append("categories", categoryIds);
       
-      // Convert tag IDs to array of integers
-      const tagIds = data.tags.map(tag => Number(tag.id));
-      formData.append("tags", JSON.stringify(tagIds));
+      // Convert tag IDs to comma-separated string
+      const tagIds = data.tags.map(tag => tag.id).join(',');
+      formData.append("tags", tagIds);
 
       if (selectedFile) {
         formData.append("image", selectedFile);
@@ -239,21 +239,21 @@ export default function EditBlogPost() {
       router.push("/apps/blog/posts");
     } catch (error: any) {
       if (error?.errors && error?.errors.length > 0) {
-    showSnackbar(error.errors[0]?.msg, "error");
-  } else if (
-    error?.error &&
-    Array.isArray(error?.error) &&
-    error.error.length > 0
-  ) {
-    showSnackbar(error.error[0]?.message, "error");
-  } else if (error?.error?.message) {
-    showSnackbar(error.error.message, "error");
-  } else if (error?.message) {
-    showSnackbar(error.message, "error");
-  } else {
-    const errorMessage = "An unexpected error occurred";
-    showSnackbar(errorMessage, "error");
-  }
+        showSnackbar(error.errors[0]?.msg, "error");
+      } else if (
+        error?.error &&
+        Array.isArray(error?.error) &&
+        error.error.length > 0
+      ) {
+        showSnackbar(error.error[0]?.message, "error");
+      } else if (error?.error?.message) {
+        showSnackbar(error.error.message, "error");
+      } else if (error?.message) {
+        showSnackbar(error.message, "error");
+      } else {
+        const errorMessage = "An unexpected error occurred";
+        showSnackbar(errorMessage, "error");
+      }
     } finally {
       setSubmitting(false);
     }
