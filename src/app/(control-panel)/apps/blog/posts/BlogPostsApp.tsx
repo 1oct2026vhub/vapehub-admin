@@ -488,7 +488,6 @@ export default function BlogPostsApp() {
                     onChange={(e) => setStatus(e.target.value)}
                     label="Status"
                   >
-                    <MenuItem value="">All Statuses</MenuItem>
                     <MenuItem value="draft">Draft</MenuItem>
                     <MenuItem value="published">Published</MenuItem>
                     <MenuItem value="archived">Archived</MenuItem>
