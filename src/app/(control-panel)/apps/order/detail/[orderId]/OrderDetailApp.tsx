@@ -262,13 +262,6 @@ const OrderDetailApp = () => {
                       className="font-semibold text-gray-700"
                       sx={{ borderBottom: "2px solid #c9e7dc", py: 2 }}
                     >
-                      Tax
-                    </TableCell>
-                    <TableCell
-                      align="right"
-                      className="font-semibold text-gray-700"
-                      sx={{ borderBottom: "2px solid #c9e7dc", py: 2 }}
-                    >
                       Amount
                     </TableCell>
                   </TableRow>
@@ -477,10 +470,6 @@ const OrderDetailApp = () => {
               )}
               <div className="flex justify-between">
                 <Typography variant="body2">Shipping Cost</Typography>
-                <Typography variant="body2">$0.00</Typography>
-              </div>
-              <div className="flex justify-between">
-                <Typography variant="body2">Tax (8%)</Typography>
                 <Typography variant="body2">$0.00</Typography>
               </div>
               <Divider />
