@@ -147,17 +147,10 @@ const TransactionFilters: React.FC<TransactionFiltersProps> = ({
             onStatusChange(e.target.value as TransactionStatus | "")
           }
         >
-          <MenuItem value="">All</MenuItem>
           <MenuItem value="pending">Pending</MenuItem>
-          <MenuItem value="processing">Processing</MenuItem>
-          <MenuItem value="shipped">Shipped</MenuItem>
-          <MenuItem value="delivered">Delivered</MenuItem>
           <MenuItem value="completed">Completed</MenuItem>
-          <MenuItem value="fail">Failed</MenuItem>
-          <MenuItem value="cancel">Cancelled</MenuItem>
-          <MenuItem value="return_requested">Return Requested</MenuItem>
-          <MenuItem value="return_approved">Return Approved</MenuItem>
-          <MenuItem value="return_received">Return Received</MenuItem>
+          <MenuItem value="failed">Failed</MenuItem>
+          <MenuItem value="cancelled">Cancelled</MenuItem>
           <MenuItem value="refunded">Refunded</MenuItem>
         </Select>
       </FormControl>
@@ -171,10 +164,10 @@ const TransactionFilters: React.FC<TransactionFiltersProps> = ({
             onTransactionTypeChange(e.target.value as TransactionType | "")
           }
         >
-          <MenuItem value="">All</MenuItem>
-          <MenuItem value="purchase">Purchase</MenuItem>
+          <MenuItem value="payment">Payement</MenuItem>
           <MenuItem value="refund">Refund</MenuItem>
-          <MenuItem value="payout">Payout</MenuItem>
+          <MenuItem value="partial_refund">Partial Refund</MenuItem>
+
         </Select>
       </FormControl>
 
