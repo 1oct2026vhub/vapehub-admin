@@ -29,6 +29,8 @@ import { useSnackbar } from "@/contexts/SnackbarContext";
 import { getBlogCategory, updateBlogCategory, getBlogCategories, type BlogCategory } from "@/services/apiBlog";
 import FormFileUploadField from "@/components/Shared/FormFileUploadField";
 
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB in bytes
+
 const categorySchema = z.object({
   name: z
     .string()
@@ -52,7 +54,12 @@ const categorySchema = z.object({
     z.number().nullable()
   ),
   status: z.enum(["active", "inactive"]).default("active"),
-  image: z.any().optional(),
+  image: z.any()
+    .refine((file) => {
+      if (!file || !(file instanceof File)) return true;
+      return file.size <= MAX_FILE_SIZE;
+    }, "File size exceeds the maximum limit of 5MB.")
+    .optional(),
 });
 
 type CategoryFormType = z.infer<typeof categorySchema>;
@@ -160,73 +167,59 @@ export default function EditBlogCategory() {
       setSubmitting(true);
       console.log("Submitting form with data:", data);
       
-      // Solution: For normal data send JSON, and for file send FormData
-      if (selectedFile) {
-        // With file, use FormData
-        const formData = new FormData();
-        formData.append("name", data.name);
-        formData.append("slug", data.slug);
-        formData.append("status", data.status);
-        
-        if (data.description) {
-          formData.append("description", data.description);
-        }
-        
-        // Special handling for parent_id - convert to JSON string
-        if (data.parent_id !== null && data.parent_id !== undefined) {
-          formData.append("parent_id", Number(data.parent_id).toString());
-        }
-        
-        // Add the file
-        formData.append("image", selectedFile);
-        
-        console.log("Form data entries with file:");
-        for (const pair of formData.entries()) {
-          console.log(pair[0], pair[1], typeof pair[1]);
-        }
-        
-        await updateBlogCategory(category.id, formData);
-      } else {
-        // Without file, use direct JSON - this will ensure parent_id is sent as an integer
-        const jsonData: Record<string, any> = {
-          name: data.name,
-          slug: data.slug,
-          status: data.status
-        };
-        
-        if (data.description) {
-          jsonData.description = data.description;
-        }
-        
-        // Properly handle parent_id as a number
-        if (data.parent_id !== null && data.parent_id !== undefined) {
-          jsonData.parent_id = Number(data.parent_id);
-          console.log("Parent ID as number:", jsonData.parent_id, "Type:", typeof jsonData.parent_id);
-        }
-        
-        console.log("Sending JSON data:", jsonData);
-        await updateBlogCategory(category.id, jsonData);
+      // Create FormData for submission
+      const formData = new FormData();
+      
+      // Add basic text fields
+      formData.append("name", data.name);
+      formData.append("slug", data.slug);
+      formData.append("status", data.status);
+      
+      // Add description if present
+      if (data.description) {
+        formData.append("description", data.description);
       }
+      
+      // Handle parent_id - convert to string explicitly as in the blog post form
+      if (data.parent_id !== null && data.parent_id !== undefined) {
+        // Convert number to string (similar to blog post's category/tag IDs handling)
+        formData.append("parent_id", data.parent_id.toString());
+        console.log("Parent ID added:", data.parent_id, "as string:", data.parent_id.toString());
+      }
+      
+      // Add image if selected
+      if (selectedFile) {
+        formData.append("image", selectedFile);
+      }
+      
+      // Log all FormData entries for debugging
+      console.log("FormData entries:");
+      for (const pair of formData.entries()) {
+        console.log(pair[0], pair[1], typeof pair[1]);
+      }
+      
+      // Send FormData to API
+      await updateBlogCategory(category.id, formData);
       
       showSnackbar("Category updated successfully", "success");
       router.push("/apps/blog/categories");
     } catch (error: any) {
       if (error?.errors && error?.errors.length > 0) {
-    showSnackbar(error.errors[0]?.msg, "error");
-  } else if (
-    error?.error &&
-    Array.isArray(error?.error) &&
-    error.error.length > 0
-  ) {
-    showSnackbar(error.error[0]?.message, "error");
-  } else if (error?.error?.message) {
-    showSnackbar(error.error.message, "error");
-  } else if (error?.message) {
-    showSnackbar(error.message, "error");
-  } else {
-    const errorMessage = "An unexpected error occurred";
-    showSnackbar(errorMessage, "error");
-  }
+        showSnackbar(error.errors[0]?.msg, "error");
+      } else if (
+        error?.error &&
+        Array.isArray(error?.error) &&
+        error.error.length > 0
+      ) {
+        showSnackbar(error.error[0]?.message, "error");
+      } else if (error?.error?.message) {
+        showSnackbar(error.error.message, "error");
+      } else if (error?.message) {
+        showSnackbar(error.message, "error");
+      } else {
+        const errorMessage = "An unexpected error occurred";
+        showSnackbar(errorMessage, "error");
+      }
     } finally {
       setSubmitting(false);
     }

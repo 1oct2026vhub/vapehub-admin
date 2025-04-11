@@ -61,7 +61,7 @@ const postSchema = z.object({
     .refine((file) => {
       if (!file || !(file instanceof File)) return true;
       return file.size <= MAX_FILE_SIZE;
-    }, "File size must be less than 5MB")
+    }, "File size exceeds the maximum limit of 5MB.")
     .optional(),
   status: z.enum(["draft", "published", "archived"]).default("draft"),
   published_at: z.string().nullable().optional(),
