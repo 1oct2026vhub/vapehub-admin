@@ -362,9 +362,9 @@ const OrderDetailApp = () => {
                       <TableCell align="right" className="font-medium">
                         ${Number(item.unit_price).toFixed(2)}
                       </TableCell>
-                      <TableCell align="right" className="font-medium">
+                      {/* <TableCell align="right" className="font-medium">
                         $0.00
-                      </TableCell>
+                      </TableCell> */}
                       <TableCell
                         align="right"
                         className="font-medium text-gray-800"
@@ -399,9 +399,9 @@ const OrderDetailApp = () => {
                         )
                         .toFixed(2) || "0.00"}
                     </TableCell>
-                    <TableCell align="right" className="font-semibold">
+                    {/* <TableCell align="right" className="font-semibold">
                       $0.00
-                    </TableCell>
+                    </TableCell> */}
                     <TableCell align="right" className="font-semibold">
                       ${Number(order?.total || 0).toFixed(2)}
                     </TableCell>
@@ -470,7 +470,7 @@ const OrderDetailApp = () => {
               )}
               <div className="flex justify-between">
                 <Typography variant="body2">Shipping Cost</Typography>
-                <Typography variant="body2">$0.00</Typography>
+                <Typography variant="body2">${Number(order?.shipping_cost ||  0.00).toFixed(2)}</Typography>
               </div>
               <Divider />
               <div className="flex justify-between">
@@ -491,9 +491,9 @@ const OrderDetailApp = () => {
               <Typography variant="h6" className="font-medium">
                 Customer Details
               </Typography>
-              <Button size="small" variant="text" sx={{ color: "#6366F1" }}>
+              {/* <Button size="small" variant="text" sx={{ color: "#6366F1" }}>
                 View Profile
-              </Button>
+              </Button> */}
             </div>
 
             {/* Customer basic info with profile image */}
