@@ -314,7 +314,7 @@ export default function BlogPostsApp() {
         header: "Published Date",
         size: 150,
         Cell: ({ row }) => {
-          return row.original.published_at
+          return row.original.status === "published" && row.original.published_at
             ? formatDate(row.original.published_at)
             : "Not published";
         },
@@ -559,6 +559,7 @@ export default function BlogPostsApp() {
                 
                 {(selectedCategory || selectedTag || status) && (
                   <Button 
+                  className="text-center"
                     size="small" 
                     variant="outlined"
                     color="primary" 
@@ -567,7 +568,6 @@ export default function BlogPostsApp() {
                       setSelectedTag(null);
                       setStatus("");
                     }}
-                    startIcon={<FuseSvgIcon>heroicons-outline:x</FuseSvgIcon>}
                   >
                     Clear Filters
                   </Button>

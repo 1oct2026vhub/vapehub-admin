@@ -55,7 +55,7 @@ const FormFileUploadField: React.FC<FormFileUploadFieldProps> = ({
       }
       
       if (file.size > MAX_FILE_SIZE) {
-        return "File size must be less than 5MB";
+        return "File size exceeds the maximum limit of 5MB.";
       }
     }
     
@@ -184,6 +184,13 @@ const FormFileUploadField: React.FC<FormFileUploadFieldProps> = ({
             </Box>
           )}
           
+          {/* Display validation error right after the upload area or new image preview */}
+          {error && (
+            <Typography color="error" variant="caption" className="block mb-3">
+              {error.message}
+            </Typography>
+          )}
+          
           {/* Current/Default image preview - shown at bottom */}
           {defaultImage && (
             <Box className="mt-4">
@@ -198,13 +205,6 @@ const FormFileUploadField: React.FC<FormFileUploadFieldProps> = ({
                 />
               </Box>
             </Box>
-          )}
-          
-          {/* Error message */}
-          {error && (
-            <Typography color="error" variant="caption">
-              {error.message}
-            </Typography>
           )}
         </Box>
       )}

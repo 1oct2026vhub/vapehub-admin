@@ -157,44 +157,46 @@ const OrderStatistics = ({
         ) : (
           <Box>
             {/* Status Cards */}
-            <Grid container spacing={3}>
+            <Grid container spacing={1}>
               {statistics.map((stat) => {
                 const status = stat.status.toUpperCase();
                 const backgroundColor = getStatusColor(stat.status);
                 
                 return (
-                  <Grid item xs={12} sm={6} md={4} key={stat.status}>
-                    <Card variant="outlined" className="h-full">
-                      <CardContent>
-                        <Box className="mb-4">
+                  <Grid item xs={6} sm={4} md={2} key={stat.status}>
+                    <Card variant="outlined" className="h-full" sx={{ minHeight: '70px' }}>
+                      <CardContent sx={{ p: 1, '&:last-child': { pb: 1 } }}>
+                        <Box className="mb-1">
                           <Chip
                             label={status}
                             size="small"
                             style={{
                               backgroundColor,
                               color: "white",
-                              fontWeight: "bold",
-                              padding: "4px 8px",
-                              borderRadius: "16px"
+                              fontWeight: "500",
+                              padding: "0px 4px",
+                              borderRadius: "8px",
+                              fontSize: "0.6rem",
+                              height: "16px"
                             }}
                           />
                         </Box>
                         
                         <Grid container>
                           <Grid item xs={6}>
-                            <Typography variant="body2" color="text.secondary">
+                            <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.6rem' }}>
                               Orders
                             </Typography>
-                            <Typography variant="h5" component="div" className="font-bold mt-1">
+                            <Typography variant="subtitle2" component="div" sx={{ fontWeight: 500, fontSize: '0.8rem', mt: 0.25 }}>
                               {stat.count}
                             </Typography>
                           </Grid>
                           
                           <Grid item xs={6} className="text-right">
-                            <Typography variant="body2" color="text.secondary">
+                            <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.6rem' }}>
                               Revenue
                             </Typography>
-                            <Typography variant="h5" component="div" className="font-bold mt-1">
+                            <Typography variant="subtitle2" component="div" sx={{ fontWeight: 500, fontSize: '0.8rem', mt: 0.25 }}>
                               ${parseFloat(stat.total_amount).toFixed(2)}
                             </Typography>
                           </Grid>

@@ -123,7 +123,16 @@ const OrderFilterDrawer = ({
               label="Start Date"
               value={startDateFilter}
               onChange={onStartDateChange}
-              slotProps={{ textField: { size: "small", fullWidth: true } }}
+              slotProps={{ 
+                textField: { 
+                  size: "small", 
+                  fullWidth: true,
+                  inputProps: {
+                    placeholder: "DD-MM-YYYY"
+                  }
+                } 
+              }}
+              format="DD-MM-YYYY"
             />
           </LocalizationProvider>
         </ListItem>
@@ -133,7 +142,16 @@ const OrderFilterDrawer = ({
               label="End Date"
               value={endDateFilter}
               onChange={onEndDateChange}
-              slotProps={{ textField: { size: "small", fullWidth: true } }}
+              slotProps={{ 
+                textField: { 
+                  size: "small", 
+                  fullWidth: true,
+                  inputProps: {
+                    placeholder: "DD-MM-YYYY"
+                  }
+                } 
+              }}
+              format="DD-MM-YYYY"
             />
           </LocalizationProvider>
         </ListItem>
