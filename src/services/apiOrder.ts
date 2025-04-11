@@ -90,6 +90,7 @@ export interface Order {
   coupon_id: number | null;
   total: string;
   discount_price: string | null;
+  shipping_cost?: string | null;
   status: OrderStatus;
   shipping_address_id: number;
   billing_address_id: number;
