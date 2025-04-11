@@ -153,7 +153,7 @@ const OrderDetailApp = () => {
   return (
     <div className="flex flex-col gap-4 p-4 bg-gray-50 min-h-screen">
       {/* Order Header */}
-      <Paper className="p-4">
+      <Paper className="p-4 bg-white">
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
             <IconButton size="small">
@@ -202,7 +202,7 @@ const OrderDetailApp = () => {
         {/* Left Column - Progress and Products */}
         <Grid item xs={12} md={8}>
           {/* Product Section */}
-          <Paper className="p-4 mb-4">
+          <Paper className="p-4 mb-4 bg-white">
             <div className="flex justify-between items-center mb-3">
               <Typography variant="h6" className="font-medium">
                 Order #{order?.order_unique_id || ""}
@@ -428,7 +428,7 @@ const OrderDetailApp = () => {
         {/* Right Column - Payment and Customer Info */}
         <Grid item xs={12} md={4}>
           {/* Payment Section */}
-          <Paper className="p-4 mb-3">
+          <Paper className="p-4 mb-3 bg-white">
             <div className="flex justify-between items-center mb-3">
               <Typography variant="h6" className="font-medium">
                 Payment
@@ -485,7 +485,7 @@ const OrderDetailApp = () => {
           </Paper>
 
           {/* Customer Details */}
-          <Paper className="p-0 mb-3 overflow-hidden">
+          <Paper className="p-0 mb-3 overflow-hidden bg-white">
             {/* Header with View Profile button */}
             <div className="flex items-center justify-between p-4 border-b border-gray-200">
               <Typography variant="h6" className="font-medium">
@@ -542,7 +542,7 @@ const OrderDetailApp = () => {
           </Paper>
 
           {/* Billing Address */}
-          <Paper className="p-0 mb-3 overflow-hidden">
+          <Paper className="p-0 mb-3 overflow-hidden bg-white">
             {/* Header with View Profile button */}
             <div className="flex items-center gap-2 p-4 border-b border-gray-200">
               <LocationOnIcon fontSize="small" sx={{ color: "#6B7280" }} />
@@ -582,7 +582,7 @@ const OrderDetailApp = () => {
           </Paper>
 
           {/* Shipping Address */}
-          <Paper className="p-0 overflow-hidden">
+          <Paper className="p-0 overflow-hidden bg-white">
             <div className="flex items-center gap-2 p-4 border-b border-gray-200">
               <LocationOnIcon fontSize="small" sx={{ color: "#6B7280" }} />
               <Typography variant="h6" className="font-medium">

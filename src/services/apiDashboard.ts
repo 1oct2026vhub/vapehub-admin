@@ -9,7 +9,8 @@ export interface SalesChartData {
 
 export interface UserGrowthChartData {
   date: string;
-  newUsersCount: number;
+  admin: number;
+  customer: number;
 }
 
 export interface TransactionChartData {

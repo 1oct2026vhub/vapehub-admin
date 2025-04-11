@@ -260,7 +260,7 @@ const OrderStatusTimeline: React.FC<OrderStatusTimelineProps> = ({
   const { date: formattedDate } = formatDate(orderDate);
 
   return (
-    <Paper className="p-4 mb-4">
+    <Paper className="p-4 mb-4 bg-white">
       <div className="flex justify-between items-center mb-4">
         <Typography variant="h6" className="font-medium">
           Order Status
