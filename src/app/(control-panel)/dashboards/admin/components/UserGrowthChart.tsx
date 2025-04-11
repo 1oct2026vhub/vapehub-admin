@@ -33,13 +33,22 @@ const UserGrowthChart = ({ data, period }: UserGrowthChartProps) => {
               labels: data.map(item => item.date),
               datasets: [
                 {
-                  label: 'New Users',
-                  data: data.map(item => item.newUsersCount),
+                  label: 'Admins',
+                  data: data.map(item => item.admin),
                   backgroundColor: 'rgba(33, 150, 243, 0.7)',
                   borderColor: '#2196F3',
                   borderWidth: 1,
                   borderRadius: 4,
-                  barThickness: 15,
+                  barThickness: 12,
+                },
+                {
+                  label: 'Customers',
+                  data: data.map(item => item.customer),
+                  backgroundColor: 'rgba(76, 175, 80, 0.7)',
+                  borderColor: '#4CAF50',
+                  borderWidth: 1,
+                  borderRadius: 4,
+                  barThickness: 12,
                 }
               ]
             },
@@ -61,7 +70,7 @@ const UserGrowthChart = ({ data, period }: UserGrowthChartProps) => {
                   beginAtZero: true,
                   title: {
                     display: true,
-                    text: 'New Users'
+                    text: 'Number of Users'
                   },
                   grid: {
                     display: true,

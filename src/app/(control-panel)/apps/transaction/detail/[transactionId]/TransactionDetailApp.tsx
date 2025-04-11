@@ -215,7 +215,7 @@ const TransactionDetailApp = () => {
   return (
     <div className="flex flex-col gap-4 p-4 bg-gray-50 min-h-screen">
       {/* Transaction Header */}
-      <Paper className="p-4">
+      <Paper className="p-4 bg-white">
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
             <IconButton size="small" onClick={handleGoBack}>
@@ -301,7 +301,7 @@ const TransactionDetailApp = () => {
         {/* Left Column - Transaction Details and Order Items */}
         <Grid item xs={12} md={8}>
           {/* Transaction Summary */}
-          <Paper className="p-4 mb-4">
+          <Paper className="p-4 mb-4 bg-white">
             <Typography variant="h6" className="mb-3 font-medium">
               Transaction Details
             </Typography>
@@ -401,7 +401,7 @@ const TransactionDetailApp = () => {
 
           {/* Order Details Section */}
           {transaction.order && (
-            <Paper className="p-4 mb-4">
+            <Paper className="p-4 mb-4 bg-white">
               <div className="flex justify-between items-center mb-3">
                 <Typography variant="h6" className="font-medium">
                   Order #{transaction.order.order_unique_id}
@@ -553,7 +553,7 @@ const TransactionDetailApp = () => {
         <Grid item xs={12} md={4}>
           {/* Customer Details */}
           {transaction.user && (
-            <Paper className="p-0 mb-4 overflow-hidden">
+            <Paper className="p-0 mb-4 overflow-hidden bg-white">
               <div className="flex items-center justify-between p-4 border-b border-gray-200">
                 <Typography variant="h6" className="font-medium">
                   Customer Details
@@ -623,7 +623,7 @@ const TransactionDetailApp = () => {
           {transaction.order &&
             (transaction.order.billingAddress ||
               transaction.order.shippingAddress) && (
-              <Paper className="p-0 mb-3 overflow-hidden">
+              <Paper className="p-0 mb-3 overflow-hidden bg-white">
                 {/* Billing Address */}
                 {transaction.order.billingAddress && (
                   <>
@@ -725,7 +725,7 @@ const TransactionDetailApp = () => {
             )}
 
           {/* Payment Summary */}
-          <Paper className="p-4 mb-3">
+          <Paper className="p-4 mb-3 bg-white">
             <Typography variant="h6" className="mb-4 font-medium">
               Payment Summary
             </Typography>

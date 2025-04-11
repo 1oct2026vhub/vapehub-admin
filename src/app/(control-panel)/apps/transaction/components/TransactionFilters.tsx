@@ -176,13 +176,29 @@ const TransactionFilters: React.FC<TransactionFiltersProps> = ({
           label="Start Date"
           value={startDateFilter}
           onChange={onStartDateChange}
-          slotProps={{ textField: { size: "small" } }}
+          slotProps={{ 
+            textField: { 
+              size: "small",
+              inputProps: {
+                placeholder: "DD-MM-YYYY"
+              }
+            } 
+          }}
+          format="DD-MM-YYYY"
         />
         <DatePicker
           label="End Date"
           value={endDateFilter}
           onChange={onEndDateChange}
-          slotProps={{ textField: { size: "small" } }}
+          slotProps={{ 
+            textField: { 
+              size: "small",
+              inputProps: {
+                placeholder: "DD-MM-YYYY"
+              }
+            } 
+          }}
+          format="DD-MM-YYYY"
         />
       </LocalizationProvider>
 

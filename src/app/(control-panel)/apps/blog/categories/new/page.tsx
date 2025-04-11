@@ -28,6 +28,8 @@ import { useSnackbar } from "@/contexts/SnackbarContext";
 import { createBlogCategory, getBlogCategories, type BlogCategory } from "@/services/apiBlog";
 import FormFileUploadField from "@/components/Shared/FormFileUploadField";
 
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB in bytes
+
 const categorySchema = z.object({
   name: z
     .string()
@@ -51,7 +53,12 @@ const categorySchema = z.object({
     z.number().nullable()
   ),
   status: z.enum(["active", "inactive"]).default("active"),
-  image: z.any().optional(),
+  image: z.any()
+    .refine((file) => {
+      if (!file || !(file instanceof File)) return true;
+      return file.size <= MAX_FILE_SIZE;
+    }, "File size exceeds the maximum limit of 5MB.")
+    .optional(),
 });
 
 type CategoryFormType = z.infer<typeof categorySchema>;
@@ -116,75 +123,60 @@ export default function CreateBlogCategory() {
     try {
       setSubmitting(true);
       
-      // Convert parent_id to number if it exists
-      const parentId = data.parent_id !== null && data.parent_id !== undefined 
-        ? Number(data.parent_id) 
-        : undefined;
+      // Create FormData for submission
+      const formData = new FormData();
       
-      if (selectedFile) {
-        // With file, use FormData
-        const formData = new FormData();
-        formData.append("name", data.name);
-        formData.append("slug", data.slug);
-        formData.append("status", data.status);
-        
-        if (data.description) {
-          formData.append("description", data.description);
-        }
-        
-        // Handle parent_id as integer
-        if (parentId !== undefined) {
-          formData.append("parent_id", String(parentId));
-        }
-        
-        // Add the file
-        formData.append("image", selectedFile);
-        
-        // Convert FormData to JSON for API call
-        const jsonData = {
-          name: data.name,
-          slug: data.slug,
-          status: data.status,
-          ...(data.description && { description: data.description }),
-          ...(parentId !== undefined && { parent_id: parentId }),
-          image: selectedFile
-        };
-        
-        await createBlogCategory(jsonData);
-      } else {
-        // Without file, use direct JSON
-        const jsonData = {
-          name: data.name,
-          slug: data.slug,
-          status: data.status,
-          ...(data.description && { description: data.description }),
-          ...(parentId !== undefined && { parent_id: parentId })
-        };
-        
-        await createBlogCategory(jsonData);
+      // Add basic text fields
+      formData.append("name", data.name);
+      formData.append("slug", data.slug);
+      formData.append("status", data.status);
+      
+      // Add description if present
+      if (data.description) {
+        formData.append("description", data.description);
       }
+      
+      // Handle parent_id - convert to string explicitly as in the blog post form
+      if (data.parent_id !== null && data.parent_id !== undefined) {
+        // Convert number to string (similar to blog post's category/tag IDs handling)
+        formData.append("parent_id", data.parent_id.toString());
+        console.log("Parent ID added:", data.parent_id, "as string:", data.parent_id.toString());
+      }
+      
+      // Add image if selected
+      if (selectedFile) {
+        formData.append("image", selectedFile);
+      }
+      
+      // Log all FormData entries for debugging
+      console.log("FormData entries:");
+      for (const pair of formData.entries()) {
+        console.log(pair[0], pair[1], typeof pair[1]);
+      }
+      
+      // Send FormData to API
+      await createBlogCategory(formData);
       
       showSnackbar("Category created successfully", "success");
       router.push("/apps/blog/categories");
     } catch (error: any) {
-  if (error?.errors && error?.errors.length > 0) {
-    showSnackbar(error.errors[0]?.msg, "error");
-  } else if (
-    error?.error &&
-    Array.isArray(error?.error) &&
-    error.error.length > 0
-  ) {
-    showSnackbar(error.error[0]?.message, "error");
-  } else if (error?.error?.message) {
-    showSnackbar(error.error.message, "error");
-  } else if (error?.message) {
-    showSnackbar(error.message, "error");
-  } else {
-    const errorMessage = "An unexpected error occurred";
-    showSnackbar(errorMessage, "error");
-  }
-}
- finally {
+      if (error?.errors && error?.errors.length > 0) {
+        showSnackbar(error.errors[0]?.msg, "error");
+      } else if (
+        error?.error &&
+        Array.isArray(error?.error) &&
+        error.error.length > 0
+      ) {
+        showSnackbar(error.error[0]?.message, "error");
+      } else if (error?.error?.message) {
+        showSnackbar(error.error.message, "error");
+      } else if (error?.message) {
+        showSnackbar(error.message, "error");
+      } else {
+        const errorMessage = "An unexpected error occurred";
+        showSnackbar(errorMessage, "error");
+      }
+    } finally {
       setSubmitting(false);
     }
   };
