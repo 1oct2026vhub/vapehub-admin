@@ -115,7 +115,7 @@ export default function CreateBlogPost() {
     control,
     handleSubmit,
     setValue,
-    getValues,
+    watch,
     formState: { isValid },
   } = useForm<PostFormType>({
     mode: "all",
@@ -131,6 +131,9 @@ export default function CreateBlogPost() {
     },
     resolver: zodResolver(postSchema),
   });
+
+  // Watch the status field
+  const currentStatus = watch("status");
 
   // Fetch categories with debounced search
   const fetchCategories = debounce(async (searchTerm: string) => {
@@ -310,7 +313,7 @@ export default function CreateBlogPost() {
                     />
                   </Grid>
 
-                  <Grid item xs={12} md={6}>
+                  <Grid item xs={12} md={currentStatus === "published" ? 6 : 12}>
                     <FormControl fullWidth>
                       <InputLabel id="status-label" sx={{ color: "#2E9970" }}>Status</InputLabel>
                       <Controller
@@ -322,6 +325,12 @@ export default function CreateBlogPost() {
                             labelId="status-label"
                             label="Status"
                             sx={commonFieldStyles}
+                            onChange={(e) => {
+                              field.onChange(e);
+                              if (e.target.value !== "published") {
+                                setValue("published_at", null);
+                              }
+                            }}
                           >
                             <MenuItem value="draft">Draft</MenuItem>
                             <MenuItem value="published">Published</MenuItem>
@@ -332,15 +341,17 @@ export default function CreateBlogPost() {
                     </FormControl>
                   </Grid>
 
-                  <Grid item xs={12} md={6}>
-                    <FormDateTimeField
-                      name="published_at"
-                      control={control}
-                      label="Published Date"
-                      // helperText="Leave blank to save as draft"
-                      sx={commonFieldStyles}
-                    />
-                  </Grid>
+                  {currentStatus === "published" && (
+                    <Grid item xs={12} md={6}>
+                      <FormDateTimeField
+                        name="published_at"
+                        control={control}
+                        label="Published Date"
+                        required
+                        sx={commonFieldStyles}
+                      />
+                    </Grid>
+                  )}
 
                   <Grid item xs={12}>
                     <Controller
