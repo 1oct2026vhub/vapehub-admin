@@ -71,9 +71,26 @@ const TransactionStatusChip: React.FC<TransactionStatusChipProps> = ({
 
   const statusStyles = getStatusStyles(status);
 
+  // Get display text with proper capitalization
+  const getDisplayText = (status: TransactionStatus): string => {
+    // Special cases
+    if (status === 'fail') return 'Failed';
+    if (status === 'cancel') return 'Cancelled';
+    
+    // Handle statuses with underscores (e.g., return_requested)
+    if (status.includes('_')) {
+      return status.split('_')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ');
+    }
+    
+    // Regular capitalization
+    return status.charAt(0).toUpperCase() + status.slice(1);
+  };
+
   return (
     <Chip
-      label={status}
+      label={getDisplayText(status)}
       className={className}
       sx={{
         fontWeight: 600,

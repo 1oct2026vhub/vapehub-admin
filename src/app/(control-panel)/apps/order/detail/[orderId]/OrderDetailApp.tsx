@@ -47,6 +47,7 @@ import PhoneIcon from "@mui/icons-material/Phone";
 import LocationOnIcon from "@mui/icons-material/LocationOn";
 import OrderStatusTimeline from "./OrderStatusTimeline";
 import { useSnackbar } from "@/contexts/SnackbarContext";
+import { formatDate, formatPounds } from "@/utils/actions";
 
 const OrderDetailApp = () => {
   const params = useParams();
@@ -364,16 +365,13 @@ const OrderDetailApp = () => {
                         {item.quantity}
                       </TableCell>
                       <TableCell align="right" className="font-medium">
-                        ${Number(item.unit_price).toFixed(2)}
+                        {formatPounds(item.unit_price)}
                       </TableCell>
-                      {/* <TableCell align="right" className="font-medium">
-                        $0.00
-                      </TableCell> */}
                       <TableCell
                         align="right"
                         className="font-medium text-gray-800"
                       >
-                        ${Number(item.total).toFixed(2)}
+                        {formatPounds(item.total)}
                       </TableCell>
                     </TableRow>
                   ))}
@@ -394,20 +392,16 @@ const OrderDetailApp = () => {
                       Sub Total:
                     </TableCell>
                     <TableCell align="right" className="font-semibold">
-                      $
-                      {order?.orderItems
-                        ?.reduce(
+                      {formatPounds(
+                        order?.orderItems?.reduce(
                           (sum, item) =>
                             sum + Number(item.unit_price) * item.quantity,
                           0
-                        )
-                        .toFixed(2) || "0.00"}
+                        ) || 0
+                      )}
                     </TableCell>
-                    {/* <TableCell align="right" className="font-semibold">
-                      $0.00
-                    </TableCell> */}
                     <TableCell align="right" className="font-semibold">
-                      ${Number(order?.total || 0).toFixed(2)}
+                      {formatPounds(order?.total || 0)}
                     </TableCell>
                   </TableRow>
                 </TableBody>
@@ -461,20 +455,20 @@ const OrderDetailApp = () => {
               <div className="flex justify-between">
                 <Typography variant="body2">Subtotal</Typography>
                 <Typography variant="body2">
-                  ${Number(order?.total || 0).toFixed(2)}
+                  {formatPounds(order?.total || 0)}
                 </Typography>
               </div>
               {order?.discount_price && (
                 <div className="flex justify-between">
                   <Typography variant="body2">Discount (10%)</Typography>
                   <Typography variant="body2" color="error">
-                    -${Number(order.discount_price).toFixed(2)}
+                    -{formatPounds(order.discount_price)}
                   </Typography>
                 </div>
               )}
               <div className="flex justify-between">
                 <Typography variant="body2">Shipping Cost</Typography>
-                <Typography variant="body2">${Number(order?.shipping_cost ||  0.00).toFixed(2)}</Typography>
+                <Typography variant="body2">{formatPounds(order?.shipping_cost || 0)}</Typography>
               </div>
               <Divider />
               <div className="flex justify-between">
@@ -482,7 +476,7 @@ const OrderDetailApp = () => {
                   Total
                 </Typography>
                 <Typography variant="subtitle1" fontWeight="bold">
-                  ${Number(order?.total || 0).toFixed(2)}
+                  {formatPounds(order?.total || 0)}
                 </Typography>
               </div>
             </div>

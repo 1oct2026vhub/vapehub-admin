@@ -17,6 +17,7 @@ import DownloadIcon from "@mui/icons-material/Download";
 import { getOrderStatistics, OrderStatusStatistics } from "@/services/apiOrder";
 import { useSnackbar } from "@/contexts/SnackbarContext";
 import FuseLoading from "@fuse/core/FuseLoading";
+import { formatPounds } from "@/utils/actions";
 
 interface OrderStatisticsProps {
   className?: string;
@@ -114,9 +115,7 @@ const OrderStatistics = ({
       // Create CSV content
       let csvContent = "Status,Orders,Revenue\n";
       statistics.forEach((stat) => {
-        csvContent += `${stat.status},${stat.count},$${parseFloat(
-          stat.total_amount
-        ).toFixed(2)}\n`;
+        csvContent += `${stat.status},${stat.count},${formatPounds(stat.total_amount)}\n`;
       });
 
       // Create blob and download
@@ -197,7 +196,7 @@ const OrderStatistics = ({
                               Revenue
                             </Typography>
                             <Typography variant="subtitle2" component="div" sx={{ fontWeight: 500, fontSize: '0.8rem', mt: 0.25 }}>
-                              ${parseFloat(stat.total_amount).toFixed(2)}
+                              {formatPounds(stat.total_amount)}
                             </Typography>
                           </Grid>
                         </Grid>

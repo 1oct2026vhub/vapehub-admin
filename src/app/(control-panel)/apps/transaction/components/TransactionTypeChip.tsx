@@ -39,9 +39,12 @@ const TransactionTypeChip: React.FC<TransactionTypeChipProps> = ({
 
   const typeStyles = getTypeStyles(type);
 
+  // Capitalize first letter of type
+  const displayType = type.charAt(0).toUpperCase() + type.slice(1);
+
   return (
     <Chip
-      label={type}
+      label={displayType}
       className={className}
       sx={{
         fontWeight: 600,

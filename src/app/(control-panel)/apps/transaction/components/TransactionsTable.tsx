@@ -23,7 +23,7 @@ import { useFetch } from "@/hooks/useFetch";
 import { mutate } from "swr";
 import { useRouter } from "next/navigation";
 import FuseSvgIcon from "@fuse/core/FuseSvgIcon";
-import { formatDate } from "@/utils/actions";
+import { formatDate, formatCurrency } from "@/utils/actions";
 import TransactionStatusChip from "./TransactionStatusChip";
 import TransactionTypeChip from "./TransactionTypeChip";
 import TransactionFilters from "./TransactionFilters";
@@ -38,22 +38,6 @@ interface TransactionsTableProps {
   onStartDateChange?: (date: dayjs.Dayjs | null) => void;
   onEndDateChange?: (date: dayjs.Dayjs | null) => void;
 }
-
-// Add currency code mapping
-const NUMERIC_CURRENCY_CODES: { [key: string]: string } = {
-  '826': 'GBP',
-  '840': 'USD',
-  '978': 'EUR',
-  // Add more currency codes as needed
-};
-
-// Add currency conversion function
-const getCurrencyCode = (code: string | number): string => {
-  if (typeof code === 'number' || /^\d+$/.test(code)) {
-    return NUMERIC_CURRENCY_CODES[code.toString()] || 'USD';
-  }
-  return code || 'USD';
-};
 
 const TransactionsTable = ({
   statusFilter: initialStatusFilter,
@@ -220,7 +204,12 @@ const TransactionsTable = ({
         accessorKey: "status",
         header: "Status",
         Cell: ({ row }) => {
-          const status = row.original.status.toLowerCase() as TransactionStatus;
+          // Convert status to lowercase
+          const rawStatus = row.original.status;
+          const status = typeof rawStatus === 'string' 
+            ? rawStatus.toLowerCase() as TransactionStatus
+            : 'pending';
+          
           return <TransactionStatusChip status={status} />;
         },
       },
@@ -246,8 +235,11 @@ const TransactionsTable = ({
         accessorKey: "transactionType",
         header: "Type",
         Cell: ({ row }) => {
-          const type =
-            row.original.transactionType.toLowerCase() as TransactionType;
+          const rawType = row.original.transactionType;
+          const type = typeof rawType === 'string' 
+            ? rawType.toLowerCase() as TransactionType
+            : 'purchase';
+          
           return <TransactionTypeChip type={type} />;
         },
       },
@@ -264,11 +256,7 @@ const TransactionsTable = ({
         header: "Amount",
         Cell: ({ row }) => {
           const amount = parseFloat(row.original.amount);
-          const currencyCode = getCurrencyCode(row.original.currency);
-          return new Intl.NumberFormat("en-US", {
-            style: "currency",
-            currency: currencyCode,
-          }).format(amount);
+          return formatCurrency(amount, row.original.currency);
         },
       },
       

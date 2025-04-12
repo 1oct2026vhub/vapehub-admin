@@ -19,6 +19,7 @@ import {
   getRevenueReport,
 } from "@/services/apiTransaction";
 import dayjs from "dayjs";
+import { formatPounds } from "@/utils/actions";
 
 function TransactionListApp() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -153,7 +154,6 @@ function TransactionListApp() {
                   </span>
                 </Typography>
                 <Typography className="text-2xl font-bold text-blue-600">
-                  $
                   {(() => {
                     let value = 0;
                     if (startDate || endDate) {
@@ -161,10 +161,7 @@ function TransactionListApp() {
                     } else {
                       value = stats?.totalRevenue ? parseFloat(stats.totalRevenue) : 0;
                     }
-                    return value.toLocaleString(undefined, {
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2,
-                    });
+                    return formatPounds(value);
                   })()}
                 </Typography>
               </CardContent>
