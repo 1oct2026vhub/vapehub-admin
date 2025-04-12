@@ -12,8 +12,8 @@ import {
   Typography,
   Chip,
 } from "@mui/material";
-import { format } from "date-fns";
 import { RecentOrder } from "@/services/apiDashboard";
+import { formatDate } from "@/utils/actions";
 
 interface RecentOrdersTableProps {
   orders: RecentOrder[];
@@ -54,6 +54,10 @@ const RecentOrdersTable = ({ orders }: RecentOrdersTableProps) => {
         return "warning";
       case "cancelled":
         return "error";
+      case "processing":
+        return "info";
+      case "shipped":
+        return "primary";
       default:
         return "default";
     }
@@ -92,9 +96,7 @@ const RecentOrdersTable = ({ orders }: RecentOrdersTableProps) => {
                   "N/A"}
               </TableCell>
               <TableCell>
-                {order.createdAt
-                  ? format(new Date(order.createdAt), "MMM dd, yyyy")
-                  : "N/A"}
+                {order.createdAt ? formatDate(order.createdAt) : "N/A"}
               </TableCell>
               <TableCell>{order.total || "N/A"}</TableCell>
               <TableCell>
