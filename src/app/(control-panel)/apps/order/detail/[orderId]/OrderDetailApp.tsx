@@ -324,7 +324,11 @@ const OrderDetailApp = () => {
                       </TableCell>
                       <TableCell>
                         <Chip
-                          label={order.status.toUpperCase()}
+                          label={order.status === "fail" 
+                            ? "Failed"
+                            : order.status === "cancel"
+                            ? "Cancelled"
+                            : order.status.toUpperCase()}
                           size="small"
                           sx={{
                             backgroundColor:

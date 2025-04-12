@@ -39,6 +39,22 @@ interface TransactionsTableProps {
   onEndDateChange?: (date: dayjs.Dayjs | null) => void;
 }
 
+// Add currency code mapping
+const NUMERIC_CURRENCY_CODES: { [key: string]: string } = {
+  '826': 'GBP',
+  '840': 'USD',
+  '978': 'EUR',
+  // Add more currency codes as needed
+};
+
+// Add currency conversion function
+const getCurrencyCode = (code: string | number): string => {
+  if (typeof code === 'number' || /^\d+$/.test(code)) {
+    return NUMERIC_CURRENCY_CODES[code.toString()] || 'USD';
+  }
+  return code || 'USD';
+};
+
 const TransactionsTable = ({
   statusFilter: initialStatusFilter,
   typeFilter: initialTypeFilter,
@@ -248,9 +264,10 @@ const TransactionsTable = ({
         header: "Amount",
         Cell: ({ row }) => {
           const amount = parseFloat(row.original.amount);
+          const currencyCode = getCurrencyCode(row.original.currency);
           return new Intl.NumberFormat("en-US", {
             style: "currency",
-            currency: row.original.currency || "USD",
+            currency: currencyCode,
           }).format(amount);
         },
       },
