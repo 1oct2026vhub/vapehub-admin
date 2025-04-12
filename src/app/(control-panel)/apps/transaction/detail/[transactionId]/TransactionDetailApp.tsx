@@ -52,6 +52,7 @@ import TransactionStatusChip from "../../components/TransactionStatusChip";
 import TransactionTypeChip from "../../components/TransactionTypeChip";
 import { useSnackbar } from "@/contexts/SnackbarContext";
 import RefundModal from "./RefundModal";
+import { formatDate, formatCurrency, formatPounds } from "@/utils/actions";
 
 const TransactionDetailApp = () => {
   const params = useParams();
@@ -84,18 +85,6 @@ const TransactionDetailApp = () => {
   useEffect(() => {
     fetchTransaction();
   }, [params.transactionId]);
-
-  // Format date function
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleString("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-      hour: "numeric",
-      minute: "numeric",
-      hour12: true,
-    });
-  };
 
   const handleGoBack = () => {
     router.push("/apps/transaction/list");
@@ -335,11 +324,11 @@ const TransactionDetailApp = () => {
                   >
                     Amount
                   </Typography>
-                  <Typography variant="body1" className="font-medium">
-                    {new Intl.NumberFormat("en-US", {
-                      style: "currency",
-                      currency: transaction.currency,
-                    }).format(parseFloat(transaction.amount))}
+                  <Typography
+                    variant="body1"
+                    className="font-medium"
+                  >
+                    {formatCurrency(transaction.amount)}
                   </Typography>
                 </Box>
               </Grid>
@@ -491,13 +480,13 @@ const TransactionDetailApp = () => {
                               {item.quantity}
                             </TableCell>
                             <TableCell align="right" className="font-medium">
-                              ${Number(item.unit_price).toFixed(2)}
+                              {formatPounds(item.unit_price)}
                             </TableCell>
                             <TableCell
                               align="right"
                               className="font-medium text-gray-800"
                             >
-                              ${Number(item.total).toFixed(2)}
+                              {formatPounds(item.total)}
                             </TableCell>
                           </TableRow>
                         ))}
@@ -525,7 +514,7 @@ const TransactionDetailApp = () => {
                             className="font-semibold"
                           ></TableCell>
                           <TableCell align="right" className="font-semibold">
-                            ${Number(transaction.order.total).toFixed(2)}
+                            {formatPounds(transaction.order.total)}
                           </TableCell>
                         </TableRow>
                       </TableBody>
@@ -540,8 +529,7 @@ const TransactionDetailApp = () => {
                     Shipping Method:
                   </Typography>
                   <Typography variant="body2">
-                    {transaction.order.shippingMethod.shipping_method} - $
-                    {transaction.order.shippingMethod.shipping_cost.toFixed(2)}
+                    {transaction.order.shippingMethod.shipping_method} - {formatPounds(transaction.order.shippingMethod.shipping_cost)}
                   </Typography>
                 </Box>
               )}
@@ -733,10 +721,7 @@ const TransactionDetailApp = () => {
               <div className="flex justify-between">
                 <Typography variant="body2">Transaction Amount</Typography>
                 <Typography variant="body2">
-                  {new Intl.NumberFormat("en-US", {
-                    style: "currency",
-                    currency: transaction.currency,
-                  }).format(parseFloat(transaction.amount))}
+                  {formatCurrency(transaction.amount)}
                 </Typography>
               </div>
               {transaction.order && (
@@ -747,12 +732,7 @@ const TransactionDetailApp = () => {
                         <Typography variant="body2">Discount</Typography>
                         <Typography variant="body2" color="error">
                           -
-                          {new Intl.NumberFormat("en-US", {
-                            style: "currency",
-                            currency: transaction.currency,
-                          }).format(
-                            parseFloat(transaction.order.discount_price)
-                          )}
+                          {formatCurrency(transaction.order.discount_price)}
                         </Typography>
                       </div>
                     )}
@@ -760,12 +740,7 @@ const TransactionDetailApp = () => {
                     <div className="flex justify-between">
                       <Typography variant="body2">Shipping Cost</Typography>
                       <Typography variant="body2">
-                        {new Intl.NumberFormat("en-US", {
-                          style: "currency",
-                          currency: transaction.currency,
-                        }).format(
-                          transaction.order.shippingMethod.shipping_cost
-                        )}
+                        {formatCurrency(transaction.order.shippingMethod.shipping_cost)}
                       </Typography>
                     </div>
                   )}
@@ -777,10 +752,7 @@ const TransactionDetailApp = () => {
                   Total Paid
                 </Typography>
                 <Typography variant="subtitle1" fontWeight="bold">
-                  {new Intl.NumberFormat("en-US", {
-                    style: "currency",
-                    currency: transaction.currency,
-                  }).format(parseFloat(transaction.amount))}
+                  {formatCurrency(transaction.amount)}
                 </Typography>
               </div>
             </div>

@@ -42,7 +42,7 @@ import {
   deleteVariant,
   restoreVariant,
 } from "@/services/apiProductVariant";
-import { formatDate } from "@/utils/actions";
+import { formatDate, formatPounds } from "@/utils/actions";
 
 // Extend the base ProductVariant type
 interface ProductVariant extends BaseProductVariant {
@@ -195,7 +195,7 @@ const ProductVariantTable = ({
             typeof row.original.price === "string"
               ? parseFloat(row.original.price)
               : row.original.price;
-          return `$${Number(price).toFixed(2)}`;
+          return formatPounds(price);
         },
       },
       // { accessorKey: "stock_quantity", header: "Stock" },
