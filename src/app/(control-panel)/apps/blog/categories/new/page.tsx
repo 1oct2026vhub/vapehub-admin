@@ -29,6 +29,39 @@ import { createBlogCategory, getBlogCategories, type BlogCategory } from "@/serv
 import FormFileUploadField from "@/components/Shared/FormFileUploadField";
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB in bytes
+const MAX_IMAGE_WIDTH = 322;
+const MAX_IMAGE_HEIGHT = 512;
+
+// Helper function to validate image dimensions (used by the Zod schema)
+const validateImageDimensions = (file: File): Promise<{ valid: boolean; dimensions?: { width: number; height: number } }> => {
+  return new Promise((resolve) => {
+    if (!file || !(file instanceof File)) {
+      resolve({ valid: true });
+      return;
+    }
+
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(img.src);
+      if (img.width > MAX_IMAGE_WIDTH || img.height > MAX_IMAGE_HEIGHT) {
+        resolve({ 
+          valid: false, 
+          dimensions: { 
+            width: img.width, 
+            height: img.height 
+          } 
+        });
+      } else {
+        resolve({ valid: true });
+      }
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(img.src);
+      resolve({ valid: true }); // Assume valid on error to avoid blocking submission
+    };
+    img.src = URL.createObjectURL(file);
+  });
+};
 
 const categorySchema = z.object({
   name: z
@@ -54,10 +87,20 @@ const categorySchema = z.object({
   ),
   status: z.enum(["active", "inactive"]).default("active"),
   image: z.any()
-    .refine((file) => {
-      if (!file || !(file instanceof File)) return true;
-      return file.size <= MAX_FILE_SIZE;
-    }, "File size exceeds the maximum limit of 5MB.")
+    .refine(
+      (file) => !file || !(file instanceof File) || file.size <= MAX_FILE_SIZE,
+      `File size exceeds the maximum limit of 5MB.`
+    )
+    .refine(
+      async (file) => {
+        if (!file || !(file instanceof File)) return true;
+        const result = await validateImageDimensions(file);
+        return result.valid;
+      },
+      (file) => ({ 
+        message: `Image dimensions must not exceed ${MAX_IMAGE_WIDTH}×${MAX_IMAGE_HEIGHT} pixels.` 
+      })
+    )
     .optional(),
 });
 
@@ -90,7 +133,7 @@ export default function CreateBlogCategory() {
     handleSubmit,
     setValue,
     getValues,
-    formState: { isValid },
+    formState: { isValid, errors },
   } = useForm<CategoryFormType>({
     mode: "all",
     defaultValues: {
@@ -282,9 +325,12 @@ export default function CreateBlogCategory() {
                       name="image"
                       control={control}
                       label="Category Image"
-                      onFileChange={setSelectedFile}
+                      onFileChange={(file) => {
+                        setSelectedFile(file);
+                        setValue("image", file, { shouldValidate: true });
+                      }}
                       accept="image/png,image/jpeg,image/jpg,image/webp"
-                      helperText="Supported formats: PNG, JPG, JPEG, WebP"
+                      helperText="Recommended size: 322 × 512 px. Supported formats: PNG, JPG, JPEG, WebP"
                     />
                   </Grid>
 
