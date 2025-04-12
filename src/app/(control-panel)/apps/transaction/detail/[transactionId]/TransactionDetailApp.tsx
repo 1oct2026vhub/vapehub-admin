@@ -621,7 +621,7 @@ const TransactionDetailApp = () => {
                         sx={{ color: "#6B7280" }}
                       />
                       <Typography variant="h6" className="font-medium">
-                        Billing Address
+                        Billing Details
                       </Typography>
                     </div>
 
@@ -670,7 +670,7 @@ const TransactionDetailApp = () => {
                         sx={{ color: "#6B7280" }}
                       />
                       <Typography variant="h6" className="font-medium">
-                        Shipping Address
+                        Shipping Details
                       </Typography>
                     </div>
 
