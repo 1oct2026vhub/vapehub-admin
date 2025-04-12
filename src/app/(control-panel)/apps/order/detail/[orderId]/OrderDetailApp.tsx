@@ -185,6 +185,8 @@ const OrderDetailApp = () => {
                 <MenuItem value="completed">Completed</MenuItem>
                 <MenuItem value="fail">Failed</MenuItem>
                 <MenuItem value="cancel">Cancelled</MenuItem>
+                <MenuItem value="packed">Packed</MenuItem>
+                <MenuItem value="out_for_delivary">Out for Delivary</MenuItem>
                 <MenuItem value="return_requested">Return Requested</MenuItem>
                 <MenuItem value="return_approved">Return Approved</MenuItem>
                 <MenuItem value="return_received">Return Received</MenuItem>

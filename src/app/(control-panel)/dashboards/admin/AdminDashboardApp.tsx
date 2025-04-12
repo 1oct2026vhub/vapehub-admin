@@ -48,7 +48,8 @@ const AdminDashboardApp = () => {
   >([]);
   const [chartPeriod, setChartPeriod] = useState<ChartPeriod>("weekly");
   const [loading, setLoading] = useState(true);
-  const [tabValue, setTabValue] = useState(0);
+  const [chartTabValue, setChartTabValue] = useState(0);
+  const [activityTabValue, setActivityTabValue] = useState(0);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -77,8 +78,12 @@ const AdminDashboardApp = () => {
     setChartPeriod(event.target.value as ChartPeriod);
   };
 
-  const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
-    setTabValue(newValue);
+  const handleChartTabChange = (event: React.SyntheticEvent, newValue: number) => {
+    setChartTabValue(newValue);
+  };
+
+  const handleActivityTabChange = (event: React.SyntheticEvent, newValue: number) => {
+    setActivityTabValue(newValue);
   };
 
   if (loading) {
@@ -163,7 +168,7 @@ const AdminDashboardApp = () => {
         <Grid item xs={12} md={4}>
           <Paper sx={{ p: 2, height: '100%', minHeight: '240px' }}>
             <Typography variant="h6" gutterBottom sx={{ mb: 2, color: '#333' }}>
-              Product Inventory Status
+              Product Variant Inventory Status
             </Typography>
             <Box sx={{ height: 'calc(100% - 50px)', display: 'flex', alignItems: 'center' }}>
               <Grid container spacing={1.5}>
@@ -198,6 +203,74 @@ const AdminDashboardApp = () => {
                     </Box>
                     <Typography sx={{ fontSize: '0.813rem', color: 'text.secondary', textAlign: 'center' }}>
                       Total Products
+                    </Typography>
+                  </Box>
+                </Grid>
+                <Grid item xs={4}>
+                  <Box
+                    sx={{
+                      p: 1.5,
+                      backgroundColor: '#fff',
+                      borderRadius: 1,
+                      border: '1px solid #e0e0e0',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      height: '100%'
+                    }}
+                  >
+                    <Box
+                      sx={{
+                        width: 60,
+                        height: 60,
+                        borderRadius: "50%",
+                        backgroundColor: "#E3F2FD",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        mb: 1,
+                      }}
+                    >
+                      <Typography variant="h6" color="#1976D2" fontWeight="600">
+                        {stats?.products.inStock || 0}
+                      </Typography>
+                    </Box>
+                    <Typography sx={{ fontSize: '0.813rem', color: 'text.secondary', textAlign: 'center' }}>
+                      In Stock
+                    </Typography>
+                  </Box>
+                </Grid>
+                <Grid item xs={4}>
+                  <Box
+                    sx={{
+                      p: 1.5,
+                      backgroundColor: '#fff',
+                      borderRadius: 1,
+                      border: '1px solid #e0e0e0',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      height: '100%'
+                    }}
+                  >
+                    <Box
+                      sx={{
+                        width: 60,
+                        height: 60,
+                        borderRadius: "50%",
+                        backgroundColor: "#E8F5E9",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        mb: 1,
+                      }}
+                    >
+                      <Typography variant="h6" color="#388E3C" fontWeight="600">
+                        {stats?.products.healthyStock || 0}
+                      </Typography>
+                    </Box>
+                    <Typography sx={{ fontSize: '0.813rem', color: 'text.secondary', textAlign: 'center' }}>
+                      Healthy Stock
                     </Typography>
                   </Box>
                 </Grid>
@@ -269,6 +342,40 @@ const AdminDashboardApp = () => {
                     </Typography>
                   </Box>
                 </Grid>
+                <Grid item xs={4}>
+                  <Box
+                    sx={{
+                      p: 1.5,
+                      backgroundColor: '#fff',
+                      borderRadius: 1,
+                      border: '1px solid #e0e0e0',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      height: '100%'
+                    }}
+                  >
+                    <Box
+                      sx={{
+                        width: 60,
+                        height: 60,
+                        borderRadius: "50%",
+                        backgroundColor: "#FCE4EC",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        mb: 1,
+                      }}
+                    >
+                      <Typography variant="h6" color="#C2185B" fontWeight="600">
+                        {stats?.products.outOfStockStatus || 0}
+                      </Typography>
+                    </Box>
+                    <Typography sx={{ fontSize: '0.813rem', color: 'text.secondary', textAlign: 'center' }}>
+                     Out Of Stock Status    
+                    </Typography>
+                  </Box>
+                </Grid>
               </Grid>
             </Box>
           </Paper>
@@ -335,51 +442,136 @@ const AdminDashboardApp = () => {
             <Typography variant="h6" gutterBottom sx={{ mb: 2, color: '#333' }}>
               User Status
             </Typography>
-            <Box sx={{ height: 'calc(100% - 50px)', display: 'flex', alignItems: 'center' }}>
-              <Grid container spacing={1.5}>
-                {stats?.users.map((user, index) => (
-                  <Grid
-                    item
-                    xs={6}
-                    key={`user-${user.role || "unknown"}-${index}`}
-                  >
-                    <Box
-                      sx={{
-                        p: 1.5,
-                        backgroundColor: '#fff',
-                        borderRadius: 1,
-                        border: '1px solid #e0e0e0',
-                        minHeight: '60px',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        justifyContent: 'center'
+            <Box sx={{ height: 'calc(100% - 50px)', overflow: 'auto' }}>
+              {stats?.users.map((userGroup, index) => (
+                <Box 
+                  key={`user-group-${userGroup.role}`}
+                  sx={{ 
+                    mb: 2,
+                    pb: 2,
+                    borderBottom: index < stats.users.length - 1 ? '1px solid #eee' : 'none'
+                  }}
+                >
+                  {/* Role Header with Total Count */}
+                  <Box sx={{ 
+                    display: 'flex', 
+                    justifyContent: 'space-between', 
+                    alignItems: 'center',
+                    pb: 0.5
+                  }}>
+                    <Typography 
+                      variant="subtitle1" 
+                      sx={{ 
+                        fontWeight: 500,
+                        color: '#555',
+                        textTransform: 'capitalize'
                       }}
                     >
-                      <Typography 
-                        color="textSecondary"
-                        sx={{ 
-                          fontSize: '0.813rem',
-                          mb: 0.5
-                        }}
-                      >
-                        {user.role
-                          ? user.role.charAt(0).toUpperCase() +
-                            user.role.slice(1)
-                          : "Unknown"}
-                      </Typography>
-                      <Typography 
-                        sx={{ 
-                          fontWeight: 600,
-                          color: '#333',
-                          fontSize: '1.125rem'
-                        }}
-                      >
-                        {user.count}
-                      </Typography>
-                    </Box>
+                      {userGroup.role.replace('_', ' ')}
+                    </Typography>
+                    <Typography 
+                      variant="h5" 
+                      sx={{ 
+                        fontWeight: 600,
+                        color: '#333'
+                      }}
+                    >
+                      {userGroup.count}
+                    </Typography>
+                  </Box>
+
+                  {/* Status Metrics Grid */}
+                  <Grid container spacing={1}>
+                    {/* Active Users */}
+                    {Number(userGroup.active_count) > 0 && (
+                      <Grid item xs={6}>
+                        <Box sx={{
+                          p: 1.5,
+                          borderRadius: 1,
+                          border: '1px solid #e0e0e0',
+                          backgroundColor: '#fff',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'flex-start'
+                        }}>
+                          <Typography sx={{ fontSize: '0.875rem', color: '#555' }}>
+                            Active
+                          </Typography>
+                          <Typography sx={{ fontSize: '1.5rem', fontWeight: 500, color: '#4CAF50', lineHeight: 1.2 }}>
+                            {userGroup.active_count}
+                          </Typography>
+                        </Box>
+                      </Grid>
+                    )}
+
+                    {/* Blocked Users */}
+                    {Number(userGroup.blocked_count) > 0 && (
+                      <Grid item xs={6}>
+                        <Box sx={{
+                          p: 1.5,
+                          borderRadius: 1,
+                          border: '1px solid #e0e0e0',
+                          backgroundColor: '#fff',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'flex-start'
+                        }}>
+                          <Typography sx={{ fontSize: '0.875rem', color: '#555' }}>
+                            Blocked
+                          </Typography>
+                          <Typography sx={{ fontSize: '1.5rem', fontWeight: 500, color: '#F44336', lineHeight: 1.2 }}>
+                            {userGroup.blocked_count}
+                          </Typography>
+                        </Box>
+                      </Grid>
+                    )}
+
+                    {/* Verified Customers - only for customer role */}
+                    {userGroup.role === 'customer' && Number(userGroup.verified_customer_count) > 0 && (
+                      <Grid item xs={6}>
+                        <Box sx={{
+                          p: 1.5,
+                          borderRadius: 1,
+                          border: '1px solid #e0e0e0',
+                          backgroundColor: '#fff',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'flex-start'
+                        }}>
+                          <Typography sx={{ fontSize: '0.875rem', color: '#555' }}>
+                            Verified
+                          </Typography>
+                          <Typography sx={{ fontSize: '1.5rem', fontWeight: 500, color: '#2196F3', lineHeight: 1.2 }}>
+                            {userGroup.verified_customer_count}
+                          </Typography>
+                        </Box>
+                      </Grid>
+                    )}
+
+                    {/* Unverified Customers - only for customer role */}
+                    {userGroup.role === 'customer' && Number(userGroup.unverified_customer_count) > 0 && (
+                      <Grid item xs={6}>
+                        <Box sx={{
+                          p: 1.5,
+                          borderRadius: 1,
+                          border: '1px solid #e0e0e0',
+                          backgroundColor: '#fff',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'flex-start'
+                        }}>
+                          <Typography sx={{ fontSize: '0.875rem', color: '#555' }}>
+                            Unverified
+                          </Typography>
+                          <Typography sx={{ fontSize: '1.5rem', fontWeight: 500, color: '#FF9800', lineHeight: 1.2 }}>
+                            {userGroup.unverified_customer_count}
+                          </Typography>
+                        </Box>
+                      </Grid>
+                    )}
                   </Grid>
-                ))}
-              </Grid>
+                </Box>
+              ))}
             </Box>
           </Paper>
         </Grid>
@@ -409,45 +601,63 @@ const AdminDashboardApp = () => {
         </FormControl>
       </Box>
 
-      {/* Charts Section */}
-      <Grid
-        container
-        spacing={3}
-        className="charts-container"
-        sx={{ mb: 4, p: 3 }}
-      >
-        <Grid item xs={12} md={4}>
-          <Paper sx={{ p: 2, height: "100%" }}>
-            <Typography variant="h6" gutterBottom>
-              Sales
-            </Typography>
-            <SalesChart data={salesData} period={chartPeriod} />
-          </Paper>
-        </Grid>
-        <Grid item xs={12} md={4}>
-          <Paper sx={{ p: 2, height: "100%" }}>
-            <Typography variant="h6" gutterBottom>
-              New Users
-            </Typography>
-            <UserGrowthChart data={userData} period={chartPeriod} />
-          </Paper>
-        </Grid>
-        <Grid item xs={12} md={4}>
-          <Paper sx={{ p: 2, height: "100%" }}>
-            <Typography variant="h6" gutterBottom>
-              Transactions
-            </Typography>
-            <TransactionChart data={transactionData} period={chartPeriod} />
-          </Paper>
-        </Grid>
-      </Grid>
+      {/* Charts Section with Tabs */}
+      <Box sx={{ p: 3 }}>
+        <Paper sx={{ width: '100%', mb: 4 }}>
+          <Tabs
+            value={chartTabValue}
+            onChange={handleChartTabChange}
+            indicatorColor="primary"
+            textColor="primary"
+            centered
+            sx={{ borderBottom: 1, borderColor: 'divider' }}
+          >
+            <Tab label="Sales" />
+            <Tab label="New Users" />
+            <Tab label="Transactions" />
+          </Tabs>
+          
+          <Box p={3}>
+            {chartTabValue === 0 && (
+              <Box>
+                <Typography variant="h6" gutterBottom>
+                  Sales
+                </Typography>
+                <Box sx={{ height: 400 }}>
+                  <SalesChart data={salesData} period={chartPeriod} />
+                </Box>
+              </Box>
+            )}
+            {chartTabValue === 1 && (
+              <Box>
+                <Typography variant="h6" gutterBottom>
+                  New Users
+                </Typography>
+                <Box sx={{ height: 400 }}>
+                  <UserGrowthChart data={userData} period={chartPeriod} />
+                </Box>
+              </Box>
+            )}
+            {chartTabValue === 2 && (
+              <Box>
+                <Typography variant="h6" gutterBottom>
+                  Transactions
+                </Typography>
+                <Box sx={{ height: 400 }}>
+                  <TransactionChart data={transactionData} period={chartPeriod} />
+                </Box>
+              </Box>
+            )}
+          </Box>
+        </Paper>
+      </Box>
 
       {/* Recent Activities Section */}
       <Box sx={{ p: 3 }}>
         <Paper sx={{ mb: 4 }}>
           <Tabs
-            value={tabValue}
-            onChange={handleTabChange}
+            value={activityTabValue}
+            onChange={handleActivityTabChange}
             indicatorColor="primary"
             textColor="primary"
             centered
@@ -457,10 +667,10 @@ const AdminDashboardApp = () => {
           </Tabs>
           <Divider />
           <Box p={2}>
-            {tabValue === 0 && (
+            {activityTabValue === 0 && (
               <RecentOrdersTable orders={stats?.recentOrders || []} />
             )}
-            {tabValue === 1 && (
+            {activityTabValue === 1 && (
               <RecentTransactionsTable
                 transactions={stats?.recentTransactions || []}
               />
