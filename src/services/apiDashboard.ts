@@ -54,11 +54,16 @@ export interface OrderCount {
 }
 
 export interface UserCount {
-  _id: string;
-  count: number;
   role: string;
+  count: number;
+  blocked_count?: string | number;
+  active_count?: string | number;
+  deleted_count?: string | number;
+  verified_customer_count?: string | number;
+  unverified_customer_count?: string | number;
 }
 
+// Define the dashboard statistics types
 export interface DashboardStats {
   sales: {
     today: string;
@@ -67,20 +72,19 @@ export interface DashboardStats {
   };
   orders: OrderCount[];
   users: UserCount[];
-  products: {
-    totalProducts: number;
-    lowStock: number;
-    outOfStock: number;
-  };
-  marketing: {
-    activeCoupons: number;
-    newsletterSubscribers: number;
-    totalBlogPosts: number;
-    activeCarousels: number;
-    activeBanners: number;
-  };
-  recentTransactions: RecentTransaction[];
+  products: ProductStats;
   recentOrders: RecentOrder[];
+  recentTransactions: RecentTransaction[];
+}
+
+// Product statistics types
+export interface ProductStats {
+  totalProducts: number;
+  lowStock: number | string;
+  outOfStock: number | string;
+  inStock: number | string;
+  healthyStock: number | string;
+  outOfStockStatus: number | string;
 }
 
 type ChartPeriod = "daily" | "weekly" | "monthly";

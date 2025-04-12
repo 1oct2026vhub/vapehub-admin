@@ -143,7 +143,7 @@ const TransactionChart = ({ data, period }: TransactionChartProps) => {
   }, [data, period]);
 
   return (
-    <Box sx={{ height: 300, position: 'relative' }}>
+    <Box sx={{ height: '100%', position: 'relative' }}>
       <canvas ref={chartRef}></canvas>
     </Box>
   );
