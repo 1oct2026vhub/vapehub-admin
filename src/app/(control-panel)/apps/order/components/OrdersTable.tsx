@@ -21,7 +21,7 @@ import { useFetch } from "@/hooks/useFetch";
 import { mutate } from "swr";
 import { useRouter } from "next/navigation";
 import FuseSvgIcon from "@fuse/core/FuseSvgIcon";
-import { formatDate } from "@/utils/actions";
+import { formatDate, formatCurrency, formatPounds } from "@/utils/actions";
 import OrderStatusChip from "./OrderStatusChip";
 import PaymentStatusChip from "./PaymentStatusChip";
 import OrderFilters from "./OrderFilters";
@@ -167,10 +167,7 @@ const OrdersTable = ({
         header: "Total",
         Cell: ({ row }) => {
           const total = parseFloat(row.original.total);
-          return new Intl.NumberFormat("en-US", {
-            style: "currency",
-            currency: "USD",
-          }).format(total);
+          return formatPounds(total);
         },
       },
       {

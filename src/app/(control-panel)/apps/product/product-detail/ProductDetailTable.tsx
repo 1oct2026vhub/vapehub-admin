@@ -27,6 +27,7 @@ import FuseLoading from "@fuse/core/FuseLoading";
 import { useEffect, useState } from "react";
 import PageBreadcrumb from "@/components/PageBreadcrumb";
 import parse from "html-react-parser";
+import { formatPounds } from "@/utils/actions";
 
 // Add custom breadcrumb configuration
 const getBreadcrumbItems = (productId: string | number) => [
@@ -667,7 +668,7 @@ export default function ProductDetailTable() {
                                               Price
                                             </TableCell>
                                             <TableCell>
-                                              ${variant.price}
+                                              {formatPounds(variant.price)}
                                             </TableCell>
                                           </TableRow>
                                           <TableRow>
@@ -675,7 +676,7 @@ export default function ProductDetailTable() {
                                               Discount Price
                                             </TableCell>
                                             <TableCell>
-                                              ${variant.discount_price}
+                                              {formatPounds(variant.discount_price)}
                                             </TableCell>
                                           </TableRow>
                                           <TableRow>
@@ -683,7 +684,7 @@ export default function ProductDetailTable() {
                                               Purchase Price
                                             </TableCell>
                                             <TableCell>
-                                              ${variant.purchase_price}
+                                              {formatPounds(variant.purchase_price)}
                                             </TableCell>
                                           </TableRow>
                                           <TableRow>
