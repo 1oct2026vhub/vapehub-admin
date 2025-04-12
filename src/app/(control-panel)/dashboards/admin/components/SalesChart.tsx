@@ -132,7 +132,7 @@ const SalesChart = ({ data, period }: SalesChartProps) => {
   }, [data, period]);
 
   return (
-    <Box sx={{ height: 300, position: 'relative' }}>
+    <Box sx={{ height: '100%', position: 'relative' }}>
       <canvas ref={chartRef}></canvas>
     </Box>
   );

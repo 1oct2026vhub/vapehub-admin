@@ -105,7 +105,7 @@ const UserGrowthChart = ({ data, period }: UserGrowthChartProps) => {
   }, [data, period]);
 
   return (
-    <Box sx={{ height: 300, position: 'relative' }}>
+    <Box sx={{ height: '100%', position: 'relative' }}>
       <canvas ref={chartRef}></canvas>
     </Box>
   );

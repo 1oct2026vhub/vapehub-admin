@@ -44,6 +44,21 @@ const RecentOrdersTable = ({ orders }: RecentOrdersTableProps) => {
     return order.userId?.email || "N/A";
   };
 
+  const getStatusColor = (status: string) => {
+    // Implement your logic to determine the color based on the status
+    // For example, you can use a switch statement or a mapping function
+    switch (status) {
+      case "completed":
+        return "success";
+      case "pending":
+        return "warning";
+      case "cancelled":
+        return "error";
+      default:
+        return "default";
+    }
+  };
+
   return (
     <TableContainer component={Paper} sx={{ boxShadow: "none" }}>
       <Table aria-label="recent orders table">
@@ -82,7 +97,18 @@ const RecentOrdersTable = ({ orders }: RecentOrdersTableProps) => {
                   : "N/A"}
               </TableCell>
               <TableCell>{order.total || "N/A"}</TableCell>
-              <TableCell>{order.status ||"N/A"}</TableCell>
+              <TableCell>
+                {order.status 
+                  ? (
+                    <Chip 
+                      label={order.status.charAt(0).toUpperCase() + order.status.slice(1)}
+                      size="small"
+                      color={getStatusColor(order.status)}
+                      sx={{ fontWeight: "medium" }}
+                    />
+                  )
+                  : "N/A"}
+              </TableCell>
 
             </TableRow>
           ))}
