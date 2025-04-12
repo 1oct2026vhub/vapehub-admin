@@ -429,7 +429,7 @@ const OrderDetailApp = () => {
           <Paper className="p-4 mb-3 bg-white">
             <div className="flex justify-between items-center mb-3">
               <Typography variant="h6" className="font-medium">
-                Payment
+                Payment Details
               </Typography>
               <Button
                 startIcon={<DownloadIcon />}
@@ -545,7 +545,7 @@ const OrderDetailApp = () => {
             <div className="flex items-center gap-2 p-4 border-b border-gray-200">
               <LocationOnIcon fontSize="small" sx={{ color: "#6B7280" }} />
               <Typography variant="h6" className="font-medium">
-                Billing Address
+                Billing Details
               </Typography>
             </div>
 
@@ -584,7 +584,7 @@ const OrderDetailApp = () => {
             <div className="flex items-center gap-2 p-4 border-b border-gray-200">
               <LocationOnIcon fontSize="small" sx={{ color: "#6B7280" }} />
               <Typography variant="h6" className="font-medium">
-                Shipping Address
+                Shipping Details
               </Typography>
             </div>
 
