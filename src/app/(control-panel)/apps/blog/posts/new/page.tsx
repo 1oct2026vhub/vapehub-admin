@@ -41,6 +41,39 @@ import {
 import debounce from "lodash/debounce";
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB in bytes
+const MAX_IMAGE_WIDTH = 399;
+const MAX_IMAGE_HEIGHT = 240;
+
+// Helper function to validate image dimensions (used by the Zod schema)
+const validateImageDimensions = (file: File): Promise<{ valid: boolean; dimensions?: { width: number; height: number } }> => {
+  return new Promise((resolve) => {
+    if (!file || !(file instanceof File)) {
+      resolve({ valid: true });
+      return;
+    }
+
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(img.src);
+      if (img.width > MAX_IMAGE_WIDTH || img.height > MAX_IMAGE_HEIGHT) {
+        resolve({ 
+          valid: false, 
+          dimensions: { 
+            width: img.width, 
+            height: img.height 
+          } 
+        });
+      } else {
+        resolve({ valid: true });
+      }
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(img.src);
+      resolve({ valid: true }); // Assume valid on error to avoid blocking submission
+    };
+    img.src = URL.createObjectURL(file);
+  });
+};
 
 // Define validation schema using Zod
 const postSchema = z.object({
@@ -58,10 +91,20 @@ const postSchema = z.object({
       "Slug must be in valid format (lowercase letters, numbers, and hyphens)"
     ),
   image: z.any()
-    .refine((file) => {
-      if (!file || !(file instanceof File)) return true;
-      return file.size <= MAX_FILE_SIZE;
-    }, "File size exceeds the maximum limit of 5MB.")
+    .refine(
+      (file) => !file || !(file instanceof File) || file.size <= MAX_FILE_SIZE,
+      `File size exceeds the maximum limit of 5MB.`
+    )
+    .refine(
+      async (file) => {
+        if (!file || !(file instanceof File)) return true;
+        const result = await validateImageDimensions(file);
+        return result.valid;
+      },
+      (file) => ({ 
+        message: `Image dimensions must not exceed ${MAX_IMAGE_WIDTH}×${MAX_IMAGE_HEIGHT} pixels.` 
+      })
+    )
     .optional(),
   status: z.enum(["draft", "published", "archived"]).default("draft"),
   published_at: z.string().nullable().optional(),
@@ -116,7 +159,7 @@ export default function CreateBlogPost() {
     handleSubmit,
     setValue,
     watch,
-    formState: { isValid },
+    formState: { isValid, errors },
   } = useForm<PostFormType>({
     mode: "all",
     defaultValues: {
@@ -231,8 +274,6 @@ export default function CreateBlogPost() {
         showSnackbar(error.error[0]?.message, "error");
       } else if (error?.error?.message) {
         showSnackbar(error.error.message, "error");
-      } else if (error?.message) {
-        showSnackbar(error.message, "error");
       } else {
         const errorMessage = "An unexpected error occurred";
         showSnackbar(errorMessage, "error");
@@ -308,7 +349,7 @@ export default function CreateBlogPost() {
                         setValue("image", file, { shouldValidate: true });
                       }}
                       accept="image/*"
-                      helperText="Upload a featured image for the blog post (Max size: 5MB). Supported formats: PNG, JPG, JPEG, WebP"
+                      helperText="Upload a featured image for the blog post (399 × 240 px, Max size: 5MB). Supported formats: PNG, JPG, JPEG, WebP"
                       sx={commonFieldStyles}
                     />
                   </Grid>
