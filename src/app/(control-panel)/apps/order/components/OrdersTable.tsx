@@ -28,6 +28,27 @@ import OrderFilters from "./OrderFilters";
 import OrderFilterDrawer from "./OrderFilterDrawer";
 import GenerateReportButton from "./GenerateReportButton";
 import OrderStatistics from "./OrderStatistics";
+import relativeTime from "dayjs/plugin/relativeTime";
+
+// Initialize dayjs plugins
+dayjs.extend(relativeTime);
+
+// Custom relative time formatter
+const formatExactRelativeTime = (dateString: string): string => {
+  if (!dateString) return "N/A";
+  
+  const now = dayjs();
+  const date = dayjs(dateString);
+  const diffSeconds = now.diff(date, 'second');
+  const diffMinutes = now.diff(date, 'minute');
+  const diffHours = now.diff(date, 'hour');
+  const diffDays = now.diff(date, 'day');
+  
+  if (diffSeconds < 60) return `${diffSeconds} ${diffSeconds === 1 ? 'second' : 'seconds'} ago`;
+  if (diffMinutes < 60) return `${diffMinutes} ${diffMinutes === 1 ? 'minute' : 'minutes'} ago`;
+  if (diffHours < 24) return `${diffHours} ${diffHours === 1 ? 'hour' : 'hours'} ago`;
+  return `${diffDays} ${diffDays === 1 ? 'day' : 'days'} ago`;
+};
 
 interface OrdersTableProps {
   statusFilter?: OrderStatus;
@@ -149,6 +170,12 @@ const OrdersTable = ({
     router.push(`/apps/order/detail/${orderId}`);
   }, [router]);
 
+  // Format date as relative time
+  const formatRelativeTime = (dateString: string): string => {
+    if (!dateString) return "N/A";
+    return formatExactRelativeTime(dateString);
+  };
+
   const columns = useMemo<MRT_ColumnDef<any>[]>(
     () => [
       { accessorKey: "order_unique_id", header: "Order ID" },
@@ -188,6 +215,11 @@ const OrdersTable = ({
         accessorKey: "orderItems",
         header: "Items",
         Cell: ({ row }) => row.original.orderItems?.length || 0,
+      },
+      {
+        accessorKey: "updatedAt",
+        header: "Date",
+        Cell: ({ row }) => formatRelativeTime(row.original.updatedAt),
       },
       {
         accessorKey: "createdAt",
