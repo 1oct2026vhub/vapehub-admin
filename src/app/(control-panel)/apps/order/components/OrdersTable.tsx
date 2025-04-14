@@ -29,9 +29,13 @@ import OrderFilterDrawer from "./OrderFilterDrawer";
 import GenerateReportButton from "./GenerateReportButton";
 import OrderStatistics from "./OrderStatistics";
 import relativeTime from "dayjs/plugin/relativeTime";
+import useColumnOrder from "@/hooks/useColumnOrder";
 
 // Initialize dayjs plugins
 dayjs.extend(relativeTime);
+
+// Constants for localStorage keys
+const COLUMNS_ORDER_KEY = 'ordersTableColumnsOrder';
 
 // Custom relative time formatter
 const formatExactRelativeTime = (dateString: string): string => {
@@ -176,7 +180,8 @@ const OrdersTable = ({
     return formatExactRelativeTime(dateString);
   };
 
-  const columns = useMemo<MRT_ColumnDef<any>[]>(
+  // Default column definition
+  const defaultColumns = useMemo<MRT_ColumnDef<any>[]>(
     () => [
       { accessorKey: "order_unique_id", header: "Order ID" },
       {
@@ -229,6 +234,9 @@ const OrdersTable = ({
     ],
     []
   );
+
+  // Use our custom hook for column ordering
+  const { columns, columnOrder, onColumnOrderChange } = useColumnOrder('orders', defaultColumns);
 
   // When the page changes
   const handlePageChange = (event: React.ChangeEvent<unknown>, newPage: number) => {
@@ -307,6 +315,9 @@ const OrdersTable = ({
               View Details
             </MenuItem>,
           ]}
+          enableColumnOrdering
+          onColumnOrderChange={onColumnOrderChange}
+          state={{ columnOrder }}
         />
         
         {/* Pagination with additional information */}

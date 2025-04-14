@@ -102,24 +102,6 @@ const OrderFilterDrawer = ({
           </FormControl>
         </ListItem>
         <ListItem>
-          <FormControl fullWidth size="small">
-            <InputLabel>Payment</InputLabel>
-            <Select
-              value={paymentStatus}
-              label="Payment"
-              onChange={(e) =>
-                onPaymentStatusChange(e.target.value as PaymentStatus)
-              }
-            >
-              {/* <MenuItem value="">All</MenuItem> */}
-              <MenuItem value="pending">Pending</MenuItem>
-              <MenuItem value="paid">Paid</MenuItem>
-              <MenuItem value="failed">Failed</MenuItem>
-              <MenuItem value="refunded">Refunded</MenuItem>
-            </Select>
-          </FormControl>
-        </ListItem>
-        <ListItem>
           <LocalizationProvider dateAdapter={AdapterDayjs}>
             <DatePicker
               label="Start Date"

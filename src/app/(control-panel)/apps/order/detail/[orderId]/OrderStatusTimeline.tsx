@@ -18,31 +18,45 @@ import DeliveryDiningIcon from "@mui/icons-material/DeliveryDining";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import EditLocationAltOutlinedIcon from "@mui/icons-material/EditLocationAltOutlined";
 import DoDisturbAltOutlinedIcon from "@mui/icons-material/DoDisturbAltOutlined";
+import CancelOutlinedIcon from "@mui/icons-material/CancelOutlined";
+import SettingsIcon from "@mui/icons-material/Settings";
 import { updateOrderStatus, OrderStatus } from "@/services/apiOrder";
 
-type StatusStep = {
-  id: string;
+// Define the structure of a status timeline item from API
+interface StatusTimelineItem {
+  status: string;
   label: string;
-  date?: string;
-  time?: string;
-  description?: string;
-  additionalInfo?: string;
-  completed: boolean;
-  active: boolean;
-  icon: React.ReactNode;
-};
+  icon: string;
+  achieved: boolean;
+  current: boolean;
+  timestamp: string;
+  skipped: boolean;
+}
+
+// Define the structure of an order log item from API
+interface OrderLogItem {
+  id: number;
+  status: string;
+  label: string;
+  additional_info: string | null;
+  createdAt: string;
+  user: {
+    id: number;
+    first_name: string | null;
+    last_name: string | null;
+    email: string;
+    phone: string | null;
+    profile_pic_url: string | null;
+  };
+}
 
 interface OrderStatusTimelineProps {
   status: OrderStatus;
   orderDate: string;
   orderId?: number;
   onStatusUpdate?: (newStatus: OrderStatus) => void;
-  orderHistory?: Array<{
-    status: string;
-    description?: string;
-    createdAt: string;
-    trackingInfo?: string;
-  }>;
+  statusTimeline?: StatusTimelineItem[];
+  orderLogs?: OrderLogItem[];
 }
 
 const OrderStatusTimeline: React.FC<OrderStatusTimelineProps> = ({
@@ -50,7 +64,8 @@ const OrderStatusTimeline: React.FC<OrderStatusTimelineProps> = ({
   orderDate,
   orderId,
   onStatusUpdate,
-  orderHistory = [],
+  statusTimeline = [],
+  orderLogs = [],
 }) => {
   // State for cancel confirmation dialog
   const [openCancelDialog, setOpenCancelDialog] = useState(false);
@@ -106,158 +121,49 @@ const OrderStatusTimeline: React.FC<OrderStatusTimelineProps> = ({
     setOpenCancelDialog(true);
   };
 
-  // Define status steps and their completion based on current status
-  const getStatusSteps = (): StatusStep[] => {
-    // Map status from API to our steps
-    const statusMap: { [key: string]: number } = {
-      pending: 0,
-      processing: 1,
-      packed: 1,
-      shipped: 2,
-      out_for_delivery: 3,
-      delivered: 4,
-      completed: 4,
-      cancel: -1,
-    };
-
-    const currentStepIndex = statusMap[status] ?? 0;
-    const isOrderCancelled = status === "cancel";
-
-    // Find history items for each status
-    const findHistoryItem = (statusToFind: string) => {
-      return orderHistory?.find((item) => item.status === statusToFind);
-    };
-
-    // Format date from history or use order date for the first step
-    const getDateForStatus = (
-      statusToFind: string
-    ): { date?: string; time?: string } => {
-      const item = findHistoryItem(statusToFind);
-      if (item) {
-        const formatted = formatDate(item.createdAt);
-        return { date: formatted.date, time: formatted.time };
-      }
-      if (statusToFind === "pending") {
-        const formatted = formatDate(orderDate);
-        return { date: formatted.date, time: formatted.time };
-      }
-      return {};
-    };
-
-    // Create base status steps
-    const steps: StatusStep[] = [
-      {
-        id: "placed",
-        label: "Order Placed",
-        ...getDateForStatus("pending"),
-        description: "An order has been placed.",
-        completed: currentStepIndex >= 0 && !isOrderCancelled,
-        active: currentStepIndex === 0 && !isOrderCancelled,
-        icon: (
-          <ShoppingBagOutlinedIcon
-            color={
-              currentStepIndex >= 0 && !isOrderCancelled
-                ? "success"
-                : "disabled"
-            }
-          />
-        ),
-      },
-      {
-        id: "packed",
-        label: "Packed",
-        ...getDateForStatus("packed"),
-        description:
-          findHistoryItem("packed")?.description ||
-          "Your item has been picked up by courier partner",
-        completed: currentStepIndex >= 1 && !isOrderCancelled,
-        active: currentStepIndex === 1 && !isOrderCancelled,
-        icon: (
-          <InventoryOutlinedIcon
-            color={
-              currentStepIndex >= 1 && !isOrderCancelled
-                ? "success"
-                : "disabled"
-            }
-          />
-        ),
-      },
-      {
-        id: "shipped",
-        label: "Shipping",
-        ...getDateForStatus("shipped"),
-        description: "Your item has been shipped.",
-        additionalInfo: findHistoryItem("shipped")?.trackingInfo,
-        completed: currentStepIndex >= 2 && !isOrderCancelled,
-        active: currentStepIndex === 2 && !isOrderCancelled,
-        icon: (
-          <LocalShippingOutlinedIcon
-            color={
-              currentStepIndex >= 2 && !isOrderCancelled
-                ? "success"
-                : "disabled"
-            }
-          />
-        ),
-      },
-      {
-        id: "out_for_delivery",
-        label: "Out For Delivery",
-        ...getDateForStatus("out_for_delivery"),
-        completed: currentStepIndex >= 3 && !isOrderCancelled,
-        active: currentStepIndex === 3 && !isOrderCancelled,
-        icon: (
-          <DeliveryDiningIcon
-            color={
-              currentStepIndex >= 3 && !isOrderCancelled
-                ? "success"
-                : "disabled"
-            }
-          />
-        ),
-      },
-      {
-        id: "delivered",
-        label: "Delivered",
-        ...getDateForStatus("delivered"),
-        completed: currentStepIndex >= 4 && !isOrderCancelled,
-        active: currentStepIndex === 4 && !isOrderCancelled,
-        icon: (
-          <CheckCircleOutlineIcon
-            color={
-              currentStepIndex >= 4 && !isOrderCancelled
-                ? "success"
-                : "disabled"
-            }
-          />
-        ),
-      },
-    ];
-
-    // If order is cancelled, add cancelled status
-    if (isOrderCancelled) {
-      const cancelledItem = findHistoryItem("cancel");
-      if (cancelledItem) {
-        const formatted = formatDate(cancelledItem.createdAt);
-        steps.push({
-          id: "cancelled",
-          label: "Order Cancelled",
-          date: formatted.date,
-          time: formatted.time,
-          description:
-            cancelledItem.description || "Your order has been cancelled.",
-          completed: true,
-          active: true,
-          icon: <DoDisturbAltOutlinedIcon color="error" />,
-        });
-      }
+  // Get the icon component based on the icon name from API
+  const getIconComponent = (iconName: string, isActive: boolean) => {
+    const color = isActive ? "success" : "disabled";
+    
+    switch (iconName) {
+      case "shopping-cart":
+        return <ShoppingBagOutlinedIcon color={color} />;
+      case "cog":
+        return <SettingsIcon color={color} />;
+      case "box":
+        return <InventoryOutlinedIcon color={color} />;
+      case "truck":
+        return <LocalShippingOutlinedIcon color={color} />;
+      case "truck-loading":
+        return <DeliveryDiningIcon color={color} />;
+      case "check-circle":
+        return <CheckCircleOutlineIcon color={color} />;
+      case "cancel":
+        return <CancelOutlinedIcon color="error" />;
+      default:
+        return <ShoppingBagOutlinedIcon color={color} />;
     }
-
-    return steps;
   };
 
-  const statusSteps = getStatusSteps();
-  const { date: formattedDate } = formatDate(orderDate);
+  // Find the most recent log entry for a specific status
+  const findLatestLogForStatus = (statusToFind: string): OrderLogItem | undefined => {
+    const filteredLogs = orderLogs.filter(log => log.status === statusToFind);
+    if (filteredLogs.length === 0) return undefined;
+    
+    // Sort by createdAt in descending order and return the first one
+    return filteredLogs.sort((a, b) => 
+      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    )[0];
+  };
+
+  // Sort timeline items to ensure correct order
+  const sortedTimeline = [...statusTimeline].sort((a, b) => {
+    const statusOrder = ['pending', 'processing', 'packed', 'shipped', 'out_for_delivery', 'delivered', 'completed', 'cancel'];
+    return statusOrder.indexOf(a.status) - statusOrder.indexOf(b.status);
+  });
+
+  // Find the index of the current status in the timeline
+  const currentStatusIndex = sortedTimeline.findIndex(item => item.current);
 
   return (
     <Paper className="p-4 mb-4 bg-white">
@@ -305,71 +211,101 @@ const OrderStatusTimeline: React.FC<OrderStatusTimelineProps> = ({
       </div>
 
       <div className="relative">
-        {statusSteps.map((step, index) => (
-          <div key={step.id} className="flex mb-6 relative">
-            {/* Vertical line connecting steps */}
-            {index < statusSteps.length - 1 && (
-              <div
-                className={`absolute left-[20px] top-[28px] w-[2px] h-[calc(100%-8px)] ${
-                  step.completed ? "bg-green-500" : "bg-gray-200"
-                }`}
-                style={{
-                  bottom: index === statusSteps.length - 1 ? "0" : "auto",
-                }}
-              />
-            )}
-
-            {/* Status icon */}
-            <div
-              className={`relative flex items-center justify-center w-10 h-10 rounded-full mr-4 ${
-                step.active
-                  ? "bg-green-100"
-                  : step.completed
-                  ? "bg-green-100"
-                  : "bg-gray-100"
-              }`}
-            >
-              {step.icon}
-            </div>
-
-            {/* Status content */}
-            <div className="flex-1">
-              <div className="flex items-center mb-1">
-                <Typography
-                  variant="subtitle1"
-                  className={`font-medium ${
-                    step.active ? "text-gray-800" : "text-gray-700"
+        {sortedTimeline.map((step, index) => {
+          // Find the latest log for this status
+          const logItem = findLatestLogForStatus(step.status);
+          const { date: formattedDate, time: formattedTime } = logItem 
+            ? formatDate(logItem.createdAt) 
+            : formatDate(step.timestamp);
+          
+          // Determine if this step is completed or active
+          const isCompleted = index <= currentStatusIndex;
+          
+          // Change label from "Cancel" to "Cancelled" if needed
+          const displayLabel = step.status === "cancel" ? "Cancelled" : step.label;
+          
+          return (
+            <div key={step.status} className="flex mb-6 relative">
+              {/* Vertical line connecting steps */}
+              {index < sortedTimeline.length - 1 && (
+                <div
+                  className={`absolute left-[20px] top-[28px] w-[2px] h-[calc(100%-8px)] ${
+                    isCompleted && status !== "cancel" ? "bg-green-500" : "bg-gray-200"
                   }`}
-                >
-                  {step.label} {step.date && `- ${step.date}`}
-                </Typography>
+                  style={{
+                    bottom: index === sortedTimeline.length - 1 ? "0" : "auto",
+                  }}
+                />
+              )}
+
+              {/* Status icon */}
+              <div
+                className={`relative flex items-center justify-center w-10 h-10 rounded-full mr-4 ${
+                  step.status === "cancel" 
+                    ? "bg-red-100"
+                    : step.current
+                    ? "bg-green-100"
+                    : isCompleted && status !== "cancel"
+                    ? "bg-green-100"
+                    : "bg-gray-100"
+                }`}
+              >
+                {step.status === "cancel" 
+                  ? getIconComponent("cancel", true)
+                  : getIconComponent(step.icon, isCompleted && status !== "cancel")}
               </div>
 
-              {step.time && (
-                <Typography
-                  variant="body2"
-                  color="text.secondary"
-                  className="mb-1"
-                >
-                  {step.time}
-                </Typography>
-              )}
+              {/* Status content */}
+              <div className="flex-1">
+                <div className="flex items-center mb-1">
+                  <Typography
+                    variant="subtitle1"
+                    className={`font-medium ${
+                      step.status === "cancel" 
+                      ? "text-red-600"
+                      : step.current 
+                      ? "text-gray-800" 
+                      : "text-gray-700"
+                    }`}
+                  >
+                    {displayLabel} {(isCompleted && status !== "cancel") || step.status === "cancel" ? formattedDate && `- ${formattedDate}` : ""}
+                  </Typography>
+                </div>
 
-              {step.description && (
-                <Typography variant="body2" color="text.secondary">
-                  {step.description}
-                </Typography>
-              )}
+                {((isCompleted && status !== "cancel") || step.status === "cancel") && formattedTime && (
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    className="mb-1"
+                  >
+                    {formattedTime}
+                  </Typography>
+                )}
 
-              {step.additionalInfo && (
-                <Typography variant="body2" className="text-gray-600 mt-1">
-                  {step.id === "shipped" && "Tracking ID: "}
-                  {step.additionalInfo}
-                </Typography>
-              )}
+                {((isCompleted && status !== "cancel") || step.status === "cancel") && logItem?.additional_info && (
+                  <Typography variant="body2" color="text.secondary">
+                    {logItem.additional_info}
+                  </Typography>
+                )}
+
+                {/* Show default descriptions if no additional_info is provided */}
+                {/* {isCompleted && !logItem?.additional_info && (
+                  <Typography variant="body2" color="text.secondary">
+                    {step.status === "pending" && "An order has been placed."}
+                    {step.status === "packed" && "Your item has been picked up by courier partner"}
+                    {step.status === "shipped" && "Your item has been shipped."}
+                  </Typography>
+                )} */}
+
+                {((isCompleted && status !== "cancel") || step.status === "cancel") && step.status === "shipped" && logItem?.additional_info && (
+                  <Typography variant="body2" className="text-gray-600 mt-1">
+                    Tracking ID: {logItem.additional_info}
+                  </Typography>
+                )}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Cancel Order Confirmation Dialog */}

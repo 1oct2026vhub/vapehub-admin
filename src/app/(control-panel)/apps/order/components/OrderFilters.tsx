@@ -88,7 +88,7 @@ const OrderFilters = ({
         </Select>
       </FormControl>
 
-      <FormControl size="small" sx={{ minWidth: 120 }}>
+      {/* <FormControl size="small" sx={{ minWidth: 120 }}>
         <InputLabel>Payment</InputLabel>
         <Select
           value={paymentStatus}
@@ -102,7 +102,7 @@ const OrderFilters = ({
           <MenuItem value="failed">Failed</MenuItem>
           <MenuItem value="refunded">Refunded</MenuItem>
         </Select>
-      </FormControl>
+      </FormControl> */}
 
       <LocalizationProvider dateAdapter={AdapterDayjs}>
         <DatePicker

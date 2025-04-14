@@ -63,29 +63,29 @@ const OrderDetailApp = () => {
   // });
 
   // Sample order history data - in a real app, this would come from the API
-  const [orderHistory, setOrderHistory] = useState([
-    {
-      status: "pending",
-      description: "An order has been placed.",
-      createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(), // 5 days ago
-    },
-    {
-      status: "processing",
-      description: "Seller has processed your order.",
-      createdAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(), // 4 days ago
-    },
-    {
-      status: "packed",
-      description: "Your item has been picked up by courier partner",
-      createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(), // 3 days ago
-    },
-    {
-      status: "shipped",
-      description: "Your item has been shipped.",
-      trackingInfo: "MFDS1400457854",
-      createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(), // 2 days ago
-    },
-  ]);
+  // const [orderHistory, setOrderHistory] = useState([
+  //   {
+  //     status: "pending",
+  //     description: "An order has been placed.",
+  //     createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(), // 5 days ago
+  //   },
+  //   {
+  //     status: "processing",
+  //     description: "Seller has processed your order.",
+  //     createdAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(), // 4 days ago
+  //   },
+  //   {
+  //     status: "packed",
+  //     description: "Your item has been picked up by courier partner",
+  //     createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(), // 3 days ago
+  //   },
+  //   {
+  //     status: "shipped",
+  //     description: "Your item has been shipped.",
+  //     trackingInfo: "MFDS1400457854",
+  //     createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(), // 2 days ago
+  //   },
+  // ]);
 
   useEffect(() => {
     const fetchOrder = async () => {
@@ -139,7 +139,11 @@ const OrderDetailApp = () => {
 
     try {
       const response = await updateOrderStatus(order.id, newStatus);
-      setOrder({ ...order, status: newStatus });
+      
+      // Fetch updated order data after status change to get fresh timeline and logs
+      const updatedOrder = await getOrderById(order.id);
+      setOrder(updatedOrder);
+      
       if (response) {
         showSnackbar(response?.message, "success");
       }
@@ -416,11 +420,25 @@ const OrderDetailApp = () => {
             <OrderStatusTimeline
               status={order.status}
               orderDate={order.createdAt}
-              orderHistory={orderHistory}
               orderId={order.id}
               onStatusUpdate={(newStatus) => {
+                // After status update, fetch fresh order data to update the timeline
+                const fetchUpdatedOrder = async () => {
+                  try {
+                    const updatedOrder = await getOrderById(order.id);
+                    setOrder(updatedOrder);
+                  } catch (err) {
+                    console.error("Error fetching updated order:", err);
+                  }
+                };
+                
+                // First update local state for immediate UI feedback
                 setOrder({ ...order, status: newStatus });
+                // Then fetch the full updated order data
+                fetchUpdatedOrder();
               }}
+              orderLogs={order.orderLogs || []}
+              statusTimeline={order.statusTimeline || []}
             />
           )}
         </Grid>

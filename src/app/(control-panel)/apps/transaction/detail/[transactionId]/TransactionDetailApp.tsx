@@ -94,7 +94,7 @@ const TransactionDetailApp = () => {
   const handleStatusChange = async (event: SelectChangeEvent<string>) => {
     if (!transaction) return;
 
-    const newStatus = event.target.value.toLowerCase() as TransactionStatus;
+    const newStatus = event.target.value as TransactionStatus;
     setUpdatingStatus(true);
 
     try {
@@ -230,23 +230,17 @@ const TransactionDetailApp = () => {
               <Select
                 labelId="transaction-status-label"
                 id="transaction-status"
-                value={transaction.status.toLowerCase()}
+                value={transaction.status}
                 label="Status"
                 onChange={handleStatusChange}
                 disabled={updatingStatus}
                 className="bg-white"
               >
-                <MenuItem value="pending">Pending</MenuItem>
-                <MenuItem value="processing">Processing</MenuItem>
-                <MenuItem value="shipped">Shipped</MenuItem>
-                <MenuItem value="delivered">Delivered</MenuItem>
-                <MenuItem value="completed">Completed</MenuItem>
-                <MenuItem value="fail">Failed</MenuItem>
-                <MenuItem value="cancel">Cancelled</MenuItem>
-                <MenuItem value="return_requested">Return Requested</MenuItem>
-                <MenuItem value="return_approved">Return Approved</MenuItem>
-                <MenuItem value="return_received">Return Received</MenuItem>
-                <MenuItem value="refunded">Refunded</MenuItem>
+                <MenuItem value="PENDING">Pending</MenuItem>
+                
+                <MenuItem value="COMPLETED">Completed</MenuItem>
+                <MenuItem value="FAILED">Failed</MenuItem>  
+                <MenuItem value="REFUNDED">Refunded</MenuItem>
               </Select>
             </FormControl>
             <div className="flex gap-2">
