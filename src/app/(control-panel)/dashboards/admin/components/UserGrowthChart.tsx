@@ -13,6 +13,37 @@ const UserGrowthChart = ({ data, period }: UserGrowthChartProps) => {
   const chartRef = useRef<HTMLCanvasElement | null>(null);
   const chartInstance = useRef<any | null>(null);
 
+  // Format the dateRange for better display
+  const formatDateRange = (dateRange: string): string => {
+    if (!dateRange) return "";
+    
+    // Split the range and take just the dates
+    const [startDate, endDate] = dateRange.split(' - ');
+    
+    // Format start date
+    const startParts = startDate.split('-');
+    const startMonth = new Date(parseInt(startParts[0]), parseInt(startParts[1]) - 1, parseInt(startParts[2])).toLocaleString('default', { month: 'short' });
+    const startDay = parseInt(startParts[2]);
+    const startYear = parseInt(startParts[0]);
+    
+    // Format end date
+    const endParts = endDate.split('-');
+    const endMonth = new Date(parseInt(endParts[0]), parseInt(endParts[1]) - 1, parseInt(endParts[2])).toLocaleString('default', { month: 'short' });
+    const endDay = parseInt(endParts[2]);
+    const endYear = parseInt(endParts[0]);
+    
+    // If same month and year, return "Mar 10-16, 2023"
+    // If different months but same year, return "Mar 10-Apr 16, 2023"
+    // If different years, return "Mar 10, 2023-Apr 16, 2024"
+    if (startYear === endYear) {
+      return startMonth === endMonth 
+        ? `${startMonth} ${startDay}-${endDay}, ${endYear}` 
+        : `${startMonth} ${startDay}-${endMonth} ${endDay}, ${endYear}`;
+    } else {
+      return `${startMonth} ${startDay}, ${startYear}-${endMonth} ${endDay}, ${endYear}`;
+    }
+  };
+
   useEffect(() => {
     if (!chartRef.current) return;
 
@@ -30,7 +61,7 @@ const UserGrowthChart = ({ data, period }: UserGrowthChartProps) => {
           chartInstance.current = new ChartJS.default(ctx, {
             type: 'bar',
             data: {
-              labels: data.map(item => item.date),
+              labels: data.map(item => formatDateRange(item.dateRange)),
               datasets: [
                 {
                   label: 'Admins',
@@ -63,6 +94,16 @@ const UserGrowthChart = ({ data, period }: UserGrowthChartProps) => {
                 tooltip: {
                   mode: 'index',
                   intersect: false,
+                  callbacks: {
+                    title: function(tooltipItems) {
+                      // Find the original date range for this index
+                      if (tooltipItems.length > 0) {
+                        const index = tooltipItems[0].dataIndex;
+                        return data[index].dateRange;
+                      }
+                      return '';
+                    }
+                  }
                 }
               },
               scales: {

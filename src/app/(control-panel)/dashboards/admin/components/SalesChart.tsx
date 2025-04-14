@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useMemo } from 'react';
 import { Box } from '@mui/material';
 import { SalesChartData } from '@/services/apiDashboard';
+import { formatCurrency } from '@/utils/actions';
+import dayjs from 'dayjs';
 
 interface SalesChartProps {
   data: SalesChartData[];
@@ -12,6 +14,26 @@ interface SalesChartProps {
 const SalesChart = ({ data, period }: SalesChartProps) => {
   const chartRef = useRef<HTMLCanvasElement | null>(null);
   const chartInstance = useRef<any | null>(null);
+
+  // Format date range to display in a more readable format
+  const formatDateRange = (dateRange: string) => {
+    const [start, end] = dateRange.split(' - ');
+    const startDate = dayjs(start);
+    const endDate = dayjs(end);
+    
+    // If both dates are in the same month and year, show a simplified format
+    if (startDate.month() === endDate.month() && startDate.year() === endDate.year()) {
+      return `${startDate.format('MMM D')}-${endDate.format('D, YYYY')}`;
+    }
+    
+    // If dates are in the same year but different months
+    if (startDate.year() === endDate.year()) {
+      return `${startDate.format('MMM D')} - ${endDate.format('MMM D, YYYY')}`;
+    }
+    
+    // If dates are in different years
+    return `${startDate.format('MMM D, YYYY')} - ${endDate.format('MMM D, YYYY')}`;
+  };
 
   useEffect(() => {
     if (!chartRef.current) return;
@@ -30,7 +52,7 @@ const SalesChart = ({ data, period }: SalesChartProps) => {
           chartInstance.current = new ChartJS.default(ctx, {
             type: 'line',
             data: {
-              labels: data.map(item => item.date),
+              labels: data.map(item => formatDateRange(item.dateRange)),
               datasets: [
                 {
                   label: 'Total Sales',
@@ -39,11 +61,12 @@ const SalesChart = ({ data, period }: SalesChartProps) => {
                   backgroundColor: 'rgba(46, 153, 112, 0.1)',
                   borderWidth: 2,
                   fill: true,
-                  tension: 0.4
+                  tension: 0.4,
+                  yAxisID: 'y'
                 },
                 {
                   label: 'Orders Count',
-                  data: data.map(item => item.ordersCount * 10), // Multiply to scale appropriately
+                  data: data.map(item => item.ordersCount),
                   borderColor: '#3F51B5',
                   backgroundColor: 'rgba(63, 81, 181, 0.0)',
                   borderWidth: 2,
@@ -72,14 +95,21 @@ const SalesChart = ({ data, period }: SalesChartProps) => {
                         label += ': ';
                       }
                       if (context.datasetIndex === 0) {
-                        label += new Intl.NumberFormat('en-US', {
-                          style: 'currency',
-                          currency: 'USD'
-                        }).format(context.parsed.y);
+                        // Use proper currency formatting for sales
+                        label += formatCurrency(context.parsed.y);
                       } else {
-                        label += Math.round(context.parsed.y / 10);
+                        // Show actual order count without scaling
+                        label += context.parsed.y;
                       }
                       return label;
+                    },
+                    title: function(tooltipItems) {
+                      // Find the original date range for this index
+                      if (tooltipItems.length > 0) {
+                        const index = tooltipItems[0].dataIndex;
+                        return data[index].dateRange;
+                      }
+                      return '';
                     }
                   }
                 }
@@ -89,11 +119,17 @@ const SalesChart = ({ data, period }: SalesChartProps) => {
                   beginAtZero: true,
                   title: {
                     display: true,
-                    text: 'Revenue ($)'
+                    text: 'Revenue (£)'
                   },
                   grid: {
                     display: true,
                     color: 'rgba(0, 0, 0, 0.05)'
+                  },
+                  ticks: {
+                    // Use proper currency formatting
+                    callback: function(value) {
+                      return formatCurrency(value as number).split('.')[0]; // Show without decimals for cleaner y-axis
+                    }
                   }
                 },
                 y1: {
@@ -105,6 +141,15 @@ const SalesChart = ({ data, period }: SalesChartProps) => {
                   },
                   grid: {
                     display: false
+                  },
+                  // Set min and max to create nice intervals
+                  min: 0,
+                  // Round up max value to the next multiple of 10
+                  max: Math.ceil(Math.max(...data.map(item => item.ordersCount)) / 10) * 10,
+                  ticks: {
+                    // Show values in increments of 10
+                    stepSize: 10,
+                    precision: 0
                   }
                 },
                 x: {
