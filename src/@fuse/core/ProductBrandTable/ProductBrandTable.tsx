@@ -33,6 +33,7 @@ import AppButton from "@/components/Shared/AppButton";
 import FuseSvgIcon from "../FuseSvgIcon";
 import { useSnackbar } from "@/contexts/SnackbarContext";
 import { formatDate } from "@/utils/actions";
+import useColumnOrder from "@/hooks/useColumnOrder";
 
 export type BrandType = {
   id: number;
@@ -262,6 +263,9 @@ const ProductBrandTable = ({ refreshData }: ProductBrandTableProps) => {
     [deleted]
   );
 
+  // Use the column order hook
+  const { columns: orderedColumns, columnOrder, onColumnOrderChange } = useColumnOrder('product-brand-table', columns);
+
   if (isLoading || (fetchLoading && brands.length === 0))
     return <FuseLoading />;
   if (error) return <p>Failed to load brands</p>;
@@ -322,43 +326,10 @@ const ProductBrandTable = ({ refreshData }: ProductBrandTableProps) => {
 
         <DataTable
           data={brands}
-          columns={columns}
-          // renderRowActionMenuItems={({ closeMenu, row }) => [
-          //   <>
-          //     <MenuItem
-          //       key="view-details"
-          //       onClick={() => {
-          //         router.push(`/apps/product-brand/brand-detail/${row.original.id}`);
-          //         closeMenu();
-          //       }}
-          //     >
-          //       <ListItemIcon>
-          //         <FuseSvgIcon>heroicons-outline:arrow-top-right-on-square</FuseSvgIcon>
-          //       </ListItemIcon>
-          //       View Details
-          //     </MenuItem>
-          //     {!row.original.deletedAt && (
-          //     <MenuItem
-          //       key="edit"
-          //       onClick={() => { handleEdit(row.original); closeMenu(); }}
-          //     >
-          //       <ListItemIcon><FuseSvgIcon>heroicons-outline:pencil-square</FuseSvgIcon></ListItemIcon>
-          //       Edit
-          //     </MenuItem>
-          //     )}
-          //     <MenuItem
-          //       key="delete"
-          //       onClick={() => { handleDeleteClick(row.original); closeMenu(); }}
-          //     >
-          //       <ListItemIcon>
-          //         <FuseSvgIcon>
-          //           {row.original.deletedAt ? "heroicons-outline:arrow-path" : "heroicons-outline:trash"}
-          //         </FuseSvgIcon>
-          //       </ListItemIcon>
-          //       {row.original.deletedAt ? 'Restore' : 'Delete'}
-          //     </MenuItem>
-          //   </>
-          // ]}
+          columns={orderedColumns}
+          enableColumnOrdering
+          onColumnOrderChange={onColumnOrderChange}
+          state={{ columnOrder }}
           renderRowActionMenuItems={({ closeMenu, row }) => {
             const menuItems = [
               // View Details MenuItem

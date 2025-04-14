@@ -30,6 +30,7 @@ import { formatDate } from "@/utils/actions";
 import { BlogTag, BlogTagResponse, getBlogTags, createBlogTag, updateBlogTag, deleteBlogTag, restoreBlogTag } from "@/services/apiBlog";
 import { useRouter } from "next/navigation";
 import DeleteConfirmationModal from "./components/DeleteConfirmationModal";
+import useColumnOrder from "@/hooks/useColumnOrder";
 
 // Add pagination interface
 interface Pagination {
@@ -123,8 +124,8 @@ export default function BlogTagsApp() {
     }
   }, [debouncedSearch]);
 
-  // Table columns
-  const columns = useMemo<MRT_ColumnDef<BlogTag>[]>(
+  // Table columns - rename to defaultColumns
+  const defaultColumns = useMemo<MRT_ColumnDef<BlogTag>[]>(
     () => [
       {
         accessorKey: "name",
@@ -151,6 +152,9 @@ export default function BlogTagsApp() {
     ],
     [router]
   );
+
+  // Use the column order hook
+  const { columns, columnOrder, onColumnOrderChange } = useColumnOrder('blog-tags', defaultColumns);
 
   // Calculate total pages
   const totalPages = Math.ceil(pagination.total / pagination.limit);
@@ -306,6 +310,9 @@ export default function BlogTagsApp() {
                 columns={columns}
                 data={tags}
                 enableRowActions
+                enableColumnOrdering
+                onColumnOrderChange={onColumnOrderChange}
+                state={{ columnOrder }}
                 renderRowActionMenuItems={({ closeMenu, row }) => [
                   ...(row.original.deleted_at ? [
                     <MenuItem

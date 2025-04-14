@@ -35,6 +35,7 @@ import {
   restoreBlogCategory,
 } from "@/services/apiBlog";
 import DeleteConfirmationModal from "./components/DeleteConfirmationModal";
+import useColumnOrder from "@/hooks/useColumnOrder";
 
 // Add pagination interface
 interface Pagination {
@@ -162,8 +163,8 @@ export default function BlogCategoriesApp() {
     }
   };
 
-  // Table columns
-  const columns = useMemo<MRT_ColumnDef<BlogCategory>[]>(
+  // Table columns - rename to defaultColumns for clarity
+  const defaultColumns = useMemo<MRT_ColumnDef<BlogCategory>[]>(
     () => [
       {
         accessorKey: "name",
@@ -221,6 +222,9 @@ export default function BlogCategoriesApp() {
     ],
     []
   );
+
+  // Use the column order hook
+  const { columns, columnOrder, onColumnOrderChange } = useColumnOrder('blog-categories', defaultColumns);
 
   // Calculate total pages
   const totalPages = Math.ceil(pagination.total / pagination.limit);
@@ -302,6 +306,9 @@ export default function BlogCategoriesApp() {
                 columns={columns}
                 data={categories}
                 enableRowActions
+                enableColumnOrdering
+                onColumnOrderChange={onColumnOrderChange}
+                state={{ columnOrder }}
                 renderRowActionMenuItems={({ closeMenu, row }) => {
                   const isDeleted = !!row.original.deletedAt;
 
