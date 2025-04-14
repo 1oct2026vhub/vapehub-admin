@@ -354,7 +354,6 @@ const AttributeTable = ({
         columns={orderedColumns}
         enableColumnOrdering
         onColumnOrderChange={onColumnOrderChange}
-        state={{ columnOrder }}
         enablePagination
         manualPagination
         state={{ 
