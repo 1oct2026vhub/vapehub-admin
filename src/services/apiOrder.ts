@@ -82,6 +82,34 @@ export interface OrderItem {
   };
 }
 
+// Define the structure of a status timeline item from API
+export interface StatusTimelineItem {
+  status: string;
+  label: string;
+  icon: string;
+  achieved: boolean;
+  current: boolean;
+  timestamp: string;
+  skipped: boolean;
+}
+
+// Define the structure of an order log item from API
+export interface OrderLogItem {
+  id: number;
+  status: string;
+  label: string;
+  additional_info: string | null;
+  createdAt: string;
+  user: {
+    id: number;
+    first_name: string | null;
+    last_name: string | null;
+    email: string;
+    phone: string | null;
+    profile_pic_url: string | null;
+  };
+}
+
 // Interface for order details
 export interface Order {
   id: number;
@@ -111,6 +139,8 @@ export interface Order {
   orderItems: OrderItem[];
   notes: string | null;
   payment_status?: PaymentStatus; // Added for backward compatibility
+  orderLogs?: OrderLogItem[]; // Add orderLogs property
+  statusTimeline?: StatusTimelineItem[]; // Add statusTimeline property
 }
 
 // Interface for orders list response with pagination

@@ -158,7 +158,11 @@ const OrderStatistics = ({
             {/* Status Cards */}
             <Grid container spacing={1}>
               {statistics.map((stat) => {
-                const status = stat.status.toUpperCase();
+                // Transform status labels for display
+                let displayStatus = stat.status.toUpperCase();
+                if (displayStatus === "CANCEL") displayStatus = "CANCELLED";
+                if (displayStatus === "FAIL") displayStatus = "FAILED";
+                
                 const backgroundColor = getStatusColor(stat.status);
                 
                 return (
@@ -167,7 +171,7 @@ const OrderStatistics = ({
                       <CardContent sx={{ p: 1, '&:last-child': { pb: 1 } }}>
                         <Box className="mb-1">
                           <Chip
-                            label={status}
+                            label={displayStatus}
                             size="small"
                             style={{
                               backgroundColor,

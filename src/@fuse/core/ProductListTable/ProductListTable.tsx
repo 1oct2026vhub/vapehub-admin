@@ -41,6 +41,7 @@ import AppButton from "@/components/Shared/AppButton";
 import { useSnackbar } from "@/contexts/SnackbarContext";
 import { deleteProduct, restoreProduct } from "@/services/apiProduct";
 import { formatDate } from "@/utils/actions";
+import useColumnOrder from "@/hooks/useColumnOrder";
 
 export type ProductType = {
   id: number;
@@ -418,6 +419,9 @@ const ProductListTable = ({
     [router, deleted]
   );
 
+  // Use the column order hook
+  const { columns: orderedColumns, columnOrder, onColumnOrderChange } = useColumnOrder('product-list-table', columns);
+
   if (isLoading || manuallyRefreshing || (apiLoading && products.length === 0))
     return <FuseLoading />;
   if (error) return <p>Failed to load products</p>;
@@ -580,7 +584,10 @@ const ProductListTable = ({
 
         <DataTable
           data={products}
-          columns={columns}
+          columns={orderedColumns}
+          enableColumnOrdering
+          onColumnOrderChange={onColumnOrderChange}
+          state={{ columnOrder }}
           renderRowActionMenuItems={({ closeMenu, row }) => [
             <MenuItem
               key="view"

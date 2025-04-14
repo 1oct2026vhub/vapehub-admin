@@ -40,6 +40,7 @@ import FuseSvgIcon from "@fuse/core/FuseSvgIcon";
 import axiosInstance from "@/utils/axiosApi";
 import { useSnackbar } from "@/contexts/SnackbarContext";
 import { formatDate } from "@/utils/actions";
+import useColumnOrder from "@/hooks/useColumnOrder";
 
 // // Add delete and restore functions
 // const deleteAttributeTerm = async (id: number) => {
@@ -245,6 +246,9 @@ const AttributeTermTable = ({
     [showDeleted]
   );
 
+  // Use the column order hook
+  const { columns: orderedColumns, columnOrder, onColumnOrderChange } = useColumnOrder('attribute-term-table', columns);
+
   if (isLoading) return <FuseLoading />;
   if (error) return <p>Failed to load attribute terms</p>;
 
@@ -332,10 +336,15 @@ const AttributeTermTable = ({
 
       <DataTable
         data={localTerms}
-        columns={columns}
+        columns={orderedColumns}
+        enableColumnOrdering
+        onColumnOrderChange={onColumnOrderChange}
         enablePagination
         manualPagination
-        state={{ pagination: { pageIndex: page, pageSize } }}
+        state={{
+          columnOrder,
+          pagination: { pageIndex: page, pageSize }
+        }}
         onPaginationChange={(updater: any) => {
           const newPagination = updater({ pageIndex: page, pageSize });
           setPage(newPagination.pageIndex);

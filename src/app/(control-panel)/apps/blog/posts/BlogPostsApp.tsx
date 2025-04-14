@@ -43,6 +43,7 @@ import {
 import { formatDate } from "@/utils/actions";
 import { useRouter } from "next/navigation";
 import Link from "@mui/material/Link";
+import useColumnOrder from "@/hooks/useColumnOrder";
 
 // Update sorting type to match API requirements
 type SortField = "title" | "created_at" | "published_at";
@@ -296,13 +297,13 @@ export default function BlogPostsApp() {
     }
   };
 
-  const columns = useMemo<MRT_ColumnDef<BlogPost>[]>(
+  // Rename columns to defaultColumns for clarity
+  const defaultColumns = useMemo<MRT_ColumnDef<BlogPost>[]>(
     () => [
       {
         accessorKey: "title",
         header: "Title",
         size: 200,
-      
       },
       {
         accessorKey: "slug",
@@ -319,23 +320,22 @@ export default function BlogPostsApp() {
             : "Not published";
         },
       },
-        {
-  accessorKey: "status",
-  header: "Status",
-  size: 100,
-  Cell: ({ row }) => {
-    const status = row.original.status;
-    const capitalizedStatus =
-      status?.charAt(0).toUpperCase() + status?.slice(1) || "N/A";
+      {
+        accessorKey: "status",
+        header: "Status",
+        size: 100,
+        Cell: ({ row }) => {
+          const status = row.original.status;
+          const capitalizedStatus =
+            status?.charAt(0).toUpperCase() + status?.slice(1) || "N/A";
 
-    return (
-      <div className={status ? "text-green-600" : ""}>
-        {capitalizedStatus}
-      </div>
-    );
-  },
-}
-,
+          return (
+            <div className={status ? "text-green-600" : ""}>
+              {capitalizedStatus}
+            </div>
+          );
+        },
+      },
       {
         accessorKey: "categories",
         header: "Categories",
@@ -378,7 +378,6 @@ export default function BlogPostsApp() {
           );
         },
       },
-    
       {
         accessorKey: "created_at",
         header: "Created At",
@@ -392,6 +391,9 @@ export default function BlogPostsApp() {
     ],
     [router]
   );
+
+  // Use the column order hook
+  const { columns, columnOrder, onColumnOrderChange } = useColumnOrder('blog-posts', defaultColumns);
 
   return (
     <Container maxWidth={false} sx={{ py: 3 }}>
@@ -584,6 +586,9 @@ export default function BlogPostsApp() {
                     columns={columns}
                     data={posts}
                     enableRowActions
+                    enableColumnOrdering
+                    onColumnOrderChange={onColumnOrderChange}
+                    state={{ columnOrder }}
                     renderRowActionMenuItems={({ closeMenu, row }) => [
                       ...(row.original.deleted_at ? [
                         <MenuItem

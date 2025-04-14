@@ -4,6 +4,7 @@ import { useMemo, useState, useEffect, useCallback } from "react";
 import { type MRT_ColumnDef } from "material-react-table";
 import DataTable from "@/components/data-table/DataTable";
 import FuseLoading from "@fuse/core/FuseLoading";
+import useColumnOrder from "@/hooks/useColumnOrder";
 import {
   Paper,
   TextField,
@@ -250,6 +251,9 @@ const ProductCategoryTable = ({
     [deleted]
   );
 
+  // Use the column order hook
+  const { columns: orderedColumns, columnOrder, onColumnOrderChange } = useColumnOrder('product-category-table', columns);
+
   if (
     isLoading ||
     manuallyRefreshing ||
@@ -310,10 +314,15 @@ const ProductCategoryTable = ({
 
       <DataTable
         data={localCategories}
-        columns={columns}
+        columns={orderedColumns}
+        enableColumnOrdering
+        onColumnOrderChange={onColumnOrderChange}
         enablePagination
         manualPagination
-        state={{ pagination: { pageIndex: page - 1, pageSize: limit } }}
+        state={{ 
+          columnOrder,
+          pagination: { pageIndex: page - 1, pageSize: limit } 
+        }}
         onPaginationChange={(updater: any) => {
           const newPagination = updater({
             pageIndex: page - 1,

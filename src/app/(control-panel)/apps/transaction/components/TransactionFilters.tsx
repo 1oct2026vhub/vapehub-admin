@@ -147,11 +147,10 @@ const TransactionFilters: React.FC<TransactionFiltersProps> = ({
             onStatusChange(e.target.value as TransactionStatus | "")
           }
         >
-          <MenuItem value="pending">Pending</MenuItem>
-          <MenuItem value="completed">Completed</MenuItem>
-          <MenuItem value="failed">Failed</MenuItem>
-          <MenuItem value="cancelled">Cancelled</MenuItem>
-          <MenuItem value="refunded">Refunded</MenuItem>
+          <MenuItem value="PENDING">Pending</MenuItem>
+          <MenuItem value="COMPLETED">Completed</MenuItem>
+          <MenuItem value="FAILED">Failed</MenuItem>
+          <MenuItem value="REFUNDED">Refunded</MenuItem>
         </Select>
       </FormControl>
 
@@ -164,10 +163,8 @@ const TransactionFilters: React.FC<TransactionFiltersProps> = ({
             onTransactionTypeChange(e.target.value as TransactionType | "")
           }
         >
-          <MenuItem value="payment">Payment</MenuItem>
-          <MenuItem value="refund">Refund</MenuItem>
-          <MenuItem value="partial_refund">Partial Refund</MenuItem>
-
+          <MenuItem value="PURCHASE">Purchase</MenuItem>
+          <MenuItem value="REFUND">Refund</MenuItem>
         </Select>
       </FormControl>
 
