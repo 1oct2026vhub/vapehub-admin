@@ -80,7 +80,7 @@ const OrderFilters = ({
           <MenuItem value="cancel">Cancelled</MenuItem>
           <MenuItem value="fail">Failed</MenuItem>
           <MenuItem value="packed">Packed</MenuItem>
-          <MenuItem value="out_for_delivary">Out for Delivery</MenuItem>
+          <MenuItem value="out_for_delivery">Out for Delivery</MenuItem>
           <MenuItem value="return_requested">Return Requested</MenuItem>
           <MenuItem value="return_approved">Return Approved</MenuItem>
           <MenuItem value="return_received">Return Received</MenuItem>
@@ -88,7 +88,7 @@ const OrderFilters = ({
         </Select>
       </FormControl>
 
-      <FormControl size="small" sx={{ minWidth: 120 }}>
+      {/* <FormControl size="small" sx={{ minWidth: 120 }}>
         <InputLabel>Payment</InputLabel>
         <Select
           value={paymentStatus}
@@ -102,7 +102,7 @@ const OrderFilters = ({
           <MenuItem value="failed">Failed</MenuItem>
           <MenuItem value="refunded">Refunded</MenuItem>
         </Select>
-      </FormControl>
+      </FormControl> */}
 
       <LocalizationProvider dateAdapter={AdapterDayjs}>
         <DatePicker

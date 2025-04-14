@@ -3,20 +3,26 @@ import { fetcher } from "./apiService";
 // Types for dashboard API responses
 export interface SalesChartData {
   date: string;
-  ordersCount: number;
+  dateRange: string;
   totalSales: number;
+  ordersCount: number;
+  revenue?: number;
 }
 
 export interface UserGrowthChartData {
   date: string;
+  dateRange: string;
   admin: number;
   customer: number;
+  newUsers?: number;
+  totalUsers?: number;
 }
 
 export interface TransactionChartData {
   date: string;
-  transactionCount: number;
+  dateRange: string;
   totalRevenue: number;
+  transactionCount: number;
 }
 
 export interface RecentTransaction {

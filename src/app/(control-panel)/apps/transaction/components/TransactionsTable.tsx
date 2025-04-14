@@ -4,6 +4,7 @@ import DataTable from "@/components/data-table/DataTable";
 import FuseLoading from "@fuse/core/FuseLoading";
 import MenuIcon from "@mui/icons-material/Menu";
 import dayjs from "dayjs";
+import useColumnOrder from "@/hooks/useColumnOrder";
 import {
   ListItemIcon,
   MenuItem,
@@ -184,7 +185,8 @@ const TransactionsTable = ({
     [router]
   );
 
-  const columns = useMemo<MRT_ColumnDef<any>[]>(
+  // Rename columns to defaultColumns
+  const defaultColumns = useMemo<MRT_ColumnDef<any>[]>(
     () => [
       {
         accessorKey: "referenceNumber",
@@ -269,6 +271,9 @@ const TransactionsTable = ({
     []
   );
 
+  // Use the column order hook
+  const { columns, columnOrder, onColumnOrderChange } = useColumnOrder('transactions', defaultColumns);
+
   // When the page changes
   const handlePageChange = (
     event: React.ChangeEvent<unknown>,
@@ -323,6 +328,9 @@ const TransactionsTable = ({
         <DataTable
           data={transactions}
           columns={columns}
+          enableColumnOrdering
+          onColumnOrderChange={onColumnOrderChange}
+          state={{ columnOrder }}
           renderRowActionMenuItems={({ closeMenu, row }) => [
             <MenuItem
               key="view"

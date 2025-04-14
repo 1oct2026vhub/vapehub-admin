@@ -28,6 +28,31 @@ import OrderFilters from "./OrderFilters";
 import OrderFilterDrawer from "./OrderFilterDrawer";
 import GenerateReportButton from "./GenerateReportButton";
 import OrderStatistics from "./OrderStatistics";
+import relativeTime from "dayjs/plugin/relativeTime";
+import useColumnOrder from "@/hooks/useColumnOrder";
+
+// Initialize dayjs plugins
+dayjs.extend(relativeTime);
+
+// Constants for localStorage keys
+const COLUMNS_ORDER_KEY = 'ordersTableColumnsOrder';
+
+// Custom relative time formatter
+const formatExactRelativeTime = (dateString: string): string => {
+  if (!dateString) return "N/A";
+  
+  const now = dayjs();
+  const date = dayjs(dateString);
+  const diffSeconds = now.diff(date, 'second');
+  const diffMinutes = now.diff(date, 'minute');
+  const diffHours = now.diff(date, 'hour');
+  const diffDays = now.diff(date, 'day');
+  
+  if (diffSeconds < 60) return `${diffSeconds} ${diffSeconds === 1 ? 'second' : 'seconds'} ago`;
+  if (diffMinutes < 60) return `${diffMinutes} ${diffMinutes === 1 ? 'minute' : 'minutes'} ago`;
+  if (diffHours < 24) return `${diffHours} ${diffHours === 1 ? 'hour' : 'hours'} ago`;
+  return `${diffDays} ${diffDays === 1 ? 'day' : 'days'} ago`;
+};
 
 interface OrdersTableProps {
   statusFilter?: OrderStatus;
@@ -149,7 +174,14 @@ const OrdersTable = ({
     router.push(`/apps/order/detail/${orderId}`);
   }, [router]);
 
-  const columns = useMemo<MRT_ColumnDef<any>[]>(
+  // Format date as relative time
+  const formatRelativeTime = (dateString: string): string => {
+    if (!dateString) return "N/A";
+    return formatExactRelativeTime(dateString);
+  };
+
+  // Default column definition
+  const defaultColumns = useMemo<MRT_ColumnDef<any>[]>(
     () => [
       { accessorKey: "order_unique_id", header: "Order ID" },
       {
@@ -190,6 +222,11 @@ const OrdersTable = ({
         Cell: ({ row }) => row.original.orderItems?.length || 0,
       },
       {
+        accessorKey: "updatedAt",
+        header: "Date",
+        Cell: ({ row }) => formatRelativeTime(row.original.updatedAt),
+      },
+      {
         accessorKey: "createdAt",
         header: "Created At",
         Cell: ({ row }) => formatDate(row.original.createdAt),
@@ -197,6 +234,9 @@ const OrdersTable = ({
     ],
     []
   );
+
+  // Use our custom hook for column ordering
+  const { columns, columnOrder, onColumnOrderChange } = useColumnOrder('orders', defaultColumns);
 
   // When the page changes
   const handlePageChange = (event: React.ChangeEvent<unknown>, newPage: number) => {
@@ -275,6 +315,9 @@ const OrdersTable = ({
               View Details
             </MenuItem>,
           ]}
+          enableColumnOrdering
+          onColumnOrderChange={onColumnOrderChange}
+          state={{ columnOrder }}
         />
         
         {/* Pagination with additional information */}

@@ -39,6 +39,7 @@ import AppButton from "@/components/Shared/AppButton";
 import FuseSvgIcon from "@fuse/core/FuseSvgIcon";
 import { useSnackbar } from "@/contexts/SnackbarContext";
 import { formatDate } from "@/utils/actions";
+import useColumnOrder from "@/hooks/useColumnOrder";
 
 const SORT_FIELDS = [
   { value: "id", label: "ID" },
@@ -260,6 +261,9 @@ const AttributeTable = ({
     [showDeleted]
   );
 
+  // Use the column order hook
+  const { columns: orderedColumns, columnOrder, onColumnOrderChange } = useColumnOrder('attribute-table', columns);
+
   if (isLoading) return <FuseLoading />;
   if (error) return <p>Failed to load attributes</p>;
 
@@ -347,10 +351,16 @@ const AttributeTable = ({
 
       <DataTable
         data={localAttributes}
-        columns={columns}
+        columns={orderedColumns}
+        enableColumnOrdering
+        onColumnOrderChange={onColumnOrderChange}
+        state={{ columnOrder }}
         enablePagination
         manualPagination
-        state={{ pagination: { pageIndex: page - 1, pageSize } }}
+        state={{ 
+          columnOrder,
+          pagination: { pageIndex: page - 1, pageSize } 
+        }}
         onPaginationChange={(updater: any) => {
           const newPagination = updater({ pageIndex: page - 1, pageSize });
           setPage(newPagination.pageIndex + 1);

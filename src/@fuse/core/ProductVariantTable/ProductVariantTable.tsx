@@ -5,6 +5,7 @@ import DataTable from "@/components/data-table/DataTable";
 import FuseLoading from "@fuse/core/FuseLoading";
 import SearchIcon from "@mui/icons-material/Search";
 import MenuIcon from "@mui/icons-material/Menu";
+import useColumnOrder from "@/hooks/useColumnOrder";
 import {
   ListItemIcon,
   MenuItem,
@@ -228,6 +229,9 @@ const ProductVariantTable = ({
     []
   );
 
+  // Use the column order hook
+  const { columns: orderedColumns, columnOrder, onColumnOrderChange } = useColumnOrder('product-variant-table', columns);
+
   // Handlers
   const handleDeleteClick = (variant: ProductVariant) => {
     setSelectedVariant(variant);
@@ -333,7 +337,10 @@ const ProductVariantTable = ({
 
         <DataTable
           data={variants}
-          columns={columns}
+          columns={orderedColumns}
+          enableColumnOrdering
+          onColumnOrderChange={onColumnOrderChange}
+          state={{ columnOrder }}
           renderRowActionMenuItems={({ closeMenu, row }) => [
             <MenuItem
               key="view"

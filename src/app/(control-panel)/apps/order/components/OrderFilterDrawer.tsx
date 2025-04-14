@@ -92,29 +92,11 @@ const OrderFilterDrawer = ({
               <MenuItem value="completed">Completed</MenuItem>
               <MenuItem value="fail">Failed</MenuItem>
               <MenuItem value="packed">Packed</MenuItem>
-              <MenuItem value="out_for_delivary">Out for Delivery</MenuItem>
+              <MenuItem value="out_for_delivery">Out for Delivery</MenuItem>
               <MenuItem value="cancel">Cancelled</MenuItem>
               <MenuItem value="return_requested">Return Requested</MenuItem>
               <MenuItem value="return_approved">Return Approved</MenuItem>
               <MenuItem value="return_received">Return Received</MenuItem>
-              <MenuItem value="refunded">Refunded</MenuItem>
-            </Select>
-          </FormControl>
-        </ListItem>
-        <ListItem>
-          <FormControl fullWidth size="small">
-            <InputLabel>Payment</InputLabel>
-            <Select
-              value={paymentStatus}
-              label="Payment"
-              onChange={(e) =>
-                onPaymentStatusChange(e.target.value as PaymentStatus)
-              }
-            >
-              {/* <MenuItem value="">All</MenuItem> */}
-              <MenuItem value="pending">Pending</MenuItem>
-              <MenuItem value="paid">Paid</MenuItem>
-              <MenuItem value="failed">Failed</MenuItem>
               <MenuItem value="refunded">Refunded</MenuItem>
             </Select>
           </FormControl>
