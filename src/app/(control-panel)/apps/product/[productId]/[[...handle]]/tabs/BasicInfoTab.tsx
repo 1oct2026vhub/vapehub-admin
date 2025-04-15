@@ -14,13 +14,14 @@ import {
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import AppButton from "@/components/Shared/AppButton";
 import FormInputField from "@/components/Shared/FormInputField";
 import { useProductForm } from "../ProductFormContext";
 import { getAuthToken } from "@/utils/auth";
 import FormSearchableSelectField from "@/components/Shared/FormSearchableSelectField";
 import FormCKEditor from "@/components/Shared/FormCKEditor";
+import debounce from 'lodash/debounce';
 
 const schema = z.object({
   name: z
@@ -53,30 +54,27 @@ const schema = z.object({
 
 type FormData = z.infer<typeof schema>;
 
+interface Option {
+  value: number | string;
+  label: string;
+}
+
 function BasicInfoTab() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { showSnackbar } = useSnackbar();
-  // const { data: categories } = useFetch(
-  //   ["productCategoryList", {}],
-  //   listProductCategory,
-  //   {}
-  // );
-  // const { data: brands } = useFetch(
-  //   ["productBrandList", {}],
-  //   listProductBrand,
-  //   { limit: 100 }
-  // );
-  const { data: categories } = useFetch("categories", listProductCategory, {
-    limit: 1000, // Request a high limit to get all brands
-  });
-  const { data: brands } = useFetch("brands", listProductBrand, {
-    limit: 1000, // Request a high limit to get all brands
-  });
+  
   const [isLoading, setIsLoading] = useState(false);
-  const { formData, updateFormData, nextStep, markStepAsCompleted } =
-    useProductForm();
+  const { formData, updateFormData, nextStep, markStepAsCompleted } = useProductForm();
   const [productId, setProductId] = useState<number | null>(null);
+  
+  // State for searchable select options
+  const [categoryOptions, setCategoryOptions] = useState<Option[]>([]);
+  const [brandOptions, setBrandOptions] = useState<Option[]>([]);
+  const [isCategoryLoading, setIsCategoryLoading] = useState(false);
+  const [isBrandLoading, setIsBrandLoading] = useState(false);
+  const [categorySearchQuery, setCategorySearchQuery] = useState("");
+  const [brandSearchQuery, setBrandSearchQuery] = useState("");
 
   // Determine if we're in edit mode
   const isEditMode = Boolean(productId && productId > 0);
@@ -88,6 +86,7 @@ function BasicInfoTab() {
     reset,
     formState: { isValid, errors },
     handleSubmit,
+    watch,
   } = useForm<FormData>({
     mode: "all",
     defaultValues: {
@@ -101,7 +100,127 @@ function BasicInfoTab() {
     resolver: zodResolver(schema),
   });
 
+  // Fetch initial category and brand options
+  useEffect(() => {
+    fetchCategories("");
+    fetchBrands("");
+  }, []);
+
+  // Fetch categories based on search query
+  const fetchCategories = async (query: string) => {
+    setIsCategoryLoading(true);
+    try {
+      const response = await listProductCategory({
+        search: query,
+        limit: 20 // Limit results for performance
+      });
+      
+      if (response?.data?.categories) {
+        const options = response.data.categories.map((category: any) => ({
+          value: category.id,
+          label: category.name,
+        }));
+        setCategoryOptions(options);
+      }
+    } catch (error) {
+      console.error("Error fetching categories:", error);
+    } finally {
+      setIsCategoryLoading(false);
+    }
+  };
+
+  // Fetch brands based on search query
+  const fetchBrands = async (query: string) => {
+    setIsBrandLoading(true);
+    try {
+      const response = await listProductBrand({
+        search: query,
+        limit: 20 // Limit results for performance
+      });
+      
+      if (response?.data?.brands) {
+        const options = response.data.brands.map((brand: any) => ({
+          value: brand.id,
+          label: brand.name,
+        }));
+        setBrandOptions(options);
+      }
+    } catch (error) {
+      console.error("Error fetching brands:", error);
+    } finally {
+      setIsBrandLoading(false);
+    }
+  };
+
+  // Debounced search handlers
+  const debouncedCategorySearch = useCallback(
+    debounce((query: string) => {
+      fetchCategories(query);
+    }, 300),
+    []
+  );
+
+  const debouncedBrandSearch = useCallback(
+    debounce((query: string) => {
+      fetchBrands(query);
+    }, 300),
+    []
+  );
+
+  // Category search input handler
+  const handleCategorySearch = (query: string) => {
+    setCategorySearchQuery(query);
+    debouncedCategorySearch(query);
+  };
+
+  // Brand search input handler
+  const handleBrandSearch = (query: string) => {
+    setBrandSearchQuery(query);
+    debouncedBrandSearch(query);
+  };
+
   console.log("productId", productId);
+
+  // Fetch selected category and brand on edit
+  const fetchSelectedOptions = async (categoryId: number, brandId: number) => {
+    if (categoryId > 0) {
+      try {
+        const response = await listProductCategory({ id: categoryId });
+        if (response?.data?.categories && response.data.categories.length > 0) {
+          const category = response.data.categories[0];
+          // Add to options if not already present
+          setCategoryOptions(prev => {
+            if (!prev.some(option => option.value === category.id)) {
+              return [...prev, { value: category.id, label: category.name }];
+            }
+            return prev;
+          });
+        }
+      } catch (error) {
+        console.error("Error fetching selected category:", error);
+        showSnackbar("Failed to load category details", "error");
+      }
+    }
+    
+    if (brandId > 0) {
+      try {
+        const response = await listProductBrand({ id: brandId });
+        if (response?.data?.brands && response.data.brands.length > 0) {
+          const brand = response.data.brands[0];
+          // Add to options if not already present
+          setBrandOptions(prev => {
+            if (!prev.some(option => option.value === brand.id)) {
+              return [...prev, { value: brand.id, label: brand.name }];
+            }
+            return prev;
+          });
+        }
+      } catch (error) {
+        console.error("Error fetching selected brand:", error);
+        showSnackbar("Failed to load brand details", "error");
+      }
+    }
+  };
 
   // Fetch product data when component mounts or productId changes
   useEffect(() => {
@@ -125,6 +244,9 @@ function BasicInfoTab() {
             setValue("category_id", productData.category_id || 0);
             setValue("brand_id", productData.brand_id || 0);
             setValue("is_new", productData.is_new ?? true);
+
+            // Fetch selected category and brand details
+            await fetchSelectedOptions(productData.category_id, productData.brand_id);
 
             // Update form context
             updateFormData({
@@ -283,30 +405,22 @@ function BasicInfoTab() {
         name="category_id"
         control={control}
         label="Category"
-        options={
-          categories?.data?.categories?.map((category) => ({
-            value: category.id,
-            label: category.name,
-          })) || []
-        }
+        options={categoryOptions}
         required
-        loading={!categories}
+        loading={isCategoryLoading}
         errorMessage={errors.category_id?.message}
+        onInputChange={handleCategorySearch}
       />
 
       <FormSearchableSelectField
         name="brand_id"
         control={control}
         label="Brand"
-        options={
-          brands?.data?.brands?.map((brand) => ({
-            value: brand.id,
-            label: brand.name,
-          })) || []
-        }
+        options={brandOptions}
         required
-        loading={!brands}
+        loading={isBrandLoading}
         errorMessage={errors.brand_id?.message}
+        onInputChange={handleBrandSearch}
       />
       <AppButton
         label={isEditMode ? "Update" : "Next"}

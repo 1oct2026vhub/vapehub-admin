@@ -15,6 +15,7 @@ interface FormSearchableSelectFieldProps {
   required?: boolean;
   loading?: boolean;
   errorMessage?: string;
+  onInputChange?: (query: string) => void;
 }
 
 const FormSearchableSelectField: React.FC<FormSearchableSelectFieldProps> = ({
@@ -25,6 +26,7 @@ const FormSearchableSelectField: React.FC<FormSearchableSelectFieldProps> = ({
   required = false,
   loading = false,
   errorMessage,
+  onInputChange
 }) => {
   const [touched, setTouched] = useState(false);
 
@@ -49,6 +51,11 @@ const FormSearchableSelectField: React.FC<FormSearchableSelectFieldProps> = ({
           onChange={(_, newValue) =>
             field.onChange(newValue ? newValue.value : "")
           }
+          onInputChange={(event, newInputValue) => {
+            if (onInputChange) {
+              onInputChange(newInputValue);
+            }
+          }}
           loading={loading}
           onFocus={() => setTouched(true)}
           renderInput={(params) => (
