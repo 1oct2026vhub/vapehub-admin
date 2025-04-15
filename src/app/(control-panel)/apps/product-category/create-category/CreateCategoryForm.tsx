@@ -3,14 +3,14 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useRouter } from "next/navigation";
-import { Alert, Typography } from "@mui/material";
+import { Alert, Typography, Box } from "@mui/material";
 import AppButton from "@/components/Shared/AppButton";
 import FormInputField from "@/components/Shared/FormInputField";
 import { usePost } from "@/hooks/useFetch";
 import { createCategory } from "@/services/apiProductCategory";
 import { useSnackbar } from "@/contexts/SnackbarContext";
-import FormFileUpload from "@/components/Shared/FormFileUpload";
-import { useState } from "react";
+import FormFileUploadField from "@/components/Shared/FormFileUploadField";
+import { useState, useEffect } from "react";
 import PageBreadcrumb from "@/components/PageBreadcrumb";
 
 // const schema = z.object({
@@ -28,6 +28,39 @@ const ACCEPTED_FILE_TYPES = [
   "image/jpg",
   "image/webp",
 ];
+const MAX_IMAGE_WIDTH = 236;
+const MAX_IMAGE_HEIGHT = 204;
+
+// Helper function to validate image dimensions
+const validateImageDimensions = (file: File): Promise<{ valid: boolean; dimensions?: { width: number; height: number } }> => {
+  return new Promise((resolve) => {
+    if (!file || !(file instanceof File)) {
+      resolve({ valid: true });
+      return;
+    }
+
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(img.src);
+      if (img.width > MAX_IMAGE_WIDTH || img.height > MAX_IMAGE_HEIGHT) {
+        resolve({ 
+          valid: false, 
+          dimensions: { 
+            width: img.width, 
+            height: img.height 
+          } 
+        });
+      } else {
+        resolve({ valid: true });
+      }
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(img.src);
+      resolve({ valid: true }); // Assume valid on error to avoid blocking submission
+    };
+    img.src = URL.createObjectURL(file);
+  });
+};
 
 const schema = z.object({
   name: z.string()
@@ -52,6 +85,13 @@ const schema = z.object({
       .refine(
         (file) => ACCEPTED_FILE_TYPES.includes(file.type),
         "Only .jpg, .jpeg, .png, and .webp formats are supported"
+      )
+      .refine(
+        async (file) => {
+          const result = await validateImageDimensions(file);
+          return result.valid;
+        },
+        `Image dimensions must not exceed ${MAX_IMAGE_WIDTH}×${MAX_IMAGE_HEIGHT} pixels`
       )
   ]).optional().nullable(),
   
@@ -83,12 +123,27 @@ function CreateCategoryForm() {
   const router = useRouter();
   const { showSnackbar } = useSnackbar();
   const [isLoading, setIsLoading] = useState(false);
+  const [hasImageError, setHasImageError] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
-  const { control, formState, handleSubmit, setValue } = useForm({
+  const { control, formState, handleSubmit, setValue, watch } = useForm({
     mode: "all",
     defaultValues,
     resolver: zodResolver(schema),
   });
+
+  // Watch for logo errors
+  const logoValue = watch("logo");
+  const logoError = formState.errors.logo?.message as string | undefined;
+
+  // Set hasImageError when logo validation fails
+  useEffect(() => {
+    if (logoError) {
+      setHasImageError(true);
+    } else {
+      setHasImageError(false);
+    }
+  }, [logoError]);
 
   const { isValid, dirtyFields, errors } = formState;
   const { trigger: triggerCreateCategory, isMutating } = usePost(
@@ -109,12 +164,17 @@ function CreateCategoryForm() {
           value = value.toLowerCase(); // ✅ Safe conversion
         }
 
-        if (key === "logo" && value instanceof File) {
-          formDataObj.append("logo", value, value.name); // ✅ Ensure file is sent as binary
+        if (key === "logo" && selectedFile instanceof File) {
+          formDataObj.append("logo", selectedFile, selectedFile.name); // ✅ Ensure file is sent as binary
         } else if (typeof value === "string") {
           formDataObj.append(key, value); // ✅ Append only valid string values
         }
       });
+
+      // Handle parent_id separately
+      if (formData.parent_id !== undefined && formData.parent_id !== null) {
+        formDataObj.append("parent_id", formData.parent_id.toString());
+      }
 
       // ✅ Debugging: Check FormData values
       for (const pair of formDataObj.entries()) {
@@ -185,13 +245,20 @@ function CreateCategoryForm() {
           label="Description"
           type="text"
         />
-        <FormFileUpload
-          name="logo"
-          control={control}
-          label="Logo"
-          setValue={setValue}
-          onDelete={() => setValue("logo", null, { shouldValidate: true })}
-        />
+        
+        <Box sx={{ mt: 2, mb: 2 }}>
+          <FormFileUploadField
+            name="logo"
+            control={control}
+            label="Category Logo"
+            onFileChange={(file) => {
+              setSelectedFile(file);
+              setValue("logo", file, { shouldValidate: true });
+            }}
+            helperText={`Upload a category slider image (${MAX_IMAGE_WIDTH} × ${MAX_IMAGE_HEIGHT} px, Max size: 5MB). Supported formats: PNG, JPG, JPEG, WebP`}
+          />
+        </Box>
+
         <div className="mt-6">
           <FormInputField
             name="parent_id"
@@ -207,7 +274,7 @@ function CreateCategoryForm() {
           type="submit"
           fullWidth
           size="large"
-          disabled={!isValid || isMutating}
+          disabled={!isValid || isMutating || hasImageError}
           className="mt-4 w-full"
         />
       </form>
