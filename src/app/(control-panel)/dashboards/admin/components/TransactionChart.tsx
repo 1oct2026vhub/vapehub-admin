@@ -3,6 +3,8 @@
 import { useEffect, useRef } from 'react';
 import { Box } from '@mui/material';
 import { TransactionChartData } from '@/services/apiDashboard';
+import { formatCurrency } from '@/utils/actions';
+import dayjs from 'dayjs';
 
 interface TransactionChartProps {
   data: TransactionChartData[];
@@ -13,7 +15,26 @@ const TransactionChart = ({ data, period }: TransactionChartProps) => {
   const chartRef = useRef<HTMLCanvasElement | null>(null);
   const chartInstance = useRef<any | null>(null);
 
-  // Format the dateRange for better display
+  // Format date for daily display
+  const formatDailyDate = (dateString: string) => {
+    const date = dayjs(dateString);
+    return date.format('MMM D, YYYY');
+  };
+
+  // Format date for monthly display
+  const formatMonthlyDate = (dateRange: string) => {
+    // Extract month and year from the dateRange (e.g., "2025-02-01 - 2025-02-28")
+    const parts = dateRange.split(' - ')[0].split('-');
+    const year = parts[0];
+    const month = parts[1];
+    
+    // Convert month number to month name
+    const monthName = new Date(parseInt(year), parseInt(month) - 1, 1).toLocaleString('default', { month: 'long' });
+    
+    return `${monthName} ${year}`;
+  };
+
+  // Format the dateRange for better display for weekly data
   const formatDateRange = (dateRange: string): string => {
     if (!dateRange) return "";
     
@@ -44,6 +65,19 @@ const TransactionChart = ({ data, period }: TransactionChartProps) => {
     }
   };
 
+  // Choose the appropriate label formatting based on the period
+  const getFormattedLabels = () => {
+    return data.map(item => {
+      if (period === 'daily') {
+        return formatDailyDate(item.date || item.dateRange);
+      } else if (period === 'monthly') {
+        return formatMonthlyDate(item.dateRange);
+      } else {
+        return formatDateRange(item.dateRange);
+      }
+    });
+  };
+
   useEffect(() => {
     if (!chartRef.current) return;
 
@@ -61,7 +95,7 @@ const TransactionChart = ({ data, period }: TransactionChartProps) => {
           chartInstance.current = new ChartJS.default(ctx, {
             type: 'line',
             data: {
-              labels: data.map(item => formatDateRange(item.dateRange)),
+              labels: getFormattedLabels(),
               datasets: [
                 {
                   label: 'Total Revenue',
@@ -106,10 +140,7 @@ const TransactionChart = ({ data, period }: TransactionChartProps) => {
                         label += ': ';
                       }
                       if (context.datasetIndex === 0) {
-                        label += new Intl.NumberFormat('en-US', {
-                          style: 'currency',
-                          currency: 'USD'
-                        }).format(context.parsed.y);
+                        label += formatCurrency(context.parsed.y);
                       } else {
                         label += context.parsed.y;
                       }
@@ -119,7 +150,7 @@ const TransactionChart = ({ data, period }: TransactionChartProps) => {
                       // Find the original date range for this index
                       if (tooltipItems.length > 0) {
                         const index = tooltipItems[0].dataIndex;
-                        return data[index].dateRange;
+                        return period === 'daily' ? data[index].date : data[index].dateRange;
                       }
                       return '';
                     }
@@ -134,11 +165,16 @@ const TransactionChart = ({ data, period }: TransactionChartProps) => {
                   beginAtZero: true,
                   title: {
                     display: true,
-                    text: 'Revenue ($)'
+                    text: 'Revenue (£)'
                   },
                   grid: {
                     display: true,
                     color: 'rgba(0, 0, 0, 0.05)'
+                  },
+                  ticks: {
+                    callback: function(value) {
+                      return formatCurrency(value as number).split('.')[0]; // Show without decimals for cleaner y-axis
+                    }
                   }
                 },
                 y1: {
