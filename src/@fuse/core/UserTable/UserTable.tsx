@@ -25,8 +25,15 @@ import {
   Pagination,
   PaginationItem,
   Chip,
+  DialogContentText,
 } from "@mui/material";
-import { listUser, deleteUser, restoreUser } from "@/services/apiService";
+import { 
+  listUser, 
+  deleteUser, 
+  restoreUser, 
+  blockUser, 
+  unBlockUser 
+} from "@/services/apiService";
 import { useFetch } from "@/hooks/useFetch";
 import { mutate } from "swr";
 import { useRouter } from "next/navigation";
@@ -49,6 +56,7 @@ export type UserType = {
   deletedAt: string | null;
   email_verified_at: string | null;
   createdAt: string | null;
+  blocked?: boolean;
 };
 
 const UserTable = () => {
@@ -59,7 +67,9 @@ const UserTable = () => {
   const [order, setOrder] = useState<"ASC" | "DESC">("DESC");
   const [deleted, setDeleted] = useState<boolean | null>(null);
   const [verified, setVerified] = useState<boolean | null>(null);
+  const [blocked, setBlocked] = useState<boolean | null>(null);
   const [openDialog, setOpenDialog] = useState(false);
+  const [dialogType, setDialogType] = useState<"delete" | "block" | null>(null);
   const [selectedUser, setSelectedUser] = useState<UserType | null>(null);
   const [openDrawer, setOpenDrawer] = useState(false); // Mobile Drawer state
   const [page, setPage] = useState(1);
@@ -85,9 +95,10 @@ const UserTable = () => {
       limit,
       ...(verified !== null && { verified }),
       ...(deleted !== null && { deleted }),
+      ...(blocked !== null && { blocked }),
       ...(roleId !== "all" && { roleId }),
     }),
-    [debouncedSearch, order, deleted, verified, roleId, page, limit],
+    [debouncedSearch, order, deleted, verified, blocked, roleId, page, limit],
   );
 
   const { data, error, isLoading } = useFetch(
@@ -109,27 +120,55 @@ const UserTable = () => {
 
   const handleDeleteClick = (user: UserType) => {
     setSelectedUser(user);
+    setDialogType("delete");
     setOpenDialog(true);
   };
 
-  const handleConfirmDelete = async () => {
+  const handleBlockClick = (user: UserType) => {
+    setSelectedUser(user);
+    setDialogType("block");
+    setOpenDialog(true);
+  };
+
+  const handleConfirmAction = async () => {
     if (!selectedUser) return;
     setOpenDialog(false);
-    setUsers((prev) => prev.filter((user) => user.id !== selectedUser.id));
 
     try {
-      await (deletedUser
-        ? restoreUser(selectedUser.id)
-        : deleteUser(selectedUser.id));
+      if (dialogType === "delete") {
+        // Optimistically update UI for delete/restore
+        setUsers((prev) => prev.filter((user) => user.id !== selectedUser.id));
 
-      // Show Snackbar for success message
-      showSnackbar(
-        deletedUser
-          ? "User restored successfully!"
-          : "User deleted successfully!",
-        "success",
-      );
+        await (deletedUser
+          ? restoreUser(selectedUser.id)
+          : deleteUser(selectedUser.id));
 
+        // Show success message
+        showSnackbar(
+          deletedUser
+            ? "User restored successfully!"
+            : "User deleted successfully!",
+          "success"
+        );
+      } else if (dialogType === "block") {
+        // Always remove the user from the current view
+        setUsers((prev) => prev.filter((user) => user.id !== selectedUser.id));
+
+        // Call the appropriate API
+        await (selectedUser.blocked
+          ? unBlockUser(selectedUser.id)
+          : blockUser(selectedUser.id));
+
+        // Show success message
+        showSnackbar(
+          selectedUser.blocked
+            ? "User unblocked successfully!"
+            : "User blocked successfully!",
+          "success"
+        );
+      }
+
+      // Refresh data in the background without forcing a reload
       mutate(["userList", queryParams]);
     } catch (error) {
       if (error?.errors) {
@@ -143,15 +182,12 @@ const UserTable = () => {
       if (errorData?.error && typeof errorData.error === "object") {
         Object.entries(errorData.error).forEach(([field, message]) => {
           if (typeof message === "string") {
-            // setError(field, { type: 'manual', message });
             showSnackbar(` ${message}`, "error");
           }
         });
-      } else {
-        // setError('root', { type: 'manual', message: errorMessage });
       }
       return false;
-    } 
+    }
   };
 
   // const handleEdit = (user: UserType) => {
@@ -252,6 +288,7 @@ const UserTable = () => {
     dob: user.dob,
     deletedAt: user.deletedAt,
     email_verified_at: user.email_verified_at,
+    blocked: user.blocked,
   }));
 
   return (
@@ -344,10 +381,26 @@ const UserTable = () => {
               }
               size="small"
             >
-            {/* <MenuItem value="all">All Brands</MenuItem> */}
-            <MenuItem value="active">Active</MenuItem>
-            <MenuItem value="deleted">Deleted</MenuItem>
-          </Select>
+              <MenuItem value="active">Active</MenuItem>
+              <MenuItem value="deleted">Deleted</MenuItem>
+            </Select>
+            
+            <Select
+              value={blocked === null ? "all" : blocked ? "true" : "false"}
+              onChange={(e) =>
+                setBlocked(
+                  e.target.value === "all"
+                    ? null
+                    : e.target.value === "true"
+                )
+              }
+              size="small"
+            >
+              <MenuItem value="all">All</MenuItem>
+              <MenuItem value="true">Blocked</MenuItem>
+              <MenuItem value="false">Not Blocked</MenuItem>
+            </Select>
+            
             <Select
               value={order}
               onChange={(e) => setOrder(e.target.value as "ASC" | "DESC")}
@@ -380,6 +433,28 @@ const UserTable = () => {
                     <FuseSvgIcon>heroicons-outline:pencil-square</FuseSvgIcon>
                   </ListItemIcon>
                   Edit
+                </MenuItem>,
+              );
+            }
+
+            // Add Block/Unblock button
+            if (!deletedUser) {
+              menuItems.push(
+                <MenuItem
+                  key="block"
+                  onClick={() => {
+                    handleBlockClick(row.original);
+                    closeMenu();
+                  }}
+                >
+                  <ListItemIcon>
+                    <FuseSvgIcon>
+                      {row.original.blocked
+                        ? "heroicons-outline:lock-open"
+                        : "heroicons-outline:lock-closed"}
+                    </FuseSvgIcon>
+                  </ListItemIcon>
+                  {row.original.blocked ? "Unblock" : "Block"}
                 </MenuItem>,
               );
             }
@@ -461,6 +536,7 @@ const UserTable = () => {
                 )
               }
               size="small"
+              fullWidth
             >
               <MenuItem value="all">All Roles</MenuItem>
               {roles?.map((role) =>
@@ -485,6 +561,7 @@ const UserTable = () => {
                 )
               }
               size="small"
+              fullWidth
             >
               <MenuItem value="all">Verification</MenuItem>
               <MenuItem value="verified">Verified</MenuItem>
@@ -493,9 +570,45 @@ const UserTable = () => {
           </ListItem>
           <ListItem>
             <Select
+              value={deleted === null ? "active" : deleted ? "deleted" : "active"}
+              onChange={(e) =>
+                setDeleted(
+                  e.target.value === "active"
+                    ? null
+                    : e.target.value === "deleted",
+                )
+              }
+              size="small"
+              fullWidth
+            >
+              <MenuItem value="active">Active</MenuItem>
+              <MenuItem value="deleted">Deleted</MenuItem>
+            </Select>
+          </ListItem>
+          <ListItem>
+            <Select
+              value={blocked === null ? "all" : blocked ? "true" : "false"}
+              onChange={(e) =>
+                setBlocked(
+                  e.target.value === "all"
+                    ? null
+                    : e.target.value === "true"
+                )
+              }
+              size="small"
+              fullWidth
+            >
+              <MenuItem value="all">Blocked Status</MenuItem>
+              <MenuItem value="true">Blocked</MenuItem>
+              <MenuItem value="false">Not Blocked</MenuItem>
+            </Select>
+          </ListItem>
+          <ListItem>
+            <Select
               value={order}
               onChange={(e) => setOrder(e.target.value as "ASC" | "DESC")}
               size="small"
+              fullWidth
             >
               <MenuItem value="DESC">Descending</MenuItem>
               <MenuItem value="ASC">Ascending</MenuItem>
@@ -513,18 +626,24 @@ const UserTable = () => {
         </List>
       </Drawer>
 
-      {/* Delete Confirmation Dialog */}
+      {/* Replace the Delete Confirmation Dialog with a more generic Action Confirmation Dialog */}
       <Dialog open={openDialog} onClose={() => setOpenDialog(false)}>
-        <DialogTitle>Confirm Delete</DialogTitle>
+        <DialogTitle>Confirm Action</DialogTitle>
         <DialogContent>
-          <Typography>
-            Are you sure you want to {deletedUser ? "Restore" : "Delete"}{" "}
-            <strong>
-              {selectedUser?.first_name ? selectedUser?.first_name : ""}{" "}
-              {selectedUser?.last_name ? selectedUser?.last_name : ""}
-            </strong>
-            ?
-          </Typography>
+          {dialogType === "delete" ? (
+            <Typography>
+              Are you sure you want to {deletedUser ? "restore" : "delete"}{" "}
+              <strong>
+                {selectedUser?.first_name || ""}{" "}
+                {selectedUser?.last_name || ""}
+              </strong>
+              ?
+            </Typography>
+          ) : (
+            <DialogContentText>
+              Are you sure you want to {selectedUser?.blocked ? "unblock" : "block"} this user?
+            </DialogContentText>
+          )}
         </DialogContent>
         <DialogActions>
           <Button
@@ -534,12 +653,16 @@ const UserTable = () => {
             Cancel
           </Button>
           <AppButton
-            className="w-14"
-            label={deletedUser ? "Restore" : "Delete"}
+            className="w-20"
+            label={
+              dialogType === "delete"
+                ? (deletedUser ? "Restore" : "Delete")
+                : (selectedUser?.blocked ? "Unblock" : "Block")
+            }
             type="button"
             fullWidth
             size="large"
-            onClick={handleConfirmDelete}
+            onClick={handleConfirmAction}
           />
         </DialogActions>
       </Dialog>
