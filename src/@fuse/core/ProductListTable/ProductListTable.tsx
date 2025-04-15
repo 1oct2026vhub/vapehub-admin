@@ -29,6 +29,7 @@ import {
   FormControl,
   InputLabel,
   Autocomplete,
+  CircularProgress,
 } from "@mui/material";
 import { listProducts } from "@/services/apiProduct";
 import { listProductCategory } from "@/services/apiProductCategory";
@@ -42,6 +43,7 @@ import { useSnackbar } from "@/contexts/SnackbarContext";
 import { deleteProduct, restoreProduct } from "@/services/apiProduct";
 import { formatDate } from "@/utils/actions";
 import useColumnOrder from "@/hooks/useColumnOrder";
+import debounce from 'lodash/debounce';
 
 export type ProductType = {
   id: number;
@@ -107,6 +109,15 @@ const ProductListTable = ({
     null
   );
   const [selectedBrand, setSelectedBrand] = useState<BrandType | null>(null);
+
+  // State for searchable categories and brands
+  const [categoryOptions, setCategoryOptions] = useState<{id: number, name: string}[]>([]);
+  const [brandOptions, setBrandOptions] = useState<{id: number, name: string}[]>([]);
+  const [isCategoryLoading, setIsCategoryLoading] = useState(false);
+  const [isBrandLoading, setIsBrandLoading] = useState(false);
+  const [categorySearchQuery, setCategorySearchQuery] = useState("");
+  const [brandSearchQuery, setBrandSearchQuery] = useState("");
+  
   const [openDrawer, setOpenDrawer] = useState(false);
   const [page, setPage] = useState(1);
   const [limit] = useState(10);
@@ -122,70 +133,126 @@ const ProductListTable = ({
   const [manuallyRefreshing, setManuallyRefreshing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Fetch categories and brands
-  const { data: categoriesData } = useFetch("categories", listProductCategory, {
-    limit: 1000, // Request a high limit to get all categories
-  });
-  const { data: brandsData } = useFetch("brands", listProductBrand, {
-    limit: 1000, // Request a high limit to get all brands
-  });
-
-  // Process categories and brands for dropdown select
-  const categoryOptions = useMemo(() => {
-    if (!categoriesData?.data?.categories) return [];
-    // Filter out duplicates by creating a map keyed by ID
-    const uniqueCategories = new Map();
-    categoriesData.data.categories.forEach((category: CategoryType) => {
-      uniqueCategories.set(category.id, category);
-    });
-    // Convert back to array
-    return Array.from(uniqueCategories.values()).map(
-      (category: CategoryType) => ({
-        id: category.id,
-        name: category.name,
-      })
-    );
-  }, [categoriesData]);
-
-  const brandOptions = useMemo(() => {
-    if (!brandsData?.data?.brands) return [];
-    // Filter out duplicates by creating a map keyed by ID
-    const uniqueBrands = new Map();
-    brandsData.data.brands.forEach((brand: BrandType) => {
-      uniqueBrands.set(brand.id, brand);
-    });
-    // Convert back to array
-    return Array.from(uniqueBrands.values()).map((brand: BrandType) => ({
-      id: brand.id,
-      name: brand.name,
-    }));
-  }, [brandsData]);
-
-  // Update categories and brands when selections change
-  useEffect(() => {
-    if (selectedCategory) {
-      setCategories(selectedCategory.id.toString());
-    } else {
-      setCategories("");
+  // Function to fetch categories based on search query
+  const fetchCategories = async (query: string) => {
+    setIsCategoryLoading(true);
+    try {
+      const response = await listProductCategory({
+        search: query,
+        limit: 20 // Limit results for performance
+      });
+      
+      if (response?.data?.categories) {
+        const categories = response.data.categories;
+        
+        // Sort categories with priority for exact matches and starts with
+        const sortedCategories = [...categories].sort((a, b) => {
+          const aName = a.name.toLowerCase();
+          const bName = b.name.toLowerCase();
+          const queryLower = query.toLowerCase();
+          
+          // Exact match gets highest priority
+          if (aName === queryLower && bName !== queryLower) return -1;
+          if (bName === queryLower && aName !== queryLower) return 1;
+          
+          // Then prioritize "starts with"
+          if (aName.startsWith(queryLower) && !bName.startsWith(queryLower)) return -1;
+          if (bName.startsWith(queryLower) && !aName.startsWith(queryLower)) return 1;
+          
+          // Then prioritize contains
+          if (aName.includes(queryLower) && !bName.includes(queryLower)) return -1;
+          if (bName.includes(queryLower) && !aName.includes(queryLower)) return 1;
+          
+          // Alphabetical order for the rest
+          return aName.localeCompare(bName);
+        });
+        
+        setCategoryOptions(sortedCategories);
+      }
+    } catch (error) {
+      console.error("Error fetching categories:", error);
+    } finally {
+      setIsCategoryLoading(false);
     }
-  }, [selectedCategory]);
+  };
 
-  useEffect(() => {
-    if (selectedBrand) {
-      setBrands(selectedBrand.id.toString());
-    } else {
-      setBrands("");
+  // Function to fetch brands based on search query
+  const fetchBrands = async (query: string) => {
+    setIsBrandLoading(true);
+    try {
+      const response = await listProductBrand({
+        search: query,
+        limit: 20 // Limit results for performance
+      });
+      
+      if (response?.data?.brands) {
+        const brands = response.data.brands;
+        
+        // Sort brands with priority for exact matches and starts with
+        const sortedBrands = [...brands].sort((a, b) => {
+          const aName = a.name.toLowerCase();
+          const bName = b.name.toLowerCase();
+          const queryLower = query.toLowerCase();
+          
+          // Exact match gets highest priority
+          if (aName === queryLower && bName !== queryLower) return -1;
+          if (bName === queryLower && aName !== queryLower) return 1;
+          
+          // Then prioritize "starts with"
+          if (aName.startsWith(queryLower) && !bName.startsWith(queryLower)) return -1;
+          if (bName.startsWith(queryLower) && !aName.startsWith(queryLower)) return 1;
+          
+          // Then prioritize contains
+          if (aName.includes(queryLower) && !bName.includes(queryLower)) return -1;
+          if (bName.includes(queryLower) && !aName.includes(queryLower)) return 1;
+          
+          // Alphabetical order for the rest
+          return aName.localeCompare(bName);
+        });
+        
+        setBrandOptions(sortedBrands);
+      }
+    } catch (error) {
+      console.error("Error fetching brands:", error);
+    } finally {
+      setIsBrandLoading(false);
     }
-  }, [selectedBrand]);
+  };
 
-  // Debounce search input
+  // Debounced search handlers
+  const debouncedCategorySearch = useCallback(
+    debounce((query: string) => {
+      fetchCategories(query);
+    }, 300),
+    []
+  );
+
+  const debouncedBrandSearch = useCallback(
+    debounce((query: string) => {
+      fetchBrands(query);
+    }, 300),
+    []
+  );
+
+  // Category search input handler
+  const handleCategorySearch = (query: string) => {
+    setCategorySearchQuery(query);
+    debouncedCategorySearch(query);
+  };
+
+  // Brand search input handler
+  const handleBrandSearch = (query: string) => {
+    setBrandSearchQuery(query);
+    debouncedBrandSearch(query);
+  };
+
+  // Load initial options on component mount
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSearch(search);
-    }, 1000);
-    return () => clearTimeout(timer);
-  }, [search]);
+    fetchCategories("");
+    fetchBrands("");
+  }, []);
 
+  // Fetch data from API using SWR
   const queryParams = useMemo(
     () => ({
       keyword: debouncedSearch,
@@ -523,18 +590,38 @@ const ProductListTable = ({
                 value={selectedCategory}
                 onChange={(event, newValue) => {
                   setSelectedCategory(newValue);
+                  setCategories(newValue ? newValue.id.toString() : "");
                 }}
+                onInputChange={(event, newInputValue) => {
+                  handleCategorySearch(newInputValue);
+                }}
+                filterOptions={(options, state) => options}
+                loading={isCategoryLoading}
                 isOptionEqualToValue={(option, value) => option.id === value.id}
                 renderInput={(params) => (
                   <TextField
                     {...params}
                     label="Category"
+                    placeholder="Search category..."
                     variant="outlined"
+                    fullWidth
                     size="small"
+                    InputProps={{
+                      ...params.InputProps,
+                      endAdornment: (
+                        <>
+                          {isCategoryLoading ? (
+                            <CircularProgress color="inherit" size={20} />
+                          ) : null}
+                          {params.InputProps.endAdornment}
+                        </>
+                      ),
+                    }}
                   />
                 )}
-                size="small"
+                fullWidth
                 sx={{
+                  width: "100%",
                   "& .MuiOutlinedInput-root": {
                     "&.Mui-focused fieldset": {
                       borderColor: "#2E9970",
@@ -555,18 +642,38 @@ const ProductListTable = ({
                 value={selectedBrand}
                 onChange={(event, newValue) => {
                   setSelectedBrand(newValue);
+                  setBrands(newValue ? newValue.id.toString() : "");
                 }}
+                onInputChange={(event, newInputValue) => {
+                  handleBrandSearch(newInputValue);
+                }}
+                filterOptions={(options, state) => options}
+                loading={isBrandLoading}
                 isOptionEqualToValue={(option, value) => option.id === value.id}
                 renderInput={(params) => (
                   <TextField
                     {...params}
                     label="Brand"
+                    placeholder="Search brand..."
                     variant="outlined"
+                    fullWidth
                     size="small"
+                    InputProps={{
+                      ...params.InputProps,
+                      endAdornment: (
+                        <>
+                          {isBrandLoading ? (
+                            <CircularProgress color="inherit" size={20} />
+                          ) : null}
+                          {params.InputProps.endAdornment}
+                        </>
+                      ),
+                    }}
                   />
                 )}
-                size="small"
+                fullWidth
                 sx={{
+                  width: "100%",
                   "& .MuiOutlinedInput-root": {
                     "&.Mui-focused fieldset": {
                       borderColor: "#2E9970",
@@ -750,17 +857,48 @@ const ProductListTable = ({
               value={selectedCategory}
               onChange={(event, newValue) => {
                 setSelectedCategory(newValue);
+                setCategories(newValue ? newValue.id.toString() : "");
               }}
+              onInputChange={(event, newInputValue) => {
+                handleCategorySearch(newInputValue);
+              }}
+              filterOptions={(options, state) => options}
+              loading={isCategoryLoading}
               isOptionEqualToValue={(option, value) => option.id === value.id}
               renderInput={(params) => (
                 <TextField
                   {...params}
                   label="Category"
+                  placeholder="Search category..."
+                  variant="outlined"
                   fullWidth
                   size="small"
+                  InputProps={{
+                    ...params.InputProps,
+                    endAdornment: (
+                      <>
+                        {isCategoryLoading ? (
+                          <CircularProgress color="inherit" size={20} />
+                        ) : null}
+                        {params.InputProps.endAdornment}
+                      </>
+                    ),
+                  }}
                 />
               )}
               fullWidth
+              sx={{
+                width: "100%",
+                "& .MuiOutlinedInput-root": {
+                  "&.Mui-focused fieldset": {
+                    borderColor: "#2E9970",
+                    borderWidth: "2px",
+                  },
+                },
+                "& .MuiInputLabel-root.Mui-focused": {
+                  color: "#2E9970",
+                },
+              }}
             />
           </ListItem>
           <ListItem>
@@ -770,12 +908,48 @@ const ProductListTable = ({
               value={selectedBrand}
               onChange={(event, newValue) => {
                 setSelectedBrand(newValue);
+                setBrands(newValue ? newValue.id.toString() : "");
               }}
+              onInputChange={(event, newInputValue) => {
+                handleBrandSearch(newInputValue);
+              }}
+              filterOptions={(options, state) => options}
+              loading={isBrandLoading}
               isOptionEqualToValue={(option, value) => option.id === value.id}
               renderInput={(params) => (
-                <TextField {...params} label="Brand" fullWidth size="small" />
+                <TextField
+                  {...params}
+                  label="Brand"
+                  placeholder="Search brand..."
+                  variant="outlined"
+                  fullWidth
+                  size="small"
+                  InputProps={{
+                    ...params.InputProps,
+                    endAdornment: (
+                      <>
+                        {isBrandLoading ? (
+                          <CircularProgress color="inherit" size={20} />
+                        ) : null}
+                        {params.InputProps.endAdornment}
+                      </>
+                    ),
+                  }}
+                />
               )}
               fullWidth
+              sx={{
+                width: "100%",
+                "& .MuiOutlinedInput-root": {
+                  "&.Mui-focused fieldset": {
+                    borderColor: "#2E9970",
+                    borderWidth: "2px",
+                  },
+                },
+                "& .MuiInputLabel-root.Mui-focused": {
+                  color: "#2E9970",
+                },
+              }}
             />
           </ListItem>
           <ListItem>

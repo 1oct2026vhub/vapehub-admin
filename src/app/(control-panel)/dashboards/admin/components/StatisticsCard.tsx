@@ -3,6 +3,7 @@
 import { Card, CardContent, Typography, Box } from '@mui/material';
 import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
+import CurrencyPoundIcon from '@mui/icons-material/CurrencyPound';
 import PersonIcon from '@mui/icons-material/Person';
 import InventoryIcon from '@mui/icons-material/Inventory';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
@@ -20,7 +21,7 @@ const StatisticsCard = ({ title, value, icon, color, subtitle }: StatisticsCardP
   const getIcon = () => {
     switch (icon) {
       case 'sales':
-        return <AttachMoneyIcon />;
+        return <CurrencyPoundIcon />;
       case 'orders':
         return <ShoppingCartIcon />;
       case 'users':
@@ -32,7 +33,7 @@ const StatisticsCard = ({ title, value, icon, color, subtitle }: StatisticsCardP
       case 'outOfStock':
         return <RemoveShoppingCartIcon />;
       default:
-        return <AttachMoneyIcon />;
+        return <CurrencyPoundIcon />;
     }
   };
 

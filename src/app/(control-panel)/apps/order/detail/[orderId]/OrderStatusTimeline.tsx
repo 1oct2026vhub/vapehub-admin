@@ -72,9 +72,24 @@ const OrderStatusTimeline: React.FC<OrderStatusTimelineProps> = ({
   const [isCancelling, setIsCancelling] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
+  // Check if a date is valid and not epoch/1970
+  const isValidDate = (dateString: string): boolean => {
+    if (!dateString) return false;
+    const date = new Date(dateString);
+    return !isNaN(date.getTime()) && date.getFullYear() > 1970;
+  };
+
   // Format date for display
   const formatDate = (dateString: string): { date: string; time: string } => {
+    if (!dateString || !isValidDate(dateString)) {
+      return {
+        date: "",
+        time: ""
+      };
+    }
+    
     const date = new Date(dateString);
+    
     return {
       date: date.toLocaleDateString("en-US", {
         weekday: "short",
@@ -214,9 +229,17 @@ const OrderStatusTimeline: React.FC<OrderStatusTimelineProps> = ({
         {sortedTimeline.map((step, index) => {
           // Find the latest log for this status
           const logItem = findLatestLogForStatus(step.status);
+          
+          // Get the timestamp to use - For pending status, use orderDate if timestamp is invalid
+          let timestampToUse = step.timestamp;
+          if (step.status === "pending" && !isValidDate(step.timestamp)) {
+            timestampToUse = orderDate;
+          }
+          
+          // Format the date using the determined timestamp or log timestamp
           const { date: formattedDate, time: formattedTime } = logItem 
             ? formatDate(logItem.createdAt) 
-            : formatDate(step.timestamp);
+            : formatDate(timestampToUse);
           
           // Determine if this step is completed or active
           const isCompleted = index <= currentStatusIndex;
@@ -268,7 +291,7 @@ const OrderStatusTimeline: React.FC<OrderStatusTimelineProps> = ({
                       : "text-gray-700"
                     }`}
                   >
-                    {displayLabel} {(isCompleted && status !== "cancel") || step.status === "cancel" ? formattedDate && `- ${formattedDate}` : ""}
+                    {displayLabel} {((isCompleted && status !== "cancel") || step.status === "cancel") && formattedDate && `- ${formattedDate}`}
                   </Typography>
                 </div>
 

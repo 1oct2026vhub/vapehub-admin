@@ -61,6 +61,7 @@ const CustomerTable = () => {
   const [order, setOrder] = useState<"ASC" | "DESC">("DESC");
   const [deleted, setDeleted] = useState<boolean | null>(null);
   const [verified, setVerified] = useState<boolean | null>(null);
+  const [blocked, setBlocked] = useState<boolean | null>(null);
 
   const [customers, setCustomers] = useState<UserType[]>([]);
   const [page, setPage] = useState(1);
@@ -88,8 +89,9 @@ const CustomerTable = () => {
       limit,
       ...(verified !== null && { verified }),
       ...(deleted !== null && { deleted }),
+      ...(blocked !== null && { blocked }),
     }),
-    [debouncedSearch, order, deleted, verified, page, limit],
+    [debouncedSearch, order, deleted, verified, blocked, page, limit],
   );
 
   const { data, error, isLoading } = useFetch(
@@ -114,29 +116,6 @@ const CustomerTable = () => {
   const totalRecords = data?.data?.total || 0; // Get total users from API
   const totalPages = Math.ceil(totalRecords / limit); // Total pages
   const deletedCustomer = customers?.find((user) => user.deletedAt !== null);
-
-  // const handleConfirmAction = async () => {
-  //   if (!selectedUser) return;
-  //   setDialogOpen(false);
-  //   try {
-  //     if (dialogType === "delete") {
-  //       setCustomers((prev) => prev.filter((user) => user.id !== selectedUser.id));
-  //       // await deleteCustomer(selectedUser.id);
-  //       await (deletedCustomer ? restoreCustomer(selectedUser.id) : deleteCustomer(selectedUser.id));
-
-  //     } else if (dialogType === "block") {
-  //       setCustomers((prev) =>
-  //         prev.map((user) =>
-  //           user.id === selectedUser.id ? { ...user, blocked: !user.blocked } : user
-  //         )
-  //       );
-  //       await (selectedUser.blocked ? unBlockCustomer(selectedUser.id) : blockCustomer(selectedUser.id));
-  //     }
-  //     await mutate(["customerList", queryParams], true);
-  //   } catch (error) {
-  //     console.error("Action error:", error);
-  //   }
-  // };
 
   const handleConfirmAction = async () => {
     if (!selectedUser) return;
@@ -352,6 +331,21 @@ const CustomerTable = () => {
               <MenuItem value="deleted">Deleted</MenuItem>
             </Select>
             <Select
+              value={blocked === null ? "all" : blocked ? "true" : "false"}
+              onChange={(e) =>
+                setBlocked(
+                  e.target.value === "all"
+                    ? null
+                    : e.target.value === "true"
+                )
+              }
+              size="small"
+            >
+                            <MenuItem value="all">All</MenuItem>
+              <MenuItem value="true">Blocked</MenuItem>
+              <MenuItem value="false">Not Blocked</MenuItem>
+            </Select>
+            <Select
               value={order}
               onChange={(e) => setOrder(e.target.value as "ASC" | "DESC")}
               size="small"
@@ -364,57 +358,6 @@ const CustomerTable = () => {
         <DataTable
           data={customerData}
           columns={columns}
-          // renderRowActionMenuItems={({ closeMenu, row }) => {
-          //   const isDeleted = row.original.deletedAt !== null; // Avoid using `deletedCustomer` which depends on state
-
-          //   return [
-          //     !isDeleted && (
-          //       <MenuItem
-          //         key="view-details"
-          //         onClick={() => {
-          //           router.push(`/apps/customer/customer-detail/${row.original.id}`);
-          //           closeMenu();
-          //         }}
-          //       >
-          //         <ListItemIcon>
-          //           <FuseSvgIcon>heroicons-outline:arrow-top-right-on-square</FuseSvgIcon>
-          //         </ListItemIcon>
-          //         View Details
-          //       </MenuItem>
-          //     ),
-          //     <MenuItem
-          //       key="delete"
-          //       onClick={() => {
-          //         openDialog("delete", row.original);
-          //         closeMenu();
-          //       }}
-          //     >
-          //       <ListItemIcon>
-          //         <FuseSvgIcon>
-          //           {isDeleted ? "heroicons-outline:arrow-path" : "heroicons-outline:trash"}
-          //         </FuseSvgIcon>
-          //       </ListItemIcon>
-          //       {isDeleted ? "Restore" : "Delete"}
-          //     </MenuItem>,
-          //     !isDeleted && (
-          //       <MenuItem
-          //         key="block-unblock"
-          //         onClick={() => {
-          //           openDialog("block", row.original);
-          //           closeMenu();
-          //         }}
-          //       >
-          //         <ListItemIcon>
-          //           <FuseSvgIcon>
-          //             {row.original.blocked ? "heroicons-outline:lock-open" : "heroicons-outline:lock-closed"}
-          //           </FuseSvgIcon>
-          //         </ListItemIcon>
-          //         {row.original.blocked ? "Unblock" : "Block"}
-          //       </MenuItem>
-          //     ),
-          //   ].filter(Boolean); // Removes `null` values
-          // }}
-
           renderRowActionMenuItems={({ closeMenu, row }) => {
             const isDeleted = row.original.deletedAt !== null;
 
@@ -514,10 +457,6 @@ const CustomerTable = () => {
       >
         <List>
           <ListItem>
-            {/* <Select value={order} onChange={(e) => setOrder(e.target.value as "ASC" | "DESC")} size="small">
-              <MenuItem value="DESC">Descending</MenuItem>
-              <MenuItem value="ASC">Ascending</MenuItem>
-            </Select> */}
             <Select
               value={
                 verified === null ? "all" : verified ? "verified" : "pending"
@@ -552,6 +491,21 @@ const CustomerTable = () => {
             </Select>
           </ListItem>
           <ListItem>
+            <Select
+              value={blocked === null ? "--" : blocked ? "true" : "false"}
+              onChange={(e) =>
+                setBlocked(
+                  e.target.value === "--"
+                    ? null
+                    : e.target.value === "true"
+                )
+              }
+              size="small"
+            >
+              <MenuItem value="--">--</MenuItem>
+              <MenuItem value="true">true</MenuItem>
+              <MenuItem value="false">false</MenuItem>
+            </Select>
             <Select
               value={order}
               onChange={(e) => setOrder(e.target.value as "ASC" | "DESC")}
