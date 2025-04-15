@@ -112,7 +112,7 @@ function BasicInfoTab() {
     try {
       const response = await listProductCategory({
         search: query,
-        limit: 20 // Limit results for performance
+        limit: 1000 // Limit results for performance
       });
       
       if (response?.data?.categories) {
@@ -135,7 +135,7 @@ function BasicInfoTab() {
     try {
       const response = await listProductBrand({
         search: query,
-        limit: 20 // Limit results for performance
+        limit: 1000 // Limit results for performance
       });
       
       if (response?.data?.brands) {
