@@ -235,7 +235,7 @@ function ProductImagesTab() {
         
         if (validationError) {
           hasErrors = true;
-          showSnackbar(validationError, "error");
+          // showSnackbar(validationError, "error");
         }
       }
       
