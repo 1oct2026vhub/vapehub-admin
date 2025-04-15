@@ -15,7 +15,25 @@ const SalesChart = ({ data, period }: SalesChartProps) => {
   const chartRef = useRef<HTMLCanvasElement | null>(null);
   const chartInstance = useRef<any | null>(null);
 
-  // Format date range to display in a more readable format
+  // Format date for daily display
+  const formatDailyDate = (dateString: string) => {
+    const date = dayjs(dateString);
+    return date.format('MMM D, YYYY');
+  };
+
+  // Format date for monthly display
+  const formatMonthlyDate = (dateRange: string) => {
+    // Extract month and year from the dateRange (e.g., "2025-02-01 - 2025-02-28")
+    const month = dateRange.substring(5, 7);
+    const year = dateRange.substring(0, 4);
+    
+    // Convert month number to month name
+    const monthName = new Date(parseInt(year), parseInt(month) - 1, 1).toLocaleString('default', { month: 'long' });
+    
+    return `${monthName} ${year}`;
+  };
+
+  // Format date range to display in a more readable format for weekly data
   const formatDateRange = (dateRange: string) => {
     const [start, end] = dateRange.split(' - ');
     const startDate = dayjs(start);
@@ -35,6 +53,19 @@ const SalesChart = ({ data, period }: SalesChartProps) => {
     return `${startDate.format('MMM D, YYYY')} - ${endDate.format('MMM D, YYYY')}`;
   };
 
+  // Choose the appropriate label formatting based on the period
+  const getFormattedLabels = () => {
+    return data.map(item => {
+      if (period === 'daily') {
+        return formatDailyDate(item.dateRange);
+      } else if (period === 'monthly') {
+        return formatMonthlyDate(item.dateRange);
+      } else {
+        return formatDateRange(item.dateRange);
+      }
+    });
+  };
+
   useEffect(() => {
     if (!chartRef.current) return;
 
@@ -52,7 +83,7 @@ const SalesChart = ({ data, period }: SalesChartProps) => {
           chartInstance.current = new ChartJS.default(ctx, {
             type: 'line',
             data: {
-              labels: data.map(item => formatDateRange(item.dateRange)),
+              labels: getFormattedLabels(),
               datasets: [
                 {
                   label: 'Total Sales',
@@ -107,7 +138,7 @@ const SalesChart = ({ data, period }: SalesChartProps) => {
                       // Find the original date range for this index
                       if (tooltipItems.length > 0) {
                         const index = tooltipItems[0].dataIndex;
-                        return data[index].dateRange;
+                        return period === 'daily' ? data[index].date : data[index].dateRange;
                       }
                       return '';
                     }

@@ -25,6 +25,7 @@ import UserGrowthChart from "./components/UserGrowthChart";
 import TransactionChart from "./components/TransactionChart";
 import RecentOrdersTable from "./components/RecentOrdersTable";
 import RecentTransactionsTable from "./components/RecentTransactionsTable";
+import { formatPounds } from "@/utils/actions";
 import {
   getDashboardStats,
   getSalesChartData,
@@ -113,7 +114,7 @@ const AdminDashboardApp = () => {
         <Grid item xs={12} sm={6} md={3}>
           <StatisticsCard
             title="Today's Sales"
-            value={stats?.sales.today || "$0"}
+            value={formatPounds(stats?.sales.today?.replace(/[^\d.-]/g, '') || 0)}
             icon="sales"
             color="#4CAF50"
           />
@@ -121,7 +122,7 @@ const AdminDashboardApp = () => {
         <Grid item xs={12} sm={6} md={3}>
           <StatisticsCard
             title="Weekly Sales"
-            value={stats?.sales.weekly || "$0"}
+            value={formatPounds(stats?.sales.weekly?.replace(/[^\d.-]/g, '') || 0)}
             icon="sales"
             color="#2196F3"
           />
@@ -129,7 +130,7 @@ const AdminDashboardApp = () => {
         <Grid item xs={12} sm={6} md={3}>
           <StatisticsCard
             title="Monthly Sales"
-            value={stats?.sales.monthly || "$0"}
+            value={formatPounds(stats?.sales.monthly?.replace(/[^\d.-]/g, '') || 0)}
             icon="sales"
             color="#9C27B0"
           />

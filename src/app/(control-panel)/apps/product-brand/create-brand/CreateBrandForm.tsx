@@ -3,14 +3,14 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useRouter } from "next/navigation";
-import { Alert, Typography } from "@mui/material";
+import { Alert, Typography, Box } from "@mui/material";
 import AppButton from "@/components/Shared/AppButton";
 import FormInputField from "@/components/Shared/FormInputField";
 import { usePost } from "@/hooks/useFetch";
 import { createBrand } from "@/services/apiProductBrand";
 import { useSnackbar } from "@/contexts/SnackbarContext";
-import FormFileUpload from "@/components/Shared/FormFileUpload";
-import { useState } from "react";
+import FormFileUploadField from "@/components/Shared/FormFileUploadField";
+import { useState, useEffect } from "react";
 import PageBreadcrumb from "@/components/PageBreadcrumb";
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
@@ -20,6 +20,39 @@ const ACCEPTED_FILE_TYPES = [
   "image/jpg",
   "image/webp",
 ];
+const MAX_IMAGE_WIDTH = 150;
+const MAX_IMAGE_HEIGHT = 150;
+
+// Helper function to validate image dimensions
+const validateImageDimensions = (file: File): Promise<{ valid: boolean; dimensions?: { width: number; height: number } }> => {
+  return new Promise((resolve) => {
+    if (!file || !(file instanceof File)) {
+      resolve({ valid: true });
+      return;
+    }
+
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(img.src);
+      if (img.width > MAX_IMAGE_WIDTH || img.height > MAX_IMAGE_HEIGHT) {
+        resolve({ 
+          valid: false, 
+          dimensions: { 
+            width: img.width, 
+            height: img.height 
+          } 
+        });
+      } else {
+        resolve({ valid: true });
+      }
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(img.src);
+      resolve({ valid: true }); // Assume valid on error to avoid blocking submission
+    };
+    img.src = URL.createObjectURL(file);
+  });
+};
 
 const schema = z.object({
   name: z.string()
@@ -45,6 +78,13 @@ const schema = z.object({
         (file) => ACCEPTED_FILE_TYPES.includes(file.type),
         "Only .jpg, .jpeg, .png, and .webp formats are supported"
       )
+      .refine(
+        async (file) => {
+          const result = await validateImageDimensions(file);
+          return result.valid;
+        },
+        `Image dimensions must not exceed ${MAX_IMAGE_WIDTH}×${MAX_IMAGE_HEIGHT} pixels`
+      )
   ]).optional().nullable(),
 });
 
@@ -61,12 +101,27 @@ function CreateBrandForm() {
   const router = useRouter();
   const { showSnackbar } = useSnackbar();
   const [isLoading, setIsLoading] = useState(false);
+  const [hasImageError, setHasImageError] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
-  const { control, formState, handleSubmit, setValue } = useForm<FormType>({
+  const { control, formState, handleSubmit, setValue, watch } = useForm<FormType>({
     mode: "all",
     defaultValues,
     resolver: zodResolver(schema),
   });
+
+  // Watch for logo errors
+  const logoValue = watch("logo");
+  const logoError = formState.errors.logo?.message as string | undefined;
+
+  // Set hasImageError when logo validation fails
+  useEffect(() => {
+    if (logoError) {
+      setHasImageError(true);
+    } else {
+      setHasImageError(false);
+    }
+  }, [logoError]);
 
   const { isValid, dirtyFields, errors } = formState;
   const { trigger: triggerCreateBrand, isMutating } = usePost(
@@ -90,8 +145,8 @@ function CreateBrandForm() {
       }
 
       // Only append logo if it's a File instance
-      if (formData.logo instanceof File) {
-        formDataObj.append("logo", formData.logo);
+      if (selectedFile instanceof File) {
+        formDataObj.append("logo", selectedFile);
       }
 
       await triggerCreateBrand(formDataObj);
@@ -161,13 +216,19 @@ function CreateBrandForm() {
             multiline
             rows={4}
           />
-          <FormFileUpload
-            name="logo"
-            control={control}
-            label="Brand Logo"
-            setValue={setValue}
-            onDelete={() => setValue("logo", undefined)}
-          />
+
+          <Box sx={{ mt: 2, mb: 2 }}>
+            <FormFileUploadField
+              name="logo"
+              control={control}
+              label="Brand Logo"
+              onFileChange={(file) => {
+                setSelectedFile(file);
+                setValue("logo", file, { shouldValidate: true });
+              }}
+              helperText={`Upload a brand logo (${MAX_IMAGE_WIDTH} × ${MAX_IMAGE_HEIGHT} px, Max size: 5MB). Supported formats: PNG, JPG, JPEG, WebP`}
+            />
+          </Box>
 
           <AppButton
             label="Create"
@@ -175,7 +236,7 @@ function CreateBrandForm() {
             type="submit"
             fullWidth
             size="large"
-            disabled={!isValid || isMutating}
+            disabled={!isValid || isMutating || hasImageError}
             className="mt-4 w-full"
           />
         </div>

@@ -23,6 +23,41 @@ export const formatDate = (dateString: string, format?: string): string => {
     return `${day}-${month}-${year}`;  // DD-MM-YYYY format
   };
   
+/**
+ * Formats numbers with K (thousands) and M (millions) suffixes
+ * @param value - Number to format
+ * @param decimals - Number of decimal places
+ * @returns Formatted string (e.g., "5.3K" or "1.2M")
+ */
+export const formatCompactNumber = (value: number | string): string => {
+  const num = typeof value === 'string' ? parseFloat(value) : value;
+  
+  if (isNaN(num)) return '0';
+  
+  if (num >= 1000000) {
+    return (num / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
+  }
+  
+  if (num >= 1000) {
+    return (num / 1000).toFixed(1).replace(/\.0$/, '') + 'K';
+  }
+  
+  return num.toString();
+};
+
+/**
+ * Formats currency values with pound symbol and K/M suffixes for large numbers
+ * @param amount - Amount to format
+ * @returns Formatted currency string with compact notation
+ */
+export const formatCompactPounds = (amount: number | string): string => {
+  const num = typeof amount === 'string' ? parseFloat(amount) : amount;
+  
+  if (isNaN(num)) return '£0';
+  
+  return '£' + formatCompactNumber(num);
+};
+
 // Currency code mapping for numeric ISO 4217 codes
 export const NUMERIC_CURRENCY_CODES: { [key: string]: string } = {
   '826': 'GBP', // British Pound
