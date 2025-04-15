@@ -26,6 +26,12 @@ import Image from "next/image";
 import BrokenImageIcon from "@mui/icons-material/BrokenImage";
 import { Delete as DeleteIcon, Add as AddIcon } from "@mui/icons-material";
 
+// Define constants for validation
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+const MAX_IMAGE_WIDTH = 245;
+const MAX_IMAGE_HEIGHT = 234;
+const ACCEPTED_FILE_TYPES = ["image/png", "image/jpg", "image/jpeg", "image/webp"];
+
 interface ProductImage {
   id: number;
   url: string;
@@ -35,6 +41,7 @@ interface ProductImage {
 interface NewFile {
   file: File;
   is_primary: boolean;
+  validationError?: string;
 }
 
 // Map API response structure to our internal structure
@@ -46,11 +53,44 @@ const mapApiImageToProductImage = (apiImage: any): ProductImage => {
   };
 };
 
+// Helper function to validate image dimensions
+const validateImageDimensions = (file: File): Promise<{ valid: boolean; dimensions?: { width: number; height: number } }> => {
+  return new Promise((resolve) => {
+    if (!file || !(file instanceof File)) {
+      resolve({ valid: true });
+      return;
+    }
+
+    const img = document.createElement('img');
+    img.onload = () => {
+      URL.revokeObjectURL(img.src);
+      if (img.width > MAX_IMAGE_WIDTH || img.height > MAX_IMAGE_HEIGHT) {
+        resolve({ 
+          valid: false, 
+          dimensions: { 
+            width: img.width, 
+            height: img.height 
+          } 
+        });
+      } else {
+        resolve({ valid: true });
+      }
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(img.src);
+      resolve({ valid: true }); // Assume valid on error to avoid blocking submission
+    };
+    img.src = URL.createObjectURL(file);
+  });
+};
+
 function ProductImagesTab() {
   const [files, setFiles] = useState<NewFile[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [uploadedImages, setUploadedImages] = useState<ProductImage[]>([]);
+  const [fileError, setFileError] = useState<string | null>(null);
+  const [hasValidationErrors, setHasValidationErrors] = useState(false);
   const { showSnackbar } = useSnackbar();
   const { formData, updateFormData, nextStep, previousStep } = useProductForm();
   const router = useRouter();
@@ -140,17 +180,89 @@ function ProductImagesTab() {
     fetchProductData();
   }, [productId]); // Only depend on productId, not fetchProductData
 
+  // Validate file size, type and dimensions
+  const validateFile = async (file: File): Promise<string | null> => {
+    if (!file) return "File is required";
+    
+    // Check file type
+    if (!ACCEPTED_FILE_TYPES.includes(file.type)) {
+      return "Only .jpg, .jpeg, .png, and .webp formats are supported";
+    }
+    
+    // Check file size
+    if (file.size > MAX_FILE_SIZE) {
+      return "File size must be less than 5MB";
+    }
+    
+    // Check dimensions
+    const dimensionResult = await validateImageDimensions(file);
+    if (!dimensionResult.valid) {
+      return `Image dimensions must not exceed ${MAX_IMAGE_WIDTH}×${MAX_IMAGE_HEIGHT} pixels`;
+    }
+    
+    return null;
+  };
+
   const onDrop = useCallback(
-    (acceptedFiles: File[]) => {
-      setFiles((prev) => {
-        const newFiles = acceptedFiles.map((file) => ({
+    async (acceptedFiles: File[]) => {
+      setFileError(null);
+      
+      if (acceptedFiles.length === 0) return;
+      
+      const newFiles: NewFile[] = [];
+      let hasErrors = false;
+      
+      // Process all existing valid files to determine if we have any valid ones already
+      const existingValidFiles = files.filter(f => !f.validationError);
+      const existingValidCount = existingValidFiles.length;
+      
+      // Validate each file before adding
+      for (const file of acceptedFiles) {
+        const validationError = await validateFile(file);
+        const isValid = !validationError;
+        
+        // Only set as primary if this is the first valid file overall
+        const shouldBePrimary = isValid && 
+                                existingValidCount === 0 && 
+                                newFiles.filter(f => !f.validationError).length === 0 &&
+                                uploadedImages.length === 0;
+        
+        newFiles.push({
           file,
-          is_primary: prev.length === 0 && uploadedImages.length === 0, // First image is primary only if no other images exist
-        }));
-        return [...prev, ...newFiles];
-      });
+          is_primary: shouldBePrimary,
+          validationError: validationError || undefined,
+        });
+        
+        if (validationError) {
+          hasErrors = true;
+          showSnackbar(validationError, "error");
+        }
+      }
+      
+      // Check if we should update the primary status for the first valid file
+      if (existingValidCount === 0 && uploadedImages.length === 0) {
+        // Find the first valid file in the new batch
+        const firstValidNewFile = newFiles.find(f => !f.validationError);
+        
+        if (firstValidNewFile) {
+          // Update it to be primary
+          firstValidNewFile.is_primary = true;
+        }
+      }
+      
+      if (newFiles.length > 0) {
+        setFiles(prev => {
+          const combinedFiles = [...prev, ...newFiles];
+          
+          // Check if any files have validation errors
+          const hasAnyErrors = combinedFiles.some(file => !!file.validationError);
+          setHasValidationErrors(hasAnyErrors);
+          
+          return combinedFiles;
+        });
+      }
     },
-    [uploadedImages.length]
+    [files, uploadedImages.length, showSnackbar]
   );
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -177,12 +289,44 @@ function ProductImagesTab() {
       return;
     }
 
+    // Double-check for validation errors before proceeding
+    const invalidFiles = files.filter(file => !!file.validationError);
+    if (invalidFiles.length > 0) {
+      showSnackbar("Please remove images with validation errors before proceeding", "error");
+      return;
+    }
+
+    // Check if there's a primary image
+    const hasPrimary = files.some(file => file.is_primary);
+    if (!hasPrimary && uploadedImages.length === 0) {
+      // If no primary image is selected, set the first valid one as primary
+      const validFiles = files.filter(file => !file.validationError);
+      if (validFiles.length > 0) {
+        setFiles(prev => 
+          prev.map((file, index) => {
+            const isFirstValid = index === prev.findIndex(f => !f.validationError);
+            return {
+              ...file,
+              is_primary: isFirstValid
+            };
+          })
+        );
+      }
+    }
+
     setIsUploading(true);
     try {
       console.log("Uploading images for product ID:", productId);
 
-      // Extract just the files for upload
-      const filesToUpload = files.map((f) => f.file);
+      // Extract just the valid files for upload
+      const filesToUpload = files.filter(f => !f.validationError).map(f => f.file);
+      
+      if (filesToUpload.length === 0) {
+        showSnackbar("No valid files to upload", "error");
+        setIsUploading(false);
+        return;
+      }
+      
       const response = await uploadProductImages(
         Number(productId),
         filesToUpload
@@ -195,7 +339,7 @@ function ProductImagesTab() {
       if (response?.data?.images) {
         // Find the primary image from the new files
         const primaryFile = files.find((f) => f.is_primary);
-
+        
         // If there's a primary file among the new uploads, find its corresponding uploaded image
         let primaryImageId = null;
         if (primaryFile) {
@@ -203,16 +347,26 @@ function ProductImagesTab() {
             img.url.includes(primaryFile.file.name)
           );
           primaryImageId = primaryImage?.id;
+          
+          // If we found the primary image in the response, update any existing primary images
+          if (primaryImageId) {
+            // Remove primary status from any existing uploaded images
+            setUploadedImages(prev => prev.map(img => ({
+              ...img,
+              is_primary: false
+            })));
+          }
         } else if (
           uploadedImages.length === 0 &&
-          response.data.images.length > 0
+          response.data.images.length > 0 &&
+          !uploadedImages.some(img => img.is_primary)
         ) {
           // If no existing images and no primary selected, make the first uploaded one primary
           primaryImageId = response.data.images[0].id;
         }
 
         // If we need to set a primary image
-        if (primaryImageId && !uploadedImages.some((img) => img.is_primary)) {
+        if (primaryImageId) {
           try {
             await updatePrimaryImage(Number(productId), primaryImageId);
             console.log("Primary image set to:", primaryImageId);
@@ -252,21 +406,51 @@ function ProductImagesTab() {
   const removeFile = (index: number) => {
     setFiles((prev) => {
       const newFiles = prev.filter((_, i) => i !== index);
-      // If we removed the primary image, set the first remaining image as primary
-      if (newFiles.length > 0 && prev[index].is_primary) {
-        newFiles[0].is_primary = true;
+      
+      // If we removed the primary image, we may need to update the primary status
+      if (prev[index].is_primary && newFiles.length > 0) {
+        // Only assign primary to another image if the removed one was valid and primary
+        if (!prev[index].validationError) {
+          // Find the first valid file (if any) and set it as primary
+          const firstValidIndex = newFiles.findIndex(file => !file.validationError);
+          if (firstValidIndex >= 0) {
+            newFiles[firstValidIndex].is_primary = true;
+          }
+        }
       }
+      
+      // Check if any remaining files have validation errors
+      const stillHasErrors = newFiles.some(file => !!file.validationError);
+      setHasValidationErrors(stillHasErrors);
+      
       return newFiles;
     });
   };
 
   const handleNewFilePrimaryChange = (index: number) => {
-    setFiles((prev) =>
-      prev.map((file, i) => ({
+    setFiles((prev) => {
+      // Only allow setting primary on valid files
+      if (prev[index].validationError) {
+        showSnackbar("Cannot set an invalid image as primary", "error");
+        return prev;
+      }
+      
+      // Remove primary from any uploaded images when setting a new file as primary
+      if (uploadedImages.length > 0) {
+        const hasUploadedPrimary = uploadedImages.some(img => img.is_primary);
+        if (hasUploadedPrimary) {
+          setUploadedImages(uploadedImages.map(img => ({
+            ...img,
+            is_primary: false
+          })));
+        }
+      }
+      
+      return prev.map((file, i) => ({
         ...file,
         is_primary: i === index,
-      }))
-    );
+      }));
+    });
   };
 
   const handlePrimaryImageChange = async (imageId: number) => {
@@ -285,6 +469,12 @@ function ProductImagesTab() {
         is_primary: img.id === imageId,
       }));
       setUploadedImages(updatedImages);
+
+      // Remove primary flag from any newly added files
+      setFiles(prev => prev.map(file => ({
+        ...file,
+        is_primary: false
+      })));
 
       // Call API to update primary image
       await updatePrimaryImage(Number(productId), imageId);
@@ -362,7 +552,7 @@ function ProductImagesTab() {
 
     if (error) {
       return (
-        <Box className="w-full h-48 flex items-center justify-center bg-gray-100 rounded">
+        <Box className="w-full h-full flex items-center justify-center bg-gray-100 rounded">
           <BrokenImageIcon className="text-gray-400 text-4xl" />
         </Box>
       );
@@ -372,7 +562,7 @@ function ProductImagesTab() {
       <img
         src={src}
         alt={alt}
-        className="w-full h-48 object-cover rounded"
+        className="w-full h-full object-contain"
         onError={() => setError(true)}
         {...props}
       />
@@ -396,14 +586,20 @@ function ProductImagesTab() {
             } cursor-pointer text-center`}
           >
             <input {...getInputProps()} />
-            <Typography variant="body1" className="mb-2">
-              {isDragActive
-                ? "Drop the files here..."
-                : "Drag and drop images here, or click to select files"}
-            </Typography>
-            <Typography variant="body2" color="textSecondary">
-              Supported formats: PNG, JPG, JPEG, WebP
-            </Typography>
+            <div className="flex flex-col items-center justify-center">
+              <div className="p-3 rounded-full mb-3">
+                <AddIcon fontSize="large" className="text-gray-500" />
+              </div>
+              <Typography variant="body1" className="mb-2 font-medium">
+                Click to upload or drag and drop
+              </Typography>
+              <Typography variant="body2" color="textSecondary">
+                Upload a product image ({MAX_IMAGE_WIDTH} × {MAX_IMAGE_HEIGHT} px, Max size: 5MB)
+              </Typography>
+              <Typography variant="body2" color="textSecondary" className="mt-1">
+                Supported formats: PNG, JPG, JPEG, WebP
+              </Typography>
+            </div>
           </Paper>
 
           {/* Display uploaded images */}
@@ -414,12 +610,14 @@ function ProductImagesTab() {
               </Typography>
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
                 {uploadedImages.map((image) => (
-                  <div key={`uploaded-${image.id}`} className="relative group">
-                    <ImageWithFallback
-                      src={image.url}
-                      alt={`Product image ${image.id}`}
-                    />
-                    <div className="absolute top-2 left-2 bg-white/80 px-1 rounded">
+                  <div key={`uploaded-${image.id}`} className="relative group border border-gray-200 rounded">
+                    <div style={{ height: "140px" }} className="w-full overflow-hidden">
+                      <ImageWithFallback
+                        src={image.url}
+                        alt={`Product image ${image.id}`}
+                      />
+                    </div>
+                    <div className="absolute top-2 left-2 bg-white/90 px-2 py-1 rounded">
                       <FormControlLabel
                         control={
                           <Checkbox
@@ -432,13 +630,13 @@ function ProductImagesTab() {
                         label="Primary"
                       />
                     </div>
-                    <button
-                      type="button"
+                    <IconButton
+                      className="absolute top-2 right-2 bg-white hover:bg-red-50 shadow-md"
+                      size="small"
                       onClick={() => handleDeleteImage(image.id)}
-                      className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
                     >
-                      <DeleteIcon />
-                    </button>
+                      <DeleteIcon sx={{ color: "red" }} />
+                    </IconButton>
                   </div>
                 ))}
               </div>
@@ -448,51 +646,62 @@ function ProductImagesTab() {
           {/* Display new files to be uploaded */}
           {files.length > 0 && (
             <div className="mt-6">
-              <Typography variant="h6" className="mb-4">
-                New Images to Upload
+              <Typography variant="subtitle2" className="mb-2 font-semibold">
+                New Image Preview:
               </Typography>
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
                 {files.map((fileData, index) => (
-                  <div
-                    key={`new-${index}-${fileData.file.name}`}
-                    className="relative group"
-                  >
-                    <ImageWithFallback
-                      src={URL.createObjectURL(fileData.file)}
-                      alt={`Preview ${index + 1}`}
-                    />
-                    <div className="absolute top-2 left-2 bg-white/80 p-2 rounded">
-                      <FormControlLabel
-                        control={
-                          <Checkbox
-                            checked={fileData.is_primary}
-                            onChange={() => handleNewFilePrimaryChange(index)}
-                            color="primary"
-                            disabled={fileData.is_primary}
-                          />
-                        }
-                        label="Primary"
-                      />
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => removeFile(index)}
-                      className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                  <div key={`new-${index}-${fileData.file.name}`} className="flex flex-col">
+                    <div
+                      className={`relative border ${
+                        fileData.validationError ? 'border-red-500' : 'border-gray-200'
+                      } rounded overflow-hidden`}
                     >
-                      ✕
-                    </button>
+                      <div className="w-full" style={{ height: "140px" }}>
+                        <ImageWithFallback
+                          src={URL.createObjectURL(fileData.file)}
+                          alt={`Preview ${index + 1}`}
+                        />
+                      </div>
+                      <div className="absolute top-2 left-2 bg-white/90 px-2 py-1 rounded">
+                        <FormControlLabel
+                          control={
+                            <Checkbox
+                              checked={fileData.is_primary}
+                              onChange={() => handleNewFilePrimaryChange(index)}
+                              color="primary"
+                              disabled={fileData.is_primary || !!fileData.validationError}
+                            />
+                          }
+                          label="Primary"
+                        />
+                      </div>
+                      <IconButton
+                        className="absolute top-2 right-2 bg-white hover:bg-red-50 shadow-md"
+                        size="small"
+                        onClick={() => removeFile(index)}
+                      >
+                        <DeleteIcon sx={{ color: "red" }} />
+                      </IconButton>
+                    </div>
+                    {fileData.validationError && (
+                      <Typography color="error" variant="caption" className="mt-1">
+                        Image dimensions must not exceed {MAX_IMAGE_WIDTH}×{MAX_IMAGE_HEIGHT} pixels
+                      </Typography>
+                    )}
                   </div>
                 ))}
               </div>
             </div>
           )}
 
-          <div className="flex justify-between mt-4">
+          <div className="flex justify-between mt-6">
             <AppButton
               label="Previous"
               onClick={previousStep}
               variant="outlined"
               disabled={isUploading}
+              className="bg-[#2E9970] text-white hover:bg-[#1E7A56] px-6"
             />
             <AppButton
               label={
@@ -504,7 +713,8 @@ function ProductImagesTab() {
               }
               onClick={handleUpload}
               loading={isUploading}
-              disabled={isUploading}
+              disabled={isUploading || hasValidationErrors}
+              className="bg-[#2E9970] text-white hover:bg-[#1E7A56] px-6"
             />
           </div>
         </>
