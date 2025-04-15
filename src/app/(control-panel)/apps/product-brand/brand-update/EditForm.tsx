@@ -5,10 +5,11 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useEffect, useState, useRef } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { Alert, Typography } from "@mui/material";
+import { Alert, Typography, Box, Button, CircularProgress } from "@mui/material";
+import DeleteIcon from "@mui/icons-material/Delete";
 import AppButton from "@/components/Shared/AppButton";
 import FormInputField from "@/components/Shared/FormInputField";
-import FormFileUpload from "@/components/Shared/FormFileUpload";
+import FormFileUploadField from "@/components/Shared/FormFileUploadField";
 import { usePost, useFetch } from "@/hooks/useFetch";
 import {
   updateBrand,
@@ -26,6 +27,39 @@ const ACCEPTED_FILE_TYPES = [
   "image/jpg",
   "image/webp",
 ];
+const MAX_IMAGE_WIDTH = 150;
+const MAX_IMAGE_HEIGHT = 150;
+
+// Helper function to validate image dimensions
+const validateImageDimensions = (file: File): Promise<{ valid: boolean; dimensions?: { width: number; height: number } }> => {
+  return new Promise((resolve) => {
+    if (!file || !(file instanceof File)) {
+      resolve({ valid: true });
+      return;
+    }
+
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(img.src);
+      if (img.width > MAX_IMAGE_WIDTH || img.height > MAX_IMAGE_HEIGHT) {
+        resolve({ 
+          valid: false, 
+          dimensions: { 
+            width: img.width, 
+            height: img.height 
+          } 
+        });
+      } else {
+        resolve({ valid: true });
+      }
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(img.src);
+      resolve({ valid: true }); // Assume valid on error to avoid blocking submission
+    };
+    img.src = URL.createObjectURL(file);
+  });
+};
 
 const schema = z.object({
   name: z
@@ -55,6 +89,13 @@ const schema = z.object({
         .refine(
           (file) => ACCEPTED_FILE_TYPES.includes(file.type),
           "Only .jpg, .jpeg, .png, and .webp formats are supported"
+        )
+        .refine(
+          async (file) => {
+            const result = await validateImageDimensions(file);
+            return result.valid;
+          },
+          `Image dimensions must not exceed ${MAX_IMAGE_WIDTH}×${MAX_IMAGE_HEIGHT} pixels`
         ),
     ])
     .optional()
@@ -82,6 +123,8 @@ const EditBrandForm = ({ brand: initialBrand }: { brand: FormType }) => {
   const { showSnackbar } = useSnackbar();
   const [isLoading, setIsLoading] = useState(false);
   const [isImageDeleting, setIsImageDeleting] = useState(false);
+  const [hasImageError, setHasImageError] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
   // Use ref to maintain a mutable reference to the brand data
   const brandRef = useRef<FormType>(initialBrand);
@@ -102,6 +145,19 @@ const EditBrandForm = ({ brand: initialBrand }: { brand: FormType }) => {
     "updateBrand",
     updateBrand
   );
+
+  // Watch the logo field for validation issues
+  const logoValue = watch("logo");
+  const logoError = errors.logo?.message as string | undefined;
+
+  // Set hasImageError when logo validation fails
+  useEffect(() => {
+    if (logoError) {
+      setHasImageError(true);
+    } else {
+      setHasImageError(false);
+    }
+  }, [logoError]);
 
   // Prefill form when brand data is available
   useEffect(() => {
@@ -140,8 +196,8 @@ const EditBrandForm = ({ brand: initialBrand }: { brand: FormType }) => {
       }
 
       // Only append logo if it's a File instance
-      if (formData.logo instanceof File) {
-        formDataObj.append("logo", formData.logo);
+      if (selectedFile instanceof File) {
+        formDataObj.append("logo", selectedFile);
       } else if (formData.logo === null) {
         // If logo is explicitly set to null, it means we want to remove it
         formDataObj.append("logo", "");
@@ -183,6 +239,7 @@ const EditBrandForm = ({ brand: initialBrand }: { brand: FormType }) => {
 
       // Only update the UI after successful API call
       setValue("logo", null, { shouldValidate: true });
+      setSelectedFile(null);
 
       // Update the brand object to reflect the removal of the image
       if (brandRef.current) {
@@ -249,23 +306,27 @@ const EditBrandForm = ({ brand: initialBrand }: { brand: FormType }) => {
             label="Description"
             type="text"
           />
-          <FormFileUpload
-            name="logo"
-            control={control}
-            label="Brand Logo"
-            setValue={setValue}
-            existingImage={brandRef.current?.logo_url}
-            onDelete={handleImageDelete}
-            isDeleting={isImageDeleting}
-          />
-
+          
+          <Box sx={{ mt: 2, mb: 2 }}>
+            <FormFileUploadField
+              name="logo"
+              control={control}
+              label="Brand Logo"
+              onFileChange={(file) => {
+                setSelectedFile(file);
+                setValue("logo", file, { shouldValidate: true });
+              }}
+              helperText={`Upload a brand logo (${MAX_IMAGE_WIDTH} × ${MAX_IMAGE_HEIGHT} px, Max size: 5MB). Supported formats: PNG, JPG, JPEG, WebP`}
+              defaultImage={brandRef.current?.logo_url || undefined}
+            />
+          </Box>
           <AppButton
             label="Update"
             loading={isLoading}
             type="submit"
             fullWidth
             size="large"
-            // disabled={!isValid || isMutating}
+            disabled={!isValid || isMutating || hasImageError}
             className="mt-4 w-full"
           />
         </form>

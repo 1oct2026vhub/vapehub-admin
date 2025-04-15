@@ -5,10 +5,11 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useEffect, useState, useRef } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { Alert, Typography } from "@mui/material";
+import { Alert, Typography, Box, Button, CircularProgress } from "@mui/material";
+import DeleteIcon from "@mui/icons-material/Delete";
 import AppButton from "@/components/Shared/AppButton";
 import FormInputField from "@/components/Shared/FormInputField";
-import FormFileUpload from "@/components/Shared/FormFileUpload";
+import FormFileUploadField from "@/components/Shared/FormFileUploadField";
 import { usePost, useFetch } from "@/hooks/useFetch";
 import {
   updateCategory,
@@ -26,6 +27,39 @@ const ACCEPTED_FILE_TYPES = [
   "image/jpg",
   "image/webp",
 ];
+const MAX_IMAGE_WIDTH = 236;
+const MAX_IMAGE_HEIGHT = 204;
+
+// Helper function to validate image dimensions
+const validateImageDimensions = (file: File): Promise<{ valid: boolean; dimensions?: { width: number; height: number } }> => {
+  return new Promise((resolve) => {
+    if (!file || !(file instanceof File)) {
+      resolve({ valid: true });
+      return;
+    }
+
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(img.src);
+      if (img.width > MAX_IMAGE_WIDTH || img.height > MAX_IMAGE_HEIGHT) {
+        resolve({ 
+          valid: false, 
+          dimensions: { 
+            width: img.width, 
+            height: img.height 
+          } 
+        });
+      } else {
+        resolve({ valid: true });
+      }
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(img.src);
+      resolve({ valid: true }); // Assume valid on error to avoid blocking submission
+    };
+    img.src = URL.createObjectURL(file);
+  });
+};
 
 const schema = z.object({
   name: z
@@ -55,6 +89,13 @@ const schema = z.object({
         .refine(
           (file) => ACCEPTED_FILE_TYPES.includes(file.type),
           "Only .jpg, .jpeg, .png, and .webp formats are supported"
+        )
+        .refine(
+          async (file) => {
+            const result = await validateImageDimensions(file);
+            return result.valid;
+          },
+          `Image dimensions must not exceed ${MAX_IMAGE_WIDTH}×${MAX_IMAGE_HEIGHT} pixels`
         ),
     ])
     .optional()
@@ -97,6 +138,8 @@ const EditCategoryForm = ({
   const { showSnackbar } = useSnackbar();
   const [isLoading, setIsLoading] = useState(false);
   const [isImageDeleting, setIsImageDeleting] = useState(false);
+  const [hasImageError, setHasImageError] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
   // Use ref to maintain a mutable reference to the category data
   const categoryRef = useRef<FormType>(initialCategory);
@@ -107,16 +150,31 @@ const EditCategoryForm = ({
     resolver: zodResolver(schema),
   });
 
+  // Destructure formState first to avoid the "used before declaration" error
+  const { isValid, errors, dirtyFields } = formState;
+
   // Watch the name field to display character count
   const nameValue = watch("name") || "";
   const nameLength = nameValue.length;
   const nameRemaining = 50 - nameLength;
 
-  const { isValid, errors, dirtyFields } = formState;
+  // Watch the logo field for validation issues
+  const logoValue = watch("logo");
+  const logoError = errors?.logo?.message as string | undefined;
+
   const { trigger: triggerUpdateCategory, isMutating } = usePost(
     "updateCategory",
     updateCategory
   );
+
+  // Set hasImageError when logo validation fails
+  useEffect(() => {
+    if (logoError) {
+      setHasImageError(true);
+    } else {
+      setHasImageError(false);
+    }
+  }, [logoError]);
 
   // Check if required fields are filled
   const areRequiredFieldsFilled = () => {
@@ -124,7 +182,8 @@ const EditCategoryForm = ({
       nameValue.trim() !== "" &&
       watch("slug")?.trim() !== "" &&
       !errors.name &&
-      !errors.slug
+      !errors.slug &&
+      !hasImageError
     );
   };
 
@@ -181,8 +240,8 @@ const EditCategoryForm = ({
       }
 
       // Only append logo if it's a File instance
-      if (formData.logo instanceof File) {
-        formDataObj.append("logo", formData.logo);
+      if (selectedFile instanceof File) {
+        formDataObj.append("logo", selectedFile);
       } else if (formData.logo === null) {
         // If logo is explicitly set to null, it means we want to remove it
         formDataObj.append("logo", "");
@@ -192,14 +251,6 @@ const EditCategoryForm = ({
       for (let [key, value] of formDataObj.entries()) {
         console.log(`${key}:`, value);
       }
-
-      // Get the category ID from the URL params
-      // const params = new URLSearchParams(window.location.search);
-      // const categoryId = params.get('id');
-
-      // if (!categoryId) {
-      //   throw new Error("Category ID is required");
-      // }
 
       // Call the updateCategory API with the correct ID format
       await updateCategory(id, formDataObj);
@@ -237,6 +288,7 @@ const EditCategoryForm = ({
 
       // Only update the UI after successful API call
       setValue("logo", null, { shouldValidate: true });
+      setSelectedFile(null);
 
       // Update the category object to reflect the removal of the image
       if (categoryRef.current) {
@@ -309,16 +361,20 @@ const EditCategoryForm = ({
             label="Parent Category ID"
             type="number"
           />
-          <FormFileUpload
-            name="logo"
-            control={control}
-            label="Category Logo"
-            setValue={setValue}
-            existingImage={categoryRef.current?.logo_url}
-            onDelete={handleImageDelete}
-            isDeleting={isImageDeleting}
-          />
-
+          
+          <Box sx={{ mt: 2, mb: 2 }}>
+            <FormFileUploadField
+              name="logo"
+              control={control}
+              label="Category Logo"
+              onFileChange={(file) => {
+                setSelectedFile(file);
+                setValue("logo", file, { shouldValidate: true });
+              }}
+              helperText={`Upload a category slider image (${MAX_IMAGE_WIDTH} × ${MAX_IMAGE_HEIGHT} px, Max size: 5MB). Supported formats: PNG, JPG, JPEG, WebP`}
+              defaultImage={categoryRef.current?.logo_url || undefined}
+            />
+          </Box>
           <AppButton
             label="Update"
             loading={isLoading}
