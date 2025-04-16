@@ -117,6 +117,7 @@ const AdminDashboardApp = () => {
           <StatisticsCard
             title="Today's Sales"
             value={salesFormatted.todayAbbreviated || stats?.sales.today}
+            fullValue={stats?.sales.today}
             icon="sales"
             color="#4CAF50"
           />
@@ -125,6 +126,7 @@ const AdminDashboardApp = () => {
           <StatisticsCard
             title="Weekly Sales"
             value={salesFormatted.weeklyAbbreviated || stats?.sales.weekly}
+            fullValue={stats?.sales.weekly}
             icon="sales"
             color="#2196F3"
           />
@@ -133,6 +135,7 @@ const AdminDashboardApp = () => {
           <StatisticsCard
             title="Monthly Sales"
             value={salesFormatted.monthlyAbbreviated || stats?.sales.monthly}
+            fullValue={stats?.sales.monthly}
             icon="sales"
             color="#9C27B0"
           />
@@ -140,7 +143,8 @@ const AdminDashboardApp = () => {
         <Grid item xs={12} sm={6} md={3}>
           <StatisticsCard
             title="Yearly Sales"
-            value={salesFormatted.yearlyAbbreviated || salesFormatted.yearly}
+            value={salesFormatted.yearlyAbbreviated || (salesFormatted.yearly || "N/A")}
+            fullValue={(stats?.sales as any)?.yearly}
             icon="sales"
             color="#F44336"
           />
@@ -196,22 +200,16 @@ const AdminDashboardApp = () => {
                       height: '100%'
                     }}
                   >
-                    <Box
-                      sx={{
-                        width: 60,
-                        height: 60,
-                        borderRadius: "50%",
-                        backgroundColor: "#E8F5E9",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        mb: 1,
+                    <Typography 
+                      variant="h5" 
+                      sx={{ 
+                        fontWeight: '600',
+                        color: '#2E7D32',
+                        mb: 1
                       }}
                     >
-                      <Typography variant="h6" color="#2E7D32" fontWeight="600">
-                        {stats?.products.totalProducts || 0}
-                      </Typography>
-                    </Box>
+                      {stats?.products.totalProducts || 0}
+                    </Typography>
                     <Typography sx={{ fontSize: '0.813rem', color: 'text.secondary', textAlign: 'center' }}>
                       Total Products
                     </Typography>
@@ -230,22 +228,16 @@ const AdminDashboardApp = () => {
                       height: '100%'
                     }}
                   >
-                    <Box
-                      sx={{
-                        width: 60,
-                        height: 60,
-                        borderRadius: "50%",
-                        backgroundColor: "#E3F2FD",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        mb: 1,
+                    <Typography 
+                      variant="h5" 
+                      sx={{ 
+                        fontWeight: '600',
+                        color: '#1976D2',
+                        mb: 1
                       }}
                     >
-                      <Typography variant="h6" color="#1976D2" fontWeight="600">
-                        {stats?.products.inStock || 0}
-                      </Typography>
-                    </Box>
+                      {stats?.products.inStock || 0}
+                    </Typography>
                     <Typography sx={{ fontSize: '0.813rem', color: 'text.secondary', textAlign: 'center' }}>
                       In Stock
                     </Typography>
@@ -264,22 +256,16 @@ const AdminDashboardApp = () => {
                       height: '100%'
                     }}
                   >
-                    <Box
-                      sx={{
-                        width: 60,
-                        height: 60,
-                        borderRadius: "50%",
-                        backgroundColor: "#E8F5E9",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        mb: 1,
+                    <Typography 
+                      variant="h5" 
+                      sx={{ 
+                        fontWeight: '600',
+                        color: '#388E3C',
+                        mb: 1
                       }}
                     >
-                      <Typography variant="h6" color="#388E3C" fontWeight="600">
-                        {stats?.products.healthyStock || 0}
-                      </Typography>
-                    </Box>
+                      {stats?.products.healthyStock || 0}
+                    </Typography>
                     <Typography sx={{ fontSize: '0.813rem', color: 'text.secondary', textAlign: 'center' }}>
                       Healthy Stock
                     </Typography>
@@ -298,22 +284,16 @@ const AdminDashboardApp = () => {
                       height: '100%'
                     }}
                   >
-                    <Box
-                      sx={{
-                        width: 60,
-                        height: 60,
-                        borderRadius: "50%",
-                        backgroundColor: "#FFF3E0",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        mb: 1,
+                    <Typography 
+                      variant="h5" 
+                      sx={{ 
+                        fontWeight: '600',
+                        color: '#FF9800',
+                        mb: 1
                       }}
                     >
-                      <Typography variant="h6" color="#FF9800" fontWeight="600">
-                        {stats?.products.lowStock || 0}
-                      </Typography>
-                    </Box>
+                      {stats?.products.lowStock || 0}
+                    </Typography>
                     <Typography sx={{ fontSize: '0.813rem', color: 'text.secondary', textAlign: 'center' }}>
                       Low Stock
                     </Typography>
@@ -332,22 +312,16 @@ const AdminDashboardApp = () => {
                       height: '100%'
                     }}
                   >
-                    <Box
-                      sx={{
-                        width: 60,
-                        height: 60,
-                        borderRadius: "50%",
-                        backgroundColor: "#FFEBEE",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        mb: 1,
+                    <Typography 
+                      variant="h5" 
+                      sx={{ 
+                        fontWeight: '600',
+                        color: '#D32F2F',
+                        mb: 1
                       }}
                     >
-                      <Typography variant="h6" color="#D32F2F" fontWeight="600">
-                        {stats?.products.outOfStock || 0}
-                      </Typography>
-                    </Box>
+                      {stats?.products.outOfStock || 0}
+                    </Typography>
                     <Typography sx={{ fontSize: '0.813rem', color: 'text.secondary', textAlign: 'center' }}>
                       Out of Stock
                     </Typography>
@@ -366,22 +340,16 @@ const AdminDashboardApp = () => {
                       height: '100%'
                     }}
                   >
-                    <Box
-                      sx={{
-                        width: 60,
-                        height: 60,
-                        borderRadius: "50%",
-                        backgroundColor: "#FCE4EC",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        mb: 1,
+                    <Typography 
+                      variant="h5" 
+                      sx={{ 
+                        fontWeight: '600',
+                        color: '#C2185B',
+                        mb: 1
                       }}
                     >
-                      <Typography variant="h6" color="#C2185B" fontWeight="600">
-                        {stats?.products.outOfStockStatus || 0}
-                      </Typography>
-                    </Box>
+                      {stats?.products.outOfStockStatus || 0}
+                    </Typography>
                     <Typography sx={{ fontSize: '0.813rem', color: 'text.secondary', textAlign: 'center' }}>
                      Out Of Stock Status    
                     </Typography>
@@ -400,48 +368,153 @@ const AdminDashboardApp = () => {
             </Typography>
             <Box sx={{ height: 'calc(100% - 50px)', display: 'flex', alignItems: 'center' }}>
               <Grid container spacing={1.5}>
-                {stats?.orders.map((order, index) => (
-                  <Grid
-                    item
-                    xs={6}
-                    key={`order-${order.status || "unknown"}-${index}`}
-                  >
-                    <Box
-                      sx={{
-                        p: 1.5,
-                        backgroundColor: '#fff',
-                        borderRadius: 1,
-                        border: '1px solid #e0e0e0',
-                        minHeight: '60px',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        justifyContent: 'center'
-                      }}
+                {/* First row: Pending, Fail, Cancel (3 cards) */}
+                {stats?.orders
+                  .filter(order => ['pending', 'fail', 'cancel'].includes(order.status.toLowerCase()))
+                  .map((order, index) => (
+                    <Grid item xs={4} key={`order-${order.status || "unknown"}-${index}`}>
+                      <Box
+                        sx={{
+                          p: 1.5,
+                          backgroundColor: '#fff',
+                          borderRadius: 1,
+                          border: '1px solid #e0e0e0',
+                          minHeight: '60px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          justifyContent: 'center',
+                          alignItems: 'center',
+                          textAlign: 'center'
+                        }}
+                      >
+                        <Typography 
+                          color="textSecondary"
+                          sx={{ 
+                            fontSize: '0.813rem',
+                            mb: 0.5
+                          }}
+                        >
+                          {order.status
+                            ? order.status.charAt(0).toUpperCase() +
+                              order.status.slice(1)
+                            : "Unknown"}
+                        </Typography>
+                        <Typography 
+                          sx={{ 
+                            fontWeight: 600,
+                            fontSize: '1.375rem',
+                            color: order.status.toLowerCase() === 'pending' 
+                              ? '#FF9800' 
+                              : order.status.toLowerCase() === 'fail' 
+                              ? '#F44336' 
+                              : '#9E9E9E'
+                          }}
+                        >
+                          {order.count}
+                        </Typography>
+                      </Box>
+                    </Grid>
+                  ))}
+                
+                {/* Second row: Processing, Shipped, Completed (3 cards) */}
+                {stats?.orders
+                  .filter(order => ['processing', 'shipped', 'completed'].includes(order.status.toLowerCase()))
+                  .map((order, index) => (
+                    <Grid
+                      item
+                      xs={4}
+                      key={`order-${order.status || "unknown"}-${index}`}
                     >
-                      <Typography 
-                        color="textSecondary"
-                        sx={{ 
-                          fontSize: '0.813rem',
-                          mb: 0.5
+                      <Box
+                        sx={{
+                          p: 1.5,
+                          backgroundColor: '#fff',
+                          borderRadius: 1,
+                          border: '1px solid #e0e0e0',
+                          minHeight: '60px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          justifyContent: 'center',
+                          alignItems: 'center',
+                          textAlign: 'center'
                         }}
                       >
-                        {order.status
-                          ? order.status.charAt(0).toUpperCase() +
-                            order.status.slice(1)
-                          : "Unknown"}
-                      </Typography>
-                      <Typography 
-                        sx={{ 
-                          fontWeight: 600,
-                          color: '#333',
-                          fontSize: '1.125rem'
+                        <Typography 
+                          color="textSecondary"
+                          sx={{ 
+                            fontSize: '0.813rem',
+                            mb: 0.5
+                          }}
+                        >
+                          {order.status
+                            ? order.status.charAt(0).toUpperCase() +
+                              order.status.slice(1)
+                            : "Unknown"}
+                        </Typography>
+                        <Typography 
+                          sx={{ 
+                            fontWeight: 600,
+                            fontSize: '1.375rem',
+                            color: order.status.toLowerCase() === 'processing' 
+                              ? '#2196F3' 
+                              : order.status.toLowerCase() === 'shipped' 
+                              ? '#4CAF50' 
+                              : '#673AB7',
+                          }}
+                        >
+                          {order.count}
+                        </Typography>
+                      </Box>
+                    </Grid>
+                  ))}
+                
+                {/* Any other status types would go here in a third row if needed */}
+                {stats?.orders
+                  .filter(order => !['pending', 'fail', 'cancel', 'processing', 'shipped', 'completed'].includes(order.status.toLowerCase()))
+                  .map((order, index) => (
+                    <Grid
+                      item
+                      xs={4}
+                      key={`order-${order.status || "unknown"}-${index}`}
+                    >
+                      <Box
+                        sx={{
+                          p: 1.5,
+                          backgroundColor: '#fff',
+                          borderRadius: 1,
+                          border: '1px solid #e0e0e0',
+                          minHeight: '60px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          justifyContent: 'center',
+                          alignItems: 'center',
+                          textAlign: 'center'
                         }}
                       >
-                        {order.count}
-                      </Typography>
-                    </Box>
-                  </Grid>
-                ))}
+                        <Typography 
+                          color="textSecondary"
+                          sx={{ 
+                            fontSize: '0.813rem',
+                            mb: 0.5
+                          }}
+                        >
+                          {order.status
+                            ? order.status.charAt(0).toUpperCase() +
+                              order.status.slice(1)
+                            : "Unknown"}
+                        </Typography>
+                        <Typography 
+                          sx={{ 
+                            fontWeight: 600,
+                            fontSize: '1.375rem',
+                            color: '#333'
+                          }}
+                        >
+                          {order.count}
+                        </Typography>
+                      </Box>
+                    </Grid>
+                  ))}
               </Grid>
             </Box>
           </Paper>
@@ -493,9 +566,20 @@ const AdminDashboardApp = () => {
 
                   {/* Status Metrics Grid */}
                   <Grid container spacing={1}>
-                    {/* Active Users */}
-                    {Number(userGroup.active_count) > 0 && (
-                      <Grid item xs={6}>
+                    {/* Group metrics into arrays of 3 */}
+                    {[
+                      { label: 'Active', value: userGroup.active_count, color: '#4CAF50' },
+                      { label: 'Blocked', value: userGroup.blocked_count, color: '#F44336' },
+                      ...(userGroup.role === 'customer' 
+                        ? [
+                            { label: 'Verified', value: userGroup.verified_customer_count, color: '#2196F3' },
+                            { label: 'Unverified', value: userGroup.unverified_customer_count, color: '#FF9800' }
+                          ] 
+                        : [])
+                    ]
+                    .filter(item => Number(item.value) > 0)
+                    .map((item, itemIndex) => (
+                      <Grid item xs={4} key={`${userGroup.role}-${item.label}`}>
                         <Box sx={{
                           p: 1.5,
                           borderRadius: 1,
@@ -503,83 +587,18 @@ const AdminDashboardApp = () => {
                           backgroundColor: '#fff',
                           display: 'flex',
                           flexDirection: 'column',
-                          alignItems: 'flex-start'
+                          alignItems: 'center',
+                          textAlign: 'center'
                         }}>
                           <Typography sx={{ fontSize: '0.875rem', color: '#555' }}>
-                            Active
+                            {item.label}
                           </Typography>
-                          <Typography sx={{ fontSize: '1.5rem', fontWeight: 500, color: '#4CAF50', lineHeight: 1.2 }}>
-                            {userGroup.active_count}
+                          <Typography sx={{ fontSize: '1.375rem', fontWeight: 500, color: item.color, lineHeight: 1.2 }}>
+                            {item.value}
                           </Typography>
                         </Box>
                       </Grid>
-                    )}
-
-                    {/* Blocked Users */}
-                    {Number(userGroup.blocked_count) > 0 && (
-                      <Grid item xs={6}>
-                        <Box sx={{
-                          p: 1.5,
-                          borderRadius: 1,
-                          border: '1px solid #e0e0e0',
-                          backgroundColor: '#fff',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          alignItems: 'flex-start'
-                        }}>
-                          <Typography sx={{ fontSize: '0.875rem', color: '#555' }}>
-                            Blocked
-                          </Typography>
-                          <Typography sx={{ fontSize: '1.5rem', fontWeight: 500, color: '#F44336', lineHeight: 1.2 }}>
-                            {userGroup.blocked_count}
-                          </Typography>
-                        </Box>
-                      </Grid>
-                    )}
-
-                    {/* Verified Customers - only for customer role */}
-                    {userGroup.role === 'customer' && Number(userGroup.verified_customer_count) > 0 && (
-                      <Grid item xs={6}>
-                        <Box sx={{
-                          p: 1.5,
-                          borderRadius: 1,
-                          border: '1px solid #e0e0e0',
-                          backgroundColor: '#fff',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          alignItems: 'flex-start'
-                        }}>
-                          <Typography sx={{ fontSize: '0.875rem', color: '#555' }}>
-                            Verified
-                          </Typography>
-                          <Typography sx={{ fontSize: '1.5rem', fontWeight: 500, color: '#2196F3', lineHeight: 1.2 }}>
-                            {userGroup.verified_customer_count}
-                          </Typography>
-                        </Box>
-                      </Grid>
-                    )}
-
-                    {/* Unverified Customers - only for customer role */}
-                    {userGroup.role === 'customer' && Number(userGroup.unverified_customer_count) > 0 && (
-                      <Grid item xs={6}>
-                        <Box sx={{
-                          p: 1.5,
-                          borderRadius: 1,
-                          border: '1px solid #e0e0e0',
-                          backgroundColor: '#fff',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          alignItems: 'flex-start'
-                        }}>
-                          <Typography sx={{ fontSize: '0.875rem', color: '#555' }}>
-                            Unverified
-                          </Typography>
-                          <Typography sx={{ fontSize: '1.5rem', fontWeight: 500, color: '#FF9800', lineHeight: 1.2 }}>
-                            {userGroup.unverified_customer_count}
-                          </Typography>
-                        </Box>
-                      </Grid>
-                    )}
+                    ))}
                   </Grid>
                 </Box>
               ))}
