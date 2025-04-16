@@ -24,7 +24,9 @@ export type PaymentStatus = "pending" | "paid" | "failed" | "refunded";
 export interface OrderStatusStatistics {
   status: OrderStatus;
   count: number;
+  count_abbreviated?: string;
   total_amount: string;
+  total_amount_abbreviated?: string;
 }
 
 // Interface for order statistics response

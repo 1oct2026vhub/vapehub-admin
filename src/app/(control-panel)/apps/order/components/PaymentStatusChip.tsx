@@ -8,19 +8,39 @@ interface PaymentStatusChipProps extends Omit<ChipProps, "color"> {
 }
 
 const PaymentStatusChip = ({ status, ...rest }: PaymentStatusChipProps) => {
+  // Get the exact color for the payment status
+  const getStatusColor = (status: string) => {
+    const colors: Record<string, string> = {
+      pending: "#FF9800", // Orange
+      paid: "#4CAF50", // Green
+      failed: "#E53935", // Red
+      refunded: "#607D8B", // Blue Grey
+    };
+    return colors[status.toLowerCase()] || "#9E9E9E"; // Default to grey
+  };
+
   const getStatusConfig = (status: PaymentStatus) => {
+    // Get display label based on status
+    let label: string;
+    
     switch (status) {
       case "pending":
-        return { label: "Pending", color: "warning" };
+        label = "Pending";
+        break;
       case "paid":
-        return { label: "Paid", color: "success" };
+        label = "Paid";
+        break;
       case "failed":
-        return { label: "Failed", color: "error" };
+        label = "Failed";
+        break;
       case "refunded":
-        return { label: "Refunded", color: "info" };
+        label = "Refunded";
+        break;
       default:
-        return { label: status, color: "default" };
+        label = status;
     }
+    
+    return { label, color: getStatusColor(status) };
   };
 
   const { label, color } = getStatusConfig(status);
@@ -28,8 +48,12 @@ const PaymentStatusChip = ({ status, ...rest }: PaymentStatusChipProps) => {
   return (
     <Chip
       label={label}
-      color={color as ChipProps["color"]}
       size="small"
+      sx={{
+        backgroundColor: color,
+        color: "white",
+        fontWeight: 500,
+      }}
       {...rest}
     />
   );

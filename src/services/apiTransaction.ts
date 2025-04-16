@@ -298,6 +298,7 @@ export const getRevenueReport = async (
   endDate?: string
 ): Promise<{
   totalRevenue: number;
+  totalRevenue_abbreviated?: string;
   start_date: string;
   end_date: string;
 }> => {
@@ -309,6 +310,7 @@ export const getRevenueReport = async (
     const response = await fetcher('/api/admin/transactions/reports/revenue', params);
     return response?.data || {
       totalRevenue: 0,
+      totalRevenue_abbreviated: undefined,
       start_date: startDate || '',
       end_date: endDate || '',
     };
@@ -316,6 +318,7 @@ export const getRevenueReport = async (
     console.error("Error fetching revenue report:", error);
     return {
       totalRevenue: 0,
+      totalRevenue_abbreviated: undefined,
       start_date: startDate || '',
       end_date: endDate || '',
     };

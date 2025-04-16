@@ -9,6 +9,7 @@ import {
   Card,
   CardContent,
   LinearProgress,
+  Tooltip,
 } from "@mui/material";
 import { motion } from "motion/react";
 import TransactionsTable from "../components/TransactionsTable";
@@ -43,6 +44,7 @@ function TransactionListApp() {
   });
   const [revenueData, setRevenueData] = useState({
     totalRevenue: 0,
+    totalRevenue_abbreviated: "",
     start_date: "",
     end_date: "",
   });
@@ -77,6 +79,7 @@ function TransactionListApp() {
         if (revenueReport) {
           setRevenueData({
             totalRevenue: revenueReport.totalRevenue || 0,
+            totalRevenue_abbreviated: revenueReport.totalRevenue_abbreviated || "",
             start_date: revenueReport.start_date || '',
             end_date: revenueReport.end_date || '',
           });
@@ -92,6 +95,7 @@ function TransactionListApp() {
         });
         setRevenueData({
           totalRevenue: 0,
+          totalRevenue_abbreviated: "",
           start_date: '',
           end_date: '',
         });
@@ -110,6 +114,36 @@ function TransactionListApp() {
 
   const handleEndDateChange = (date: dayjs.Dayjs | null) => {
     setEndDate(date);
+  };
+
+  // Revenue display component with tooltip
+  const RevenueDisplay = () => {
+    const value = revenueData?.totalRevenue || 0;
+    const abbreviatedValue = revenueData?.totalRevenue_abbreviated || '';
+    const hasAbbreviation = abbreviatedValue && abbreviatedValue.includes('K');
+    
+    if (hasAbbreviation) {
+      return (
+        <Tooltip 
+          title={formatPounds(value)}
+          arrow
+          placement="top"
+        >
+          <Typography 
+            className="text-2xl font-bold text-blue-600"
+            sx={{ cursor: 'help' }}
+          >
+            £{abbreviatedValue}
+          </Typography>
+        </Tooltip>
+      );
+    }
+    
+    return (
+      <Typography className="text-2xl font-bold text-blue-600">
+        {formatPounds(value)}
+      </Typography>
+    );
   };
 
   return (
@@ -153,17 +187,7 @@ function TransactionListApp() {
                     {endDate ? endDate.format("MMM D, YYYY") : "Present"}
                   </span>
                 </Typography>
-                <Typography className="text-2xl font-bold text-blue-600">
-                  {(() => {
-                    let value = 0;
-                    if (startDate || endDate) {
-                      value = revenueData?.totalRevenue || 0;
-                    } else {
-                      value = stats?.totalRevenue ? parseFloat(stats.totalRevenue) : 0;
-                    }
-                    return formatPounds(value);
-                  })()}
-                </Typography>
+                <RevenueDisplay />
               </CardContent>
             </Card>
           </Grid>

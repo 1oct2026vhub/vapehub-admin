@@ -45,19 +45,37 @@ const RecentOrdersTable = ({ orders }: RecentOrdersTableProps) => {
   };
 
   const getStatusColor = (status: string) => {
-    // Implement your logic to determine the color based on the status
-    // For example, you can use a switch statement or a mapping function
-    switch (status) {
+    // Match the exact colors from OrderStatistics
+    const statusColors = {
+      pending: "#FF9800", // Orange
+      processing: "#2196F3", // Blue
+      shipped: "#9C27B0", // Purple
+      completed: "#009688", // Teal
+      failed: "#E53935", // Red
+      cancelled: "#795548", // Brown
+      fail: "#E53935", // Red (alternative name)
+      cancel: "#795548" // Brown (alternative name)
+    };
+    
+    // Convert status to lowercase for matching
+    const normalizedStatus = status.toLowerCase();
+    
+    // Return the appropriate MUI color based on the status
+    switch (normalizedStatus) {
       case "completed":
         return "success";
       case "pending":
         return "warning";
       case "cancelled":
+      case "cancel":
         return "error";
       case "processing":
         return "info";
       case "shipped":
-        return "primary";
+        return "secondary";
+      case "failed":
+      case "fail":
+        return "error";
       default:
         return "default";
     }

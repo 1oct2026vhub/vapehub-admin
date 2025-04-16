@@ -1,6 +1,6 @@
 "use client";
 
-import { Card, CardContent, Typography, Box } from '@mui/material';
+import { Card, CardContent, Typography, Box, Tooltip } from '@mui/material';
 import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
 import CurrencyPoundIcon from '@mui/icons-material/CurrencyPound';
@@ -15,9 +15,10 @@ interface StatisticsCardProps {
   icon: string;
   color: string;
   subtitle?: string;
+  fullValue?: string;
 }
 
-const StatisticsCard = ({ title, value, icon, color, subtitle }: StatisticsCardProps) => {
+const StatisticsCard = ({ title, value, icon, color, subtitle, fullValue }: StatisticsCardProps) => {
   const getIcon = () => {
     switch (icon) {
       case 'sales':
@@ -37,6 +38,28 @@ const StatisticsCard = ({ title, value, icon, color, subtitle }: StatisticsCardP
     }
   };
 
+  const displayValue = (
+    fullValue ? (
+      <Tooltip 
+        title={
+          <Typography >
+            {fullValue}
+          </Typography>
+        } 
+        placement="top" 
+        arrow
+      >
+        <Typography variant="h4" component="div" sx={{ cursor: 'help' }}>
+          {value}
+        </Typography>
+      </Tooltip>
+    ) : (
+      <Typography variant="h4" component="div">
+        {value}
+      </Typography>
+    )
+  );
+
   return (
     <Card 
       sx={{ 
@@ -55,9 +78,7 @@ const StatisticsCard = ({ title, value, icon, color, subtitle }: StatisticsCardP
             <Typography color="textSecondary" gutterBottom>
               {title}
             </Typography>
-            <Typography variant="h4" component="div">
-              {value}
-            </Typography>
+            {displayValue}
             {subtitle && (
               <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
                 {subtitle}
