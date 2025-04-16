@@ -100,6 +100,8 @@ const AdminDashboardApp = () => {
     );
   }
 
+  const salesInfo = stats?.sales as any;
+
   return (
     <Box className="dashboard-container">
       <AdminDashboardHeader />
@@ -114,7 +116,7 @@ const AdminDashboardApp = () => {
         <Grid item xs={12} sm={6} md={3}>
           <StatisticsCard
             title="Today's Sales"
-            value={formatPounds(stats?.sales.today?.replace(/[^\d.-]/g, '') || 0)}
+            value={salesInfo?.todayAbbreviated || stats?.sales.today}
             icon="sales"
             color="#4CAF50"
           />
@@ -122,7 +124,7 @@ const AdminDashboardApp = () => {
         <Grid item xs={12} sm={6} md={3}>
           <StatisticsCard
             title="Weekly Sales"
-            value={formatPounds(stats?.sales.weekly?.replace(/[^\d.-]/g, '') || 0)}
+            value={salesInfo?.weeklyAbbreviated || stats?.sales.weekly}
             icon="sales"
             color="#2196F3"
           />
@@ -130,18 +132,24 @@ const AdminDashboardApp = () => {
         <Grid item xs={12} sm={6} md={3}>
           <StatisticsCard
             title="Monthly Sales"
-            value={formatPounds(stats?.sales.monthly?.replace(/[^\d.-]/g, '') || 0)}
+            value={salesInfo?.monthlyAbbreviated || stats?.sales.monthly}
             icon="sales"
             color="#9C27B0"
           />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
           <StatisticsCard
+            title="Yearly Sales"
+            value={salesInfo?.yearlyAbbreviated || salesInfo?.yearly}
+            icon="sales"
+            color="#9C27B0"
+          />
+          {/* <StatisticsCard
             title="Total Products"
             value={stats?.products.totalProducts.toString() || "0"}
             icon="products"
             color="#FF9800"
-          />
+          /> */}
         </Grid>
         {/* <Grid item xs={12} sm={6} md={4}>
           <StatisticsCard
