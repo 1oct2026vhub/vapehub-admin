@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Controller } from "react-hook-form";
-import { Autocomplete, TextField, CircularProgress } from "@mui/material";
+import { Autocomplete, TextField, CircularProgress, AutocompleteRenderOptionState } from "@mui/material";
 
 interface Option {
   value: number | string;
@@ -19,6 +19,7 @@ interface FormSearchableSelectFieldProps {
   loadingText?: string;
   noOptionsText?: string;
   placeholder?: string;
+  searchTerm?: string;
 }
 
 const FormSearchableSelectField: React.FC<FormSearchableSelectFieldProps> = ({
@@ -32,7 +33,8 @@ const FormSearchableSelectField: React.FC<FormSearchableSelectFieldProps> = ({
   onInputChange,
   loadingText = "Searching...",
   noOptionsText,
-  placeholder
+  placeholder,
+  searchTerm = ""
 }) => {
   const [touched, setTouched] = useState(false);
   const [inputValue, setInputValue] = useState("");
@@ -49,6 +51,27 @@ const FormSearchableSelectField: React.FC<FormSearchableSelectFieldProps> = ({
       : options.length === 0
       ? "No options found"
       : "No matches found";
+      
+  // Function to highlight matching text in search results
+  const highlightMatch = (text: string, query: string) => {
+    if (!query || query.length < 2) return text;
+    
+    try {
+      const parts = text.split(new RegExp(`(${query})`, 'gi'));
+      return (
+        <>
+          {parts.map((part, index) => 
+            part.toLowerCase() === query.toLowerCase() ? 
+              <span key={index} style={{ fontWeight: 'bold', backgroundColor: 'rgba(46, 153, 112, 0.1)' }}>
+                {part}
+              </span> : part
+          )}
+        </>
+      );
+    } catch (e) {
+      return text;
+    }
+  };
 
   return (
     <Controller
@@ -77,6 +100,11 @@ const FormSearchableSelectField: React.FC<FormSearchableSelectFieldProps> = ({
           noOptionsText={noOptionsText || defaultNoOptionsText}
           onFocus={() => setTouched(true)}
           filterOptions={(x) => x} // Don't filter client-side, we're using server filtering
+          renderOption={(props, option, state) => (
+            <li {...props} key={`option-${option.value}`}>
+              {highlightMatch(option.label, searchTerm || inputValue)}
+            </li>
+          )}
           renderInput={(params) => (
             <TextField
               {...params}
