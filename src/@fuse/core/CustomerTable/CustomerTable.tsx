@@ -123,6 +123,7 @@ const CustomerTable = () => {
 
     try {
       if (dialogType === "delete") {
+        // Optimistically update UI for delete/restore
         setCustomers((prev) =>
           prev.filter((user) => user.id !== selectedUser.id),
         );
@@ -131,7 +132,7 @@ const CustomerTable = () => {
           ? restoreCustomer(selectedUser.id)
           : deleteCustomer(selectedUser.id));
 
-        // Show Snackbar for Delete/Restore
+        // Show success message
         showSnackbar(
           deletedCustomer
             ? "Customer restored successfully!"
@@ -139,19 +140,16 @@ const CustomerTable = () => {
           "success",
         );
       } else if (dialogType === "block") {
-        setCustomers((prev) =>
-          prev.map((user) =>
-            user.id === selectedUser.id
-              ? { ...user, blocked: !user.blocked }
-              : user,
-          ),
+        // Always remove the customer from the current view
+        setCustomers((prev) => 
+          prev.filter((user) => user.id !== selectedUser.id)
         );
 
         await (selectedUser.blocked
           ? unBlockCustomer(selectedUser.id)
           : blockCustomer(selectedUser.id));
 
-        // Show Snackbar for Block/Unblock
+        // Show success message
         showSnackbar(
           selectedUser.blocked
             ? "Customer unblocked successfully!"
@@ -160,6 +158,7 @@ const CustomerTable = () => {
         );
       }
 
+      // Refresh data in the background without forcing a reload
       await mutate(["customerList", queryParams], true);
     } catch (error) {
       if (error?.errors) {
