@@ -11,6 +11,7 @@ import {
   Chip,
   CircularProgress,
   Button,
+  Tooltip,
 } from "@mui/material";
 import dayjs, { Dayjs } from "dayjs";
 import DownloadIcon from "@mui/icons-material/Download";
@@ -62,17 +63,18 @@ const OrderStatistics = ({
       pending: "#FF9800", // Orange
       processing: "#2196F3", // Blue
       shipped: "#9C27B0", // Purple
-      delivered: "#4CAF50", // Green
       completed: "#009688", // Teal
-      fail: "#E53935", // Red
-      cancel: "#795548", // Brown
+      failed: "#E53935", // Red
+      cancelled: "#795548", // Brown
+      fail: "#E53935", // Red (alternative name)
+      cancel: "#795548", // Brown (alternative name)
       draft: "#9E9E9E", // Grey
       return_requested: "#FF5722", // Deep Orange
       return_approved: "#FF9800", // Orange
       return_received: "#9E9E9E", // Grey
       refunded: "#607D8B", // Blue Grey
     };
-    return colors[status] || "#9E9E9E"; // Default to grey
+    return colors[status.toLowerCase()] || "#9E9E9E"; // Default to grey
   };
 
   // Fetch statistics
@@ -115,6 +117,7 @@ const OrderStatistics = ({
       // Create CSV content
       let csvContent = "Status,Orders,Revenue\n";
       statistics.forEach((stat) => {
+        // Use raw values for export, not abbreviated ones
         csvContent += `${stat.status},${stat.count},${formatPounds(stat.total_amount)}\n`;
       });
 
@@ -190,8 +193,9 @@ const OrderStatistics = ({
                             <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.6rem' }}>
                               Orders
                             </Typography>
+                            {/* Display abbreviated count values (e.g., "1.2K") when available */}
                             <Typography variant="subtitle2" component="div" sx={{ fontWeight: 500, fontSize: '0.8rem', mt: 0.25 }}>
-                              {stat.count}
+                              {stat.count_abbreviated || stat.count}
                             </Typography>
                           </Grid>
                           
@@ -199,9 +203,27 @@ const OrderStatistics = ({
                             <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.6rem' }}>
                               Revenue
                             </Typography>
-                            <Typography variant="subtitle2" component="div" sx={{ fontWeight: 500, fontSize: '0.8rem', mt: 0.25 }}>
-                              {formatPounds(stat.total_amount)}
-                            </Typography>
+                            {/* Use abbreviated amount values (e.g., "116.89K") from API when available */}
+                            {stat.total_amount_abbreviated && stat.total_amount_abbreviated.includes('K') ? (
+                              <Tooltip 
+                                title={`${formatPounds(stat.total_amount)}`} 
+                                arrow 
+                                placement="top"
+                              >
+                                <Typography variant="subtitle2" component="div" sx={{ 
+                                  fontWeight: 500, 
+                                  fontSize: '0.8rem', 
+                                  mt: 0.25,
+                                  cursor: 'help'
+                                }}>
+                                  £{stat.total_amount_abbreviated}
+                                </Typography>
+                              </Tooltip>
+                            ) : (
+                              <Typography variant="subtitle2" component="div" sx={{ fontWeight: 500, fontSize: '0.8rem', mt: 0.25 }}>
+                                {stat.total_amount_abbreviated ? `£${stat.total_amount_abbreviated}` : formatPounds(stat.total_amount)}
+                              </Typography>
+                            )}
                           </Grid>
                         </Grid>
                       </CardContent>

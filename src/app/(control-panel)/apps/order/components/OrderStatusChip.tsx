@@ -9,35 +9,72 @@ interface OrderStatusChipProps extends Omit<ChipProps, "color"> {
 }
 
 const OrderStatusChip = ({ status, onClick, ...rest }: OrderStatusChipProps) => {
+  // Get the exact color for the status to match the OrderStatistics component
+  const getStatusColor = (status: string) => {
+    const colors: Record<string, string> = {
+      pending: "#FF9800", // Orange
+      processing: "#2196F3", // Blue
+      shipped: "#9C27B0", // Purple
+      completed: "#009688", // Teal
+      failed: "#E53935", // Red
+      cancelled: "#795548", // Brown
+      fail: "#E53935", // Red (alternative name)
+      cancel: "#795548", // Brown (alternative name)
+      draft: "#9E9E9E", // Grey
+      return_requested: "#FF5722", // Deep Orange
+      return_approved: "#FF9800", // Orange
+      return_received: "#9E9E9E", // Grey
+      refunded: "#607D8B", // Blue Grey
+    };
+    return colors[status.toLowerCase()] || "#9E9E9E"; // Default to grey
+  };
+
   const getStatusConfig = (status: OrderStatus) => {
+    // Get display label based on status
+    let label: string;
+    
     switch (status) {
       case "draft":
-        return { label: "Draft", color: "default" };
+        label = "Draft";
+        break;
       case "pending":
-        return { label: "Pending", color: "info" };
+        label = "Pending";
+        break;
       case "processing":
-        return { label: "Processing", color: "primary" };
+        label = "Processing";
+        break;
       case "shipped":
-        return { label: "Shipped", color: "secondary" };
+        label = "Shipped";
+        break;
       case "delivered":
-        return { label: "Delivered", color: "success" };
+        label = "Delivered";
+        break;
       case "completed":
-        return { label: "Completed", color: "success" };
+        label = "Completed";
+        break;
       case "fail":
-        return { label: "Failed", color: "error" };
+        label = "Failed";
+        break;
       case "cancel":
-        return { label: "Cancelled", color: "error" };
+        label = "Cancelled";
+        break;
       case "return_requested":
-        return { label: "Return Requested", color: "warning" };
+        label = "Return Requested";
+        break;
       case "return_approved":
-        return { label: "Return Approved", color: "warning" };
+        label = "Return Approved";
+        break;
       case "return_received":
-        return { label: "Return Received", color: "warning" };
+        label = "Return Received";
+        break;
       case "refunded":
-        return { label: "Refunded", color: "warning" };
+        label = "Refunded";
+        break;
       default:
-        return { label: status, color: "default" };
+        label = status;
     }
+    
+    return { label, color: getStatusColor(status) };
   };
 
   const { label, color } = getStatusConfig(status);
@@ -45,10 +82,14 @@ const OrderStatusChip = ({ status, onClick, ...rest }: OrderStatusChipProps) => 
   return (
     <Chip
       label={label}
-      color={color as ChipProps["color"]}
       size="small"
       onClick={onClick}
       clickable={!!onClick}
+      sx={{
+        backgroundColor: color,
+        color: "white",
+        fontWeight: 500,
+      }}
       {...rest}
     />
   );
