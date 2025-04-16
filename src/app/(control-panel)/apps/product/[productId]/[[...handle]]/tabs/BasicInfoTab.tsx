@@ -14,7 +14,7 @@ import {
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import AppButton from "@/components/Shared/AppButton";
 import FormInputField from "@/components/Shared/FormInputField";
 import { useProductForm } from "../ProductFormContext";
@@ -22,6 +22,7 @@ import { getAuthToken } from "@/utils/auth";
 import FormSearchableSelectField from "@/components/Shared/FormSearchableSelectField";
 import FormCKEditor from "@/components/Shared/FormCKEditor";
 import debounce from 'lodash/debounce';
+import { Grid, Stack } from "@mui/material";
 
 const schema = z.object({
   name: z
@@ -69,12 +70,15 @@ function BasicInfoTab() {
   const [productId, setProductId] = useState<number | null>(null);
   
   // State for searchable select options
+  const [categoryLoading, setCategoryLoading] = useState(false);
   const [categoryOptions, setCategoryOptions] = useState<Option[]>([]);
+  const [categoryError, setCategoryError] = useState("");
+  const [categorySearchInput, setCategorySearchInput] = useState("");
+
+  const [brandLoading, setBrandLoading] = useState(false);
   const [brandOptions, setBrandOptions] = useState<Option[]>([]);
-  const [isCategoryLoading, setIsCategoryLoading] = useState(false);
-  const [isBrandLoading, setIsBrandLoading] = useState(false);
-  const [categorySearchQuery, setCategorySearchQuery] = useState("");
-  const [brandSearchQuery, setBrandSearchQuery] = useState("");
+  const [brandError, setBrandError] = useState("");
+  const [brandSearchInput, setBrandSearchInput] = useState("");
 
   // Determine if we're in edit mode
   const isEditMode = Boolean(productId && productId > 0);
@@ -107,103 +111,111 @@ function BasicInfoTab() {
   }, []);
 
   // Fetch categories based on search query
-  const fetchCategories = async (query: string) => {
-    setIsCategoryLoading(true);
-    try {
-      const response = await listProductCategory({
-        search: query,
-        name_filter: true,
-        limit: 1000
-      });
-      
-      if (response?.data?.categories) {
-        // Directly map the categories from the API response, preserving the server's order
-        const options = response.data.categories.map((category: any) => ({
-          value: category.id,
-          label: category.name,
-        }));
-        
-        // Set the options directly without any additional sorting or filtering
-        setCategoryOptions(options);
-      } else {
-        setCategoryOptions([]);
-      }
-    } catch (error) {
-      console.error("Error fetching categories:", error);
-      setCategoryOptions([]);
-    } finally {
-      setIsCategoryLoading(false);
-    }
-  };
+  const fetchCategories = useMemo(
+    () =>
+      debounce(async (query: string) => {
+        // Only search if query is empty or has at least 2 chars
+        if (query.length === 0 || query.length >= 2) {
+          try {
+            setCategoryLoading(query.length > 0);
+            setCategoryError("");
+            
+            // Use same parameters as in ProductListTable
+            const response = await listProductCategory({
+              search: query,
+              search_only_name: true,
+              limit: 1000
+            });
+            
+            if (response?.data?.categories) {
+              // Deduplicate categories based on ID first
+              const uniqueCategories = deduplicateById(response.data.categories);
+              
+              // Sort the categories intelligently based on search query
+              let sortedCategories = [...uniqueCategories];
+              if (query && query.length >= 1) {
+                sortedCategories = sortSearchResults(sortedCategories, query, 'name');
+              }
+              
+              // Map the categories from the API response
+              const options = sortedCategories.map((category: any) => ({
+                value: category.id,
+                label: category.name,
+              }));
+              
+              setCategoryOptions(options);
+            } else {
+              setCategoryOptions([]);
+            }
+          } catch (error) {
+            console.error("Error fetching categories:", error);
+            setCategoryOptions([]);
+          }
+        }
+      }, 400),
+    []
+  );
 
   // Fetch brands based on search query
-  const fetchBrands = async (query: string) => {
-    setIsBrandLoading(true);
-    try {
-      const response = await listProductBrand({
-        search: query,
-        name_filter: true,
-        limit: 1000
-      });
-      
-      if (response?.data?.brands) {
-        // Directly map the brands from the API response, preserving the server's order
-        const options = response.data.brands.map((brand: any) => ({
-          value: brand.id,
-          label: brand.name,
-        }));
-        
-        // Set the options directly without any additional sorting or filtering
-        setBrandOptions(options);
-      } else {
-        setBrandOptions([]);
-      }
-    } catch (error) {
-      console.error("Error fetching brands:", error);
-      setBrandOptions([]);
-    } finally {
-      setIsBrandLoading(false);
-    }
-  };
-
-  // Debounced search handlers
-  const debouncedCategorySearch = useCallback(
-    debounce((query: string) => {
-      fetchCategories(query);
-    }, 1000),
+  const fetchBrands = useMemo(
+    () =>
+      debounce(async (query: string) => {
+        // Only search if query is empty or has at least 2 chars
+        if (query.length === 0 || query.length >= 2) {
+          try {
+            setBrandLoading(query.length > 0);
+            setBrandError("");
+            
+            // Use same parameters as in ProductListTable
+            const response = await listProductBrand({
+              search: query,
+              search_only_name: true,
+              limit: 1000
+            });
+            
+            if (response?.data?.brands) {
+              // Deduplicate brands based on ID first
+              const uniqueBrands = deduplicateById(response.data.brands);
+              
+              // Sort the brands intelligently based on search query
+              let sortedBrands = [...uniqueBrands];
+              if (query && query.length >= 1) {
+                sortedBrands = sortSearchResults(sortedBrands, query, 'name');
+              }
+              
+              // Map the brands from the API response
+              const options = sortedBrands.map((brand: any) => ({
+                value: brand.id,
+                label: brand.name,
+              }));
+              
+              setBrandOptions(options);
+            } else {
+              setBrandOptions([]);
+            }
+          } catch (error) {
+            console.error("Error fetching brands:", error);
+            setBrandOptions([]);
+          }
+        }
+      }, 400),
     []
   );
-
-  const debouncedBrandSearch = useCallback(
-    debounce((query: string) => {
-      fetchBrands(query);
-    }, 1000),
-    []
-  );
-
-  // Category search input handler
-  const handleCategorySearch = (query: string) => {
-    setCategorySearchQuery(query);
-    debouncedCategorySearch(query);
-  };
-
-  // Brand search input handler
-  const handleBrandSearch = (query: string) => {
-    setBrandSearchQuery(query);
-    debouncedBrandSearch(query);
-  };
-
-  console.log("productId", productId);
 
   // Fetch selected category and brand on edit
   const fetchSelectedOptions = async (categoryId: number, brandId: number) => {
     if (categoryId > 0) {
       try {
-        const response = await listProductCategory({ id: categoryId });
+        const response = await listProductCategory({ 
+          id: categoryId, 
+          search_only_name: true 
+        });
+        
         if (response?.data?.categories && response.data.categories.length > 0) {
           const category = response.data.categories[0];
           // Add to options if not already present
           setCategoryOptions(prev => {
+            // First check if this category is already in the options
             if (!prev.some(option => option.value === category.id)) {
               return [...prev, { value: category.id, label: category.name }];
             }
@@ -218,11 +230,16 @@ function BasicInfoTab() {
     
     if (brandId > 0) {
       try {
-        const response = await listProductBrand({ id: brandId });
+        const response = await listProductBrand({ 
+          id: brandId, 
+          search_only_name: true 
+        });
+        
         if (response?.data?.brands && response.data.brands.length > 0) {
           const brand = response.data.brands[0];
           // Add to options if not already present
           setBrandOptions(prev => {
+            // First check if this brand is already in the options
             if (!prev.some(option => option.value === brand.id)) {
               return [...prev, { value: brand.id, label: brand.name }];
             }
@@ -379,6 +396,67 @@ function BasicInfoTab() {
     }
   };
 
+  // Helper function to deduplicate items by ID
+  const deduplicateById = (items) => {
+    const uniqueMap = new Map();
+    items.forEach(item => {
+      if (!uniqueMap.has(item.id)) {
+        uniqueMap.set(item.id, item);
+      }
+    });
+    return Array.from(uniqueMap.values());
+  };
+  
+  // Helper function to sort search results intelligently
+  const sortSearchResults = (items, query, field) => {
+    if (!query) return items;
+    
+    const lowerQuery = query.toLowerCase();
+    
+    // First, filter out results that don't match at all if we have a meaningful query
+    let filteredItems = items;
+    if (lowerQuery.length >= 2) {
+      const matchingItems = items.filter(item => 
+        item[field].toLowerCase().includes(lowerQuery)
+      );
+      
+      // Only use filtered items if we have results, otherwise fall back to all items
+      if (matchingItems.length > 0) {
+        filteredItems = matchingItems;
+      }
+    }
+    
+    return filteredItems.sort((a, b) => {
+      const aName = a[field].toLowerCase();
+      const bName = b[field].toLowerCase();
+      
+      // 1. Exact matches first
+      if (aName === lowerQuery && bName !== lowerQuery) return -1;
+      if (bName === lowerQuery && aName !== lowerQuery) return 1;
+      
+      // 2. Starts with matches second
+      if (aName.startsWith(lowerQuery) && !bName.startsWith(lowerQuery)) return -1;
+      if (bName.startsWith(lowerQuery) && !aName.startsWith(lowerQuery)) return 1;
+      
+      // 3. Contains matches third
+      const aContainsIndex = aName.indexOf(lowerQuery);
+      const bContainsIndex = bName.indexOf(lowerQuery);
+      
+      if (aContainsIndex >= 0 && bContainsIndex < 0) return -1;
+      if (bContainsIndex >= 0 && aContainsIndex < 0) return 1;
+      
+      // 4. If both contain, sort by position of match (earlier matches first)
+      if (aContainsIndex >= 0 && bContainsIndex >= 0) {
+        if (aContainsIndex !== bContainsIndex) {
+          return aContainsIndex - bContainsIndex;
+        }
+      }
+      
+      // 5. Alphabetical order for equal match quality
+      return aName.localeCompare(bName);
+    });
+  };
+
   return (
     <form
       onSubmit={handleSubmit(onSubmit)}
@@ -415,41 +493,54 @@ function BasicInfoTab() {
         label="Description"
         defaultValue={formData.description || ""}
       />
-      <FormSearchableSelectField
-        name="category_id"
-        control={control}
-        label="Category"
-        options={categoryOptions}
-        required
-        loading={isCategoryLoading}
-        errorMessage={errors.category_id?.message}
-        onInputChange={handleCategorySearch}
-        loadingText="Searching categories..."
-        noOptionsText={
-          categoryOptions.length === 0 
-            ? "No categories found" 
-            : "No matching categories"
-        }
-        placeholder="Search for a category..."
-      />
-
-      <FormSearchableSelectField
-        name="brand_id"
-        control={control}
-        label="Brand"
-        options={brandOptions}
-        required
-        loading={isBrandLoading}
-        errorMessage={errors.brand_id?.message}
-        onInputChange={handleBrandSearch}
-        loadingText="Searching brands..."
-        noOptionsText={
-          brandOptions.length === 0 
-            ? "No brands found" 
-            : "No matching brands"
-        }
-        placeholder="Search for a brand..."
-      />
+      <Stack spacing={2} sx={{ mb: 4 }}>
+        <FormSearchableSelectField
+          name="category_id"
+          control={control}
+          label="Category"
+          options={categoryOptions}
+          loading={false}
+          errorMessage={categoryError || errors.category_id?.message?.toString()}
+          onInputChange={(query) => {
+            setCategorySearchInput(query);
+            fetchCategories(query);
+          }}
+          searchTerm={categorySearchInput}
+          required
+          loadingText="Searching categories..."
+          noOptionsText={
+            categorySearchInput.length < 2 && categorySearchInput.length > 0
+              ? "Please enter at least 2 characters"
+              : categoryOptions.length === 0 
+                ? "No categories found" 
+                : "No matching categories"
+          }
+          placeholder="Search for a category..."
+        />
+        <FormSearchableSelectField
+          name="brand_id"
+          control={control}
+          label="Brand"
+          options={brandOptions}
+          loading={false}
+          errorMessage={brandError || errors.brand_id?.message?.toString()}
+          onInputChange={(query) => {
+            setBrandSearchInput(query);
+            fetchBrands(query);
+          }}
+          searchTerm={brandSearchInput}
+          required
+          loadingText="Searching brands..."
+          noOptionsText={
+            brandSearchInput.length < 2 && brandSearchInput.length > 0
+              ? "Please enter at least 2 characters"
+              : brandOptions.length === 0 
+                ? "No brands found" 
+                : "No matching brands"
+          }
+          placeholder="Search for a brand..."
+        />
+      </Stack>
       <AppButton
         label={isEditMode ? "Update" : "Next"}
         loading={isLoading}
