@@ -32,9 +32,13 @@ const MAX_IMAGE_HEIGHT = 234;
 const ACCEPTED_FILE_TYPES = ["image/png", "image/jpg", "image/jpeg", "image/webp"];
 
 interface ProductImage {
-  id: number;
+  id: number | string;
   url: string;
   is_primary: boolean;
+  isUploading?: boolean;
+  validationError?: string;
+  isTemp?: boolean;
+  file?: File;
 }
 
 interface NewFile {
@@ -86,6 +90,17 @@ const validateImageDimensions = (file: File): Promise<{ valid: boolean; dimensio
   });
 };
 
+// Update form context with the correctly mapped data
+function getFormattedProductImages(images: ProductImage[]) {
+  return images
+    .filter(img => !img.isTemp)
+    .map(img => ({
+      id: Number(img.id),
+      url: img.url,
+      is_primary: img.is_primary
+    }));
+}
+
 function ProductImagesTab() {
   const [files, setFiles] = useState<NewFile[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -112,7 +127,7 @@ function ProductImagesTab() {
       return;
     }
 
-    // Skip if we've already fetched data for this product ID
+    // Skip if we've already fetched data for this product ID and not explicitly forced to refetch
     if (fetchedRef.current && productIdRef.current === productId) {
       setIsLoading(false);
       return;
@@ -157,7 +172,7 @@ function ProductImagesTab() {
         // Update the form data with the images information
         updateFormData({
           productId: Number(productId),
-          productImages: updatedImages,
+          productImages: getFormattedProductImages(updatedImages),
         });
       } else {
         setUploadedImages([]);
@@ -174,8 +189,10 @@ function ProductImagesTab() {
 
   // Fetch product data on component mount
   useEffect(() => {
-    fetchProductData();
-  }, [fetchProductData]);
+    if (productId) {
+      fetchProductData();
+    }
+  }, [productId]); // Only depend on productId, not fetchProductData
 
   // Validate file size, type and dimensions
   const validateFile = async (file: File): Promise<string | null> => {
@@ -216,25 +233,18 @@ function ProductImagesTab() {
     // Set uploading flag to true
     isUploadingRef.current = true;
 
-    // Mark all files as uploading in UI
-    setFiles(prev => prev.map((file, i) => {
-      const index = i - fileStartIndex;
-      if (index >= 0 && index < filesToUpload.length) {
-        return { ...file, isUploading: true, uploadError: undefined };
+    // Mark files as uploading in UI
+    setUploadedImages(prev => prev.map(img => {
+      if (img.isTemp && img.file) {
+        const matchingNewFile = filesToUpload.find(f => f.file === img.file);
+        if (matchingNewFile && !img.validationError) {
+          return { ...img, isUploading: true };
+        }
       }
-      return file;
+      return img;
     }));
 
     try {
-      // Create form data for the API
-      const formData = new FormData();
-      formData.append("product_id", productId.toString());
-      
-      // Append all files to the form data
-      filesToUpload.forEach(fileItem => {
-        formData.append("images", fileItem.file);
-      });
-
       console.log(`Uploading ${filesToUpload.length} files in one API call`);
       
       // Call the upload API just once with all files
@@ -245,56 +255,64 @@ function ProductImagesTab() {
 
       console.log("Upload API response:", response);
 
-      if (!response?.data?.images || response.data.images.length === 0) {
+      // Check for different possible response formats and handle accordingly
+      if (!response?.data?.images && !response?.images) {
+        console.error("Unexpected API response format:", response);
+        throw new Error("Unexpected API response format");
+      }
+
+      // Get uploaded images from response
+      const uploadedImagesData = response.data?.images || response.images || [];
+      
+      if (uploadedImagesData.length === 0) {
         throw new Error("No images were returned from the upload");
       }
 
-      // Process the response for each file
-      const uploadedImages = response.data.images;
-      
-      // Update file state with uploaded information
-      setFiles(prev => {
-        const newState = [...prev];
+      // Remove temp images that were just uploaded
+      setUploadedImages(prev => {
+        const updatedImages = prev.filter(img => {
+          // Keep if not a temp image or has validation error
+          if (!img.isTemp || img.validationError) return true;
+          
+          // Remove temp images that were just uploaded
+          return !filesToUpload.some(f => f.file === img.file);
+        });
         
-        // Map uploaded IDs to the respective files
-        for (let i = 0; i < Math.min(uploadedImages.length, filesToUpload.length); i++) {
-          const fileIndex = fileStartIndex + i;
-          if (fileIndex < newState.length) {
-            newState[fileIndex] = {
-              ...newState[fileIndex],
-              isUploading: false,
-              uploadedImageId: uploadedImages[i].id
-            };
-          }
-        }
-        
-        return newState;
+        return updatedImages;
       });
 
       // Find if any of the files should be primary
       const primaryFile = filesToUpload.find(file => file.is_primary);
-      if (primaryFile && uploadedImages.length > 0) {
+      let primaryImageId = null;
+      
+      if (primaryFile && uploadedImagesData.length > 0) {
         try {
           // Get the index of the primary file
           const primaryIndex = filesToUpload.indexOf(primaryFile);
-          if (primaryIndex >= 0 && primaryIndex < uploadedImages.length) {
-            // Remove primary status from any existing images
-            setUploadedImages(prev => prev.map(img => ({
-              ...img,
-              is_primary: false
-            })));
+          if (primaryIndex >= 0 && primaryIndex < uploadedImagesData.length) {
+            primaryImageId = uploadedImagesData[primaryIndex].id;
             
             // Set this new image as primary
-            await updatePrimaryImage(Number(productId), uploadedImages[primaryIndex].id);
+            await updatePrimaryImage(Number(productId), primaryImageId);
           }
         } catch (error) {
           console.error("Error setting primary image:", error);
         }
       }
 
-      // Refresh uploaded images once
-      fetchedRef.current = false;
-      await fetchProductData();
+      // After uploads are complete, manually fetch the updated data once
+      const updatedResponse = await getProduct(Number(productId));
+      if (updatedResponse?.data?.ProductImages) {
+        const mappedImages = updatedResponse.data.ProductImages.map(
+          mapApiImageToProductImage
+        );
+        setUploadedImages(mappedImages);
+        
+        // Update form context
+        updateFormData({
+          productImages: getFormattedProductImages(mappedImages),
+        });
+      }
       
       showSnackbar("Images uploaded successfully", "success");
       
@@ -304,17 +322,19 @@ function ProductImagesTab() {
     } catch (error) {
       console.error("Error uploading files:", error);
       
-      // Mark all files as having an error
-      setFiles(prev => prev.map((file, i) => {
-        const index = i - fileStartIndex;
-        if (index >= 0 && index < filesToUpload.length) {
-          return { 
-            ...file, 
-            isUploading: false, 
-            uploadError: "Failed to upload image" 
-          };
+      // Mark uploads as failed
+      setUploadedImages(prev => prev.map(img => {
+        if (img.isTemp && img.file) {
+          const matchingNewFile = filesToUpload.find(f => f.file === img.file);
+          if (matchingNewFile) {
+            return { 
+              ...img, 
+              isUploading: false, 
+              validationError: "Failed to upload image" 
+            };
+          }
         }
-        return file;
+        return img;
       }));
       
       showSnackbar("Failed to upload images", "error");
@@ -325,7 +345,7 @@ function ProductImagesTab() {
     }
   };
 
-  // Handle file drop/selection - this is where automatic upload happens
+  // Handle file drop/selection
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
     if (!productId) {
       showSnackbar("Please complete the basic info first", "error");
@@ -342,6 +362,7 @@ function ProductImagesTab() {
     
     // Process all accepted files
     const newFiles: NewFile[] = [];
+    const validFiles: NewFile[] = [];
     
     // Check if we should set first new file as primary
     const hasExistingPrimary = uploadedImages.some(img => img.is_primary) || 
@@ -352,47 +373,57 @@ function ProductImagesTab() {
       const file = acceptedFiles[i];
       const validationError = await validateFile(file);
       
-      // Add all files to the preview, even those with validation errors
       // Only set first valid file as primary if no other primary exists
       const shouldBePrimary = !hasExistingPrimary && i === 0 && 
                               newFiles.filter(f => !f.validationError).length === 0 && 
                               !validationError;
       
-      newFiles.push({
+      const newFile = {
         file,
         is_primary: shouldBePrimary,
         isUploading: false,
         validationError: validationError || undefined
-      });
+      };
+      
+      newFiles.push(newFile);
+      
+      // Add valid files to a separate array for upload
+      if (!validationError) {
+        validFiles.push(newFile);
+      }
     }
     
     if (newFiles.length > 0) {
       console.log(`Adding ${newFiles.length} images to preview`);
       
-      // Add new files to state first - do this only once
-      setFiles(prev => {
-        const updatedFiles = [...prev, ...newFiles];
+      // Add new files to uploadedImages with temporary IDs
+      const tempFiles = newFiles.map((newFile, index) => {
+        const tempId = `temp-${Date.now()}-${index}`;
+        const tempUrl = URL.createObjectURL(newFile.file);
         
-        // Start upload sequence for valid files only
-        const fileStartIndex = prev.length;
-        const validNewFiles = newFiles.filter(file => !file.validationError);
-
-        // Skip upload if all files have validation errors
-        if (validNewFiles.length === 0) {
-          return updatedFiles;
-        }
-
-        // Use a setTimeout to ensure the state is updated before uploading
-        // Only start upload if we're not already uploading (double-check)
-        if (!isUploadingRef.current) {
-          setTimeout(() => {
-            // Upload all valid files in a single call
-            uploadFiles(validNewFiles, fileStartIndex);
-          }, 10);
-        }
-        
-        return updatedFiles;
+        return {
+          id: tempId,
+          url: tempUrl,
+          is_primary: newFile.is_primary,
+          isUploading: !newFile.validationError,
+          validationError: newFile.validationError,
+          isTemp: true,
+          file: newFile.file
+        };
       });
+      
+      // Add temp files to uploaded images
+      setUploadedImages(prev => [...prev, ...tempFiles]);
+      
+      // Store new files in state so we can reference them later
+      setFiles(prev => [...prev, ...newFiles]);
+      
+      // Upload all valid files together
+      if (validFiles.length > 0 && !isUploadingRef.current) {
+        setTimeout(() => {
+          uploadFiles(validFiles, files.length);
+        }, 10);
+      }
     }
   }, [files, uploadedImages, productId, showSnackbar]);
 
@@ -403,50 +434,30 @@ function ProductImagesTab() {
     },
   });
 
-  // Handle primary image selection for a newly added file
-  const handleNewFilePrimaryChange = async (index: number) => {
-    const fileToUpdate = files[index];
-    
-    // Don't allow setting primary if file has errors or is uploading
-    if (fileToUpdate.validationError || fileToUpdate.uploadError || fileToUpdate.isUploading) {
-      showSnackbar("Cannot set an invalid or uploading image as primary", "error");
-      return;
-    }
-    
-    // Update local state first
-    setFiles(prev => prev.map((file, i) => ({
-      ...file,
-      is_primary: i === index
-    })));
-    
-    // If the file is already uploaded, update primary status on server
-    if (fileToUpdate.uploadedImageId) {
-      try {
-        // Clear primary status from existing uploaded images
-        setUploadedImages(prev => prev.map(img => ({
-          ...img,
-          is_primary: false
-        })));
-        
-        // Call API to update primary image
-        await updatePrimaryImage(Number(productId), fileToUpdate.uploadedImageId);
-        
-        // Refresh data
-        fetchedRef.current = false;
-        await fetchProductData();
-        
-        showSnackbar("Primary image updated successfully", "success");
-      } catch (error) {
-        console.error("Error updating primary image:", error);
-        showSnackbar("Failed to update primary image", "error");
-      }
-    }
-  };
-
-  // Handle primary image selection for an uploaded image
-  const handlePrimaryImageChange = async (imageId: number) => {
+  // Handle primary image selection
+  const handlePrimaryImageChange = async (imageId: number | string) => {
     if (!productId) {
       showSnackbar("Product ID is required", "error");
+      return;
+    }
+
+    // Check if this is a temporary image
+    const isTemp = typeof imageId === 'string' && imageId.startsWith('temp-');
+    
+    // Don't allow setting temporary images with errors as primary
+    if (isTemp) {
+      const tempImage = uploadedImages.find(img => img.id === imageId);
+      if (tempImage?.validationError) {
+        showSnackbar("Cannot set an invalid image as primary", "error");
+        return;
+      }
+      
+      // Update UI for temp images
+      setUploadedImages(prev => prev.map(img => ({
+        ...img,
+        is_primary: img.id === imageId
+      })));
+      
       return;
     }
 
@@ -456,22 +467,20 @@ function ProductImagesTab() {
         ...img,
         is_primary: img.id === imageId
       })));
-      
-      // Clear primary from new files
-      setFiles(prev => prev.map(file => ({
-        ...file,
-        is_primary: false
-      })));
 
-      // Update primary image on server
-      await updatePrimaryImage(Number(productId), imageId);
+      // Update primary image on server only for non-temp images
+      if (!isTemp) {
+        await updatePrimaryImage(Number(productId), imageId as number);
+      }
       
-      // Update form context
+      // Update form context directly without triggering another fetch
+      const updatedImages = uploadedImages.map(img => ({
+        ...img,
+        is_primary: img.id === imageId
+      }));
+      
       updateFormData({
-        productImages: uploadedImages.map(img => ({
-          ...img,
-          is_primary: img.id === imageId
-        })),
+        productImages: getFormattedProductImages(updatedImages),
       });
 
       showSnackbar("Primary image updated successfully", "success");
@@ -489,63 +498,57 @@ function ProductImagesTab() {
     }
   };
 
-  // Handle deleting a new file
-  const removeNewFile = (index: number) => {
-    const fileToRemove = files[index];
-    
-    // If file is already uploaded, delete from server
-    if (fileToRemove.uploadedImageId) {
-      deleteProductImage(Number(productId), fileToRemove.uploadedImageId)
-        .then(() => {
-          // Refresh data after deletion
-          fetchedRef.current = false;
-          fetchProductData();
-          showSnackbar("Image deleted successfully", "success");
-        })
-        .catch(error => {
-          console.error("Error deleting image:", error);
-          showSnackbar("Failed to delete image", "error");
-        });
-    }
-    
-    // Remove from local state
-    setFiles(prev => prev.filter((_, i) => i !== index));
-  };
-
-  // Handle deleting an uploaded image
-  const handleDeleteImage = async (imageId: number) => {
+  // Handle deleting an image
+  const handleDeleteImage = async (imageId: number | string) => {
     if (!productId) {
       showSnackbar("Product ID is required", "error");
       return;
     }
 
+    // Check if this is a temporary image
+    const isTemp = typeof imageId === 'string' && imageId.startsWith('temp-');
+
     try {
-      // Call the delete API
-      await deleteProductImage(Number(productId), imageId);
-      
-      // Check if deleted image was primary
-      const deletedImage = uploadedImages.find(img => img.id === imageId);
-      const wasPrimary = deletedImage?.is_primary;
-      
-      // Update local state
-      const updatedImages = uploadedImages.filter(img => img.id !== imageId);
-      setUploadedImages(updatedImages);
-      
-      // Update form context
-      updateFormData({
-        productImages: updatedImages,
-      });
-      
-      // If we deleted the primary image, set a new one
-      if (wasPrimary && updatedImages.length > 0) {
-        const newPrimaryId = updatedImages[0].id;
-        await updatePrimaryImage(Number(productId), newPrimaryId);
+      if (isTemp) {
+        // For temporary images, just remove from UI
+        setUploadedImages(prev => prev.filter(img => img.id !== imageId));
         
-        // Update local state to reflect new primary
-        setUploadedImages(prev => prev.map((img, i) => ({
-          ...img,
-          is_primary: i === 0
-        })));
+        // Also revoke the object URL to prevent memory leaks
+        const tempImage = uploadedImages.find(img => img.id === imageId);
+        if (tempImage?.url) {
+          URL.revokeObjectURL(tempImage.url);
+        }
+      } else {
+        // Call the delete API for server images
+        await deleteProductImage(Number(productId), imageId as number);
+        
+        // Check if deleted image was primary
+        const deletedImage = uploadedImages.find(img => img.id === imageId);
+        const wasPrimary = deletedImage?.is_primary;
+        
+        // Update local state
+        const updatedImages = uploadedImages.filter(img => img.id !== imageId);
+        setUploadedImages(updatedImages);
+        
+        // Update form context
+        updateFormData({
+          productImages: getFormattedProductImages(updatedImages),
+        });
+        
+        // If we deleted the primary image, set a new one
+        if (wasPrimary && updatedImages.length > 0) {
+          const nonTempImages = updatedImages.filter(img => !img.isTemp);
+          if (nonTempImages.length > 0) {
+            const newPrimaryId = nonTempImages[0].id;
+            await updatePrimaryImage(Number(productId), newPrimaryId as number);
+            
+            // Update local state to reflect new primary
+            setUploadedImages(prev => prev.map(img => ({
+              ...img,
+              is_primary: img.id === newPrimaryId
+            })));
+          }
+        }
       }
 
       showSnackbar("Image deleted successfully", "success");
@@ -557,22 +560,22 @@ function ProductImagesTab() {
 
   // Handle navigation to next step
   const handleNext = () => {
-    // Check if any files are still uploading
-    const stillUploading = files.some(file => file.isUploading);
+    // Check if any images are still uploading
+    const stillUploading = uploadedImages.some(img => img.isUploading);
     if (stillUploading) {
       showSnackbar("Please wait for all uploads to complete", "warning");
       return;
     }
 
-    // Check if any files have validation errors
-    const hasErrors = files.some(file => file.validationError || file.uploadError);
+    // Check if any images have validation errors
+    const hasErrors = uploadedImages.some(img => img.validationError);
     if (hasErrors) {
       showSnackbar("Please fix validation errors before continuing", "error");
       return;
     }
 
-    // If no images at all, show error
-    if (uploadedImages.length === 0 && files.length === 0) {
+    // If no valid images at all, show error
+    if (uploadedImages.filter(img => !img.isTemp).length === 0) {
       showSnackbar("Please upload at least one image", "error");
       return;
     }
@@ -616,8 +619,8 @@ function ProductImagesTab() {
     <div className="flex flex-col gap-4">
       {isLoading ? (
         <div className="flex justify-center items-center p-10">
-    <FuseLoading />       
-   </div>
+          <FuseLoading />       
+        </div>
       ) : (
         <>
           <Paper
@@ -645,42 +648,41 @@ function ProductImagesTab() {
             </div>
           </Paper>
 
-          {/* Display files with validation errors or currently uploading */}
-          {files.length > 0 && (
+          {/* Display all images in a single section */}
+          {uploadedImages.length > 0 && (
             <div className="mt-6">
               <Typography variant="subtitle1" className="mb-2">
-                New Image Preview:
+                Product Images
               </Typography>
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
-                {files.map((file, index) => (
-                  <div key={`new-${index}`} className="flex flex-col items-center">
+                {uploadedImages.map((image) => (
+                  <div key={`image-${image.id}`} className="flex flex-col items-center">
                     <div 
                       className={`relative group border ${
-                        file.validationError || file.uploadError 
-                          ? 'border-red-300' 
-                          : 'border-gray-200'
+                        image.validationError ? 'border-red-300' : 'border-gray-200'
                       } rounded overflow-hidden w-[150px] h-[150px] mx-auto`}
                     >
                       <div className="w-full h-full flex items-center justify-center">
                         <ImageWithFallback
-                          src={URL.createObjectURL(file.file)}
-                          alt={`New image ${index + 1}`}
+                          src={image.url}
+                          alt={`Product image ${image.id}`}
                         />
                       </div>
                       <div className="absolute top-1 left-1 bg-white/90 px-1 py-0.5 rounded">
                         <FormControlLabel
                           control={
                             <Checkbox
-                              checked={file.is_primary}
-                              onChange={() => handleNewFilePrimaryChange(index)}
-                              color="primary"
-                              disabled={
-                                file.is_primary || 
-                                file.isUploading || 
-                                !!file.validationError || 
-                                !!file.uploadError
-                              }
+                              checked={image.is_primary}
+                              onChange={() => handlePrimaryImageChange(image.id)}
+                              color="success"
+                              disabled={image.is_primary || image.isUploading || !!image.validationError}
                               size="small"
+                              sx={{ 
+                                color: '#2E9970',
+                                '&.Mui-checked': {
+                                  color: '#2E9970',
+                                },
+                              }}
                             />
                           }
                           label={<Typography variant="caption">Primary</Typography>}
@@ -689,68 +691,26 @@ function ProductImagesTab() {
                       <IconButton
                         className="absolute top-1 right-1 bg-white hover:bg-red-50 shadow-sm"
                         size="small"
-                        onClick={() => removeNewFile(index)}
-                        disabled={file.isUploading}
+                        onClick={() => handleDeleteImage(image.id)}
+                        disabled={image.isUploading}
                       >
                         <DeleteIcon sx={{ color: "red", fontSize: "1rem" }} />
                       </IconButton>
                       
                       {/* Show loading indicator */}
-                      {file.isUploading && (
+                      {image.isUploading && (
                         <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
                           <CircularProgress size={20} sx={{ color: 'white' }} />
                         </div>
                       )}
                     </div>
                     
-                    {/* Show validation or upload error message outside the border */}
-                    {(file.validationError || file.uploadError) && (
+                    {/* Show validation error message outside the border */}
+                    {image.validationError && (
                       <div className="mt-1 text-red-500 text-xs font-medium max-w-[150px] text-center">
-                        {file.validationError || file.uploadError}
+                        {image.validationError}
                       </div>
                     )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Display uploaded images */}
-          {uploadedImages.length > 0 && (
-            <div className="mt-6">
-              <Typography variant="subtitle1" className="mb-2">
-                Uploaded Images
-              </Typography>
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
-                {uploadedImages.map((image) => (
-                  <div key={`uploaded-${image.id}`} className="mx-auto relative group border border-gray-200 rounded overflow-hidden w-[150px] h-[150px]">
-                    <div className="w-full h-full flex items-center justify-center">
-                      <ImageWithFallback
-                        src={image.url}
-                        alt={`Product image ${image.id}`}
-                      />
-                    </div>
-                    <div className="absolute top-1 left-1 bg-white/90 px-1 py-0.5 rounded">
-                      <FormControlLabel
-                        control={
-                          <Checkbox
-                            checked={image.is_primary}
-                            onChange={() => handlePrimaryImageChange(image.id)}
-                            color="primary"
-                            disabled={image.is_primary}
-                            size="small"
-                          />
-                        }
-                        label={<Typography variant="caption">Primary</Typography>}
-                      />
-                    </div>
-                    <IconButton
-                      className="absolute top-1 right-1 bg-white hover:bg-red-50 shadow-sm"
-                      size="small"
-                      onClick={() => handleDeleteImage(image.id)}
-                    >
-                      <DeleteIcon sx={{ color: "red", fontSize: "1rem" }} />
-                    </IconButton>
                   </div>
                 ))}
               </div>
@@ -762,17 +722,17 @@ function ProductImagesTab() {
               label="Previous"
               onClick={previousStep}
               variant="outlined"
-              disabled={files.some(f => f.isUploading)}
+              disabled={uploadedImages.some(img => img.isUploading)}
               className="bg-[#2E9970] text-white hover:bg-[#1E7A56] px-6"
             />
             <AppButton
-              label={files.some(f => f.isUploading) ? "Uploading..." : "Next"}
+              label={uploadedImages.some(img => img.isUploading) ? "Uploading..." : "Next"}
               onClick={handleNext}
-              loading={files.some(f => f.isUploading)}
+              loading={uploadedImages.some(img => img.isUploading)}
               disabled={
-                files.some(f => f.isUploading) || 
-                files.some(f => f.validationError || f.uploadError) || 
-                (uploadedImages.length === 0 && files.filter(f => !f.validationError && !f.uploadError).length === 0)
+                uploadedImages.some(img => img.isUploading) || 
+                uploadedImages.some(img => img.validationError) || 
+                uploadedImages.filter(img => !img.isTemp).length === 0
               }
               className="bg-[#2E9970] text-white hover:bg-[#1E7A56] px-6"
             />
