@@ -90,10 +90,9 @@ const RecentOrdersTable = ({ orders }: RecentOrdersTableProps) => {
                 />
               </TableCell>
               <TableCell>
-               {order?.user?.first_name ||
-                  order?.user?.last_name ||
-                  order?.user?.email ||
-                  "N/A"}
+                {order?.user?.first_name && order?.user?.last_name 
+                  ? `${order.user.first_name} ${order.user.last_name}`
+                  : order?.user?.email || "N/A"}
               </TableCell>
               <TableCell>
                 {order.createdAt ? formatDate(order.createdAt) : "N/A"}
