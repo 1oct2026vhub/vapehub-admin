@@ -112,18 +112,25 @@ function BasicInfoTab() {
     try {
       const response = await listProductCategory({
         search: query,
-        limit: 1000 // Limit results for performance
+        name_filter: true,
+        limit: 1000
       });
       
       if (response?.data?.categories) {
+        // Directly map the categories from the API response, preserving the server's order
         const options = response.data.categories.map((category: any) => ({
           value: category.id,
           label: category.name,
         }));
+        
+        // Set the options directly without any additional sorting or filtering
         setCategoryOptions(options);
+      } else {
+        setCategoryOptions([]);
       }
     } catch (error) {
       console.error("Error fetching categories:", error);
+      setCategoryOptions([]);
     } finally {
       setIsCategoryLoading(false);
     }
@@ -135,18 +142,25 @@ function BasicInfoTab() {
     try {
       const response = await listProductBrand({
         search: query,
-        limit: 1000 // Limit results for performance
+        name_filter: true,
+        limit: 1000
       });
       
       if (response?.data?.brands) {
+        // Directly map the brands from the API response, preserving the server's order
         const options = response.data.brands.map((brand: any) => ({
           value: brand.id,
           label: brand.name,
         }));
+        
+        // Set the options directly without any additional sorting or filtering
         setBrandOptions(options);
+      } else {
+        setBrandOptions([]);
       }
     } catch (error) {
       console.error("Error fetching brands:", error);
+      setBrandOptions([]);
     } finally {
       setIsBrandLoading(false);
     }
@@ -156,14 +170,14 @@ function BasicInfoTab() {
   const debouncedCategorySearch = useCallback(
     debounce((query: string) => {
       fetchCategories(query);
-    }, 300),
+    }, 1000),
     []
   );
 
   const debouncedBrandSearch = useCallback(
     debounce((query: string) => {
       fetchBrands(query);
-    }, 300),
+    }, 1000),
     []
   );
 
@@ -410,6 +424,13 @@ function BasicInfoTab() {
         loading={isCategoryLoading}
         errorMessage={errors.category_id?.message}
         onInputChange={handleCategorySearch}
+        loadingText="Searching categories..."
+        noOptionsText={
+          categoryOptions.length === 0 
+            ? "No categories found" 
+            : "No matching categories"
+        }
+        placeholder="Search for a category..."
       />
 
       <FormSearchableSelectField
@@ -421,6 +442,13 @@ function BasicInfoTab() {
         loading={isBrandLoading}
         errorMessage={errors.brand_id?.message}
         onInputChange={handleBrandSearch}
+        loadingText="Searching brands..."
+        noOptionsText={
+          brandOptions.length === 0 
+            ? "No brands found" 
+            : "No matching brands"
+        }
+        placeholder="Search for a brand..."
       />
       <AppButton
         label={isEditMode ? "Update" : "Next"}

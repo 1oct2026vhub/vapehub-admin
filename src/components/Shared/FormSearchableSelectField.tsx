@@ -16,6 +16,9 @@ interface FormSearchableSelectFieldProps {
   loading?: boolean;
   errorMessage?: string;
   onInputChange?: (query: string) => void;
+  loadingText?: string;
+  noOptionsText?: string;
+  placeholder?: string;
 }
 
 const FormSearchableSelectField: React.FC<FormSearchableSelectFieldProps> = ({
@@ -26,14 +29,26 @@ const FormSearchableSelectField: React.FC<FormSearchableSelectFieldProps> = ({
   required = false,
   loading = false,
   errorMessage,
-  onInputChange
+  onInputChange,
+  loadingText = "Searching...",
+  noOptionsText,
+  placeholder
 }) => {
   const [touched, setTouched] = useState(false);
+  const [inputValue, setInputValue] = useState("");
 
   // ✅ Handle value mapping correctly
   const getSelectedOption = (value: string | number) => {
     return options.find((option) => option.value === value) || null;
   };
+
+  // Generate default noOptionsText if not provided
+  const defaultNoOptionsText = 
+    inputValue.length > 0 && inputValue.length < 2
+      ? "Type at least 2 characters to search"
+      : options.length === 0
+      ? "No options found"
+      : "No matches found";
 
   return (
     <Controller
@@ -52,12 +67,16 @@ const FormSearchableSelectField: React.FC<FormSearchableSelectFieldProps> = ({
             field.onChange(newValue ? newValue.value : "")
           }
           onInputChange={(event, newInputValue) => {
+            setInputValue(newInputValue);
             if (onInputChange) {
               onInputChange(newInputValue);
             }
           }}
           loading={loading}
+          loadingText={loadingText}
+          noOptionsText={noOptionsText || defaultNoOptionsText}
           onFocus={() => setTouched(true)}
+          filterOptions={(x) => x} // Don't filter client-side, we're using server filtering
           renderInput={(params) => (
             <TextField
               {...params}
@@ -66,6 +85,7 @@ const FormSearchableSelectField: React.FC<FormSearchableSelectFieldProps> = ({
                   {label} {required && <span style={{ color: "red" }}>*</span>}
                 </>
               }
+              placeholder={placeholder || `Search ${label.toLowerCase()}...`}
               variant="outlined"
               fullWidth
               error={!!errorMessage || (touched && !!error)}
