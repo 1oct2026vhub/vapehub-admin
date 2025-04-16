@@ -103,7 +103,11 @@ const RecentOrdersTable = ({ orders }: RecentOrdersTableProps) => {
                 {order.status 
                   ? (
                     <Chip 
-                      label={order.status.charAt(0).toUpperCase() + order.status.slice(1)}
+                      label={order.status === "fail" 
+                        ? "Failed"
+                        : order.status === "cancel"
+                        ? "Cancelled"
+                        : order.status.charAt(0).toUpperCase() + order.status.slice(1)}
                       size="small"
                       color={getStatusColor(order.status)}
                       sx={{ fontWeight: "medium" }}
