@@ -139,35 +139,13 @@ const ProductListTable = ({
     try {
       const response = await listProductCategory({
         search: query,
-        limit: 20 // Limit results for performance
+        name_filter: true, // Add parameter to search only by name
+        limit: 1000 // Get all available results
       });
       
       if (response?.data?.categories) {
-        const categories = response.data.categories;
-        
-        // Sort categories with priority for exact matches and starts with
-        const sortedCategories = [...categories].sort((a, b) => {
-          const aName = a.name.toLowerCase();
-          const bName = b.name.toLowerCase();
-          const queryLower = query.toLowerCase();
-          
-          // Exact match gets highest priority
-          if (aName === queryLower && bName !== queryLower) return -1;
-          if (bName === queryLower && aName !== queryLower) return 1;
-          
-          // Then prioritize "starts with"
-          if (aName.startsWith(queryLower) && !bName.startsWith(queryLower)) return -1;
-          if (bName.startsWith(queryLower) && !aName.startsWith(queryLower)) return 1;
-          
-          // Then prioritize contains
-          if (aName.includes(queryLower) && !bName.includes(queryLower)) return -1;
-          if (bName.includes(queryLower) && !aName.includes(queryLower)) return 1;
-          
-          // Alphabetical order for the rest
-          return aName.localeCompare(bName);
-        });
-        
-        setCategoryOptions(sortedCategories);
+        // Use the categories directly from the API response without sorting
+        setCategoryOptions(response.data.categories);
       }
     } catch (error) {
       console.error("Error fetching categories:", error);
@@ -182,35 +160,13 @@ const ProductListTable = ({
     try {
       const response = await listProductBrand({
         search: query,
-        limit: 20 // Limit results for performance
+        name_filter: true, // Add parameter to search only by name
+        limit: 1000 // Get all available results
       });
       
       if (response?.data?.brands) {
-        const brands = response.data.brands;
-        
-        // Sort brands with priority for exact matches and starts with
-        const sortedBrands = [...brands].sort((a, b) => {
-          const aName = a.name.toLowerCase();
-          const bName = b.name.toLowerCase();
-          const queryLower = query.toLowerCase();
-          
-          // Exact match gets highest priority
-          if (aName === queryLower && bName !== queryLower) return -1;
-          if (bName === queryLower && aName !== queryLower) return 1;
-          
-          // Then prioritize "starts with"
-          if (aName.startsWith(queryLower) && !bName.startsWith(queryLower)) return -1;
-          if (bName.startsWith(queryLower) && !aName.startsWith(queryLower)) return 1;
-          
-          // Then prioritize contains
-          if (aName.includes(queryLower) && !bName.includes(queryLower)) return -1;
-          if (bName.includes(queryLower) && !aName.includes(queryLower)) return 1;
-          
-          // Alphabetical order for the rest
-          return aName.localeCompare(bName);
-        });
-        
-        setBrandOptions(sortedBrands);
+        // Use the brands directly from the API response without sorting
+        setBrandOptions(response.data.brands);
       }
     } catch (error) {
       console.error("Error fetching brands:", error);
@@ -223,14 +179,14 @@ const ProductListTable = ({
   const debouncedCategorySearch = useCallback(
     debounce((query: string) => {
       fetchCategories(query);
-    }, 300),
+    }, 1000),
     []
   );
 
   const debouncedBrandSearch = useCallback(
     debounce((query: string) => {
       fetchBrands(query);
-    }, 300),
+    }, 1000),
     []
   );
 

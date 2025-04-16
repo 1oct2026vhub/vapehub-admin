@@ -47,6 +47,10 @@ export const updateUser = (id, userData) =>
   updater(`/api/admin/user/${id}`, userData);
 export const deleteUser = (id) => deleter(`/api/admin/user/${id}`);
 export const restoreUser = (id) => updater(`/api/admin/user/${id}/restore`, {});
+export const blockUser = (id) =>
+  updater(`/api/admin/user/${id}/block`, {});
+export const unBlockUser = (id) =>
+  updater(`/api/admin/user/${id}/unblock`, {});
 
 // Customer actions
 export const listCustomer = (params = {}) =>
