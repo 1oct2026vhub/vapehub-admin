@@ -11,9 +11,12 @@ import {
   Box,
   Typography,
   Chip,
+  Link,
 } from "@mui/material";
 import { RecentOrder } from "@/services/apiDashboard";
 import { formatDate } from "@/utils/actions";
+import NextLink from "next/link";
+import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 
 interface RecentOrdersTableProps {
   orders: RecentOrder[];
@@ -82,62 +85,87 @@ const RecentOrdersTable = ({ orders }: RecentOrdersTableProps) => {
   };
 
   return (
-    <TableContainer component={Paper} sx={{ boxShadow: "none" }}>
-      <Table aria-label="recent orders table">
-        <TableHead>
-          <TableRow>
-            <TableCell sx={{ fontWeight: "bold" }}>Order Id</TableCell>
-            <TableCell sx={{ fontWeight: "bold" }}>Name</TableCell>
-            <TableCell sx={{ fontWeight: "bold" }}>Created At</TableCell>
-            <TableCell sx={{ fontWeight: "bold" }}>Total</TableCell>
-            <TableCell sx={{ fontWeight: "bold" }}>Status</TableCell>
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {orders.map((order, index) => (
-            <TableRow
-              key={`order-${order.order_unique_id || ""}-${index}`}
-              sx={{ "&:last-child td, &:last-child th": { border: 0 } }}
-            >
-              <TableCell component="th" scope="row">
-                <Chip
-                  label={order.order_unique_id || "No ID"}
-                  size="small"
-                  color="primary"
-                  sx={{ fontWeight: "medium" }}
-                />
-              </TableCell>
-              <TableCell>
-                {order?.user?.first_name && order?.user?.last_name 
-                  ? `${order.user.first_name} ${order.user.last_name}`
-                  : order?.user?.email || "N/A"}
-              </TableCell>
-              <TableCell>
-                {order.createdAt ? formatDate(order.createdAt) : "N/A"}
-              </TableCell>
-              <TableCell>{order.total || "N/A"}</TableCell>
-              <TableCell>
-                {order.status 
-                  ? (
-                    <Chip 
-                      label={order.status === "fail" 
-                        ? "Failed"
-                        : order.status === "cancel"
-                        ? "Cancelled"
-                        : order.status.charAt(0).toUpperCase() + order.status.slice(1)}
-                      size="small"
-                      color={getStatusColor(order.status)}
-                      sx={{ fontWeight: "medium" }}
-                    />
-                  )
-                  : "N/A"}
-              </TableCell>
-
+    <Box>
+      <TableContainer component={Paper} sx={{ boxShadow: "none" }}>
+        <Table aria-label="recent orders table">
+          <TableHead>
+            <TableRow>
+              <TableCell sx={{ fontWeight: "bold" }}>Order Id</TableCell>
+              <TableCell sx={{ fontWeight: "bold" }}>Name</TableCell>
+              <TableCell sx={{ fontWeight: "bold" }}>Created At</TableCell>
+              <TableCell sx={{ fontWeight: "bold" }}>Total</TableCell>
+              <TableCell sx={{ fontWeight: "bold" }}>Status</TableCell>
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </TableContainer>
+          </TableHead>
+          <TableBody>
+            {orders.map((order, index) => (
+              <TableRow
+                key={`order-${order.order_unique_id || ""}-${index}`}
+                sx={{ "&:last-child td, &:last-child th": { border: 0 } }}
+              >
+                <TableCell component="th" scope="row">
+                  <Chip
+                    label={order.order_unique_id || "No ID"}
+                    size="small"
+                    color="primary"
+                    sx={{ fontWeight: "medium" }}
+                  />
+                </TableCell>
+                <TableCell>
+                  {order?.user?.first_name && order?.user?.last_name 
+                    ? `${order.user.first_name} ${order.user.last_name}`
+                    : order?.user?.email || "N/A"}
+                </TableCell>
+                <TableCell>
+                  {order.createdAt ? formatDate(order.createdAt) : "N/A"}
+                </TableCell>
+                <TableCell>{order.total || "N/A"}</TableCell>
+                <TableCell>
+                  {order.status 
+                    ? (
+                      <Chip 
+                        label={order.status === "fail" 
+                          ? "Failed"
+                          : order.status === "cancel"
+                          ? "Cancelled"
+                          : order.status.charAt(0).toUpperCase() + order.status.slice(1)}
+                        size="small"
+                        color={getStatusColor(order.status)}
+                        sx={{ fontWeight: "medium" }}
+                      />
+                    )
+                    : "N/A"}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </TableContainer>
+      <Box
+        display="flex"
+        justifyContent="flex-end"
+        mt={2}
+        sx={{ borderTop: "1px solid #e0e0e0", pt: 2 }}
+      >
+        <NextLink href="/apps/order/list" passHref>
+          <Link
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              color: "#2E9970",
+              textDecoration: "none",
+              fontWeight: "medium",
+              "&:hover": {
+                textDecoration: "underline",
+              },
+            }}
+          >
+            View all orders
+            <ArrowForwardIcon fontSize="small" sx={{ ml: 0.5 }} />
+          </Link>
+        </NextLink>
+      </Box>
+    </Box>
   );
 };
 
