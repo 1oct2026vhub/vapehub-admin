@@ -139,13 +139,20 @@ const ProductListTable = ({
     try {
       const response = await listProductCategory({
         search: query,
-        name_filter: true, // Add parameter to search only by name
-        limit: 1000 // Get all available results
+        search_only_name: true, // Ensure we're only searching by name
+        limit: 1000 // Get more results when searching
       });
       
       if (response?.data?.categories) {
-        // Use the categories directly from the API response without sorting
-        setCategoryOptions(response.data.categories);
+        // Deduplicate categories based on ID first
+        const uniqueCategories = deduplicateById(response.data.categories);
+        
+        // Apply intelligent sorting based on search query
+        let sortedCategories = [...uniqueCategories];
+        if (query) {
+          sortedCategories = sortSearchResults(sortedCategories, query, 'name');
+        }
+        setCategoryOptions(sortedCategories);
       }
     } catch (error) {
       console.error("Error fetching categories:", error);
@@ -160,13 +167,20 @@ const ProductListTable = ({
     try {
       const response = await listProductBrand({
         search: query,
-        name_filter: true, // Add parameter to search only by name
-        limit: 1000 // Get all available results
+        search_only_name: true, // Ensure we're only searching by name
+        limit: 1000// Get more results when searching
       });
       
       if (response?.data?.brands) {
-        // Use the brands directly from the API response without sorting
-        setBrandOptions(response.data.brands);
+        // Deduplicate brands based on ID first
+        const uniqueBrands = deduplicateById(response.data.brands);
+        
+        // Apply intelligent sorting based on search query
+        let sortedBrands = [...uniqueBrands];
+        if (query) {
+          sortedBrands = sortSearchResults(sortedBrands, query, 'name');
+        }
+        setBrandOptions(sortedBrands);
       }
     } catch (error) {
       console.error("Error fetching brands:", error);
@@ -174,19 +188,86 @@ const ProductListTable = ({
       setIsBrandLoading(false);
     }
   };
+  
+  // Helper function to deduplicate items by ID
+  const deduplicateById = (items) => {
+    const uniqueMap = new Map();
+    items.forEach(item => {
+      if (!uniqueMap.has(item.id)) {
+        uniqueMap.set(item.id, item);
+      }
+    });
+    return Array.from(uniqueMap.values());
+  };
+   
+  // Helper function to sort search results intelligently
+  const sortSearchResults = (items, query, field) => {
+    if (!query) return items;
+    
+    const lowerQuery = query.toLowerCase();
+    
+    // First, filter out results that don't match at all if we have a meaningful query
+    let filteredItems = items;
+    if (lowerQuery.length >= 2) {
+      const matchingItems = items.filter(item => 
+        item[field].toLowerCase().includes(lowerQuery)
+      );
+      
+      // Only use filtered items if we have results, otherwise fall back to all items
+      if (matchingItems.length > 0) {
+        filteredItems = matchingItems;
+      }
+    }
+    
+    return filteredItems.sort((a, b) => {
+      const aName = a[field].toLowerCase();
+      const bName = b[field].toLowerCase();
+      
+      // 1. Exact matches first
+      if (aName === lowerQuery && bName !== lowerQuery) return -1;
+      if (bName === lowerQuery && aName !== lowerQuery) return 1;
+      
+      // 2. Starts with matches second
+      if (aName.startsWith(lowerQuery) && !bName.startsWith(lowerQuery)) return -1;
+      if (bName.startsWith(lowerQuery) && !aName.startsWith(lowerQuery)) return 1;
+      
+      // 3. Contains matches third
+      const aContainsIndex = aName.indexOf(lowerQuery);
+      const bContainsIndex = bName.indexOf(lowerQuery);
+      
+      if (aContainsIndex >= 0 && bContainsIndex < 0) return -1;
+      if (bContainsIndex >= 0 && aContainsIndex < 0) return 1;
+      
+      // 4. If both contain, sort by position of match (earlier matches first)
+      if (aContainsIndex >= 0 && bContainsIndex >= 0) {
+        if (aContainsIndex !== bContainsIndex) {
+          return aContainsIndex - bContainsIndex;
+        }
+      }
+      
+      // 5. Alphabetical order for equal match quality
+      return aName.localeCompare(bName);
+    });
+  };
 
   // Debounced search handlers
   const debouncedCategorySearch = useCallback(
     debounce((query: string) => {
-      fetchCategories(query);
-    }, 1000),
+      // Only search if query is empty or at least 2 chars
+      if (query.length === 0 || query.length >= 2) {
+        fetchCategories(query);
+      }
+    }, 400), // Reduced from 1000ms to 400ms for better responsiveness
     []
   );
 
   const debouncedBrandSearch = useCallback(
     debounce((query: string) => {
-      fetchBrands(query);
-    }, 1000),
+      // Only search if query is empty or at least 2 chars
+      if (query.length === 0 || query.length >= 2) {
+        fetchBrands(query);
+      }
+    }, 400), // Reduced from 1000ms to 400ms for better responsiveness
     []
   );
 
@@ -445,6 +526,27 @@ const ProductListTable = ({
   // Use the column order hook
   const { columns: orderedColumns, columnOrder, onColumnOrderChange } = useColumnOrder('product-list-table', columns);
 
+  // Add this function to highlight matching text in search results
+  const highlightMatch = (text, query) => {
+    if (!query || query.length < 2) return text;
+    
+    try {
+      const parts = text.split(new RegExp(`(${query})`, 'gi'));
+      return (
+        <>
+          {parts.map((part, index) => 
+            part.toLowerCase() === query.toLowerCase() ? 
+              <span key={index} style={{ fontWeight: 'bold', backgroundColor: 'rgba(46, 153, 112, 0.1)' }}>
+                {part}
+              </span> : part
+          )}
+        </>
+      );
+    } catch (e) {
+      return text;
+    }
+  };
+
   if (isLoading || manuallyRefreshing || (apiLoading && products.length === 0))
     return <FuseLoading />;
   if (error) return <p>Failed to load products</p>;
@@ -553,7 +655,18 @@ const ProductListTable = ({
                 }}
                 filterOptions={(options, state) => options}
                 loading={isCategoryLoading}
+                loadingText="Searching categories..."
+                noOptionsText={
+                  categorySearchQuery.length < 2 && categorySearchQuery.length > 0
+                    ? "Please enter at least 2 characters"
+                    : "No categories found"
+                }
                 isOptionEqualToValue={(option, value) => option.id === value.id}
+                renderOption={(props, option, state) => (
+                  <li {...props} key={`drawer-category-${option.id}`}>
+                    {highlightMatch(option.name, categorySearchQuery)}
+                  </li>
+                )}
                 renderInput={(params) => (
                   <TextField
                     {...params}
@@ -605,7 +718,18 @@ const ProductListTable = ({
                 }}
                 filterOptions={(options, state) => options}
                 loading={isBrandLoading}
+                loadingText="Searching brands..."
+                noOptionsText={
+                  brandSearchQuery.length < 2 && brandSearchQuery.length > 0
+                    ? "Please enter at least 2 characters"
+                    : "No brands found"
+                }
                 isOptionEqualToValue={(option, value) => option.id === value.id}
+                renderOption={(props, option, state) => (
+                  <li {...props} key={`drawer-brand-${option.id}`}>
+                    {highlightMatch(option.name, brandSearchQuery)}
+                  </li>
+                )}
                 renderInput={(params) => (
                   <TextField
                     {...params}
@@ -820,7 +944,18 @@ const ProductListTable = ({
               }}
               filterOptions={(options, state) => options}
               loading={isCategoryLoading}
+              loadingText="Searching categories..."
+              noOptionsText={
+                categorySearchQuery.length < 2 && categorySearchQuery.length > 0
+                  ? "Please enter at least 2 characters"
+                  : "No categories found"
+              }
               isOptionEqualToValue={(option, value) => option.id === value.id}
+              renderOption={(props, option, state) => (
+                <li {...props} key={`drawer-category-${option.id}`}>
+                  {highlightMatch(option.name, categorySearchQuery)}
+                </li>
+              )}
               renderInput={(params) => (
                 <TextField
                   {...params}
@@ -871,7 +1006,18 @@ const ProductListTable = ({
               }}
               filterOptions={(options, state) => options}
               loading={isBrandLoading}
+              loadingText="Searching brands..."
+              noOptionsText={
+                brandSearchQuery.length < 2 && brandSearchQuery.length > 0
+                  ? "Please enter at least 2 characters"
+                  : "No brands found"
+              }
               isOptionEqualToValue={(option, value) => option.id === value.id}
+              renderOption={(props, option, state) => (
+                <li {...props} key={`drawer-brand-${option.id}`}>
+                  {highlightMatch(option.name, brandSearchQuery)}
+                </li>
+              )}
               renderInput={(params) => (
                 <TextField
                   {...params}
