@@ -100,7 +100,7 @@ const AdminDashboardApp = () => {
     );
   }
 
-  const salesInfo = stats?.sales as any;
+  const salesFormatted = stats?.sales as any;
 
   return (
     <Box className="dashboard-container">
@@ -116,7 +116,7 @@ const AdminDashboardApp = () => {
         <Grid item xs={12} sm={6} md={3}>
           <StatisticsCard
             title="Today's Sales"
-            value={salesInfo?.todayAbbreviated || stats?.sales.today}
+            value={salesFormatted.todayAbbreviated || stats?.sales.today}
             icon="sales"
             color="#4CAF50"
           />
@@ -124,7 +124,7 @@ const AdminDashboardApp = () => {
         <Grid item xs={12} sm={6} md={3}>
           <StatisticsCard
             title="Weekly Sales"
-            value={salesInfo?.weeklyAbbreviated || stats?.sales.weekly}
+            value={salesFormatted.weeklyAbbreviated || stats?.sales.weekly}
             icon="sales"
             color="#2196F3"
           />
@@ -132,7 +132,7 @@ const AdminDashboardApp = () => {
         <Grid item xs={12} sm={6} md={3}>
           <StatisticsCard
             title="Monthly Sales"
-            value={salesInfo?.monthlyAbbreviated || stats?.sales.monthly}
+            value={salesFormatted.monthlyAbbreviated || stats?.sales.monthly}
             icon="sales"
             color="#9C27B0"
           />
@@ -140,17 +140,19 @@ const AdminDashboardApp = () => {
         <Grid item xs={12} sm={6} md={3}>
           <StatisticsCard
             title="Yearly Sales"
-            value={salesInfo?.yearlyAbbreviated || salesInfo?.yearly}
+            value={salesFormatted.yearlyAbbreviated || salesFormatted.yearly}
             icon="sales"
-            color="#9C27B0"
+            color="#F44336"
           />
-          {/* <StatisticsCard
+        </Grid>
+        {/* <Grid item xs={12} sm={6} md={3}>
+          <StatisticsCard
             title="Total Products"
             value={stats?.products.totalProducts.toString() || "0"}
             icon="products"
             color="#FF9800"
-          /> */}
-        </Grid>
+          />
+        </Grid> */}
         {/* <Grid item xs={12} sm={6} md={4}>
           <StatisticsCard
             title="Low Stock Products"
