@@ -61,7 +61,7 @@ const CustomerTable = () => {
   const [order, setOrder] = useState<"ASC" | "DESC">("DESC");
   const [deleted, setDeleted] = useState<boolean | null>(null);
   const [verified, setVerified] = useState<boolean | null>(null);
-  const [blocked, setBlocked] = useState<boolean | null>(null);
+  const [blocked, setBlocked] = useState<boolean | null>(false);
 
   const [customers, setCustomers] = useState<UserType[]>([]);
   const [page, setPage] = useState(1);
@@ -216,14 +216,28 @@ const CustomerTable = () => {
       },
       // { accessorKey: "dob", header: "Date of Birth" },
       {
-        accessorKey: "blocked",
+        accessorKey: "status",
         header: "Status",
-        Cell: ({ row }) => (
-          <Chip
-            label={row.original.blocked ? "Blocked" : "Active"}
-            color={row.original.blocked ? "error" : "success"}
-          />
-        ),
+        Cell: ({ row }) => {
+          // Determine status based on both deletedAt and blocked fields
+          let status = "Active";
+          let color: "success" | "error" | "warning" = "success";
+          
+          if (row.original.deletedAt) {
+            status = "Inactive";
+            color = "error";
+          } else if (row.original.blocked) {
+            status = "Blocked";
+            color = "warning";
+          }
+          
+          return (
+            <Chip
+              label={status}
+              color={color}
+            />
+          );
+        },
       },
       ...(deleted ? [{
         accessorKey: "deletedAt",
@@ -325,24 +339,25 @@ const CustomerTable = () => {
               }
               size="small"
             >
-              {/* <MenuItem value="all">All Brands</MenuItem> */}
               <MenuItem value="active">Active</MenuItem>
               <MenuItem value="deleted">Deleted</MenuItem>
             </Select>
             <Select
-              value={blocked === null ? "all" : blocked ? "true" : "false"}
-              onChange={(e) =>
-                setBlocked(
-                  e.target.value === "all"
-                    ? null
-                    : e.target.value === "true"
-                )
-              }
+              value={blocked === null ? "all" : blocked ? "blocked" : "not-blocked"}
+              onChange={(e) => {
+                if (e.target.value === "all") {
+                  setBlocked(null);
+                } else if (e.target.value === "blocked") {
+                  setBlocked(true);
+                } else if (e.target.value === "not-blocked") {
+                  setBlocked(false);
+                }
+              }}
               size="small"
             >
-                            <MenuItem value="all">All</MenuItem>
-              <MenuItem value="true">Blocked</MenuItem>
-              <MenuItem value="false">Not Blocked</MenuItem>
+              <MenuItem value="all">All</MenuItem>
+              <MenuItem value="blocked">Blocked</MenuItem>
+              <MenuItem value="not-blocked">Not Blocked</MenuItem>
             </Select>
             <Select
               value={order}
@@ -474,36 +489,37 @@ const CustomerTable = () => {
               <MenuItem value="pending">Pending</MenuItem>
             </Select>
             <Select
-              value={deleted === null ? "all" : deleted ? "deleted" : "active"}
+              value={deleted === null ? "active" : deleted ? "deleted" : "active"}
               onChange={(e) =>
                 setDeleted(
-                  e.target.value === "all"
+                  e.target.value === "active"
                     ? null
                     : e.target.value === "deleted",
                 )
               }
               size="small"
             >
-              <MenuItem value="all">All</MenuItem>
               <MenuItem value="active">Active</MenuItem>
               <MenuItem value="deleted">Deleted</MenuItem>
             </Select>
           </ListItem>
           <ListItem>
             <Select
-              value={blocked === null ? "--" : blocked ? "true" : "false"}
-              onChange={(e) =>
-                setBlocked(
-                  e.target.value === "--"
-                    ? null
-                    : e.target.value === "true"
-                )
-              }
+              value={blocked === null ? "all" : blocked ? "blocked" : "not-blocked"}
+              onChange={(e) => {
+                if (e.target.value === "all") {
+                  setBlocked(null);
+                } else if (e.target.value === "blocked") {
+                  setBlocked(true);
+                } else if (e.target.value === "not-blocked") {
+                  setBlocked(false);
+                }
+              }}
               size="small"
             >
-              <MenuItem value="--">--</MenuItem>
-              <MenuItem value="true">true</MenuItem>
-              <MenuItem value="false">false</MenuItem>
+              <MenuItem value="all">All</MenuItem>
+              <MenuItem value="blocked">Blocked</MenuItem>
+              <MenuItem value="not-blocked">Not Blocked</MenuItem>
             </Select>
             <Select
               value={order}
