@@ -61,7 +61,7 @@ const CustomerTable = () => {
   const [order, setOrder] = useState<"ASC" | "DESC">("DESC");
   const [deleted, setDeleted] = useState<boolean | null>(null);
   const [verified, setVerified] = useState<boolean | null>(null);
-  const [blocked, setBlocked] = useState<boolean | null>(false);
+  const [blocked, setBlocked] = useState<boolean | null>(null);
 
   const [customers, setCustomers] = useState<UserType[]>([]);
   const [page, setPage] = useState(1);
