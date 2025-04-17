@@ -87,6 +87,11 @@ const UserTable = () => {
     return () => clearTimeout(timer);
   }, [search]);
 
+  // Reset page to 1 when filters change
+  useEffect(() => {
+    setPage(1);
+  }, [deleted, verified, blocked, debouncedSearch, roleId]);
+
   const queryParams = useMemo(
     () => ({
       search: debouncedSearch,
@@ -236,11 +241,22 @@ const UserTable = () => {
         accessorKey: "status",
         header: "Status",
         Cell: ({ row }) => {
-          const { deletedAt } = row.original;
+          // Determine status based on both deletedAt and blocked fields
+          let status = "Active";
+          let color: "success" | "error" | "warning" = "success";
+          
+          if (row.original.deletedAt) {
+            status = "Inactive";
+            color = "error";
+          } else if (row.original.blocked) {
+            status = "Blocked";
+            color = "warning";
+          }
+          
           return (
             <Chip
-              label={deletedAt ? "Inactive" : "Active"}
-              color={deletedAt ? "warning" : "success"}
+              label={status}
+              color={color}
             />
           );
         },
@@ -372,13 +388,14 @@ const UserTable = () => {
 
             <Select
               value={deleted === null ? "active" : deleted ? "deleted" : "active"}
-              onChange={(e) =>
+              onChange={(e) => {
+                setPage(1); // Reset page when filter changes
                 setDeleted(
                   e.target.value === "active"
                     ? null
                     : e.target.value === "deleted",
-                )
-              }
+                );
+              }}
               size="small"
             >
               <MenuItem value="active">Active</MenuItem>
@@ -483,30 +500,32 @@ const UserTable = () => {
           }}
         />
         {/* Pagination Component */}
-        <div className="flex justify-center mb-6">
-          <Pagination
-            count={totalPages}
-            page={page}
-            onChange={(event, value) => setPage(value)}
-            shape="rounded"
-            color="primary"
-            renderItem={(item) => (
-              <PaginationItem
-                {...item}
-                className="text-gray-600 hover:text-[#2E9970]"
-                sx={{
-                  "&.Mui-selected": {
-                    backgroundColor: "#2E9970", // Active page background
-                    color: "#fff", // Text color
-                    "&:hover": {
-                      backgroundColor: "#247C5C", // Darker shade on hover
+        {users.length > 0 && (
+          <div className="flex justify-center mb-6">
+            <Pagination
+              count={totalPages}
+              page={page}
+              onChange={(event, value) => setPage(value)}
+              shape="rounded"
+              color="primary"
+              renderItem={(item) => (
+                <PaginationItem
+                  {...item}
+                  className="text-gray-600 hover:text-[#2E9970]"
+                  sx={{
+                    "&.Mui-selected": {
+                      backgroundColor: "#2E9970", // Active page background
+                      color: "#fff", // Text color
+                      "&:hover": {
+                        backgroundColor: "#247C5C", // Darker shade on hover
+                      },
                     },
-                  },
-                }}
-              />
-            )}
-          />
-        </div>
+                  }}
+                />
+              )}
+            />
+          </div>
+        )}
       </Paper>
       {/* Mobile Drawer for Filters */}
       <Drawer
@@ -571,13 +590,14 @@ const UserTable = () => {
           <ListItem>
             <Select
               value={deleted === null ? "active" : deleted ? "deleted" : "active"}
-              onChange={(e) =>
+              onChange={(e) => {
+                setPage(1); // Reset page when filter changes
                 setDeleted(
                   e.target.value === "active"
                     ? null
                     : e.target.value === "deleted",
-                )
-              }
+                );
+              }}
               size="small"
               fullWidth
             >
