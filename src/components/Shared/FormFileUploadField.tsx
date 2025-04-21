@@ -24,6 +24,8 @@ export interface FormFileUploadFieldProps {
   onFileChange?: (file: File | null) => void;
   sx?: SxProps<Theme>;
   defaultImage?: string;
+  error?: boolean;
+  errorMessage?: string | null;
 }
 
 const FormFileUploadField: React.FC<FormFileUploadFieldProps> = ({
@@ -36,6 +38,8 @@ const FormFileUploadField: React.FC<FormFileUploadFieldProps> = ({
   onFileChange,
   sx,
   defaultImage,
+  error: customError,
+  errorMessage: customErrorMessage,
 }) => {
   const [previewUrl, setPreviewUrl] = useState<string | null>(defaultImage || null);
   const [touched, setTouched] = useState(false);
@@ -185,9 +189,9 @@ const FormFileUploadField: React.FC<FormFileUploadFieldProps> = ({
           )}
           
           {/* Display validation error right after the upload area or new image preview */}
-          {error && (
+          {(error || customError) && (
             <Typography color="error" variant="caption" className="block mb-3">
-              {error.message}
+              {customErrorMessage || error?.message}
             </Typography>
           )}
           

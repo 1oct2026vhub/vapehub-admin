@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { Controller, useFormContext } from "react-hook-form";
+import { Controller } from "react-hook-form";
 
 interface FormCKEditorProps {
   name: string;
@@ -28,375 +28,252 @@ const FormCKEditor = ({
     let changeTimeout: any = null;
 
     const loadEditor = async () => {
-      if (!containerRef.current) return;
-
-      // Check if CKEditor script is already loaded
-      if (!(window as any).CKEDITOR) {
-        const script = document.createElement("script");
-        script.src = "https://cdn.ckeditor.com/4.22.1/standard/ckeditor.js";
-        script.async = true;
-        document.head.appendChild(script);
-
-        await new Promise((resolve) => {
-          script.onload = resolve;
-          document.body.appendChild(script);
-        });
-      }
-
-      // Wait for CKEDITOR to be available
-      if (!(window as any).CKEDITOR) {
-        console.error("CKEditor failed to load properly");
+      if (!containerRef.current) {
+        console.log("Container ref not available");
         return;
       }
 
-      // Destroy existing instance if it exists
-      if ((window as any).CKEDITOR?.instances[uniqueId.current]) {
-        (window as any).CKEDITOR.instances[uniqueId.current].destroy();
+      console.log("Loading CKEditor...");
+
+      // Check if CKEditor script is already loaded
+      if (!(window as any).CKEDITOR) {
+        console.log("CKEditor not loaded, adding script tag");
+        const script = document.createElement("script");
+        script.src = "https://cdn.ckeditor.com/4.22.1/full/ckeditor.js";
+        script.async = true;
+        document.head.appendChild(script);
+
+        // Wait for script to load
+        await new Promise<void>((resolve) => {
+          script.onload = () => {
+            console.log("CKEditor script loaded successfully");
+            resolve();
+          };
+          script.onerror = () => {
+            console.error("Failed to load CKEditor script");
+            resolve();
+          };
+        });
       }
 
-      // Create the editor instance
-      try {
-        editorInstance = (window as any).CKEDITOR.replace(uniqueId.current, {
-          height: 300,
-          width: "100%",
-          versionCheck: false,
-          toolbarGroups: [
-            { name: "document", groups: ["mode", "document", "doctools"] },
-            { name: "clipboard", groups: ["clipboard", "undo"] },
-            {
-              name: "editing",
-              groups: ["find", "selection", "spellchecker", "editing"],
-            },
-            { name: "forms", groups: ["forms"] },
-            "/",
-            { name: "basicstyles", groups: ["basicstyles", "cleanup"] },
-            {
-              name: "paragraph",
-              groups: [
-                "list",
-                "indent",
-                "blocks",
-                "align",
-                "bidi",
-                "paragraph",
-              ],
-            },
-            { name: "links", groups: ["links"] },
-            { name: "insert", groups: ["insert"] },
-            "/",
-            { name: "styles", groups: ["styles"] },
-            { name: "colors", groups: ["colors"] },
-            { name: "tools", groups: ["tools"] },
-            { name: "others", groups: ["others"] },
-            { name: "about", groups: ["about"] },
-          ],
-          removePlugins: "elementspath",
-          resize_enabled: false,
-          contentsCss: [
-            "body { font-family: Arial, sans-serif; font-size: 14px; margin: 12px; }",
-            ".cke_editable { background-color: #fff; border: 1px solid #ccc; }",
-          ],
-        });
+      // Check if CKEditor is now available
+      if (!(window as any).CKEDITOR) {
+        console.error("CKEditor still not available after script load");
+        return;
+      }
 
-        // Set initial content if available
-        const initialValue = defaultValue || "";
-        if (initialValue) {
-          editorInstance.setData(initialValue);
+      // Clean up any existing instances to avoid conflicts
+      if ((window as any).CKEDITOR?.instances[uniqueId.current]) {
+        try {
+          (window as any).CKEDITOR.instances[uniqueId.current].destroy(true);
+          console.log("Destroyed previous CKEditor instance");
+        } catch (e) {
+          console.error("Error destroying previous instance:", e);
         }
+      }
 
-        // Handle content changes with debounce
-        editorInstance.on("change", function () {
-          // Clear previous timeout if exists
-          if (changeTimeout) clearTimeout(changeTimeout);
+      // Create editor with a small delay to ensure the DOM is ready
+      setTimeout(() => {
+        try {
+          console.log("Creating CKEditor instance");
+          const textarea = document.getElementById(uniqueId.current);
+          
+          if (!textarea) {
+            console.error("Textarea element not found");
+            return;
+          }
+          
+          editorInstance = (window as any).CKEDITOR.replace(uniqueId.current, {
+            height: 300,
+            width: "100%",
+            extraPlugins: 'font,justify,colorbutton',
+            allowedContent: true,
+            font_names: 'Arial/Arial, Helvetica, sans-serif;Times New Roman/Times New Roman, Times, serif;Courier New/Courier New, Courier, monospace',
+            font_defaultLabel: 'Arial',
+            fontSize_sizes: '8/8px;9/9px;10/10px;11/11px;12/12px;14/14px;16/16px;18/18px;20/20px;22/22px;24/24px;36/36px;48/48px;72/72px',
+            fontSize_defaultLabel: '14px',
+            disableNativeSpellChecker: false,
+            disableObjectResizing: false,
+            removePlugins: 'elementspath,notification',
+            hideBottomBar: true,
+            toolbarGroups: [
+              { name: "document", groups: ["mode", "document", "doctools"] },
+              { name: "clipboard", groups: ["clipboard", "undo"] },
+              { name: "editing", groups: ["find", "selection", "spellchecker", "editing"] },
+              { name: "forms", groups: ["forms"] },
+              { name: "basicstyles", groups: ["basicstyles", "cleanup"] },
+              { name: "paragraph", groups: ["list", "indent", "blocks", "align", "bidi", "paragraph"] },
+              { name: "links", groups: ["links"] },
+              { name: "insert", groups: ["insert"] },
+              { name: "styles", groups: ["styles"] },
+              { name: "colors", groups: ["colors"] },
+              { name: "tools", groups: ["tools"] },
+              { name: "others", groups: ["others"] },
+            ],
+            removeButtons: '',
+            format_tags: 'p;h1;h2;h3;h4;h5;h6;pre;div',
+            extraAllowedContent: 'span(*)[*]{*};p(*)[*]{*};div(*)[*]{*};li(*)[*]{*};ul(*)[*]{*}',
+            contentsCss: [
+              "body { font-family: Arial, sans-serif; font-size: 14px; margin: 12px; line-height: 1.5; }",
+              ".cke_editable { background-color: #fff; padding: 10px; }",
+              ".cke_editable h1 { font-size: 2em; font-weight: bold; }",
+              ".cke_editable h2 { font-size: 1.5em; font-weight: bold; }",
+              ".cke_editable h3 { font-size: 1.17em; font-weight: bold; }",
+              ".cke_editable p { margin: 0.5em 0; }",
+              ".cke_editable span { display: inline; }",
+              ".cke_editable span[style] { display: inline !important; }",
+              ".cke_editable [style*='text-align: center'] { text-align: center !important; display: block; }",
+              ".cke_editable [style*='text-align: right'] { text-align: right !important; display: block; }",
+              ".cke_editable [style*='text-align: left'] { text-align: left !important; display: block; }",
+              ".cke_editable [style*='text-align: justify'] { text-align: justify !important; display: block; }"
+            ],
+          });
 
-          // Set new timeout to update form after delay
-          changeTimeout = setTimeout(() => {
-            const data = editorInstance.getData();
-            console.log("CKEditor content changed:", data);
-
-            // Setup listener to capture form submissions during the update
-            const formElement = containerRef.current?.closest("form");
-            if (formElement) {
-              const onSubmitHandler = (e: Event) => {
-                e.preventDefault();
-                formElement.removeEventListener("submit", onSubmitHandler);
-              };
-              formElement.addEventListener("submit", onSubmitHandler);
-            }
-
-            // Update form with the editor content
-            if ((window as any).CKEDITOR?.instances[uniqueId.current]) {
-              if (field && typeof field.onChange === "function") {
-                field.onChange(data);
-              }
-            }
-          }, 300);
-        });
-
-        // Enable drag and drop functionality
-        editorInstance.on("instanceReady", function (evt: any) {
-          // console.log('CKEditor is ready:', evt.editor.name);
-
-          // Apply additional styling to the container
-          const editorContainer = document.querySelector(
-            `#cke_${uniqueId.current}`
-          );
-          if (editorContainer) {
-            editorContainer.classList.add("ckeditor-container");
-
-            // Direct styling to remove borders
-            const iframeHolder = editorContainer.querySelector(
-              '[id$="_iframeholder"]'
-            );
-            if (iframeHolder) {
-              (iframeHolder as HTMLElement).style.border = "none";
-              (iframeHolder as HTMLElement).style.padding = "0";
-              (iframeHolder as HTMLElement).style.margin = "0";
-            }
-
-            const contents = editorContainer.querySelector('[id$="_contents"]');
-            if (contents) {
-              (contents as HTMLElement).style.border = "none";
-              (contents as HTMLElement).style.padding = "0";
-              (contents as HTMLElement).style.margin = "0";
-            }
-
-            // Find and style the iframe
-            const iframe = editorContainer.querySelector("iframe");
-            if (iframe) {
-              iframe.style.border = "none";
-              iframe.style.outline = "none";
-              iframe.style.boxShadow = "none";
-              iframe.style.borderRadius = "0";
-
-              // Access and style the document inside the iframe
-              try {
-                const iframeDocument = (iframe as HTMLIFrameElement)
-                  .contentDocument;
-                if (iframeDocument) {
-                  const styleElement = iframeDocument.createElement("style");
-                  styleElement.textContent = `
-                    body { 
-                      border: none !important; 
-                      outline: none !important;
-                      box-shadow: none !important;
-                      padding: 10px !important;
-                      margin: 0 !important;
-                      background-color: transparent !important;
-                    }
-                    html, body {
-                      background-color: transparent !important;
-                    }
-                    p {
-                      margin: 0 !important;
-                      padding: 0 !important;
-                      border: none !important;
-                    }
-                    textarea, input, div, span {
-                      border: none !important;
-                      outline: none !important;
-                      box-shadow: none !important;
-                    }
-                  `;
-                  iframeDocument.head.appendChild(styleElement);
-                }
-              } catch (e) {
-                console.error("Could not access iframe document:", e);
-              }
-            }
+          // Set initial content if available
+          if (defaultValue) {
+            editorInstance.setData(defaultValue);
           }
 
-          // Prevent form submission on Enter key press inside editor
-          const editorDoc = evt.editor.document;
-          editorDoc.on("keydown", function (keyEvent: any) {
-            if (keyEvent.data.getKeystroke() === 13) {
-              // 13 is Enter key
-              // Prevent the Enter key from submitting the form
-              keyEvent.stop();
-              keyEvent.cancel();
-              keyEvent.data.preventDefault();
-              keyEvent.data.stopPropagation();
+          // Handle content changes
+          editorInstance.on("change", function() {
+            if (changeTimeout) clearTimeout(changeTimeout);
+            
+            changeTimeout = setTimeout(() => {
+              try {
+                const data = editorInstance.getData();
+                console.log("CKEditor content changed");
+                
+                // Pass the data to react-hook-form
+                if (editorRef.current && typeof editorRef.current.onChange === "function") {
+                  editorRef.current.onChange(data);
+                }
+              } catch (e) {
+                console.error("Error handling editor change:", e);
+              }
+            }, 300);
+          });
+
+          // Handle instance ready for styling
+          editorInstance.on("instanceReady", function() {
+            console.log("CKEditor instance ready");
+            
+            // Find and style the editor container
+            const editorContainer = document.querySelector(`#cke_${uniqueId.current}`);
+            if (editorContainer) {
+              editorContainer.classList.add("ckeditor-container");
             }
           });
-        });
-      } catch (error) {
-        // console.error("Error initializing CKEditor:", error);
-      }
+          
+        } catch (e) {
+          console.error("Error initializing CKEditor:", e);
+        }
+      }, 100);
     };
 
-    // Small delay to ensure DOM is ready
-    const timerId = setTimeout(() => {
-      loadEditor();
-    }, 300);
+    loadEditor();
 
     return () => {
-      clearTimeout(timerId);
       if (changeTimeout) clearTimeout(changeTimeout);
-      // Clean up the editor instance
+      
       if ((window as any).CKEDITOR?.instances[uniqueId.current]) {
-        (window as any).CKEDITOR.instances[uniqueId.current].destroy();
+        try {
+          (window as any).CKEDITOR.instances[uniqueId.current].destroy(true);
+        } catch (e) {
+          console.error("Error during cleanup:", e);
+        }
       }
     };
-  }, [name, defaultValue]);
-
-  // Get field from Controller
-  let field: any;
+  }, [defaultValue]);
 
   return (
-    <Controller
-      name={name}
-      control={control}
-      defaultValue={defaultValue}
-      rules={{ required: required ? `${label || 'This field'} is required` : false }}
-      render={({ field: f, fieldState }) => {
-        // Store field reference for use in useEffect
-        field = f;
-
-        // Setup CKEditor change handler when the editor is ready
-        if ((window as any).CKEDITOR?.instances[uniqueId.current]) {
-          const editor = (window as any).CKEDITOR.instances[uniqueId.current];
-
-          // Remove existing change handlers to avoid duplicates
-          editor.removeListener("change");
-          editor.removeListener("blur");
-
-          // Add new change handler
-          editor.on("change", function () {
-            const data = editor.getData();
-            console.log("CKEditor content updated:", data);
-            field.onChange(data);
-          });
-
-          // Handle blur event
-          editor.on('blur', function() {
-            const data = editor.getData();
-            console.log('CKEditor blur event:', data);
-            field.onChange(data);
-            field.onBlur();
-          });
-        }
-
-        return (
-          <div className="mb-6" ref={containerRef}>
-            {label && (
-              <label className="block mb-2 text-sm font-medium">
-                {label} {required && <span style={{ color: "red" }}>*</span>}
-              </label>
-            )}
+    <div className="mb-6" ref={containerRef}>
+      {label && (
+        <label className="block mb-2 text-sm font-medium">
+          {label} {required && <span style={{ color: "red" }}>*</span>}
+        </label>
+      )}
+      
+      <Controller
+        name={name}
+        control={control}
+        defaultValue={defaultValue}
+        rules={{ required: required ? `${label || 'This field'} is required` : false }}
+        render={({ field, fieldState }) => {
+          // Store field reference for access in the effect
+          editorRef.current = field;
+          
+          return (
             <div className="ckeditor-wrapper relative w-full">
               <textarea
                 id={uniqueId.current}
-                ref={editorRef}
                 defaultValue={field.value || defaultValue}
                 style={{
-                  visibility: "hidden",
+                  visibility: "hidden", 
                   height: "1px",
-                  width: "100%",
-                }}
-                onKeyDown={(e) => {
-                  // Prevent form submission on Enter key
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    return false;
-                  }
+                  width: "100%"
                 }}
               />
+              
+              {fieldState?.error && (
+                <p className="mt-2 text-sm text-red-600">
+                  {fieldState.error.message}
+                </p>
+              )}
             </div>
-            <style jsx global>{`
-              .ckeditor-container {
-                border: 1px solid #2E9970;
-                border-radius: 0;
-                overflow: hidden;
-                width: 100% !important;
-                box-shadow: none !important;
-              }
-
-              /* Keep only toolbar borders */
-              .cke_top {
-                background: #f9fafb !important;
-                border-bottom: 1px solid #2E9970 !important;
-              }
-              .cke_bottom {
-                background: #f9fafb !important;
-                border-top: 1px solid #2E9970 !important;
-              }
-              .cke_chrome {
-                border: 1px solid #2E9970 !important;
-                border-radius: 0 !important;
-              }
-              .cke_focus {
-                border: 1px solid #1E7A56 !important;
-              }
-
-              /* Aggressively remove ALL other borders */
-              // .cke_inner,
-              // .cke_contents,
-              // .cke_wysiwyg_frame,
-              // .cke_wysiwyg_div,
-              // .cke_editable,
-              // .cke_reset,
-              // .cke_reset_all,
-              // .cke_panel_container,
-              // .cke_panel,
-              // .cke_dialog_body,
-              // iframe.cke_wysiwyg_frame,
-              // div[id^="cke_"][id$="_contents"],
-              // div[id^="cke_"][id$="_iframeholder"],
-              // iframe[title="Rich Text Editor"],
-              // body.cke_editable {
-              //   border: none !important;
-              //   // outline: none !important;
-              //   box-shadow: none !important;
-              // }
-
-              /* Additional targeted selectors for the iframe container */
-              // div[class*="cke_"][class*="contents"],
-              // td.cke_contents,
-              // iframe.cke_wysiwyg_frame,
-              // iframe[title="Rich Text Editor, editor"] {
-              //   border-width: 0 !important;
-              //   border-color: transparent !important;
-              //   border-style: none !important;
-              // }
-
-              /* Ensure content has padding */
-              .cke_editable,
-              .cke_wysiwyg_div {
-                padding: 10px !important;
-              }
-
-              /* Force remove borders for specific elements */
-              // .cke_reset_all *,
-              // .cke_inner * {
-              //   border: none !important;
-              //   outline: none !important;
-              // }
-
-              /* Override the main content area */
-              // div[id^="cke_"][id$="_contents"] {
-              //   border-left: 0 !important;
-              //   border-right: 0 !important;
-              //   border-bottom: 0 !important;
-              //   margin: 0 !important;
-              //   padding: 0 !important;
-              // }
-
-              /* Important - this targets the actual text area frame */
-              // .cke_wysiwyg_frame {
-              //   background-color: white !important;
-              //   border-radius: 0 !important;
-              // }
-            `}</style>
-            {fieldState?.error && (
-              <p className="mt-2 text-sm text-red-600">
-                {fieldState.error.message}
-              </p>
-            )}
-          </div>
-        );
-      }}
-    />
+          );
+        }}
+      />
+      
+      <style jsx global>{`
+        .ckeditor-container {
+          border: 1px solid #2E9970;
+          border-radius: 0;
+          overflow: hidden;
+          width: 100% !important;
+        }
+        
+        .cke_top {
+          background: #f9fafb !important;
+          border-bottom: 1px solid #2E9970 !important;
+        }
+        
+        .cke_bottom {
+          background: #f9fafb !important;
+          border-top: 1px solid #2E9970 !important;
+          display: none !important;
+        }
+        
+        .cke_chrome {
+          border: 1px solid #2E9970 !important;
+          border-radius: 0 !important;
+          box-shadow: none !important;
+        }
+        
+        .cke_editable {
+          padding: 10px !important;
+        }
+        
+        /* Font size should be preserved */
+        .cke_editable [style*="font-size"] {
+          font-size: unset !important;
+        }
+        
+        /* Font weight should be preserved */
+        .cke_editable [style*="font-weight"] {
+          font-weight: unset !important;
+        }
+        
+        /* Hide notification area and version warnings */
+        .cke_notification_warning {
+          display: none !important;
+        }
+        
+        /* Hide status bar completely */
+        .cke_path {
+          display: none !important;
+        }
+      `}</style>
+    </div>
   );
 };
 

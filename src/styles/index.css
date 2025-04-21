@@ -170,3 +170,86 @@ input::-ms-clear {
 .MuiInputLabel-root.Mui-focused {
   color: #2e9970 !important;
 }
+
+/* CKEditor content styles */
+.ck-content {
+  font-family: inherit;
+  line-height: 1.5;
+}
+
+.ck-content h1, 
+.ck-content h2, 
+.ck-content h3, 
+.ck-content h4, 
+.ck-content h5, 
+.ck-content h6 {
+  display: block;
+  margin-top: 1em;
+  margin-bottom: 0.5em;
+}
+
+.ck-content h1 {
+  font-size: 2em !important;
+  font-weight: 700 !important;
+}
+
+.ck-content h2 {
+  font-size: 1.75em !important;
+  font-weight: 700 !important;
+}
+
+.ck-content h3 {
+  font-size: 1.5em !important;
+  font-weight: 600 !important;
+}
+
+.ck-content h4 {
+  font-size: 1.25em !important;
+  font-weight: 600 !important;
+}
+
+.ck-content p {
+  margin-top: 0.5em;
+  margin-bottom: 0.5em;
+}
+
+.ck-content [style*="font-size"] {
+  font-size: inherit !important;
+}
+
+.ck-content [style*="font-weight"] {
+  font-weight: inherit !important;
+}
+
+/* Override MUI styles that might conflict with CKEditor content */
+.ck-content span, 
+.ck-content p, 
+.ck-content div {
+  font-size: unset !important;
+  font-weight: unset !important;
+  font-family: inherit !important;
+}
+
+.ck-content strong, 
+.ck-content b {
+  font-weight: bold !important;
+}
+
+.ck-content em, 
+.ck-content i {
+  font-style: italic !important;
+}
+
+.ck-content ul, 
+.ck-content ol {
+  padding-left: 2em;
+  margin-top: 0.5em;
+  margin-bottom: 0.5em;
+}
+
+.ck-content blockquote {
+  border-left: 5px solid #ccc;
+  padding-left: 1em;
+  margin-left: 0;
+  font-style: italic;
+}
