@@ -22,6 +22,7 @@ import { getBlogPost, type BlogPost } from "@/services/apiBlog";
 import { useSnackbar } from "@/contexts/SnackbarContext";
 import { formatDate } from "@/utils/actions";
 import FuseSvgIcon from "@fuse/core/FuseSvgIcon";
+import { ckEditorStyles, ckEditorBoxStyles } from "@/styles/ckEditorStyles";
 
 export default function BlogPostDetailPage() {
   const { id } = useParams();
@@ -81,6 +82,9 @@ export default function BlogPostDetailPage() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
       >
+        {/* Add global styles from imported file */}
+        <style jsx global>{ckEditorStyles}</style>
+
         <Box
           sx={{
             mb: 4,
@@ -146,38 +150,48 @@ export default function BlogPostDetailPage() {
                   {post.title}
                 </Typography>
 
-                <Box sx={{ my: 2 }}>
-                  <Typography
-                    variant="body1"
-                    component="div"
+                <Box 
+                  sx={ckEditorBoxStyles}
+                >
+                  <div
+                    className="ck-content"
                     dangerouslySetInnerHTML={{ __html: post.content }}
+                    style={{ wordBreak: 'break-word' }}
                   />
                 </Box>
 
                 <Divider sx={{ my: 3 }} />
                 <Typography variant="subtitle2" color="text.secondary" className="mb-2">Categories</Typography>
                 <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap", mb: 2 }}>
-                  {post.categories.map((category) => (
-                    <Chip
-                      key={category.id}
-                      label={category.name}
-                      color="primary"
-                      variant="outlined"
-                      size="small"
-                    />
-                  ))}
+                  {post.categories && post.categories.length > 0 ? (
+                    post.categories.map((category) => (
+                      <Chip
+                        key={category.id}
+                        label={category.name}
+                        color="primary"
+                        variant="outlined"
+                        size="small"
+                      />
+                    ))
+                  ) : (
+                    <Typography variant="body2" color="text.secondary">No categories found</Typography>
+                  )}
                 </Box>
                 <Typography variant="subtitle2" color="text.secondary" className="mb-2">Tags</Typography>
                 <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
-                  {post.tags.map((tag) => (
-                    <Chip
-                      key={tag.id}
-                      label={tag.name}
-                      color="secondary"
-                      variant="outlined"
-                      size="small"
-                    />
-                  ))}
+                  {post.tags && post.tags.length > 0 ? (
+                    post.tags.map((tag) => (
+                      <Chip
+                        key={tag.id}
+                        label={tag.name}
+                        color="secondary"
+                        variant="outlined"
+                        size="small"
+                      />
+                    ))
+                  ) : (
+                    <Typography variant="body2" color="text.secondary">No tags found</Typography>
+                  )}
                 </Box>
               </CardContent>
             </Card>
