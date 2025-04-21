@@ -41,39 +41,10 @@ import {
 import debounce from "lodash/debounce";
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB in bytes
-const MAX_IMAGE_WIDTH = 399;
-const MAX_IMAGE_HEIGHT = 240;
-
-// Helper function to validate image dimensions (used by the Zod schema)
-const validateImageDimensions = (file: File): Promise<{ valid: boolean; dimensions?: { width: number; height: number } }> => {
-  return new Promise((resolve) => {
-    if (!file || !(file instanceof File)) {
-      resolve({ valid: true });
-      return;
-    }
-
-    const img = new Image();
-    img.onload = () => {
-      URL.revokeObjectURL(img.src);
-      if (img.width > MAX_IMAGE_WIDTH || img.height > MAX_IMAGE_HEIGHT) {
-        resolve({ 
-          valid: false, 
-          dimensions: { 
-            width: img.width, 
-            height: img.height 
-          } 
-        });
-      } else {
-        resolve({ valid: true });
-      }
-    };
-    img.onerror = () => {
-      URL.revokeObjectURL(img.src);
-      resolve({ valid: true }); // Assume valid on error to avoid blocking submission
-    };
-    img.src = URL.createObjectURL(file);
-  });
-};
+const MIN_IMAGE_WIDTH = 1091;
+const MIN_IMAGE_HEIGHT = 320;
+const MAX_IMAGE_WIDTH = 1300;
+const MAX_IMAGE_HEIGHT = 360;
 
 // Define validation schema using Zod
 const postSchema = z.object({
@@ -94,16 +65,6 @@ const postSchema = z.object({
     .refine(
       (file) => !file || !(file instanceof File) || file.size <= MAX_FILE_SIZE,
       `File size exceeds the maximum limit of 5MB.`
-    )
-    .refine(
-      async (file) => {
-        if (!file || !(file instanceof File)) return true;
-        const result = await validateImageDimensions(file);
-        return result.valid;
-      },
-      (file) => ({ 
-        message: `Image dimensions must not exceed ${MAX_IMAGE_WIDTH}×${MAX_IMAGE_HEIGHT} pixels.` 
-      })
     )
     .optional(),
   status: z.enum(["draft", "published", "archived"]).default("draft"),
@@ -153,6 +114,7 @@ export default function CreateBlogPost() {
   const [tags, setTags] = useState<BlogTag[]>([]);
   const [categorySearch, setCategorySearch] = useState("");
   const [tagSearch, setTagSearch] = useState("");
+  const [imageError, setImageError] = useState<string | null>(null);
 
   const {
     control,
@@ -233,7 +195,59 @@ export default function CreateBlogPost() {
     setValue("title", event.target.value);
   };
 
+  // Validate image dimensions
+  const validateImageDimensions = (file: File): Promise<boolean> => {
+    return new Promise((resolve) => {
+      if (!file) {
+        setImageError(null);
+        resolve(true);
+        return;
+      }
+
+      const img = new Image();
+      img.onload = () => {
+        URL.revokeObjectURL(img.src);
+        
+        if (img.width < MIN_IMAGE_WIDTH || img.height < MIN_IMAGE_HEIGHT) {
+          setImageError(`Image dimensions must be at least ${MIN_IMAGE_WIDTH}×${MIN_IMAGE_HEIGHT} pixels.`);
+          resolve(false);
+        } else if (img.width > MAX_IMAGE_WIDTH || img.height > MAX_IMAGE_HEIGHT) {
+          setImageError(`Image dimensions must not exceed ${MAX_IMAGE_WIDTH}×${MAX_IMAGE_HEIGHT} pixels.`);
+          resolve(false);
+        } else {
+          setImageError(null);
+          resolve(true);
+        }
+      };
+      
+      img.onerror = () => {
+        URL.revokeObjectURL(img.src);
+        setImageError("Failed to load image for validation");
+        resolve(false);
+      };
+      
+      img.src = URL.createObjectURL(file);
+    });
+  };
+  
+  // Handle file change with validation
+  const handleFileChange = async (file: File | null) => {
+    setSelectedFile(file);
+    setValue("image", file, { shouldValidate: true });
+    
+    if (file) {
+      await validateImageDimensions(file);
+    } else {
+      setImageError(null);
+    }
+  };
+
   const onSubmit = async (data: PostFormType) => {
+    // Validate image dimensions before submitting
+    if (selectedFile && !(await validateImageDimensions(selectedFile))) {
+      return;
+    }
+    
     try {
       setSubmitting(true);
 
@@ -344,13 +358,12 @@ export default function CreateBlogPost() {
                       name="image"
                       control={control}
                       label="Featured Image"
-                      onFileChange={(file) => {
-                        setSelectedFile(file);
-                        setValue("image", file, { shouldValidate: true });
-                      }}
+                      onFileChange={handleFileChange}
                       accept="image/*"
-                      helperText="Upload a featured image for the blog post (399 × 240 px, Max size: 5MB). Supported formats: PNG, JPG, JPEG, WebP"
+                      helperText={`Upload a featured image for the blog post (${MIN_IMAGE_WIDTH}-${MAX_IMAGE_WIDTH} × ${MIN_IMAGE_HEIGHT}-${MAX_IMAGE_HEIGHT} px, Max size: 5MB). Supported formats: PNG, JPG, JPEG, WebP`}
                       sx={commonFieldStyles}
+                      error={!!imageError}
+                      errorMessage={imageError}
                     />
                   </Grid>
 
