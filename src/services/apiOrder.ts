@@ -136,8 +136,8 @@ export interface Order {
     phone: string | null;
     profile_pic_url: string | null;
   };
-  shippingAddress: Address;
-  billingAddress: Address;
+  orderBillingAddress: Address;
+  orderShippingAddress: Address;
   orderItems: OrderItem[];
   notes: string | null;
   payment_status?: PaymentStatus; // Added for backward compatibility
