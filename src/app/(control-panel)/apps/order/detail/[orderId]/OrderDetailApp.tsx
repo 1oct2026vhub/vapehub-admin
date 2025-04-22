@@ -569,31 +569,36 @@ const OrderDetailApp = () => {
               </Typography>
             </div>
 
-            {order?.billingAddress && (
+            {order?.orderBillingAddress ? (
               <div className="p-4">
                 <Typography variant="body1" className="font-medium">
-                  {order.billingAddress.name} {order.billingAddress.last_name}
+                  {order.orderBillingAddress.name} {order.orderBillingAddress.last_name}
                 </Typography>
 
-                {order.billingAddress.phone && (
+                {order.orderBillingAddress.phone && (
                   <Typography variant="body2" className="text-gray-600 mt-2">
-                    {order.billingAddress.phone}
-                  </Typography>
-                )}
+                  {order.orderBillingAddress.phone}</Typography>
+                   )}
 
                 <Typography variant="body2" className="text-gray-600 mt-2">
-                  {order.billingAddress.street}
-                  {order.billingAddress.apartment
-                    ? `, ${order.billingAddress.apartment}`
+                  {order.orderBillingAddress.street}
+                  {order.orderBillingAddress.apartment
+                    ? `, ${order.orderBillingAddress.apartment}`
                     : ""}
                 </Typography>
 
                 <Typography variant="body2" className="text-gray-600">
-                  {order.billingAddress.town} - {order.billingAddress.post_code}
+                  {order.orderBillingAddress.town} - {order.orderBillingAddress.post_code}
                 </Typography>
 
                 <Typography variant="body2" className="text-gray-600">
-                  {order.billingAddress.country}
+                  {order.orderBillingAddress.country}
+                </Typography>
+              </div>
+            ) : (
+              <div className="p-4">
+                <Typography variant="body2" className="text-gray-500 italic">
+                  No billing address data found
                 </Typography>
               </div>
             )}
@@ -608,32 +613,38 @@ const OrderDetailApp = () => {
               </Typography>
             </div>
 
-            {order?.shippingAddress && (
+            {order?.orderShippingAddress ? (
               <div className="p-4">
                 <Typography variant="body1" className="font-medium">
-                  {order.shippingAddress.name} {order.shippingAddress.last_name}
+                  {order.orderShippingAddress.name} {order.orderShippingAddress.last_name}
                 </Typography>
 
-                {order.shippingAddress.phone && (
+                {order.orderShippingAddress.phone && (
                   <Typography variant="body2" className="text-gray-600 mt-2">
-                    {order.shippingAddress.phone}
+                    {order.orderShippingAddress.phone}
                   </Typography>
                 )}
 
                 <Typography variant="body2" className="text-gray-600 mt-2">
-                  {order.shippingAddress.street}
-                  {order.shippingAddress.apartment
-                    ? `, ${order.shippingAddress.apartment}`
+                  {order.orderShippingAddress.street}
+                  {order.orderShippingAddress.apartment
+                    ? `, ${order.orderShippingAddress.apartment}`
                     : ""}
                 </Typography>
 
                 <Typography variant="body2" className="text-gray-600">
-                  {order.shippingAddress.town} -{" "}
-                  {order.shippingAddress.post_code}
+                  {order.orderShippingAddress.town} -{" "}
+                  {order.orderShippingAddress.post_code}
                 </Typography>
 
                 <Typography variant="body2" className="text-gray-600">
-                  {order.shippingAddress.country}
+                  {order.orderShippingAddress.country}
+                </Typography>
+              </div>
+            ) : (
+              <div className="p-4">
+                <Typography variant="body2" className="text-gray-500 italic">
+                  No shipping address data found
                 </Typography>
               </div>
             )}
