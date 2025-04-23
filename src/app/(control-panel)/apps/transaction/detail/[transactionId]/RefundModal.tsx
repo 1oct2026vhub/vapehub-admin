@@ -112,9 +112,9 @@ const RefundModal: React.FC<RefundModalProps> = ({
       <DialogTitle>Refund Transaction</DialogTitle>
       <DialogContent>
         <Box sx={{ mt: 1 }}>
-          <Typography variant="body2" mb={2}>
+          {/* <Typography variant="body2" mb={2}>
             Original Transaction Amount: <strong>{currency} {parseFloat(transactionAmount).toFixed(2)}</strong>
-          </Typography>
+          </Typography> */}
           
           <TextField
             label="Refund Amount"
@@ -123,9 +123,9 @@ const RefundModal: React.FC<RefundModalProps> = ({
             value={amount}
             onChange={handleAmountChange}
             disabled={loading}
-            InputProps={{
-              startAdornment: <InputAdornment position="start">{currency}</InputAdornment>,
-            }}
+            // InputProps={{
+            //   startAdornment: <InputAdornment position="start">{currency}</InputAdornment>,
+            // }}
             placeholder="Enter amount to refund"
             helperText="Enter the amount you wish to refund"
           />

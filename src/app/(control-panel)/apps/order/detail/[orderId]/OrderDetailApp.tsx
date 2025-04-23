@@ -47,7 +47,7 @@ import PhoneIcon from "@mui/icons-material/Phone";
 import LocationOnIcon from "@mui/icons-material/LocationOn";
 import OrderStatusTimeline from "./OrderStatusTimeline";
 import { useSnackbar } from "@/contexts/SnackbarContext";
-import { formatDate, formatPounds } from "@/utils/actions";
+import { formatDate, formatPounds, formatStatusText } from "@/utils/actions";
 
 const OrderDetailApp = () => {
   const params = useParams();
@@ -153,6 +153,27 @@ const OrderDetailApp = () => {
     } finally {
       setUpdatingStatus(false);
     }
+  };
+
+  // Get color based on status
+  const getStatusColor = (status: string) => {
+    const colors: Record<string, { bg: string, text: string }> = {
+      pending: { bg: "#FFF4E5", text: "#FF9800" },
+      processing: { bg: "#E8F4FD", text: "#2196F3" },
+      shipped: { bg: "#E3F2FD", text: "#1E88E5" },
+      delivered: { bg: "#E6F6EC", text: "#4CAF50" },
+      completed: { bg: "#E6F6EC", text: "#4CAF50" },
+      fail: { bg: "#FEEBEB", text: "#F44336" },
+      cancel: { bg: "#F5F5F5", text: "#9E9E9E" },
+      out_for_delivery: { bg: "#E0F7FA", text: "#00ACC1" },
+      return_requested: { bg: "#FFF8E1", text: "#FFA000" },
+      return_approved: { bg: "#FFF8E1", text: "#FFA000" },
+      return_received: { bg: "#E8EAF6", text: "#3F51B5" },
+      refunded: { bg: "#EDE7F6", text: "#673AB7" },
+      packed: { bg: "#F1F8E9", text: "#8BC34A" },
+    };
+    
+    return colors[status.toLowerCase()] || { bg: "#EEEEEE", text: "#616161" };
   };
 
   return (
@@ -330,42 +351,18 @@ const OrderDetailApp = () => {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Chip
-                          label={order.status === "fail" 
-                            ? "Failed"
-                            : order.status === "cancel"
-                            ? "Cancelled"
-                            : order.status.toUpperCase()}
-                          size="small"
-                          sx={{
-                            backgroundColor:
-                              order.status === "pending"
-                                ? "#FFF4E5"
-                                : order.status === "processing"
-                                ? "#E8F4FD"
-                                : order.status === "delivered"
-                                ? "#E6F6EC"
-                                : order.status === "fail"
-                                ? "#FEEBEB"
-                                : order.status === "cancel"
-                                ? "#F5F5F5"
-                                : "#E6F6EC",
-                            color:
-                              order.status === "pending"
-                                ? "#FF9800"
-                                : order.status === "processing"
-                                ? "#2196F3"
-                                : order.status === "delivered"
-                                ? "#4CAF50"
-                                : order.status === "fail"
-                                ? "#F44336"
-                                : order.status === "cancel"
-                                ? "#9E9E9E"
-                                : "#4CAF50",
-                            fontWeight: 600,
-                            fontSize: "0.75rem",
-                          }}
-                        />
+                        {order.status && (
+                          <Chip
+                            label={formatStatusText(order.status)}
+                            size="small"
+                            sx={{
+                              backgroundColor: getStatusColor(order.status).bg,
+                              color: getStatusColor(order.status).text,
+                              fontWeight: 600,
+                              fontSize: "0.75rem",
+                            }}
+                          />
+                        )}
                       </TableCell>
                       <TableCell align="center" className="font-medium">
                         {item.quantity}
@@ -569,7 +566,7 @@ const OrderDetailApp = () => {
               </Typography>
             </div>
 
-            {order?.orderBillingAddress ? (
+            {order?.orderBillingAddress && (
               <div className="p-4">
                 <Typography variant="body1" className="font-medium">
                   {order.orderBillingAddress.name} {order.orderBillingAddress.last_name}
@@ -595,12 +592,6 @@ const OrderDetailApp = () => {
                   {order.orderBillingAddress.country}
                 </Typography>
               </div>
-            ) : (
-              <div className="p-4">
-                <Typography variant="body2" className="text-gray-500 italic">
-                  No billing address data found
-                </Typography>
-              </div>
             )}
           </Paper>
 
@@ -613,7 +604,7 @@ const OrderDetailApp = () => {
               </Typography>
             </div>
 
-            {order?.orderShippingAddress ? (
+            {order?.orderShippingAddress && (
               <div className="p-4">
                 <Typography variant="body1" className="font-medium">
                   {order.orderShippingAddress.name} {order.orderShippingAddress.last_name}
@@ -639,12 +630,6 @@ const OrderDetailApp = () => {
 
                 <Typography variant="body2" className="text-gray-600">
                   {order.orderShippingAddress.country}
-                </Typography>
-              </div>
-            ) : (
-              <div className="p-4">
-                <Typography variant="body2" className="text-gray-500 italic">
-                  No shipping address data found
                 </Typography>
               </div>
             )}
