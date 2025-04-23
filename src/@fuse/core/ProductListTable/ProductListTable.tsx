@@ -133,6 +133,17 @@ const ProductListTable = ({
   const [manuallyRefreshing, setManuallyRefreshing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
+  // Add debounce effect for search term
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+    }, 500);
+    
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [search]);
+
   // Function to fetch categories based on search query
   const fetchCategories = async (query: string) => {
     setIsCategoryLoading(true);
@@ -568,9 +579,15 @@ const ProductListTable = ({
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             size="small"
+            placeholder="Search products"
             InputProps={{
               endAdornment: (
-                <InputAdornment position="start">
+                <InputAdornment position="end">
+                  {search && (
+                    <IconButton size="small" onClick={() => setSearch('')}>
+                      <FuseSvgIcon>heroicons-outline:x</FuseSvgIcon>
+                    </IconButton>
+                  )}
                   <SearchIcon />
                 </InputAdornment>
               ),
@@ -872,6 +889,16 @@ const ProductListTable = ({
               onChange={(e) => setSearch(e.target.value)}
               fullWidth
               size="small"
+              placeholder="Search products by name"
+              InputProps={{
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton onClick={() => search !== "" && setDebouncedSearch(search)}>
+                      <SearchIcon />
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              }}
             />
           </ListItem>
           <ListItem>
