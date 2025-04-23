@@ -18,7 +18,7 @@ import DownloadIcon from "@mui/icons-material/Download";
 import { getOrderStatistics, OrderStatusStatistics } from "@/services/apiOrder";
 import { useSnackbar } from "@/contexts/SnackbarContext";
 import FuseLoading from "@fuse/core/FuseLoading";
-import { formatPounds } from "@/utils/actions";
+import { formatPounds, formatStatusText } from "@/utils/actions";
 
 interface OrderStatisticsProps {
   className?: string;
@@ -73,6 +73,9 @@ const OrderStatistics = ({
       return_approved: "#FF9800", // Orange
       return_received: "#9E9E9E", // Grey
       refunded: "#607D8B", // Blue Grey
+      out_for_delivery: "#00ACC1", // Cyan
+      delivered: "#4CAF50", // Green
+      packed: "#8BC34A", // Light Green
     };
     return colors[status.toLowerCase()] || "#9E9E9E"; // Default to grey
   };
@@ -118,7 +121,7 @@ const OrderStatistics = ({
       let csvContent = "Status,Orders,Revenue\n";
       statistics.forEach((stat) => {
         // Use raw values for export, not abbreviated ones
-        csvContent += `${stat.status},${stat.count},${formatPounds(stat.total_amount)}\n`;
+        csvContent += `${formatStatusText(stat.status)},${stat.count},${formatPounds(stat.total_amount)}\n`;
       });
 
       // Create blob and download
@@ -161,11 +164,8 @@ const OrderStatistics = ({
             {/* Status Cards */}
             <Grid container spacing={1}>
               {statistics.map((stat) => {
-                // Transform status labels for display
-                let displayStatus = stat.status.toUpperCase();
-                if (displayStatus === "CANCEL") displayStatus = "CANCELLED";
-                if (displayStatus === "FAIL") displayStatus = "FAILED";
-                
+                // Format the status for display using the helper function
+                const displayStatus = formatStatusText(stat.status);
                 const backgroundColor = getStatusColor(stat.status);
                 
                 return (

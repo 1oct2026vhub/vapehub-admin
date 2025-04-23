@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useEffect, useCallback } from "react";
+import { useMemo, useState, useEffect, useCallback, useRef } from "react";
 import { type MRT_ColumnDef } from "material-react-table";
 import DataTable from "@/components/data-table/DataTable";
 import FuseLoading from "@fuse/core/FuseLoading";
@@ -81,8 +81,10 @@ const OrdersTable = ({
   const [manuallyRefreshing, setManuallyRefreshing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [search, setSearch] = useState(initialSearch || "");
+  const [searchInput, setSearchInput] = useState(initialSearch || "");
   const [status, setStatus] = useState<OrderStatus | "">("");
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus | "">("");
+  const searchDebounceRef = useRef<NodeJS.Timeout | null>(null);
   
   // Set default date filters - from 1 month ago to today
   const [startDateFilter, setStartDateFilter] = useState<dayjs.Dayjs | null>(
@@ -91,6 +93,32 @@ const OrdersTable = ({
   const [endDateFilter, setEndDateFilter] = useState<dayjs.Dayjs | null>(
     initialEndDate ? dayjs(initialEndDate) : dayjs()
   );
+
+  // Handle search input changes with debounce
+  const handleSearchChange = useCallback((value: string) => {
+    setSearchInput(value);
+    
+    // Clear any existing timer
+    if (searchDebounceRef.current) {
+      clearTimeout(searchDebounceRef.current);
+    }
+    
+    // Set a new timer to update search state after delay
+    searchDebounceRef.current = setTimeout(() => {
+      setSearch(value);
+      // Reset to page 1 when search changes
+      setPage(1);
+    }, 500); // 500ms debounce delay
+  }, []);
+
+  // Clean up the timer when component unmounts
+  useEffect(() => {
+    return () => {
+      if (searchDebounceRef.current) {
+        clearTimeout(searchDebounceRef.current);
+      }
+    };
+  }, []);
 
   const queryParams = useMemo(
     () => ({
@@ -111,7 +139,7 @@ const OrdersTable = ({
       order,
       status,
       paymentStatus,
-      search,
+      search, // This will now only change after debounce
       startDateFilter,
       endDateFilter,
       page,
@@ -273,12 +301,12 @@ const OrdersTable = ({
         <div className="flex items-center justify-between p-3 flex-wrap gap-2">
           <Box className="flex items-center gap-2 flex-grow">
             <OrderFilters
-              search={search}
+              search={searchInput}
               status={status}
               paymentStatus={paymentStatus}
               startDateFilter={startDateFilter}
               endDateFilter={endDateFilter}
-              onSearchChange={setSearch}
+              onSearchChange={handleSearchChange}
               onStatusChange={setStatus}
               onPaymentStatusChange={setPaymentStatus}
               onStartDateChange={setStartDateFilter}
@@ -355,14 +383,14 @@ const OrdersTable = ({
       <OrderFilterDrawer
         open={openDrawer}
         onClose={() => setOpenDrawer(false)}
-        search={search}
+        search={searchInput}
         status={status}
         paymentStatus={paymentStatus}
         startDateFilter={startDateFilter}
         endDateFilter={endDateFilter}
         sortBy={sortBy}
         order={order}
-        onSearchChange={setSearch}
+        onSearchChange={handleSearchChange}
         onStatusChange={setStatus}
         onPaymentStatusChange={setPaymentStatus}
         onStartDateChange={setStartDateFilter}

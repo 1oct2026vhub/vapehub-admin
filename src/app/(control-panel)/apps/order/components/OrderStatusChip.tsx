@@ -2,6 +2,7 @@
 
 import { Chip, ChipProps } from "@mui/material";
 import { OrderStatus } from "@/services/apiOrder";
+import { formatStatusText } from "@/utils/actions";
 
 interface OrderStatusChipProps extends Omit<ChipProps, "color"> {
   status: OrderStatus;
@@ -25,59 +26,16 @@ const OrderStatusChip = ({ status, onClick, ...rest }: OrderStatusChipProps) => 
       return_approved: "#FF9800", // Orange
       return_received: "#9E9E9E", // Grey
       refunded: "#607D8B", // Blue Grey
+      out_for_delivery: "#00ACC1", // Cyan
+      delivered: "#4CAF50", // Green
+      packed: "#8BC34A", // Light Green
     };
     return colors[status.toLowerCase()] || "#9E9E9E"; // Default to grey
   };
 
-  const getStatusConfig = (status: OrderStatus) => {
-    // Get display label based on status
-    let label: string;
-    
-    switch (status) {
-      case "draft":
-        label = "Draft";
-        break;
-      case "pending":
-        label = "Pending";
-        break;
-      case "processing":
-        label = "Processing";
-        break;
-      case "shipped":
-        label = "Shipped";
-        break;
-      case "delivered":
-        label = "Delivered";
-        break;
-      case "completed":
-        label = "Completed";
-        break;
-      case "fail":
-        label = "Failed";
-        break;
-      case "cancel":
-        label = "Cancelled";
-        break;
-      case "return_requested":
-        label = "Return Requested";
-        break;
-      case "return_approved":
-        label = "Return Approved";
-        break;
-      case "return_received":
-        label = "Return Received";
-        break;
-      case "refunded":
-        label = "Refunded";
-        break;
-      default:
-        label = status;
-    }
-    
-    return { label, color: getStatusColor(status) };
-  };
-
-  const { label, color } = getStatusConfig(status);
+  // Use the formatStatusText helper function to get a properly formatted label
+  const label = formatStatusText(status);
+  const color = getStatusColor(status);
 
   return (
     <Chip

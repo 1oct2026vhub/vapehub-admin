@@ -22,6 +22,17 @@ import CancelOutlinedIcon from "@mui/icons-material/CancelOutlined";
 import SettingsIcon from "@mui/icons-material/Settings";
 import { updateOrderStatus, OrderStatus } from "@/services/apiOrder";
 
+// Helper function to format status text
+const formatStatusText = (status: string): string => {
+  if (!status) return '';
+  
+  // Replace underscores with spaces and capitalize each word
+  return status
+    .split('_')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ');
+};
+
 // Define the structure of a status timeline item from API
 interface StatusTimelineItem {
   status: string;
@@ -244,8 +255,8 @@ const OrderStatusTimeline: React.FC<OrderStatusTimelineProps> = ({
           // Determine if this step is completed or active
           const isCompleted = index <= currentStatusIndex;
           
-          // Change label from "Cancel" to "Cancelled" if needed
-          const displayLabel = step.status === "cancel" ? "Cancelled" : step.label;
+          // Use formatStatusText to format the status if no label is provided
+          const displayLabel = step.label || formatStatusText(step.status);
           
           return (
             <div key={step.status} className="flex mb-6 relative">
