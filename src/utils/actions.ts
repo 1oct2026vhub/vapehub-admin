@@ -115,4 +115,15 @@ export const formatPounds = (amount: number | string): string => {
   const numericAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
   return `£${isNaN(numericAmount) ? '0.00' : numericAmount.toFixed(2)}`;
 };
+
+// Add formatStatusText function to utils for consistent status formatting across the app
+export const formatStatusText = (status: string): string => {
+  if (!status) return '';
+  
+  // Replace underscores with spaces and capitalize each word
+  return status
+    .split('_')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ');
+};
   

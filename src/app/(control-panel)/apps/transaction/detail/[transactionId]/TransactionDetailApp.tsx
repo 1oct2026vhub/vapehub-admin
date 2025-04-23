@@ -248,7 +248,7 @@ const TransactionDetailApp = () => {
                 variant="outlined"
                 startIcon={<DownloadIcon />}
                 size="small"
-                onClick={handleExportReceipt}
+                // onClick={handleExportReceipt}
                 sx={{
                   borderColor: "#2E9970",
                   color: "#2E9970",
