@@ -116,9 +116,13 @@ export const formatPounds = (amount: number | string): string => {
   return `£${isNaN(numericAmount) ? '0.00' : numericAmount.toFixed(2)}`;
 };
 
-// Add formatStatusText function to utils for consistent status formatting across the app
+// Add the formatStatusText function export
 export const formatStatusText = (status: string): string => {
   if (!status) return '';
+  
+  // Special case for "fail" and "cancel"
+  if (status === 'fail') return 'Failed';
+  if (status === 'cancel') return 'Cancelled';
   
   // Replace underscores with spaces and capitalize each word
   return status
