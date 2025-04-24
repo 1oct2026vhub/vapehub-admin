@@ -26,6 +26,10 @@ import { updateOrderStatus, OrderStatus } from "@/services/apiOrder";
 const formatStatusText = (status: string): string => {
   if (!status) return '';
   
+  // Special case for "fail" and "cancel"
+  if (status === 'fail') return 'Failed';
+  if (status === 'cancel') return 'Cancelled';
+  
   // Replace underscores with spaces and capitalize each word
   return status
     .split('_')
@@ -284,6 +288,7 @@ const OrderStatusTimeline: React.FC<OrderStatusTimelineProps> = ({
                     : "bg-gray-100"
                 }`}
               >
+                {/* Status is directly set to "Cancelled" for cancel status to ensure consistent display */}
                 {step.status === "cancel" 
                   ? getIconComponent("cancel", true)
                   : getIconComponent(step.icon, isCompleted && status !== "cancel")}
@@ -302,7 +307,10 @@ const OrderStatusTimeline: React.FC<OrderStatusTimelineProps> = ({
                       : "text-gray-700"
                     }`}
                   >
-                    {displayLabel} {((isCompleted && status !== "cancel") || step.status === "cancel") && formattedDate && `- ${formattedDate}`}
+                    {step.status === "cancel" 
+                      ? "Cancelled" 
+                      : (step.label || formatStatusText(step.status))
+                    } {((isCompleted && status !== "cancel") || step.status === "cancel") && formattedDate && `- ${formattedDate}`}
                   </Typography>
                 </div>
 
@@ -321,15 +329,6 @@ const OrderStatusTimeline: React.FC<OrderStatusTimelineProps> = ({
                     {logItem.additional_info}
                   </Typography>
                 )}
-
-                {/* Show default descriptions if no additional_info is provided */}
-                {/* {isCompleted && !logItem?.additional_info && (
-                  <Typography variant="body2" color="text.secondary">
-                    {step.status === "pending" && "An order has been placed."}
-                    {step.status === "packed" && "Your item has been picked up by courier partner"}
-                    {step.status === "shipped" && "Your item has been shipped."}
-                  </Typography>
-                )} */}
 
                 {((isCompleted && status !== "cancel") || step.status === "cancel") && step.status === "shipped" && logItem?.additional_info && (
                   <Typography variant="body2" className="text-gray-600 mt-1">

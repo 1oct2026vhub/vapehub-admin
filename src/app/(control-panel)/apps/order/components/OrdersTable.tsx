@@ -47,13 +47,11 @@ const formatExactRelativeTime = (dateString: string): string => {
   const diffMinutes = now.diff(date, 'minute');
   const diffHours = now.diff(date, 'hour');
   const diffDays = now.diff(date, 'day');
-  
   if (diffSeconds < 60) return `${diffSeconds} ${diffSeconds === 1 ? 'second' : 'seconds'} ago`;
   if (diffMinutes < 60) return `${diffMinutes} ${diffMinutes === 1 ? 'minute' : 'minutes'} ago`;
   if (diffHours < 24) return `${diffHours} ${diffHours === 1 ? 'hour' : 'hours'} ago`;
   return `${diffDays} ${diffDays === 1 ? 'day' : 'days'} ago`;
 };
-
 interface OrdersTableProps {
   statusFilter?: OrderStatus;
   paymentStatusFilter?: PaymentStatus;
