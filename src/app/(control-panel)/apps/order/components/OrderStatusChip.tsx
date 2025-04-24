@@ -17,10 +17,8 @@ const OrderStatusChip = ({ status, onClick, ...rest }: OrderStatusChipProps) => 
       processing: "#2196F3", // Blue
       shipped: "#9C27B0", // Purple
       completed: "#009688", // Teal
-      failed: "#E53935", // Red
-      cancelled: "#795548", // Brown
-      fail: "#E53935", // Red (alternative name)
-      cancel: "#795548", // Brown (alternative name)
+      fail: "#E53935", // Red
+      cancel: "#795548", // Brown
       draft: "#9E9E9E", // Grey
       return_requested: "#FF5722", // Deep Orange
       return_approved: "#FF9800", // Orange
