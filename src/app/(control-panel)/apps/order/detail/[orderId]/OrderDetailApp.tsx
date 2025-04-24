@@ -254,7 +254,6 @@ const OrderDetailApp = () => {
             <Typography variant="body2" color="text.secondary" className="mb-4">
               Shipping Details 
             </Typography>
-
             <TableContainer className="border border-gray-200 rounded-md overflow-hidden">
               <Table>
                 <TableHead className="bg-[#f0f7f4]">
