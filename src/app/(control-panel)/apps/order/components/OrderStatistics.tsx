@@ -187,7 +187,6 @@ const OrderStatistics = ({
                             }}
                           />
                         </Box>
-                        
                         <Grid container>
                           <Grid item xs={6}>
                             <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.6rem' }}>
