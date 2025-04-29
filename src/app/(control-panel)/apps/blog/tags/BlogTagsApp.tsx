@@ -31,6 +31,7 @@ import { BlogTag, BlogTagResponse, getBlogTags, createBlogTag, updateBlogTag, de
 import { useRouter } from "next/navigation";
 import DeleteConfirmationModal from "./components/DeleteConfirmationModal";
 import useColumnOrder from "@/hooks/useColumnOrder";
+import ClearFiltersButton from "@/components/Shared/ClearFiltersButton";
 
 // Add pagination interface
 interface Pagination {
@@ -72,6 +73,34 @@ export default function BlogTagsApp() {
   const [deleteLoading, setDeleteLoading] = useState(false);
 
   const router = useRouter();
+
+  // --- START ADD: Check if Filters are Active ---
+  const areFiltersActive = useMemo(() => {
+    // Define default states for this table
+    const defaultSortField: typeof sortField = 'created_at';
+    const defaultSortOrder: typeof sortOrder = 'DESC';
+    const defaultShowDeleted = false;
+
+    return (
+      search !== "" ||
+      sortField !== defaultSortField ||
+      sortOrder !== defaultSortOrder ||
+      showDeleted !== defaultShowDeleted
+    );
+  }, [search, sortField, sortOrder, showDeleted]);
+  // --- END ADD ---
+
+  // --- START ADD: Clear Filters Function ---
+  const clearFilters = () => {
+    setSearch("");
+    setDebouncedSearch("");
+    setSortField("created_at");
+    setSortOrder("DESC");
+    setShowDeleted(false);
+    setPagination(prev => ({ ...prev, page: 1 })); // Reset page
+    showSnackbar("Filters cleared", "info");
+  };
+  // --- END ADD ---
 
   // Debounce search input
   useEffect(() => {
@@ -304,6 +333,15 @@ export default function BlogTagsApp() {
                     <MenuItem value="deleted">Deleted</MenuItem>
                   </Select>
                 </FormControl>
+
+                {/* --- START ADD: Clear Filters Button --- */}
+                {areFiltersActive && (
+                  <ClearFiltersButton 
+                    onClick={clearFilters}
+                    sx={{ height: '40px' }} // Match height of other controls
+                  />
+                )}
+                {/* --- END ADD --- */}
               </div>
 
               <DataTable

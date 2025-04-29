@@ -44,6 +44,7 @@ import { formatDate } from "@/utils/actions";
 import { useRouter } from "next/navigation";
 import Link from "@mui/material/Link";
 import useColumnOrder from "@/hooks/useColumnOrder";
+import ClearFiltersButton from "@/components/Shared/ClearFiltersButton";
 
 // Update sorting type to match API requirements
 type SortField = "title" | "created_at" | "published_at";
@@ -109,6 +110,43 @@ export default function BlogPostsApp() {
   // State for tracking active search vs selection mode
   const [isActivelySearchingCategory, setIsActivelySearchingCategory] = useState(false);
   const [isActivelySearchingTag, setIsActivelySearchingTag] = useState(false);
+
+  // --- START ADD: Check if Filters are Active ---
+  const areFiltersActive = useMemo(() => {
+    // Define default states for this table
+    const defaultSortField: SortField = "created_at";
+    const defaultSortOrder: SortOrder = "DESC";
+    const defaultShowDeleted = false;
+    const defaultStatus = "";
+
+    return (
+      search !== "" ||
+      selectedCategory !== null ||
+      selectedTag !== null ||
+      status !== defaultStatus ||
+      sortField !== defaultSortField ||
+      sortOrder !== defaultSortOrder ||
+      showDeleted !== defaultShowDeleted
+    );
+  }, [search, selectedCategory, selectedTag, status, sortField, sortOrder, showDeleted]);
+  // --- END ADD ---
+
+  // --- START ADD: Clear Filters Function ---
+  const clearFilters = () => {
+    setSearch("");
+    setDebouncedSearch("");
+    setSelectedCategory(null);
+    setSelectedTag(null);
+    setStatus("");
+    setSortField("created_at");
+    setSortOrder("DESC");
+    setShowDeleted(false);
+    setPagination(prev => ({ ...prev, page: 1 })); // Reset page
+    setCategorySearch(""); // Clear Autocomplete search
+    setTagSearch(""); // Clear Autocomplete search
+    showSnackbar("Filters cleared", "info");
+  };
+  // --- END ADD ---
 
   // Debounce search input
   useEffect(() => {
@@ -426,7 +464,7 @@ export default function BlogPostsApp() {
 
           <Grid item xs={12}>
             <Paper className="overflow-hidden">
-              <div className="flex flex-wrap items-center gap-3 p-3">
+              <div className="flex items-center gap-3 p-3">
                 <TextField
                   label="Search"
                   variant="outlined"
@@ -449,7 +487,7 @@ export default function BlogPostsApp() {
                     "& .MuiInputLabel-root.Mui-focused": {
                       color: "#2E9970",
                     },
-                    minWidth: '180px',
+                    minWidth: '140px',
                   }}
                 />
 
@@ -475,7 +513,7 @@ export default function BlogPostsApp() {
                       label="Category" 
                       size="small"
                       variant="outlined"
-                      sx={{ minWidth: '200px' }}
+                      sx={{ minWidth: '150px'}}
                     />
                   )}
                 />
@@ -502,12 +540,12 @@ export default function BlogPostsApp() {
                       label="Tag" 
                       size="small"
                       variant="outlined"
-                      sx={{ minWidth: '200px' }}
+                      sx={{ minWidth: '150px'}}
                     />
                   )}
                 />
 
-                <FormControl size="small" sx={{ minWidth: '150px' }}>
+                <FormControl size="small" sx={{ minWidth: '110px' }}>
                   <InputLabel>Status</InputLabel>
                   <Select
                     value={status}
@@ -520,7 +558,7 @@ export default function BlogPostsApp() {
                   </Select>
                 </FormControl>
 
-                <FormControl size="small" sx={{ minWidth: '120px' }}>
+                <FormControl size="small" sx={{ minWidth: '110px' }}>
                   <InputLabel>Sort By</InputLabel>
                   <Select
                     value={sortField}
@@ -533,7 +571,7 @@ export default function BlogPostsApp() {
                   </Select>
                 </FormControl>
 
-                <FormControl size="small" sx={{ minWidth: '120px' }}>
+                <FormControl size="small" sx={{ minWidth: '110px' }}>
                   <InputLabel>Order</InputLabel>
                   <Select
                     value={sortOrder}
@@ -545,7 +583,7 @@ export default function BlogPostsApp() {
                   </Select>
                 </FormControl>
 
-                <FormControl size="small" sx={{ minWidth: '120px' }}>
+                <FormControl size="small" sx={{ minWidth: '90px'}}>
                   <InputLabel>Show</InputLabel>
                   <Select
                     value={showDeleted ? "deleted" : "active"}
@@ -559,20 +597,11 @@ export default function BlogPostsApp() {
                   </Select>
                 </FormControl>
                 
-                {(selectedCategory || selectedTag || status) && (
-                  <Button 
-                  className="text-center"
-                    size="small" 
-                    variant="outlined"
-                    color="primary" 
-                    onClick={() => {
-                      setSelectedCategory(null);
-                      setSelectedTag(null);
-                      setStatus("");
-                    }}
-                  >
-                    Clear Filters
-                  </Button>
+                {areFiltersActive && (
+                  <ClearFiltersButton 
+                    onClick={clearFilters}
+                    sx={{ height: '40px' }}
+                  />
                 )}
               </div>
 

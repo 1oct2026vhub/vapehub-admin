@@ -44,6 +44,7 @@ import { deleteProduct, restoreProduct } from "@/services/apiProduct";
 import { formatDate } from "@/utils/actions";
 import useColumnOrder from "@/hooks/useColumnOrder";
 import debounce from 'lodash/debounce';
+import ClearFiltersButton from "@/components/Shared/ClearFiltersButton";
 
 export type ProductType = {
   id: number;
@@ -132,6 +133,21 @@ const ProductListTable = ({
   const [totalPages, setTotalPages] = useState(0);
   const [manuallyRefreshing, setManuallyRefreshing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+
+  // --- START ADD: Check if Filters are Active ---
+  const areFiltersActive = useMemo(() => {
+    return (
+      search !== "" ||
+      sortBy !== "id" ||
+      order !== "DESC" ||
+      deleted !== null ||
+      isNew !== null ||
+      priceRange !== "" ||
+      categories !== "" ||
+      brands !== ""
+    );
+  }, [search, sortBy, order, deleted, isNew, priceRange, categories, brands]);
+  // --- END ADD ---
 
   // Add debounce effect for search term
   useEffect(() => {
@@ -558,6 +574,31 @@ const ProductListTable = ({
     }
   };
 
+  // --- START ADD: Clear Filters Function ---
+  const clearFilters = () => {
+    setSearch("");
+    setDebouncedSearch(""); // Also clear debounced search
+    setOrder("DESC");
+    setSortBy("id");
+    setDeleted(null);
+    setIsNew(null);
+    setPriceRange("");
+    setCategories("");
+    setBrands("");
+    setSelectedCategory(null);
+    setSelectedBrand(null);
+    setCategorySearchQuery("");
+    setBrandSearchQuery("");
+    setPage(1); // Reset page to 1
+
+    // Reset dropdown options
+    fetchCategories("");
+    fetchBrands("");
+    
+    showSnackbar("Filters cleared", "info");
+  };
+  // --- END ADD ---
+
   if (isLoading || manuallyRefreshing || (apiLoading && products.length === 0))
     return <FuseLoading />;
   if (error) return <p>Failed to load products</p>;
@@ -606,7 +647,7 @@ const ProductListTable = ({
             }}
           />
 
-          <div className="hidden md:flex gap-2">
+          <div className="hidden md:flex gap-3">
             <Select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
@@ -658,7 +699,7 @@ const ProductListTable = ({
               <MenuItem value="deleted">Deleted</MenuItem>
             </Select>
 
-            <FormControl sx={{ minWidth: 180 }} size="small">
+            <FormControl sx={{ minWidth: 120 }} size="small">
               <Autocomplete
                 options={categoryOptions}
                 getOptionLabel={(option) => option.name}
@@ -721,7 +762,7 @@ const ProductListTable = ({
               />
             </FormControl>
 
-            <FormControl sx={{ minWidth: 180 }} size="small">
+            <FormControl sx={{ minWidth: 120 }} size="small">
               <Autocomplete
                 options={brandOptions}
                 getOptionLabel={(option) => option.name}
@@ -783,6 +824,14 @@ const ProductListTable = ({
                 }}
               />
             </FormControl>
+
+            {/* --- EDIT: Conditionally render and remove isVisible prop (Desktop) --- */}
+            {areFiltersActive && (
+              <ClearFiltersButton 
+                onClick={clearFilters}
+              />
+            )}
+            {/* --- END EDIT --- */}
           </div>
         </div>
 
@@ -1086,9 +1135,21 @@ const ProductListTable = ({
               fullWidth
               variant="contained"
               onClick={() => setOpenDrawer(false)}
+              sx={{ mb: 1 }} // Add margin below
             >
               Apply Filters
             </Button>
+            {/* --- EDIT: Conditionally render and remove isVisible prop (Mobile) --- */}
+            {areFiltersActive && (
+              <ClearFiltersButton 
+                onClick={() => {
+                  clearFilters();
+                  setOpenDrawer(false); // Close drawer after clearing
+                }}
+                fullWidth // Keep fullWidth for drawer
+              />
+            )}
+            {/* --- END EDIT --- */}
           </ListItem>
         </List>
       </Drawer>

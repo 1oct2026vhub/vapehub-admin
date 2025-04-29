@@ -39,6 +39,7 @@ import { useRouter } from "next/navigation";
 import AppButton from "@/components/Shared/AppButton";
 import { useSnackbar } from "@/contexts/SnackbarContext";
 import { formatDate } from "@/utils/actions";
+import ClearFiltersButton from "@/components/Shared/ClearFiltersButton";
 
 export type UserType = {
   id: number;
@@ -75,6 +76,37 @@ const CustomerTable = () => {
   const [selectedUser, setSelectedUser] = useState<UserType | null>(null);
   const [openDrawer, setOpenDrawer] = useState(false); // Mobile filter drawer state
   const { showSnackbar } = useSnackbar();
+
+  // --- START ADD: Check if Filters are Active ---
+  const areFiltersActive = useMemo(() => {
+    // Define default states for this table
+    const defaultOrder = "DESC";
+    const defaultDeleted = null;
+    const defaultVerified = null;
+    const defaultBlocked = null;
+
+    return (
+      search !== "" ||
+      order !== defaultOrder ||
+      deleted !== defaultDeleted ||
+      verified !== defaultVerified ||
+      blocked !== defaultBlocked
+    );
+  }, [search, order, deleted, verified, blocked]);
+  // --- END ADD ---
+
+  // --- START ADD: Clear Filters Function ---
+  const clearFilters = () => {
+    setSearch("");
+    setDebouncedSearch("");
+    setOrder("DESC");
+    setDeleted(null);
+    setVerified(null);
+    setBlocked(null);
+    setPage(1); // Reset page number
+    showSnackbar("Filters cleared", "info");
+  };
+  // --- END ADD ---
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(search), 1000);
@@ -367,6 +399,14 @@ const CustomerTable = () => {
               <MenuItem value="DESC">Descending</MenuItem>
               <MenuItem value="ASC">Ascending</MenuItem>
             </Select>
+
+            {/* --- START ADD: Clear Filters Button (Desktop) --- */}
+            {areFiltersActive && (
+              <ClearFiltersButton 
+                onClick={clearFilters}
+              />
+            )}
+            {/* --- END ADD --- */}
           </div>
         </div>
         <DataTable
@@ -529,6 +569,27 @@ const CustomerTable = () => {
               <MenuItem value="DESC">Descending</MenuItem>
               <MenuItem value="ASC">Ascending</MenuItem>
             </Select>
+          </ListItem>
+          <ListItem>
+            <Button 
+              fullWidth 
+              variant="contained" 
+              onClick={() => setOpenDrawer(false)}
+              sx={{ mb: 1 }} // Add margin bottom
+            >
+              Apply Filters
+            </Button>
+            {/* --- START ADD: Clear Filters Button (Mobile Drawer) --- */}
+            {areFiltersActive && (
+              <ClearFiltersButton 
+                onClick={() => {
+                  clearFilters();
+                  setOpenDrawer(false); // Close drawer after clearing
+                }}
+                fullWidth // Keep fullWidth for drawer
+              />
+            )}
+            {/* --- END ADD --- */}
           </ListItem>
         </List>
       </Drawer>

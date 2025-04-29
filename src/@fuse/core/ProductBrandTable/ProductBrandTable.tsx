@@ -34,6 +34,7 @@ import FuseSvgIcon from "../FuseSvgIcon";
 import { useSnackbar } from "@/contexts/SnackbarContext";
 import { formatDate } from "@/utils/actions";
 import useColumnOrder from "@/hooks/useColumnOrder";
+import ClearFiltersButton from "@/components/Shared/ClearFiltersButton";
 
 export type BrandType = {
   id: number;
@@ -61,6 +62,25 @@ const ProductBrandTable = ({ refreshData }: ProductBrandTableProps) => {
   const { showSnackbar } = useSnackbar();
   const [brands, setBrands] = useState<BrandType[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+
+  // --- START ADD: Check if Filters are Active ---
+  const areFiltersActive = useMemo(() => {
+    return (
+      search !== "" ||
+      deleted !== null
+    );
+  }, [search, deleted]);
+  // --- END ADD ---
+
+  // --- START ADD: Clear Filters Function ---
+  const clearFilters = () => {
+    setSearch("");
+    setDebouncedSearch("");
+    setDeleted(null);
+    setPage(1); // Reset page to 1
+    showSnackbar("Filters cleared", "info");
+  };
+  // --- END ADD ---
 
   // Debounce search input
   useEffect(() => {
@@ -321,6 +341,14 @@ const ProductBrandTable = ({ refreshData }: ProductBrandTableProps) => {
               <MenuItem value="active">Active</MenuItem>
               <MenuItem value="deleted">Deleted</MenuItem>
             </Select>
+
+            {/* --- EDIT: Conditionally render and remove isVisible prop --- */}
+            {areFiltersActive && (
+              <ClearFiltersButton 
+                onClick={clearFilters}
+              />
+            )}
+            {/* --- END EDIT --- */}
           </div>
         </div>
 
