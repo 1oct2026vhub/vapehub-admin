@@ -622,7 +622,7 @@ const AttributeField = ({
 const VariantManager = () => {
   const { showSnackbar } = useSnackbar();
   const searchParams = useSearchParams();
-  const [viewMode, setViewMode] = useState<'initial' | 'generated' | 'manual' | 'bulk'>('initial');
+  const [viewMode, setViewMode] = useState<'initial' | 'generated' | 'manual' | 'bulk'>('initial'); // Explicitly type the state
   const [variants, setVariants] = useState<Variant[]>([]);
   
   const [selectedVariantIndex, setSelectedVariantIndex] = useState<number>(0);
@@ -2437,7 +2437,7 @@ const VariantManager = () => {
       console.log('[useEffect resetEditForm] currentSelectedVariant:', JSON.stringify(currentSelectedVariant, null, 2)); 
       
       const resetData = { 
-        slug: currentSelectedVariant.slug || "",
+        slug: currentSelectedVariant.slug ?? null,
         price: currentSelectedVariant.price ?? null, 
         stock: currentSelectedVariant.stock ?? null, 
         status: (currentSelectedVariant.status === 'Active' ? 'active' : 'inactive') as 'active' | 'inactive',
@@ -2482,7 +2482,7 @@ const VariantManager = () => {
       {/* Button Toolbar with Search Field */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex gap-2">
-          {/* <button 
+          <button 
             className={`py-2 px-4 border font-medium rounded-lg ${
               viewMode === 'generated' 
                 ? 'bg-[#006C38] text-white' 
@@ -2492,7 +2492,7 @@ const VariantManager = () => {
             disabled={isLoading}
           >
             {isLoading && viewMode === 'generated' ? 'Generating...' : 'Generate variations'}
-          </button> */}
+          </button>
           <button 
             className={`py-2 px-4 border font-medium rounded-lg ${
               viewMode === 'manual' 
@@ -2521,7 +2521,7 @@ const VariantManager = () => {
         </div>
 
         {/* Search Bar - Moved to right side */}
-        {variants.length > 0 && viewMode !== 'bulk' && (
+        {/* {variants.length > 0 && viewMode !== 'initial' && (
           <div className="flex items-center gap-2">
             <div className="flex items-center w-[250px] relative border rounded-full">
               <input 
@@ -2535,24 +2535,22 @@ const VariantManager = () => {
                 <SearchIcon className="text-gray-500 mr-1" />
                 <TuneIcon className="text-gray-500" />
               </div>
-            </div>
+            </div> */}
 
-            {/* Reset button */}
-            {viewMode !== 'initial' && (
-              <button 
-                className="py-2 px-4 bg-[#FF0004] text-white rounded hover:bg-red-600"
-                onClick={() => {
-                  if (confirm('Are you sure you want to reset? All unsaved variants will be lost.')) {
-                    handleAddManually();
-                  }
-                }}
-                disabled={isLoading}
-              >
-                Remove All
-              </button>
-            )}
+            {/* Reset button - Already checked viewMode !== 'initial' in outer conditional */}
+            {/* <button 
+              className="py-2 px-4 bg-[#FF0004] text-white rounded hover:bg-red-600"
+              onClick={() => {
+                if (confirm('Are you sure you want to reset? All unsaved variants will be lost.')) {
+                  handleAddManually();
+                }
+              }}
+              disabled={isLoading}
+            >
+              Remove All
+            </button>
           </div>
-        )}
+        )} */}
 
         {/* Show only Remove All button when search bar is hidden */}
         {(!variants.length || viewMode === 'bulk') && viewMode !== 'initial' && (
