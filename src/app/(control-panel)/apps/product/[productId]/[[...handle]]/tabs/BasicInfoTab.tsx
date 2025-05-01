@@ -460,7 +460,7 @@ function BasicInfoTab() {
   return (
     <form
       onSubmit={handleSubmit(onSubmit)}
-      className="flex w-full flex-col justify-center"
+      className="flex max-w-5xl flex-col justify-center"
       onKeyDown={(e) => {
         // Prevent form submission on Enter key unless it's inside a button
         if (
@@ -473,83 +473,97 @@ function BasicInfoTab() {
         }
       }}
     >
-      <FormInputField
-        name="name"
-        control={control}
-        label="Name"
-        type="text"
-        required
-      />
-      <FormInputField
-        name="slug"
-        control={control}
-        label="Slug"
-        type="text"
-        required
-      />
-      <FormCKEditor
-        name="description"
-        control={control}
-        label="Description"
-        defaultValue={formData.description || ""}
-      />
-      <Stack spacing={2} sx={{ mb: 4 }}>
-        <FormSearchableSelectField
-          name="category_id"
-          control={control}
-          label="Category"
-          options={categoryOptions}
-          loading={false}
-          errorMessage={categoryError || errors.category_id?.message?.toString()}
-          onInputChange={(query) => {
-            setCategorySearchInput(query);
-            fetchCategories(query);
-          }}
-          searchTerm={categorySearchInput}
-          required
-          loadingText="Searching categories..."
-          noOptionsText={
-            categorySearchInput.length < 2 && categorySearchInput.length > 0
-              ? "Please enter at least 2 characters"
-              : categoryOptions.length === 0 
-                ? "No categories found" 
-                : "No matching categories"
-          }
-          placeholder="Search for a category..."
-        />
-        <FormSearchableSelectField
-          name="brand_id"
-          control={control}
-          label="Brand"
-          options={brandOptions}
-          loading={false}
-          errorMessage={brandError || errors.brand_id?.message?.toString()}
-          onInputChange={(query) => {
-            setBrandSearchInput(query);
-            fetchBrands(query);
-          }}
-          searchTerm={brandSearchInput}
-          required
-          loadingText="Searching brands..."
-          noOptionsText={
-            brandSearchInput.length < 2 && brandSearchInput.length > 0
-              ? "Please enter at least 2 characters"
-              : brandOptions.length === 0 
-                ? "No brands found" 
-                : "No matching brands"
-          }
-          placeholder="Search for a brand..."
-        />
-      </Stack>
-      <AppButton
-        label={isEditMode ? "Update" : "Next"}
-        loading={isLoading}
-        type="submit"
-        fullWidth
-        size="large"
-        disabled={!isValid || isLoading}
-        className="mt-4"
-      />
+      <Grid container spacing={3}>
+        <Grid item xs={12} md={6}>
+          <FormInputField
+            name="name"
+            control={control}
+            label="Name"
+            type="text"
+            required
+          />
+        </Grid>
+        <Grid item xs={12} md={6}>
+          <FormInputField
+            name="slug"
+            control={control}
+            label="Slug"
+            type="text"
+            required
+          />
+        </Grid>
+        
+        <Grid item xs={12} md={6}>
+          <FormSearchableSelectField
+            name="category_id"
+            control={control}
+            label="Category"
+            options={categoryOptions}
+            loading={false}
+            errorMessage={categoryError || errors.category_id?.message?.toString()}
+            onInputChange={(query) => {
+              setCategorySearchInput(query);
+              fetchCategories(query);
+            }}
+            searchTerm={categorySearchInput}
+            required
+            loadingText="Searching categories..."
+            noOptionsText={
+              categorySearchInput.length < 2 && categorySearchInput.length > 0
+                ? "Please enter at least 2 characters"
+                : categoryOptions.length === 0 
+                  ? "No categories found" 
+                  : "No matching categories"
+            }
+            placeholder="Search for a category..."
+          />
+        </Grid>
+        <Grid item xs={12} md={6}>
+          <FormSearchableSelectField
+            name="brand_id"
+            control={control}
+            label="Brand"
+            options={brandOptions}
+            loading={false}
+            errorMessage={brandError || errors.brand_id?.message?.toString()}
+            onInputChange={(query) => {
+              setBrandSearchInput(query);
+              fetchBrands(query);
+            }}
+            searchTerm={brandSearchInput}
+            required
+            loadingText="Searching brands..."
+            noOptionsText={
+              brandSearchInput.length < 2 && brandSearchInput.length > 0
+                ? "Please enter at least 2 characters"
+                : brandOptions.length === 0 
+                  ? "No brands found" 
+                  : "No matching brands"
+            }
+            placeholder="Search for a brand..."
+          />
+        </Grid>
+        
+        <Grid item xs={12}>
+          <FormCKEditor
+            name="description"
+            control={control}
+            label="Description"
+            defaultValue={formData.description || ""}
+          />
+        </Grid>
+        
+        <Grid item xs={12} sx={{ mt: 2 }}>
+          <AppButton
+            label={isEditMode ? "Update" : "Next"}
+            loading={isLoading}
+            type="submit"
+            fullWidth
+            size="large"
+            disabled={!isValid || isLoading}
+          />
+        </Grid>
+      </Grid>
     </form>
   );
 }

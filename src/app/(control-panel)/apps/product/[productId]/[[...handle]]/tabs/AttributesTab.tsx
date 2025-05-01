@@ -13,6 +13,17 @@ import {
   Autocomplete,
   FormControl,
   Chip,
+  Typography,
+  Accordion,
+  AccordionSummary,
+  AccordionDetails,
+  InputAdornment,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
+  Button,
 } from "@mui/material";
 import AppButton from "@/components/Shared/AppButton";
 import FormSelectField from "@/components/Shared/SelectField";
@@ -32,6 +43,7 @@ import {
 } from "@/services/apiProduct";
 import DeleteIcon from "@mui/icons-material/Delete";
 import AddIcon from "@mui/icons-material/Add";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { useRouter, useSearchParams } from "next/navigation";
 import FuseLoading from "@fuse/core/FuseLoading";
 import PageBreadcrumb from "src/components/PageBreadcrumb";
@@ -96,6 +108,8 @@ function AttributesTab() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isAttributeSearching, setIsAttributeSearching] = useState(false);
   const [isTermSearching, setIsTermSearching] = useState(false);
+  // State to track expanded accordion panel
+  const [expandedPanel, setExpandedPanel] = useState<number | null>(0);
   const {
     formData,
     updateFormData,
@@ -284,7 +298,7 @@ function AttributesTab() {
       } finally {
         setIsTermSearching(false);
       }
-    }, 300), // Reduced debounce time for better responsiveness
+    }, 1500), // Increased debounce time for better performance
     []
   );
 
@@ -356,6 +370,9 @@ function AttributesTab() {
 
         // Update form with the loaded attribute data
         replace(attributeGroups);
+
+        // ---> Populate initial attribute IDs set
+        setInitialAttributeIds(new Set(attributeGroups.map(attr => attr.attribute_id).filter(id => id != null)));
 
         // Update form context data
         updateFormData({
@@ -831,11 +848,67 @@ function AttributesTab() {
     }
   };
 
+  // Function to handle accordion panel changes
+  const handleAccordionChange = (panel: number) => (event, isExpanded) => {
+    setExpandedPanel(isExpanded ? panel : null);
+  };
+
+  // Update the append function to create new attribute and open its panel
+  const handleAddNewAttribute = () => {
+    // First append the new attribute
+    append({
+      attribute_id: null as any,
+      term_ids: [],
+      is_visible_page: true,
+      used_in_variation: false,
+      default_value: "",
+    });
+    
+    // Then set the expanded panel to be the newly added one
+    // This has to be done with a slight delay to allow the append to complete
+    setTimeout(() => {
+      setExpandedPanel(fields.length);
+    }, 50);
+  };
+
+  const [searchQuery, setSearchQuery] = useState("");
+
+  // Filter fields based on search query
+  const filteredFields = fields.filter((field, index) => {
+    if (!searchQuery.trim()) return true;
+    
+    const searchLower = searchQuery.toLowerCase();
+    const attributeName = attributeOptions[index]?.find(opt => opt.value === watch(`attributes.${index}.attribute_id`))?.label || 
+      attributes?.data?.attributes?.find(attr => attr.id === watch(`attributes.${index}.attribute_id`))?.name || 
+      '';
+    
+    // Check if attribute name matches
+    if (attributeName.toLowerCase().includes(searchLower)) return true;
+    
+    // Check if any terms match
+    const termIds = watch(`attributes.${index}.term_ids`) || [];
+    return termIds.some(termId => {
+      const termName = termNameLookup[termId] || '';
+      return termName.toLowerCase().includes(searchLower);
+    });
+  });
+
+  // Handle search input change
+  const handleSearchChange = (event) => {
+    setSearchQuery(event.target.value);
+  };
+
+  // ---> Add state to track initially loaded attribute IDs
+  const [initialAttributeIds, setInitialAttributeIds] = useState<Set<number>>(new Set());
+
+  // ---> Add state for delete confirmation dialog
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState<boolean>(false);
+  const [attributeToDeleteIndex, setAttributeToDeleteIndex] = useState<number | null>(null);
+
   if (isLoading) {
     return (
       <div className="flex justify-center items-center p-10">
         <FuseLoading />
-        {/* <CircularProgress /> */}
       </div>
     );
   }
@@ -866,572 +939,511 @@ function AttributesTab() {
             }
           }
         })}
-        className="flex w-full flex-col justify-center space-y-6"
+        className="flex w-full flex-col justify-center"
         noValidate
       >
-        {fields.map((field, index) => (
-          <Paper key={field.id} className="p-5 relative">
-            <div className="grid grid-cols-2 gap-6">
-              <div className="h-auto min-h-[80px]">
-                <FormControl
-                  sx={{ minWidth: 180, width: "100%" }}
-                  size="small"
-                  error={!!errors?.attributes?.[index]?.attribute_id}
-                >
-                  <Controller
-                    name={`attributes.${index}.attribute_id`}
-                    control={control}
-                    rules={{ required: "Attribute is required" }}
-                    render={({
-                      field: { onChange, value },
-                      fieldState: { error, invalid, isTouched },
-                    }) => (
-                      <Autocomplete
-                        options={getAvailableAttributes(index)}
-                        getOptionLabel={(option) => option.label}
-                        value={
-                          value
-                            ? attributeOptions[index]?.find(
-                                (opt) => opt.value === value
-                              ) ||
-                              (attributes?.data?.attributes?.find(
-                                (attr) => attr.id === value
-                              )
-                                ? {
-                                    value,
-                                    label: attributes.data.attributes.find(
-                                      (attr) => attr.id === value
-                                    ).name,
-                                  }
-                                : null)
-                            : null
-                        }
-                        onChange={(event, newValue) => {
-                          onChange(newValue ? newValue.value : null);
-                          handleAttributeChange(
-                            index,
-                            newValue ? Number(newValue.value) : null
-                          );
-                        }}
-                        onInputChange={(event, value) => {
-                          // Only trigger search when user is actually typing (not on selection)
-                          if (event && event.type === "change") {
-                            handleAttributeSearchChange(index, value);
-                          }
-                        }}
-                        onOpen={() => {
-                          // Ensure we load all options when dropdown opens
-                          handleAttributeSearchChange(index, "");
-                        }}
-                        loading={isAttributeSearching}
-                        loadingText="Searching attributes..."
-                        noOptionsText="No attributes found"
-                        blurOnSelect
-                        forcePopupIcon={true}
-                        popupIcon={
-                          <div className="w-0 h-0 border-l-[4px] border-r-[4px] border-t-[5px] border-l-transparent border-r-transparent border-t-[#2E9970] mt-[-2px]" />
-                        }
-                        filterOptions={(x) => x} // Disable client-side filtering so we use server-side only
-                        openOnFocus
-                        selectOnFocus
-                        clearOnBlur={false}
-                        handleHomeEndKeys
-                        disablePortal={false}
-                        renderOption={(props, option, { selected }) => (
-                          <li
-                            {...props}
-                            className={`${props.className} ${
-                              selected ? "bg-[#f0f7f4]" : ""
-                            }`}
-                          >
-                            <div className="flex items-center w-full">
-                              <span
-                                className={`flex-1 ${
-                                  selected ? "font-medium text-[#2E9970]" : ""
-                                }`}
-                              >
-                                {option.label}
-                              </span>
-                              {selected && (
-                                <span className="text-[#2E9970] ml-2 text-sm">
-                                  ✓
-                                </span>
-                              )}
-                            </div>
-                          </li>
-                        )}
-                        renderInput={(params) => (
-                          <TextField
-                            {...params}
-                            label="Attribute"
-                            variant="outlined"
-                            size="small"
-                            error={!!errors?.attributes?.[index]?.attribute_id}
-                            required
-                            helperText={
-                              errors?.attributes?.[index]?.attribute_id?.message
-                            }
-                            InputProps={{
-                              ...params.InputProps,
-                              endAdornment: (
-                                <>
-                                  {isAttributeSearching ? (
-                                    <CircularProgress size={20} />
-                                  ) : null}
-                                  {params.InputProps.endAdornment}
-                                </>
-                              ),
-                            }}
-                            FormHelperTextProps={{
-                              sx: {
-                                color: errors?.attributes?.[index]?.attribute_id
-                                  ? "#d32f2f"
-                                  : "inherit",
-                                marginLeft: 0,
-                                position: "absolute",
-                                bottom: -20,
-                              },
-                            }}
-                            sx={{
-                              "& .MuiOutlinedInput-root": {
-                                borderRadius: 0,
-                                "& fieldset": {
-                                  borderImage: errors?.attributes?.[index]
-                                    ?.attribute_id
-                                    ? "none"
-                                    : "linear-gradient(to right, #2E9970, #005434) 1",
-                                  borderColor: errors?.attributes?.[index]
-                                    ?.attribute_id
-                                    ? "#d32f2f"
-                                    : undefined,
-                                  borderRadius: 0,
-                                },
-                                "&:hover fieldset": {
-                                  borderImage: errors?.attributes?.[index]
-                                    ?.attribute_id
-                                    ? "none"
-                                    : "linear-gradient(to right, #247C5C, #003F29) 1",
-                                  borderColor: errors?.attributes?.[index]
-                                    ?.attribute_id
-                                    ? "#d32f2f"
-                                    : undefined,
-                                  borderRadius: 0,
-                                },
-                                "&.Mui-focused fieldset": {
-                                  borderImage: errors?.attributes?.[index]
-                                    ?.attribute_id
-                                    ? "none"
-                                    : "linear-gradient(to right, #1E7A56, #004C30) 1",
-                                  borderColor: errors?.attributes?.[index]
-                                    ?.attribute_id
-                                    ? "#d32f2f"
-                                    : undefined,
-                                  borderRadius: 0,
-                                },
-                              },
-                              "& .MuiInputLabel-root": {
-                                color: errors?.attributes?.[index]?.attribute_id
-                                  ? "#d32f2f"
-                                  : "#2E9970",
-                              },
-                              "& .MuiInputLabel-root.Mui-focused": {
-                                color: errors?.attributes?.[index]?.attribute_id
-                                  ? "#d32f2f"
-                                  : "#2E9970",
-                              },
-                              "& .MuiFormLabel-asterisk": {
-                                color: "red",
-                              },
-                            }}
-                          />
-                        )}
-                        size="small"
-                        sx={{
-                          "& .MuiAutocomplete-root": {
-                            height: "auto",
-                          },
-                          "& .MuiOutlinedInput-root": {
-                            borderRadius: 0,
-                            "&.Mui-focused fieldset": {
-                              borderColor: errors?.attributes?.[index]
-                                ?.attribute_id
-                                ? "#d32f2f"
-                                : "#2E9970",
-                              borderWidth: "2px",
-                              borderRadius: 0,
-                            },
-                          },
-                          "& .MuiInputLabel-root.Mui-focused": {
-                            color: errors?.attributes?.[index]?.attribute_id
-                              ? "#d32f2f"
-                              : "#2E9970",
-                          },
-                        }}
-                      />
-                    )}
-                  />
-                </FormControl>
-              </div>
-
-              <div className="h-auto min-h-[80px] mb-4">
-                <FormControl
-                  sx={{ minWidth: 180, width: "100%" }}
-                  size="small"
-                  error={!!errors?.attributes?.[index]?.term_ids}
-                >
-                  <Controller
-                    name={`attributes.${index}.term_ids`}
-                    control={control}
-                    rules={{ required: "At least one term is required" }}
-                    render={({
-                      field: { onChange, value },
-                      fieldState: { error, invalid, isTouched },
-                    }) => (
-                      <Autocomplete
-                        multiple
-                        limitTags={10}
-                        options={getAvailableTerms(index, field.attribute_id)}
-                        getOptionLabel={(option) => option.label}
-                        isOptionEqualToValue={(option, value) =>
-                          option.value === value.value
-                        }
-                        disableCloseOnSelect
-                        selectOnFocus
-                        clearOnBlur={false}
-                        handleHomeEndKeys
-                        onInputChange={(event, value) => {
-                          // Only trigger search when user is actually typing (not on selection)
-                          if (
-                            field.attribute_id &&
-                            event &&
-                            event.type === "change"
-                          ) {
-                            // Add term searching functionality
-                            if (value && value.trim().length >= 2) {
-                              searchTerms(index, field.attribute_id, value);
-                            }
-                          }
-                        }}
-                        onOpen={() => {
-                          // Load all terms when dropdown opens
-                          if (field.attribute_id) {
-                            searchTerms(index, field.attribute_id, "");
-                          }
-                        }}
-                        renderOption={(props, option, { selected }) => (
-                          <li
-                            {...props}
-                            className={`${props.className} ${
-                              selected ? "bg-[#f0f7f4]" : ""
-                            }`}
-                          >
-                            <div className="flex items-center w-full">
-                              <span
-                                className={`flex-1 ${
-                                  selected ? "font-medium text-[#2E9970]" : ""
-                                }`}
-                              >
-                                {option.label}
-                              </span>
-                              {selected && (
-                                <span className="text-[#2E9970] ml-2 text-sm">
-                                  ✓
-                                </span>
-                              )}
-                            </div>
-                          </li>
-                        )}
-                        value={
-                          value
-                            ? value.map((termId) => {
-                                // First try to find in the options
-                                const termOption = getAvailableTerms(
-                                  index,
-                                  field.attribute_id
-                                ).find((opt) => opt.value === termId);
-
-                                // If found, use it
-                                if (termOption) {
-                                  return termOption;
-                                }
-
-                                // Try to find the name in our lookup
-                                if (termNameLookup[termId]) {
-                                  return {
-                                    value: termId,
-                                    label: termNameLookup[termId],
-                                  };
-                                }
-
-                                // Check in product attribute terms
-                                const productAttributeTerm =
-                                  formData.attributesResponse?.productAttributeTerms?.find(
-                                    (term) =>
-                                      term.term_id === termId && term.term?.name
-                                  );
-
-                                if (productAttributeTerm?.term?.name) {
-                                  return {
-                                    value: termId,
-                                    label: productAttributeTerm.term.name,
-                                  };
-                                }
-
-                                // Fallback to showing the ID with a label
-                                return {
-                                  value: termId,
-                                  label: `Term ${termId}`,
-                                };
-                              })
-                            : []
-                        }
-                        onChange={(event, newValue) => {
-                          // Map the selected options to their value property and ensure they are numbers
-                          const termIds = newValue.map((item) => Number(item.value));
-                          
-                                
-                          // Update form value
-                          onChange(termIds);
-                          
-                          // Force validation after selection to clear any errors
-                          setTimeout(() => {
-                            setValue(`attributes.${index}.term_ids`, termIds, {
-                              shouldValidate: true,
-                              shouldDirty: true,
-                              shouldTouch: true
-                            });
-                          }, 0);
-                        }}
-                        loading={isTermSearching}
-                        loadingText="Searching terms..."
-                        noOptionsText="No terms found"
-                        blurOnSelect
-                        forcePopupIcon={true}
-                        popupIcon={
-                          <div className="w-0 h-0 border-l-[4px] border-r-[4px] border-t-[5px] border-l-transparent border-r-transparent border-t-[#2E9970] mt-[-2px]" />
-                        }
-                        filterOptions={(x) => x} // Disable client-side filtering
-                        renderTags={(tagValue, getTagProps) =>
-                          tagValue.map((option, index) => (
-                            <Chip
-                              {...getTagProps({ index })}
-                              key={option.value}
-                              label={option.label}
-                              sx={{
-                                backgroundColor: "#f2f2f2",
-                                borderRadius: "16px",
-                                fontSize: "0.75rem",
-                                height: "24px",
-                                margin: "2px",
-                                "& .MuiChip-deleteIcon": {
-                                  color: "#999",
-                                  fontSize: "0.875rem",
-                                  "&:hover": {
-                                    color: "#555",
-                                  },
-                                },
-                                "& .MuiChip-label": {
-                                  color: "#333",
-                                  fontWeight: 400,
-                                  padding: "0 6px",
-                                },
-                              }}
-                            />
-                          ))
-                        }
-                        renderInput={(params) => (
-                          <TextField
-                            {...params}
-                            label="Terms"
-                            variant="outlined"
-                            size="small"
-                            error={!!errors?.attributes?.[index]?.term_ids}
-                            required
-                            helperText={
-                              errors?.attributes?.[index]?.term_ids?.message
-                            }
-                            InputProps={{
-                              ...params.InputProps,
-                              endAdornment: (
-                                <>
-                                  {isTermSearching ? (
-                                    <CircularProgress size={20} />
-                                  ) : null}
-                                  {params.InputProps.endAdornment}
-                                </>
-                              ),
-                            }}
-                            FormHelperTextProps={{
-                              sx: {
-                                color: errors?.attributes?.[index]?.term_ids
-                                  ? "#d32f2f"
-                                  : "inherit",
-                                marginLeft: 0,
-                                position: "absolute",
-                                bottom: -20,
-                              },
-                            }}
-                            sx={{
-                              "& .MuiOutlinedInput-root": {
-                                padding: "4px 6px",
-                                minHeight: "30px",
-                                height: "auto",
-                                borderRadius: 0,
-                                "& fieldset": {
-                                  borderImage: errors?.attributes?.[index]
-                                    ?.term_ids
-                                    ? "none"
-                                    : "linear-gradient(to right, #2E9970, #005434) 1",
-                                  borderColor: errors?.attributes?.[index]
-                                    ?.term_ids
-                                    ? "#d32f2f"
-                                    : undefined,
-                                  borderRadius: 0,
-                                },
-                                "&:hover fieldset": {
-                                  borderImage: errors?.attributes?.[index]
-                                    ?.term_ids
-                                    ? "none"
-                                    : "linear-gradient(to right, #247C5C, #003F29) 1",
-                                  borderColor: errors?.attributes?.[index]
-                                    ?.term_ids
-                                    ? "#d32f2f"
-                                    : undefined,
-                                  borderRadius: 0,
-                                },
-                                "&.Mui-focused fieldset": {
-                                  borderImage: errors?.attributes?.[index]
-                                    ?.term_ids
-                                    ? "none"
-                                    : "linear-gradient(to right, #1E7A56, #004C30) 1",
-                                  borderWidth: "1px",
-                                  borderColor: errors?.attributes?.[index]
-                                    ?.term_ids
-                                    ? "#d32f2f"
-                                    : undefined,
-                                  borderRadius: 0,
-                                },
-                              },
-                              "& .MuiInputLabel-root": {
-                                color: errors?.attributes?.[index]?.term_ids
-                                  ? "#d32f2f"
-                                  : "#2E9970",
-                                fontSize: "0.875rem",
-                              },
-                              "& .MuiInputLabel-root.Mui-focused": {
-                                color: errors?.attributes?.[index]?.term_ids
-                                  ? "#d32f2f"
-                                  : "#2E9970",
-                              },
-                              "& .MuiAutocomplete-endAdornment": {
-                                top: "calc(50% - 12px)",
-                              },
-                              "& .MuiFormLabel-asterisk": {
-                                color: "red",
-                              },
-                              "& .MuiInputBase-root": {
-                                flexWrap: "wrap",
-                              },
-                              "& .MuiChip-root": {
-                                maxWidth: "100%",
-                              },
-                            }}
-                          />
-                        )}
-                        sx={{
-                          "& .MuiAutocomplete-root": {
-                            height: "auto",
-                          },
-                          "& .MuiOutlinedInput-root": {
-                            height: "auto",
-                            minHeight: "40px",
-                            borderRadius: 0,
-                            "&.Mui-focused fieldset": {
-                              borderImage: errors?.attributes?.[index]?.term_ids
-                                ? "none"
-                                : "linear-gradient(to right, #1E7A56, #004C30) 1",
-                              borderColor: errors?.attributes?.[index]?.term_ids
-                                ? "#d32f2f"
-                                : undefined,
-                              borderWidth: "1px",
-                              borderRadius: 0,
-                            },
-                          },
-                          "& .MuiInputLabel-root.Mui-focused": {
-                            color: errors?.attributes?.[index]?.term_ids
-                              ? "#d32f2f"
-                              : "#2E9970",
-                          },
-                          "& .MuiAutocomplete-tag": {
-                            margin: "2px",
-                            maxWidth: "calc(100% - 4px)",
-                          },
-                          "& .MuiAutocomplete-inputRoot": {
-                            flexWrap: "wrap",
-                            height: "auto",
-                            minHeight: "40px",
-                            paddingTop: "2px",
-                            paddingBottom: "2px",
-                          },
-                          "& .MuiAutocomplete-endAdornment": {
-                            bottom: "50%",
-                            transform: "translateY(-50%)",
-                          },
-                          "& .MuiAutocomplete-popupIndicator": {
-                            color: "#2E9970",
-                          },
-                          "& .MuiAutocomplete-popupIndicatorOpen": {
-                            transform: "rotate(180deg)",
-                          },
-                        }}
-                      />
-                    )}
-                  />
-                </FormControl>
-              </div>
-
-              <div className="flex items-center">
-                <FormCheckboxField
-                  name={`attributes.${index}.is_visible_page`}
-                  control={control}
-                  label="Visible on product page"
-                />
-              </div>
-
-              <div className="flex items-center">
-                <FormCheckboxField
-                  name={`attributes.${index}.used_in_variation`}
-                  control={control}
-                  label="Used for variations"
-                />
-              </div>
-            </div>
-            {fields.length > 1 && (
-              <IconButton
-                onClick={() => handleDeleteAttribute(index)}
-                className="absolute top-3 right-3"
+        <div className="w-[50%]">
+          <Typography variant="h5" className="font-bold text-gray-800 mb-4">Product Attributes</Typography>
+          
+          <div className="flex justify-between items-center mb-6">
+            {fields.length > 0 && (
+              <TextField
+                placeholder="Search attributes or terms..."
+                value={searchQuery}
+                onChange={handleSearchChange}
+                variant="outlined"
                 size="small"
-                disabled={isLoading}
-                type="button"
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <SearchIcon sx={{ color: '#666' }} />
+                    </InputAdornment>
+                  ),
+                  style: { backgroundColor: "white" }
+                }}
                 sx={{
-                  color: "error.main",
-                  backgroundColor: "#f8f8f8",
-                  "&:hover": {
-                    backgroundColor: "error.light",
-                    color: "error.main",
+                  width: "300px",
+                  "& .MuiOutlinedInput-root": {
+                    backgroundColor: "white",
+                    borderRadius: "8px",
+                    height: "38px",
+                  }
+                }}
+              />
+            )}
+            <AppButton
+              label={
+                <>
+                  <AddIcon className="mr-2" />
+                  Add Attribute
+                </>
+              }
+              type="button"
+              variant="contained"
+              onClick={handleAddNewAttribute}
+              className="rounded-md px-4 py-1.5 bg-[#2E9970] text-white hover:bg-[#247C5C] ml-auto"
+            />
+          </div>
+        </div>
+        
+        {fields.length === 0 ? (
+          <div className="w-[50%] flex flex-col items-center justify-center py-12 px-4 border-2 border-dashed border-gray-300 rounded-md bg-gray-50">
+            <Typography variant="h6" className="text-gray-600 mb-2">No Attributes Added Yet</Typography>
+            <Typography variant="body2" className="text-gray-500 text-center mb-4">
+              Start by adding attributes like color, size, or material for your product
+            </Typography>
+            <AppButton
+              label={
+                <>
+                  <AddIcon className="mr-2" />
+                  Add First Attribute
+                </>
+              }
+              type="button"
+              variant="contained"
+              onClick={handleAddNewAttribute}
+              className="rounded-md px-4 py-1.5 bg-[#2E9970] text-white hover:bg-[#247C5C]"
+            />
+          </div>
+        ) : (
+          filteredFields.map((field, index) => {
+            // Find the actual index in the fields array
+            const actualIndex = fields.findIndex(f => f.id === field.id);
+            
+            return (
+            <Accordion
+              key={field.id}
+              expanded={expandedPanel === actualIndex}
+              onChange={handleAccordionChange(actualIndex)}
+              elevation={1}
+              className="bg-white shadow-lg rounded-md w-[50%] overflow-visible mb-3"
+            >
+              <AccordionSummary
+                expandIcon={<ExpandMoreIcon />}
+                aria-controls={`attribute-panel-${actualIndex}-content`}
+                id={`attribute-panel-${actualIndex}-header`}
+                className="min-h-[64px] py-2"
+                sx={{
+                  '& .MuiAccordionSummary-content': {
+                    margin: '12px 0',
+                    overflow: 'visible'
                   },
-                  "&.Mui-disabled": {
-                    color: "error.light",
-                  },
+                  '&.Mui-expanded': {
+                    backgroundColor: '#f5f5f5',
+                    borderBottom: '1px solid #e0e0e0',
+                    minHeight: '64px'
+                  }
                 }}
               >
-                <DeleteIcon />
-              </IconButton>
-            )}
-          </Paper>
-        ))}
+                <div className="flex items-center justify-between w-full pr-8">
+                  <div className="flex flex-col">
+                    <Typography 
+                      className={`text-lg font-semibold ${!watch(`attributes.${actualIndex}.attribute_id`) ? 'text-gray-500' : ''}`}
+                    >
+                      {watch(`attributes.${actualIndex}.attribute_id`) 
+                        ? attributeOptions[actualIndex]?.find(opt => opt.value === watch(`attributes.${actualIndex}.attribute_id`))?.label || 
+                          attributes?.data?.attributes?.find(attr => attr.id === watch(`attributes.${actualIndex}.attribute_id`))?.name || 
+                          `Attribute ${actualIndex + 1}`
+                        : `New Attribute ${actualIndex + 1}`}
+                    </Typography>
+                    
+                    {/* Term Chips - Move below name - ONLY SHOW WHEN COLLAPSED */}
+                    {watch(`attributes.${actualIndex}.term_ids`)?.length > 0 && expandedPanel !== actualIndex && (
+                      <div className="flex flex-wrap gap-1 mt-1 max-w-[350px] overflow-hidden">
+                        {watch(`attributes.${actualIndex}.term_ids`).slice(0, 3).map(termId => (
+                          <Chip
+                            key={termId}
+                            label={termNameLookup[termId] || `Term ${termId}`}
+                            size="small"
+                            sx={{
+                              backgroundColor: "#e0e7ff",
+                              color: "#4338ca",
+                              fontSize: "0.7rem",
+                              height: "20px",
+                              fontWeight: 500,
+                              borderRadius: '4px',
+                            }}
+                          />
+                        ))}
+                        {watch(`attributes.${actualIndex}.term_ids`).length > 3 && (
+                          <Chip
+                            label={`+${watch(`attributes.${actualIndex}.term_ids`).length - 3} more`}
+                            size="small"
+                            sx={{
+                              backgroundColor: "#f3f4f6",
+                              color: "#6b7280",
+                              fontSize: "0.7rem",
+                              height: "20px",
+                              borderRadius: '4px',
+                            }}
+                          />
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+                {fields.length > 1 && (
+                  <IconButton
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setAttributeToDeleteIndex(actualIndex);
+                      setIsDeleteDialogOpen(true);
+                    }}
+                    size="small"
+                    disabled={isLoading}
+                    className="absolute right-12 top-4"
+                    sx={{
+                      color: "error.main",
+                      backgroundColor: "#f8f8f8",
+                      "&:hover": {
+                        backgroundColor: "error.light",
+                        color: "error.main",
+                      },
+                      "&.Mui-disabled": {
+                        color: "error.light",
+                      },
+                      zIndex: 1,
+                    }}
+                  >
+                    <DeleteIcon fontSize="small" />
+                  </IconButton>
+                )}
+              </AccordionSummary>
+              <AccordionDetails className="p-5">
+                <div className="flex flex-col space-y-4">
+                  {/* --- Start Edit: Conditionally Render ENTIRE Attribute Section --- */}
+                  {!initialAttributeIds.has(field.attribute_id) && (
+                    // Only render this section for NEW attributes
+                    <div> 
+                      <p className="font-medium mb-1">Attribute <span className="text-red-500">*</span></p>
+                      {/* Existing conditional logic for dropdown remains inside */} 
+                      <FormControl
+                        sx={{ width: "100%" }}
+                        size="small"
+                        error={!!errors?.attributes?.[actualIndex]?.attribute_id}
+                      >
+                        <Controller
+                          name={`attributes.${actualIndex}.attribute_id`}
+                          control={control}
+                          rules={{ required: "Attribute is required" }}
+                          render={({
+                            field: { onChange, value },
+                            fieldState: { error, invalid, isTouched },
+                          }) => (
+                            <Autocomplete
+                              options={getAvailableAttributes(actualIndex)}
+                              getOptionLabel={(option) => option.label}
+                              value={
+                                value
+                                  ? attributeOptions[actualIndex]?.find(
+                                      (opt) => opt.value === value
+                                    ) ||
+                                    (attributes?.data?.attributes?.find(
+                                      (attr) => attr.id === value
+                                    )
+                                      ? {
+                                          value,
+                                          label: attributes.data.attributes.find(
+                                            (attr) => attr.id === value
+                                          ).name,
+                                        }
+                                      : null)
+                                  : null
+                              }
+                              onChange={(event, newValue) => {
+                                onChange(newValue ? newValue.value : null);
+                                handleAttributeChange(
+                                  actualIndex,
+                                  newValue ? Number(newValue.value) : null
+                                );
+                              }}
+                              onInputChange={(event, value) => {
+                                if (event && event.type === "change") {
+                                  handleAttributeSearchChange(actualIndex, value);
+                                }
+                              }}
+                              onOpen={() => {
+                                handleAttributeSearchChange(actualIndex, "");
+                              }}
+                              loading={isAttributeSearching}
+                              loadingText="Searching attributes..."
+                              noOptionsText="No attributes found"
+                              blurOnSelect
+                              renderInput={(params) => (
+                                <TextField
+                                  {...params}
+                                  placeholder="Select attribute"
+                                  variant="outlined"
+                                  size="small"
+                                  fullWidth
+                                  error={!!errors?.attributes?.[actualIndex]?.attribute_id}
+                                  helperText={
+                                    errors?.attributes?.[actualIndex]?.attribute_id?.message
+                                  }
+                                  InputProps={{
+                                    ...params.InputProps,
+                                    style: { backgroundColor: "white"},
+                                    endAdornment: (
+                                      <>
+                                        {isAttributeSearching ? (
+                                          <CircularProgress size={20} />
+                                        ) : null}
+                                        {params.InputProps.endAdornment}
+                                      </>
+                                    ),
+                                  }}
+                                  sx={{
+                                    "& .MuiOutlinedInput-root": {
+                                      backgroundColor: "white",
+                                      borderRadius: "4px",
+                                      height: "auto",
+                                      minHeight: "48px",
+                                      paddingY: "6px"
+                                    }
+                                  }}
+                                />
+                              )}
+                            />
+                          )}
+                        />
+                      </FormControl>
+                    </div>
+                  )}
+                  {/* --- End Edit --- */}
 
-        <div className="flex justify-center mt-4">
+                  <div>
+                    <p className="font-medium mb-1">Terms <span className="text-red-500">*</span></p>
+                    <FormControl
+                      sx={{ width: "100%" }}
+                      size="small"
+                      error={!!errors?.attributes?.[actualIndex]?.term_ids}
+                    >
+                      <Controller
+                        name={`attributes.${actualIndex}.term_ids`}
+                        control={control}
+                        rules={{ required: "At least one term is required" }}
+                        render={({
+                          field: { onChange, value },
+                          fieldState: { error }
+                        }) => (
+                          <Autocomplete
+                            multiple
+                            options={getAvailableTerms(actualIndex, field.attribute_id)}
+                            getOptionLabel={(option) => option.label}
+                            value={
+                              value
+                                ? value.map((termId) => {
+                                    // Find in options
+                                    const termOption = getAvailableTerms(
+                                      actualIndex,
+                                      field.attribute_id
+                                    ).find((opt) => opt.value === termId);
+
+                                    if (termOption) {
+                                      return termOption;
+                                    }
+
+                                    // Try lookup
+                                    if (termNameLookup[termId]) {
+                                      return {
+                                        value: termId,
+                                        label: termNameLookup[termId],
+                                      };
+                                    }
+
+                                    // Fallback
+                                    return {
+                                      value: termId,
+                                      label: `Term ${termId}`,
+                                    };
+                                  })
+                                : []
+                            }
+                            onChange={(event, newValue) => {
+                              // Check for duplicates before updating
+                              const uniqueValues = [];
+                              const uniqueSet = new Set();
+                              
+                              newValue.forEach(item => {
+                                const itemValue = Number(item.value);
+                                if (!uniqueSet.has(itemValue)) {
+                                  uniqueSet.add(itemValue);
+                                  uniqueValues.push(item);
+                                }
+                              });
+                              
+                              const termIds = uniqueValues.map((item) => Number(item.value));
+                              onChange(termIds);
+                              
+                              // Force validation
+                              setTimeout(() => {
+                                setValue(`attributes.${actualIndex}.term_ids`, termIds, {
+                                  shouldValidate: true,
+                                  shouldDirty: true,
+                                  shouldTouch: true
+                                });
+                                
+                                // Refresh the terms list after selection
+                                if (field.attribute_id) {
+                                  searchTerms(actualIndex, field.attribute_id, "");
+                                }
+                              }, 0);
+                            }}
+                            onInputChange={(event, value) => {
+                              if (field.attribute_id && event) {
+                                // Always search, but use the query value if it's long enough
+                                searchTerms(
+                                  actualIndex, 
+                                  field.attribute_id, 
+                                  value && value.trim().length >= 2 ? value : ""
+                                );
+                              }
+                            }}
+                            loading={isTermSearching}
+                            loadingText="Loading terms..."
+                            noOptionsText="No terms available"
+                            renderInput={(params) => (
+                              <TextField
+                                {...params}
+                                placeholder="Select or search terms"
+                                variant="outlined"
+                                size="small"
+                                error={!!errors?.attributes?.[actualIndex]?.term_ids}
+                                helperText={
+                                  errors?.attributes?.[actualIndex]?.term_ids?.message
+                                }
+                                InputProps={{
+                                  ...params.InputProps,
+                                  style: { backgroundColor: "white" },
+                                  endAdornment: (
+                                    <>
+                                      {isTermSearching ? (
+                                        <CircularProgress size={20} />
+                                      ) : null}
+                                      {params.InputProps.endAdornment}
+                                    </>
+                                  ),
+                                }}
+                                sx={{
+                                  "& .MuiOutlinedInput-root": {
+                                    backgroundColor: "white",
+                                    borderRadius: "4px",
+                                    height: "auto",
+                                    minHeight: "48px",
+                                    paddingY: "6px"
+                                  }
+                                }}
+                                onClick={() => {
+                                  // Load all terms when clicking in the field
+                                  if (field.attribute_id) {
+                                    searchTerms(actualIndex, field.attribute_id, "");
+                                  }
+                                }}
+                              />
+                            )}
+                            onOpen={() => {
+                              // Load all terms when dropdown opens
+                              if (field.attribute_id) {
+                                searchTerms(actualIndex, field.attribute_id, "");
+                              }
+                            }}
+                            disableCloseOnSelect
+                            renderTags={(value, getTagProps) => 
+                              value.map((option, index) => (
+                                <Chip 
+                                  {...getTagProps({ index })}
+                                  key={option.value}
+                                  label={option.label}
+                                  size="small"
+                                  sx={{
+                                    backgroundColor: "#e6e6fa",
+                                    color: "black",
+                                    fontSize: "0.75rem",
+                                    fontWeight: 500,
+                                    height: "24px",
+                                    borderRadius: "16px",
+                                    margin: "2px",
+                                    "& .MuiChip-deleteIcon": {
+                                      color: "gray",
+                                      width: "16px",
+                                      height: "16px",
+                                      margin: "0 2px 0 -6px",
+                                      cursor: "pointer"
+                                    },
+                                    "& .MuiChip-label": {
+                                      padding: "0 8px",
+                                    },
+                                  }}
+                                />
+                              ))
+                            }
+                            isOptionEqualToValue={(option, value) => option.value === value.value}
+                            getOptionDisabled={(option) => {
+                              const currentSelectedIds = value || [];
+                              return currentSelectedIds.some(id => id === option.value);
+                            }}
+                            ListboxProps={{
+                              sx: {
+                                "& .MuiAutocomplete-option": {
+                                  padding: "6px 12px",
+                                  "&[aria-selected='true']": {
+                                    backgroundColor: "#e3f2fd !important",
+                                    "&::after": {
+                                      content: '"✓"',
+                                      position: "absolute",
+                                      right: "10px",
+                                      color: "#2E9970",
+                                      fontWeight: "bold"
+                                    }
+                                  }
+                                }
+                              }
+                            }}
+                          />
+                        )}
+                      />
+                    </FormControl>
+                  </div>
+
+                  <div className="flex space-x-2">
+                    <FormCheckboxField
+                      name={`attributes.${actualIndex}.is_visible_page`}
+                      control={control}
+                      label="Visible on product page"
+                    />
+                    <FormCheckboxField
+                      name={`attributes.${actualIndex}.used_in_variation`}
+                      control={control}
+                      label="Used for variations"
+                    />
+                  </div>
+                </div>
+              </AccordionDetails>
+            </Accordion>
+          )})
+        )}
+
+        {fields.length > 0 && filteredFields.length === 0 && (
+          <div className="w-[50%] flex flex-col items-center justify-center py-8 px-4 border border-gray-200 rounded-md bg-gray-50">
+            <Typography variant="body1" className="text-gray-600 mb-2">No attributes match your search</Typography>
+            <Typography variant="body2" className="text-gray-500 text-center">
+              Try adjusting your search criteria
+            </Typography>
+          </div>
+        )}
+
+      
+
+        <div className="flex justify-between mt-6 pt-4">
+          <AppButton
+            label="Previous"
+            onClick={previousStep}
+            variant="outlined"
+            disabled={isSubmitting}
+            className="rounded-md min-w-[120px]"
+          />
+          <div className="flex gap-3">
+            <div className="flex justify-end">
           <AppButton
             label={
               <>
@@ -1440,28 +1452,11 @@ function AttributesTab() {
               </>
             }
             type="button"
-            variant="outlined"
-            onClick={() =>
-              append({
-                attribute_id: null as any,
-                term_ids: [],
-                is_visible_page: true,
-                used_in_variation: false,
-                default_value: "",
-              })
-            }
-            // className="rounded-full px-6 py-2 bg-[#f0f7f4] text-[#2E9970] border-[#2E9970] hover:bg-[#d5efe5] hover:border-[#005434]"
+            variant="contained"
+            onClick={handleAddNewAttribute}
+            className="rounded-md px-4 py-1.5 bg-[#2E9970] text-white hover:bg-[#247C5C]"
           />
         </div>
-
-        <div className="flex justify-between mt-6 pt-4 border-t border-gray-200">
-          <AppButton
-            label="Previous"
-            onClick={previousStep}
-            variant="outlined"
-            disabled={isSubmitting}
-            className="rounded-md min-w-[120px]"
-          />
           <AppButton
             label={isEditMode ? "Update" : "Next"}
             type="submit"
@@ -1478,8 +1473,35 @@ function AttributesTab() {
             }}
             className="rounded-md min-w-[120px]"
           />
+          </div>
         </div>
       </form>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog
+        open={isDeleteDialogOpen}
+        onClose={() => setIsDeleteDialogOpen(false)}
+        aria-labelledby="alert-dialog-title"
+        aria-describedby="alert-dialog-description"
+      >
+        <DialogTitle id="alert-dialog-title">{"Confirm Deletion"}</DialogTitle>
+        <DialogContent>
+          <DialogContentText id="alert-dialog-description">
+            Are you sure you want to delete this attribute?
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setIsDeleteDialogOpen(false)} color="primary">
+            Cancel
+          </Button>
+          <Button onClick={() => {
+            handleDeleteAttribute(attributeToDeleteIndex);
+            setIsDeleteDialogOpen(false);
+          }} color="primary" autoFocus>
+            Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
     </div>
   );
 }
