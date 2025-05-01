@@ -101,6 +101,10 @@ interface ManualVariantViewProps {
 
   // Other
   showSnackbar: (message: string, severity: 'success' | 'error' | 'warning' | 'info') => void;
+
+  // New props
+  isUpdating: boolean;
+  isEditImageUploading: boolean;
 }
 
 // Add helper function for number transformation
@@ -165,6 +169,8 @@ const ManualVariantView: React.FC<ManualVariantViewProps> = ({
   setVariantToDeleteId,
   setIsDeleteDialogOpen,
   showSnackbar,
+  isUpdating,
+  isEditImageUploading,
 }) => {
   // Use specific form states
   const { isValid: isCreateValid, isDirty: isCreateDirty } = createFormState;
@@ -250,6 +256,7 @@ const ManualVariantView: React.FC<ManualVariantViewProps> = ({
         price: transformOptionalNumber(data.price),
         stock: transformOptionalNumber(data.stock),
         // Optional fields - only include if value is > 0
+        stock_status: data.stockStatus,
         weight: transformDimensionValue(data.weight),
         length: transformDimensionValue(data.length),
         width: transformDimensionValue(data.width),
@@ -344,43 +351,15 @@ const ManualVariantView: React.FC<ManualVariantViewProps> = ({
   // Add wrapper for create submit to clean data before passing to parent onSubmitCreate
   const handleCreateSubmitWrapper = async (data: VariantFormData) => {
     try {
-      // Base payload with required fields
-      const apiPayload: Record<string, any> = {
-        // Required fields - always include these
-        slug: data.slug,
-        price: transformOptionalNumber(data.price),
-        stock: transformOptionalNumber(data.stock),
-        status: data.status,
-      };
-
-      // Optional fields - only add if they have values
-      const optionalFields = {
-        discount_price: transformOptionalNumber(data.depositPrice),
-        purchase_price: transformOptionalNumber(data.purchasePrice),
-        low_stock_threshold: transformOptionalNumber(data.lowStockThreshold),
-        weight: transformOptionalNumber(data.weight),
-        length: transformOptionalNumber(data.length),
-        width: transformOptionalNumber(data.width),
-        height: transformOptionalNumber(data.height),
-        barcode: data.barcode?.trim() || undefined,
-        description: data.description?.trim() || undefined
-      };
-
-      // Only add non-null/undefined optional fields to payload
-      Object.entries(optionalFields).forEach(([key, value]) => {
-        if (value !== null && value !== undefined) {
-          apiPayload[key] = value;
-        }
-      });
-
-      console.log("[ManualVariantView] Cleaned data being passed to onSubmitCreate prop:", apiPayload);
-
-      // Call the original submit handler from props with the cleaned data
-      await onSubmitCreate(apiPayload);
+      // Directly pass the form data to the parent onSubmitCreate function
+      // The parent (VariantManager) will handle mapping and cleaning for the API
+      console.log("[ManualVariantView] Passing raw form data to onSubmitCreate prop:", data);
+      await onSubmitCreate(data);
 
     } catch (error) {
       console.error("[ManualVariantView] Error during create submission wrapper:", error);
-      throw error;
+      // Re-throw error for the parent handler (onSubmit in VariantManager) to catch if needed
+      throw error; 
     }
   };
 
@@ -600,7 +579,7 @@ const ManualVariantView: React.FC<ManualVariantViewProps> = ({
               )}
               <div {...createGetRootProps()} className={`border rounded flex flex-col items-center justify-center py-8 bg-gray-50 ${createIsDragActive ? 'border-green-500 bg-green-50' : 'border-gray-300'} ${(imageUploading || isSubmitting) ? 'opacity-70 cursor-wait' : 'cursor-pointer'} mb-3`}>
                 <input {...createGetInputProps()} disabled={isSubmitting || imageUploading} />
-                {(isSubmitting || imageUploading) ? (
+                {(imageUploading) ? (
                   <FuseLoading className="mb-2" />
                 ) : (
                   <>
@@ -668,7 +647,7 @@ const ManualVariantView: React.FC<ManualVariantViewProps> = ({
                       <div
                         key={variant.id}
                         data-variant-id={variant.id}
-                        className={`border border-gray-200 overflow-hidden cursor-pointer bg-white mb-2 ${
+                        className={`border border-gray-200 overflow-hidden cursor-pointer bg-white mb-2 rounded-xl ${
                           selectedVariantIndex === variantIndex ? 'border-l-4 border-l-green-600' : 'border-l-transparent'
                         }`}
                         onClick={() => setSelectedVariantIndex(variantIndex)}
@@ -747,53 +726,14 @@ const ManualVariantView: React.FC<ManualVariantViewProps> = ({
                       <AppButton 
                         label="Save" 
                         onClick={handleEditSubmit(handleUpdateSubmit)}
-                        disabled={isSubmitting || !editFormState.isDirty || !editFormState.isValid}
-                        loading={isSubmitting}
+                        disabled={isUpdating || !editFormState.isDirty || !editFormState.isValid}
+                        loading={isUpdating}
                       />
                     </div>
                     
                     {/* EDIT FORM FIELDS */} 
-                    <div className="grid grid-cols-2 gap-4 mb-4">
-                       <FormTextField name="slug" control={editControl} label="Slug" required />
-                       <FormTextField name="price" control={editControl} label="Price" required type="number" inputProps={{ step: "0.01" }}/>
-                       
-                       {/* Use FormTextField for consistency */}
-                       <FormTextField 
-                           name="depositPrice"
-                           control={editControl} 
-                           label="Deposit Price" 
-                           type="number" 
-                           inputProps={{ step: "0.01" }}
-                       />
-
-                       {/* Use FormTextField for consistency */}
-                       <FormTextField 
-                           name="purchasePrice"
-                           control={editControl} 
-                           label="Purchase Price" 
-                           type="number" 
-                           inputProps={{ step: "0.01" }}
-                       />
-
-                       {/* Use FormTextField for consistency */}
-                       <FormTextField 
-                           name="stock"
-                           control={editControl} 
-                           label="Stock" 
-                           required 
-                           type="number" 
-                           inputProps={{ step: "1" }} // Integer
-                       />
-                       
-                       {/* Use FormTextField for consistency */}
-                       <FormTextField 
-                           name="lowStockThreshold"
-                           control={editControl} 
-                           label="Low Stock Threshold" 
-                           type="number" 
-                           inputProps={{ step: "1" }} // Integer
-                       />
-
+                    {/* Row 3: Status Fields */}
+                    <div className="grid grid-cols-2 gap-4 mb-4"> 
                        <Controller name="stockStatus" control={editControl} render={({ field, fieldState: { error } }) => (
                            <FormField label="Stock Status" required error={(error as FieldError)?.message}>
                                <select {...field} className="w-full border border-gray-300 rounded-lg p-2 focus:outline-none focus:ring-1 focus:ring-green-500 bg-white h-10 appearance-none">
@@ -812,6 +752,46 @@ const ManualVariantView: React.FC<ManualVariantViewProps> = ({
                            </FormField>
                        )}/>
                     </div>
+                    {/* Row 1: Price Fields */}
+                    <div className="grid grid-cols-3 gap-4 mb-4">
+                        <FormTextField name="price" control={editControl} label="Price" required type="number" inputProps={{ step: "0.01" }}/>
+                        <FormTextField 
+                           name="depositPrice"
+                           control={editControl} 
+                           label="Deposit Price" 
+                           type="number" 
+                           inputProps={{ step: "0.01" }}
+                        />
+                        <FormTextField 
+                           name="purchasePrice"
+                           control={editControl} 
+                           label="Purchase Price" 
+                           type="number" 
+                           inputProps={{ step: "0.01" }}
+                        />
+                    </div>
+
+                    {/* Row 2: Stock, Low Stock, Slug */}
+                    <div className="grid grid-cols-3 gap-4 mb-4">
+                         <FormTextField 
+                           name="stock"
+                           control={editControl} 
+                           label="Stock" 
+                           required 
+                           type="number" 
+                           inputProps={{ step: "1" }} // Integer
+                         />
+                         <FormTextField 
+                           name="lowStockThreshold"
+                           control={editControl} 
+                           label="Low Stock Threshold" 
+                           type="number" 
+                           inputProps={{ step: "1" }} // Integer
+                         />
+                         <FormTextField name="slug" control={editControl} label="Slug" required />
+                    </div>
+                    
+                    
                     <div className="mb-4">
                        <h3 className="font-semibold mb-3">Dimensions & Weight</h3>
                        <div className="grid grid-cols-4 gap-4">
@@ -907,22 +887,22 @@ const ManualVariantView: React.FC<ManualVariantViewProps> = ({
                                       showSnackbar("Failed to update image display after deletion", "error");
                                     }
                                   }}
-                                  disabled={isSubmitting || imageUploading} // Keep disabled logic
+                                  disabled={isUpdating || imageUploading} // Keep disabled logic
                                 >
                                   <DeleteIcon fontSize="small" />
                                 </IconButton>
                               </div>
                               <div className="mt-1 flex justify-center">
-                                <input type="radio" name={`primary-edit-${selectedVariantIndex}`} checked={image.is_primary} onChange={() => handleSetPrimaryImage(image.id)} disabled={imageUploading || isSubmitting} />
+                                <input type="radio" name={`primary-edit-${selectedVariantIndex}`} checked={image.is_primary} onChange={() => handleSetPrimaryImage(image.id)} disabled={imageUploading || isUpdating} />
                                 <span className="text-xs ml-1">Primary</span>
                               </div>
                             </div>
                           ))}
                         </div>
                       )}
-                      <div {...editGetRootProps()} className={`border rounded flex flex-col items-center justify-center py-8 bg-gray-50 ${editIsDragActive ? 'border-green-500 bg-green-50' : 'border-gray-300'} ${imageUploading ? 'opacity-70 cursor-wait' : 'cursor-pointer'} mb-3`}>
-                        <input {...editGetInputProps()} disabled={imageUploading || isSubmitting} />
-                        {(imageUploading) ? (
+                      <div {...editGetRootProps()} className={`border rounded flex flex-col items-center justify-center py-8 bg-gray-50 ${editIsDragActive ? 'border-green-500 bg-green-50' : 'border-gray-300'} ${isEditImageUploading ? 'opacity-70 cursor-wait' : 'cursor-pointer'} mb-3`}>
+                        <input {...editGetInputProps()} disabled={isEditImageUploading || isUpdating} />
+                        {(isEditImageUploading) ? (
                           <FuseLoading className="mb-2" />
                         ) : (
                           <>

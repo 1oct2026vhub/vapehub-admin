@@ -123,6 +123,7 @@ interface Variant {
   price: number | null; 
   stock: number | null; 
   status: 'Active' | 'Inactive';
+  stockStatus?: 'In Stock' | 'Out of Stock' | 'Back Order'; // Add stockStatus
   depositPrice?: number | null; 
   purchasePrice?: number | null; 
   lowStockThreshold?: number | null; // Use correct casing
@@ -619,6 +620,26 @@ const AttributeField = ({
   );
 };
 
+// --- Start Add: Stock Status Mapping Helpers ---
+const mapApiStockStatusToForm = (apiStatus?: string | null): 'In Stock' | 'Out of Stock' | 'Back Order' => {
+  switch (apiStatus?.toLowerCase()) {
+    case 'in_stock': return 'In Stock';
+    case 'out_of_stock': return 'Out of Stock';
+    case 'back_order': return 'Back Order';
+    default: return 'In Stock'; // Default if unknown/missing
+  }
+};
+
+const mapFormStockStatusToApi = (formStatus?: 'In Stock' | 'Out of Stock' | 'Back Order' | null): 'in_stock' | 'out_of_stock' | 'back_order' | null => {
+  switch (formStatus) {
+    case 'In Stock': return 'in_stock';
+    case 'Out of Stock': return 'out_of_stock';
+    case 'Back Order': return 'back_order';
+    default: return null; // Return null if mapping fails or input is null/undefined
+  }
+};
+// --- End Add: Stock Status Mapping Helpers ---
+
 const VariantManager = () => {
   const { showSnackbar } = useSnackbar();
   const searchParams = useSearchParams();
@@ -626,8 +647,10 @@ const VariantManager = () => {
   const [variants, setVariants] = useState<Variant[]>([]);
   
   const [selectedVariantIndex, setSelectedVariantIndex] = useState<number>(0);
-  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
-  const [imageUploading, setImageUploading] = useState<boolean>(false);
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false); // CREATE Submit
+  const [isUpdating, setIsUpdating] = useState<boolean>(false);     // UPDATE Submit
+  const [imageUploading, setImageUploading] = useState<boolean>(false); // CREATE Image Upload
+  const [isEditImageUploading, setIsEditImageUploading] = useState<boolean>(false); // EDIT Image Upload
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isBulkSubmitting, setIsBulkSubmitting] = useState<boolean>(false);
@@ -1087,6 +1110,7 @@ const VariantManager = () => {
             price: apiVariant.price,
             stock: apiVariant.stock,
             status: apiVariant.status === 'active' ? 'active' : 'inactive',
+            stockStatus: mapApiStockStatusToForm(apiVariant.stock_status), // Use helper here
             depositPrice: apiVariant.discount_price,
             purchasePrice: apiVariant.purchase_price,
             lowStockThreshold: apiVariant.low_stock_threshold,
@@ -1179,7 +1203,6 @@ const VariantManager = () => {
       setIsLoading(false);
     } catch (error) {
       console.error('Error fetching product attributes:', error);
-      showSnackbar('Failed to load product attributes', 'error');
       setIsLoading(false);
     }
   };
@@ -1328,6 +1351,7 @@ const VariantManager = () => {
             price: apiVariant.price,
             stock: apiVariant.stock,
             status: apiVariant.status === 'active' ? 'Active' : 'Inactive',
+            stockStatus: mapApiStockStatusToForm(apiVariant.stock_status), // Use helper here
             depositPrice: apiVariant.discount_price,
             purchasePrice: apiVariant.purchase_price,
             lowStockThreshold: apiVariant.low_stock_threshold,
@@ -1360,7 +1384,6 @@ const VariantManager = () => {
       setIsLoading(false);
     } catch (error) {
       console.error('Error fetching variants:', error);
-      showSnackbar('Failed to load variants', 'error');
       setIsLoading(false);
     }
   };
@@ -1538,6 +1561,7 @@ const VariantManager = () => {
         price: number;
         stock: number;
         status: 'active' | 'inactive';
+        stock_status: 'in_stock' | 'out_of_stock' | 'back_order'; // Non-nullable API type
         attributes: Array<{ attribute_id: number; term_id: number; }>;
         [key: string]: any; // Allow additional optional properties
       }
@@ -1548,6 +1572,8 @@ const VariantManager = () => {
         price: transformOptionalNumber(data.price) || 0, // Ensure non-null
         stock: transformOptionalNumber(data.stock) || 0, // Ensure non-null
         status: data.status as 'active' | 'inactive',
+        // Read from form data (camelCase) and map, provide default
+        stock_status: mapFormStockStatusToApi(data.stockStatus) || 'in_stock', 
         attributes: Object.values(pendingCombination)
           .filter(value => typeof value === 'object' && value.attribute_id && value.term_id)
           .map(value => ({
@@ -1657,8 +1683,23 @@ const VariantManager = () => {
       showSnackbar("Variant created successfully", "success");
     } catch (error) {
       console.error("Error creating variant:", error);
-      showSnackbar("Failed to create variant", "error");
-    } finally {
+console.error("Error saving variants:", error);
+
+      // Check for error structure properly
+      if (error?.errors && error?.errors.length > 0) {
+        showSnackbar(error.errors[0]?.msg, "error");
+      } else if (
+        error?.error &&
+        Array.isArray(error?.error) &&
+        error.error.length > 0
+      ) {
+        showSnackbar(error.error[0]?.message, "error");
+      } else if (error?.message) {
+        showSnackbar(error.message, "error");
+      } else {
+        const errorMessage = "An unexpected error occurred";
+        showSnackbar(errorMessage, "error");
+      }    } finally {
       setIsSubmitting(false);
       setImageUploading(false); 
     }
@@ -2008,8 +2049,23 @@ const VariantManager = () => {
       })
       .catch(error => {
         console.error("Error setting primary image:", error);
-        showSnackbar("Failed to set primary image", "error");
-        
+console.error("Error saving variants:", error);
+
+      // Check for error structure properly
+      if (error?.errors && error?.errors.length > 0) {
+        showSnackbar(error.errors[0]?.msg, "error");
+      } else if (
+        error?.error &&
+        Array.isArray(error?.error) &&
+        error.error.length > 0
+      ) {
+        showSnackbar(error.error[0]?.message, "error");
+      } else if (error?.message) {
+        showSnackbar(error.message, "error");
+      } else {
+        const errorMessage = "An unexpected error occurred";
+        showSnackbar(errorMessage, "error");
+      }        
         // Restore original state if API call fails
         setVariants(originalVariants);
       });
@@ -2104,8 +2160,23 @@ const VariantManager = () => {
       })
       .catch(error => {
         console.error("Error deleting image:", error);
-        showSnackbar("Failed to delete image", "error");
-        
+console.error("Error saving variants:", error);
+
+      // Check for error structure properly
+      if (error?.errors && error?.errors.length > 0) {
+        showSnackbar(error.errors[0]?.msg, "error");
+      } else if (
+        error?.error &&
+        Array.isArray(error?.error) &&
+        error.error.length > 0
+      ) {
+        showSnackbar(error.error[0]?.message, "error");
+      } else if (error?.message) {
+        showSnackbar(error.message, "error");
+      } else {
+        const errorMessage = "An unexpected error occurred";
+        showSnackbar(errorMessage, "error");
+      }        
         // Restore the image in the UI if the API call fails
         setVariants(originalVariants);
       });
@@ -2126,12 +2197,12 @@ const VariantManager = () => {
       return;
     }
 
-    setIsSubmitting(true);
+    setIsUpdating(true); // Use isUpdating
     try {
       const originalVariant = selectedVariant;
       if (!originalVariant) {
           showSnackbar("Original variant data not found for comparison.", "error");
-          setIsSubmitting(false);
+          setIsUpdating(false);
           return;
       }
       
@@ -2174,6 +2245,15 @@ const VariantManager = () => {
       const originalAttributePayloadString = JSON.stringify((originalVariant.variantAttributes || []).map(a => ({attribute_id: a.attribute_id, term_id: a.term_id})).sort((a,b) => a.attribute_id - b.attribute_id));
       if (currentAttributePayloadString !== originalAttributePayloadString) { apiPayload.attributes = attributePayload; hasChanges = true; }
 
+      // --- Add Stock Status Check ---
+      const currentStockStatusApi = mapFormStockStatusToApi(data.stockStatus);
+      const originalStockStatusApi = mapFormStockStatusToApi(originalVariant.stockStatus);
+      if (currentStockStatusApi !== originalStockStatusApi) {
+        apiPayload.stock_status = currentStockStatusApi; 
+        hasChanges = true;
+      }
+      // --- End Stock Status Check ---
+
       // Optional fields (compare simple types, use API names)
       const currentDeposit = transformOptionalNumber(data.depositPrice);
       if (currentDeposit !== transformOptionalNumber(originalVariant.depositPrice)) { apiPayload.discount_price = currentDeposit; hasChanges = true; }
@@ -2205,7 +2285,7 @@ const VariantManager = () => {
 
       if (!hasChanges) {
           showSnackbar("No changes detected to update.", "info");
-          setIsSubmitting(false);
+          setIsUpdating(false);
           return;
       }
 
@@ -2216,7 +2296,7 @@ const VariantManager = () => {
 
       if (isNaN(numericProductId) || isNaN(numericVariantId)) {
           showSnackbar("Invalid Product or Variant ID for update.", "error");
-          setIsSubmitting(false);
+          setIsUpdating(false);
           return;
       }
 
@@ -2257,9 +2337,24 @@ const VariantManager = () => {
 
     } catch (error) {
       console.error("Error updating variant:", error);
-      showSnackbar("Failed to update variant", "error"); 
-    } finally {
-      setIsSubmitting(false); 
+console.error("Error saving variants:", error);
+
+      // Check for error structure properly
+      if (error?.errors && error?.errors.length > 0) {
+        showSnackbar(error.errors[0]?.msg, "error");
+      } else if (
+        error?.error &&
+        Array.isArray(error?.error) &&
+        error.error.length > 0
+      ) {
+        showSnackbar(error.error[0]?.message, "error");
+      } else if (error?.message) {
+        showSnackbar(error.message, "error");
+      } else {
+        const errorMessage = "An unexpected error occurred";
+        showSnackbar(errorMessage, "error");
+      }    } finally {
+      setIsUpdating(false); // Use isUpdating
     }
   };
 
@@ -2296,15 +2391,30 @@ const VariantManager = () => {
       
       if (newVariants.length === 0) {
         setSelectedVariantIndex(0);
-        resetEditForm(); // <-- Use resetEditForm (clear edit form if no variants left)
+        // resetEditForm(); // <-- Use resetEditForm (clear edit form if no variants left)
       } else if (deletedIndex >= 0) {
         setSelectedVariantIndex(Math.max(0, deletedIndex - 1));
       }
 
     } catch (error) {
       console.error("Error deleting variant:", error);
-      showSnackbar("Failed to delete variant", "error");
-    } finally {
+console.error("Error saving variants:", error);
+
+      // Check for error structure properly
+      if (error?.errors && error?.errors.length > 0) {
+        showSnackbar(error.errors[0]?.msg, "error");
+      } else if (
+        error?.error &&
+        Array.isArray(error?.error) &&
+        error.error.length > 0
+      ) {
+        showSnackbar(error.error[0]?.message, "error");
+      } else if (error?.message) {
+        showSnackbar(error.message, "error");
+      } else {
+        const errorMessage = "An unexpected error occurred";
+        showSnackbar(errorMessage, "error");
+      }    } finally {
       setIsDeleteDialogOpen(false);
       setVariantToDeleteId(null);
       setIsSubmitting(false);
@@ -2406,8 +2516,23 @@ const VariantManager = () => {
       resetBulkForm(); // Reset the bulk form after successful submission
     } catch (error) { 
       console.error("Bulk update failed:", error);
-      showSnackbar("Failed to apply bulk update.", "error");
-    } finally {
+console.error("Error saving variants:", error);
+
+      // Check for error structure properly
+      if (error?.errors && error?.errors.length > 0) {
+        showSnackbar(error.errors[0]?.msg, "error");
+      } else if (
+        error?.error &&
+        Array.isArray(error?.error) &&
+        error.error.length > 0
+      ) {
+        showSnackbar(error.error[0]?.message, "error");
+      } else if (error?.message) {
+        showSnackbar(error.message, "error");
+      } else {
+        const errorMessage = "An unexpected error occurred";
+        showSnackbar(errorMessage, "error");
+      }    } finally {
       setIsBulkSubmitting(false);
     }
   };
@@ -2642,6 +2767,8 @@ const VariantManager = () => {
               setIsDeleteDialogOpen={setIsDeleteDialogOpen}
               // Other
               showSnackbar={showSnackbar}
+              isUpdating={isUpdating}     // Pass update loading state
+              isEditImageUploading={isEditImageUploading} // Pass edit image loading state
             />
           )}
           
