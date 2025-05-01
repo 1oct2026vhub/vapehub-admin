@@ -2,10 +2,10 @@
 
 import React, { useEffect, useState } from 'react';
 import FuseLoading from '@fuse/core/FuseLoading';
-import { generateProductVariants, getProductVariants, updateProductVariant, UpdateProductVariantRequest } from '@/services/apiProduct';
+import { generateProductVariants, getProductVariants, updateProductVariant, UpdateProductVariantRequest, deleteProductVariant } from '@/services/apiProduct';
 import { useSnackbar } from '@/contexts/SnackbarContext';
 import { useSearchParams } from 'next/navigation';
-import { IconButton, Paper } from '@mui/material';
+import { IconButton, Paper, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, Button } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -19,6 +19,8 @@ import { uploadVariantImages, setVariantPrimaryImage, deleteVariantImage } from 
 interface GenerateVariantsViewProps {
   isLoading: boolean;
   onSuccess?: () => void;
+    allCombinationsUsed: boolean;
+
 }
 
 interface VariantImage {
@@ -250,7 +252,7 @@ const variantSchema = z.object({
 
 type VariantFormData = z.infer<typeof variantSchema>;
 
-const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: initialLoading, onSuccess }) => {
+const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: initialLoading, onSuccess , allCombinationsUsed}) => {
   const [isLoading, setIsLoading] = useState(initialLoading);
   const [generatedVariants, setGeneratedVariants] = useState<GeneratedVariant[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -259,6 +261,11 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
   const searchParams = useSearchParams();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [imageUploading, setImageUploading] = useState(false);
+  const [isConfirmationDialogOpen, setIsConfirmationDialogOpen] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [hasGeneratedThisLoad, setHasGeneratedThisLoad] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [variantToDeleteId, setVariantToDeleteId] = useState<number | null>(null);
 
   // Add form handling
   const {
@@ -327,39 +334,85 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
 
         // Upload images
         const uploadResponse = await uploadVariantImages(productId, String(selectedVariant.id), formData);
+        console.log("[onDrop] Upload API Response:", uploadResponse); // <-- Log response
 
-        // Process response
-        let newImages = [];
-        if (Array.isArray(uploadResponse)) {
-          newImages = uploadResponse;
-        } else if (uploadResponse?.data?.variant?.variantImages) {
-          newImages = uploadResponse.data.variant.variantImages;
-        } else if (uploadResponse?.data?.variantImages) {
+        // Process response - Standardize extraction
+        let newImages: VariantImage[] = []; // Explicit type
+        if (uploadResponse && Array.isArray(uploadResponse.data?.variantImages)) {
+          // Assuming response structure { success: true, data: { variantImages: [...] } }
           newImages = uploadResponse.data.variantImages;
+        } else if (uploadResponse && Array.isArray(uploadResponse.data?.variant?.variantImages)) {
+           // Assuming response structure { success: true, data: { variant: { variantImages: [...] } } }
+           newImages = uploadResponse.data.variant.variantImages;
+        } else if (Array.isArray(uploadResponse)) {
+           // Direct array response (less likely based on other calls)
+           newImages = uploadResponse; 
         }
+        console.log("[onDrop] Extracted new images:", newImages); // <-- Log extracted images
 
-        // Update local state
-        setGeneratedVariants(prev => 
-          prev.map(variant => {
-            if (variant.id === selectedVariant.id) {
-              return {
-                ...variant,
-                variantImages: [
-                  ...(variant.variantImages || []),
-                  ...newImages.map(img => ({
+        // Update local state only if new images were processed
+        if (newImages.length > 0) {
+
+          // --- Logic to set first image as primary if none exists ---
+          let firstImageIdToSetPrimary: number | null = null;
+          const hasExistingPrimary = newImages.some(img => img.is_primary);
+          
+          if (!hasExistingPrimary && newImages[0]) {
+            console.log("[onDrop] No primary image found in response. Setting first image as primary.");
+            // Modify the first image in the array to be primary
+            newImages[0].is_primary = true;
+            firstImageIdToSetPrimary = newImages[0].id; // Remember ID for API call
+          }
+          // --- End Logic ---
+
+          let updatedSelectedVariant : GeneratedVariant | null = null; // Variable to hold updated selected variant
+
+          setGeneratedVariants(prevVariants => 
+            prevVariants.map(variant => {
+              if (variant.id === selectedVariant.id) {
+                // Create the updated variant object - REPLACE images with potentially modified newImages list
+                const newlyUpdatedVariant = {
+                  ...variant,
+                  variantImages: newImages.map(img => ({ 
                     id: img.id,
                     image_url: img.image_url,
-                    is_primary: img.is_primary,
-                    variant_id: variant.id
+                    is_primary: img.is_primary, // Will reflect the change above if applied
+                    variant_id: variant.id 
                   }))
-                ]
-              };
-            }
-            return variant;
-          })
-        );
+                };
+                updatedSelectedVariant = newlyUpdatedVariant;
+                return newlyUpdatedVariant; // Return the new object
+              }
+              return variant;
+            })
+          );
 
-        showSnackbar("Images uploaded successfully", "success");
+          // Update selectedVariant state AFTER generatedVariants state
+          if (updatedSelectedVariant) {
+            setSelectedVariant(updatedSelectedVariant);
+          }
+          
+          // --- If we set a default primary, call the API --- 
+          if (firstImageIdToSetPrimary !== null) {
+             console.log(`[onDrop] Calling API to persist default primary image ID: ${firstImageIdToSetPrimary}`);
+             // Use try/catch for safety, but don't block UI updates if it fails
+             try {
+                await setVariantPrimaryImage(productId, String(selectedVariant.id), String(firstImageIdToSetPrimary));
+                showSnackbar("First uploaded image set as primary", "success"); // Give specific feedback
+             } catch(primaryApiError) {
+                 console.error("[onDrop] Failed to persist default primary image via API:", primaryApiError);
+                 showSnackbar("Failed to save default primary image setting", "warning");
+             }
+          } else {
+              showSnackbar("Images uploaded successfully", "success"); // Original success message
+          }
+          // --- End API Call ---
+
+        } else {
+           console.warn("[onDrop] No new images extracted from response.");
+           showSnackbar("Upload successful, but couldn't display new images immediately.", "warning");
+        }
+
       } catch (error) {
         console.error("Error uploading images:", error);
         showSnackbar("Failed to upload images", "error");
@@ -383,22 +436,41 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
 
     try {
       await setVariantPrimaryImage(productId, String(selectedVariant.id), String(imageId));
+      console.log(`[handleSetPrimaryImage] API call successful for image ID: ${imageId}`);
+
+      let updatedSelectedVariantAfterPrimary : GeneratedVariant | null = null;
 
       // Update local state
-      setGeneratedVariants(prev => 
-        prev.map(variant => {
+      setGeneratedVariants(prevVariants => 
+        prevVariants.map(variant => {
           if (variant.id === selectedVariant.id) {
-            return {
+            // Ensure variantImages is an array
+            const originalImages = Array.isArray(variant.variantImages) ? variant.variantImages : [];
+            // Map to new array, updating is_primary
+            const updatedImages = originalImages.map(img => ({
+              ...img,
+              is_primary: img.id === imageId // Set true only for the target image
+            }));
+
+            console.log(`[handleSetPrimaryImage] Updating variant ${variant.id}, images primary status:`, updatedImages.map(i => ({id: i.id, is_primary: i.is_primary})) );
+
+            // Create the updated variant object
+            const newlyUpdatedVariant = {
               ...variant,
-              variantImages: variant.variantImages.map(img => ({
-                ...img,
-                is_primary: img.id === imageId
-              }))
+              variantImages: updatedImages
             };
+             // Store for selectedVariant update
+            updatedSelectedVariantAfterPrimary = newlyUpdatedVariant;
+            return newlyUpdatedVariant; // Return the new object
           }
           return variant;
         })
       );
+
+      // Update selectedVariant state AFTER generatedVariants state
+      if (updatedSelectedVariantAfterPrimary) {
+         setSelectedVariant(updatedSelectedVariantAfterPrimary);
+      }
 
       showSnackbar("Primary image updated", "success");
     } catch (error) {
@@ -418,41 +490,147 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
 
     try {
       await deleteVariantImage(productId, String(selectedVariant.id), String(imageId));
+      console.log(`[handleDeleteImage] Successfully called API to delete image ID: ${imageId}`);
 
-      // Update local state
-      setGeneratedVariants(prev => 
-        prev.map(variant => {
+      let updatedSelectedVariantAfterDelete : GeneratedVariant | null = null;
+      let newPrimaryImageId: number | null = null; // <-- Store new primary ID if needed
+
+      // Update local state - Ensure this triggers re-render
+      setGeneratedVariants(prevVariants => 
+        prevVariants.map(variant => {
           if (variant.id === selectedVariant.id) {
-            return {
+            const originalImages = Array.isArray(variant.variantImages) ? variant.variantImages : [];
+            const deletedImageWasPrimary = originalImages.find(img => img.id === imageId)?.is_primary;
+            
+            // Filter out the deleted image first
+            let updatedImages = originalImages.filter(img => img.id !== imageId);
+            console.log(`[handleDeleteImage] Images after filtering ID ${imageId}:`, updatedImages);
+
+            // --- Auto-set new primary if needed ---
+            if (deletedImageWasPrimary && updatedImages.length > 0) {
+              console.log("[handleDeleteImage] Deleted image was primary. Setting first remaining image as primary.");
+              // Create a new array with the first image marked as primary
+              updatedImages = updatedImages.map((img, index) => ({
+                ...img,
+                is_primary: index === 0 // Set only the first one (index 0) to true
+              }));
+              newPrimaryImageId = updatedImages[0].id; // Store its ID for API call
+              console.log(`[handleDeleteImage] New primary image ID to set via API: ${newPrimaryImageId}`);
+            }
+            // --- End Auto-set ---
+
+            // Create the updated variant object
+            const newlyUpdatedVariant = {
               ...variant,
-              variantImages: variant.variantImages.filter(img => img.id !== imageId)
+              variantImages: updatedImages // Use the potentially modified list
             };
+            updatedSelectedVariantAfterDelete = newlyUpdatedVariant;
+            return newlyUpdatedVariant; // Return the new object
           }
           return variant;
         })
       );
 
-      showSnackbar("Image deleted successfully", "success");
+      // Update selectedVariant state AFTER generatedVariants state
+      if (updatedSelectedVariantAfterDelete) {
+         setSelectedVariant(updatedSelectedVariantAfterDelete);
+      }
+
+      // --- If a new primary was set, call the API to persist it --- 
+      if (newPrimaryImageId !== null) {
+         console.log(`[handleDeleteImage] Calling API to persist new default primary image ID: ${newPrimaryImageId}`);
+         try {
+             await setVariantPrimaryImage(productId, String(selectedVariant.id), String(newPrimaryImageId));
+             showSnackbar("Image deleted and new primary set successfully", "success"); // Combined message
+         } catch (primaryApiError) {
+             console.error("[handleDeleteImage] Failed to persist new primary image via API:", primaryApiError);
+             showSnackbar("Image deleted, but failed to save new primary setting", "warning");
+         }
+      } else {
+           showSnackbar("Image deleted successfully", "success"); // Original success message if primary wasn't changed
+      }
+      // --- End API Call ---
+
     } catch (error) {
-      console.error("Error deleting image:", error);
+      console.error("[handleDeleteImage] Error deleting image:", error);
       showSnackbar("Failed to delete image", "error");
     }
   };
 
-  const fetchVariants = async (productId: string) => {
+  // Fetch EXISTING variants (Simplified: No dialog logic here)
+  const fetchVariants = async (productId: string, isMounted: boolean) => {
+    setIsLoading(true); 
+    setError(null);
     try {
+      console.log(`[fetchVariants] Fetching variants for ID: ${productId}`);
       const response = await getProductVariants(Number(productId));
+      console.log("[fetchVariants] Response:", response);
+      if (!isMounted) return; // Check mount state after await
+
       if (response.success) {
-        setGeneratedVariants(response.data || []);
-        if (response.data?.length > 0) {
-          setSelectedVariant(response.data[0]);
+        const fetchedVariants = response.data || [];
+        setGeneratedVariants(fetchedVariants);
+        // Select first variant if list is not empty and none is selected
+        if (fetchedVariants.length > 0 && !selectedVariant) { 
+            setSelectedVariant(fetchedVariants[0]);
+        } else if (fetchedVariants.length === 0) {
+             setSelectedVariant(null); // Clear selection if no variants
         }
+        // Update selected variant if it still exists after fetch
+        else if (selectedVariant && !fetchedVariants.some(v => v.id === selectedVariant.id)) {
+             setSelectedVariant(fetchedVariants[0] || null); // Select first or null if old selection gone
+        }
+      } else {
+          throw new Error(response.message || "Failed to fetch variants");
       }
-    } catch (error) {
-      console.error('Error fetching variants:', error);
-      // showSnackbar('Failed to fetch variants', 'error');
+    } catch (error: any) {
+      if (!isMounted) return;
+      console.error('[fetchVariants] Error fetching variants:', error);
+      setError(error.message || 'Failed to fetch variants'); 
+      showSnackbar(error.message || 'Failed to fetch variants', 'error');
+       setGeneratedVariants([]); 
+       setSelectedVariant(null);
+    } finally {
+       if (isMounted) setIsLoading(false); // Ensure loading stops
     }
   };
+
+  // --- useEffect to fetch variants on initial load/product change --- 
+  useEffect(() => {
+    let isMounted = true; // Add mount check flag
+    setHasGeneratedThisLoad(false); // Reset generation flag
+    setIsConfirmationDialogOpen(false); // Ensure dialog is closed initially
+
+    const productId = searchParams.get('productId');
+    if (productId) {
+      // Call fetchVariants (now only fetches data)
+      fetchVariants(productId, isMounted); 
+    } else {
+      if (isMounted) {
+          setError('Product ID not found');
+          showSnackbar('Product ID not found', 'error');
+          setGeneratedVariants([]);
+          setSelectedVariant(null);
+          setIsLoading(false); // Stop loading if no product ID
+      }
+    }
+
+    // Cleanup function
+    return () => {
+      isMounted = false;
+    };
+  }, [searchParams, showSnackbar]); // Dependencies: only things that trigger initial load/reset
+
+  // --- ADDED: useEffect to control dialog visibility --- 
+  useEffect(() => {
+    console.log(`[DialogEffect] Checking: !allCombinationsUsed=${!allCombinationsUsed}, !hasGeneratedThisLoad=${!hasGeneratedThisLoad}`);
+    // Only open if combinations are available AND we haven't generated this load
+    if (!allCombinationsUsed && !hasGeneratedThisLoad) {
+       console.log("[DialogEffect] Opening confirmation dialog.");
+       setIsConfirmationDialogOpen(true);
+    } 
+    // No 'else' needed to close it here, closing happens on Cancel/Confirm actions
+  }, [allCombinationsUsed, hasGeneratedThisLoad]); // Run when combination status or generation flag changes
 
   // Update useEffect to handle form reset with selected variant
   useEffect(() => {
@@ -554,6 +732,17 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
         return isNaN(num) ? null : num;
       };
 
+      // --- ADDED: Helper to map stock status to API format ---
+      const mapStockStatusToApi = (status: string): string | null => {
+        switch (status) {
+          case "In Stock": return "in_stock";
+          case "Out of Stock": return "out_of_stock";
+          case "Back Order": return "back_order";
+          default: return null; // Or handle invalid case appropriately
+        }
+      };
+      // --- END Helper ---
+
       // Build API payload with correct types
       const apiPayload: UpdateProductVariantRequest = {
         slug: data.slug,
@@ -608,52 +797,161 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
     }
   };
 
-  useEffect(() => {
-    const generateVariants = async () => {
-      const productId = searchParams.get('productId');
-      
-      if (!productId) {
-        setError('Product ID not found');
-        showSnackbar('Product ID not found', 'error');
-        return;
-      }
+  // --- Function to trigger actual generation (Called from Dialog Confirm) ---
+  const triggerVariantGeneration = async () => {
+    const productId = searchParams.get('productId');
+    if (!productId) {
+      showSnackbar('Product ID is missing.', 'error');
+      return; 
+    }
 
-      try {
-        setIsLoading(true);
-        setError(null);
+    setIsGenerating(true); // Use specific loading state for generation
+    setError(null);
+    try {
+      console.log(`[triggerVariantGeneration] Calling generateProductVariants for ID: ${productId}`);
+      const response = await generateProductVariants(Number(productId));
+      console.log("[triggerVariantGeneration] API Response:", response);
         
-        const response = await generateProductVariants(Number(productId));
-        
-        if (response.success) {
-          showSnackbar('Variants generated successfully', 'success');
-          // Fetch the generated variants
-          await fetchVariants(productId);
-          if (onSuccess) {
+      if (response.success) {
+        showSnackbar('Variants generated successfully', 'success');
+        setHasGeneratedThisLoad(true); // <-- Set flag BEFORE fetching
+        await fetchVariants(productId, true); // Fetch the updated list directly in this component
+        if (onSuccess) { // Still call parent callback if provided
+           onSuccess(); 
+        }
+      } else {
+        const errorMessage = response.message || 'Failed to generate variants.';
+        console.error("[triggerVariantGeneration] API Error:", errorMessage);
+        setError(errorMessage);
+        showSnackbar(errorMessage, 'error');
+        if (onSuccess) { // Optionally call onSuccess even on failure if parent needs to react
             onSuccess();
-          }
-        } 
-      } catch (error) {
-        console.error('Error generating variants:', error);
-        await fetchVariants(productId);
-        // showSnackbar(error.message || 'Failed to generate variants', 'error');
-      } finally {
-        setIsLoading(false);
+        }
       }
-    };
+    } catch (error: any) {
+      console.error('[triggerVariantGeneration] Network/Catch Error:', error);
+      const errorMessage = error.message || 'An unexpected error occurred during generation.';
+      setError(errorMessage);
+      showSnackbar(errorMessage, 'error');
+      if (onSuccess) { // Optionally call onSuccess even on failure
+         onSuccess();
+      }
+    } finally {
+      setIsGenerating(false); // Stop generation loading
+    }
+  };
 
-    generateVariants();
-  }, [searchParams, showSnackbar, onSuccess]);
+  // --- Dialog Handlers ---
+  const handleConfirmGenerate = () => {
+    console.log("[Dialog] Confirmed Generation");
+    setIsConfirmationDialogOpen(false); // Close dialog
+    triggerVariantGeneration(); // Call the generation function
+  };
 
+  const handleCancelGenerate = () => {
+    console.log("[Dialog] Cancelled Generation");
+    setIsConfirmationDialogOpen(false); // Close dialog
+    // Optionally refetch variants if needed, but fetchVariants on load might suffice
+    // const productId = searchParams.get('productId');
+    // if (productId) fetchVariants(productId); 
+  };
+
+  // --- Add Delete Handlers ---
+  const handleDeleteClick = (variantId: number) => {
+    console.log(`[handleDeleteClick] Initiating delete for variant ID: ${variantId}`);
+    setVariantToDeleteId(variantId);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const handleCancelDelete = () => {
+    console.log("[handleCancelDelete] Cancelled delete dialog.");
+    setIsDeleteDialogOpen(false);
+    setVariantToDeleteId(null);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!variantToDeleteId) return;
+    
+    const productId = searchParams.get('productId');
+    if (!productId) {
+        showSnackbar('Product ID is missing.', 'error');
+        setIsDeleteDialogOpen(false);
+        setVariantToDeleteId(null);
+        return;
+    }
+
+    console.log(`[handleConfirmDelete] Confirming delete for variant ID: ${variantToDeleteId} of product ID: ${productId}`);
+    // Optionally add a specific loading state for deletion if needed
+    // setIsLoading(true); // Or a new state like setIsDeleting(true)
+    
+    try {
+      // Pass only the variant ID as indicated by the error
+      const response = await deleteProductVariant(variantToDeleteId); 
+      console.log("[handleConfirmDelete] API Response:", response);
+
+      if (response.success) {
+        showSnackbar('Variant deleted successfully', 'success');
+        
+        // Update local state after successful deletion
+        setGeneratedVariants(prevVariants => 
+          prevVariants.filter(variant => variant.id !== variantToDeleteId)
+        );
+
+        // If the deleted variant was selected, clear the selection
+        if (selectedVariant?.id === variantToDeleteId) {
+          console.log("[handleConfirmDelete] Deleted variant was selected. Clearing selection.");
+          setSelectedVariant(null);
+          // Optionally reset form if needed, though useEffect handles selection change
+        }
+
+        // Call parent success handler (might refresh combination counts etc.)
+        if (onSuccess) {
+          console.log("[handleConfirmDelete] Calling parent onSuccess callback.");
+          onSuccess(); 
+        }
+
+      } else {
+        const errorMsg = response.message || 'Failed to delete variant.';
+        console.error("[handleConfirmDelete] API Error:", errorMsg);
+        showSnackbar(errorMsg, 'error');
+      }
+    } catch (error: any) {
+      console.error('[handleConfirmDelete] Network/Catch Error:', error);
+      const errorMsg = error.message || 'An unexpected error occurred during deletion.';
+      showSnackbar(errorMsg, 'error');
+    } finally {
+      // Ensure dialog closes and ID is reset regardless of outcome
+      setIsDeleteDialogOpen(false);
+      setVariantToDeleteId(null);
+      // Optionally stop loading state
+      // setIsLoading(false); // Or setIsDeleting(false)
+    }
+  };
+  // --- End Delete Handlers ---
+
+  // --- Loading States ---
+  // Initial loading or fetching variants
   if (isLoading) {
     return (
       <div className="flex justify-center items-center py-8">
         <FuseLoading />
-        <span className="ml-2">Generating variants...</span>
+        <span className="ml-2">Loading variants...</span>
       </div>
     );
   }
 
-  if (error) {
+  // Specific loading during generation process
+  if (isGenerating) {
+       return (
+         <div className="flex justify-center items-center py-8">
+           <FuseLoading />
+           <span className="ml-2">Generating new variants...</span>
+         </div>
+       );
+  }
+
+  // Error display
+  if (error && !isGenerating) { // Don't show fetch error if generation is in progress
     return (
       <div className="p-4 border border-red-200 rounded bg-red-50 text-center text-red-600">
         {error}
@@ -661,232 +959,302 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
     );
   }
 
-  if (generatedVariants.length === 0) {
-    return (
-      <div className="p-4 border rounded bg-gray-50 text-center text-gray-600">
-        No variants were generated. This could be because there are no attributes marked for variation.
-      </div>
-    );
-  }
-
+  // --- Render component ---
   return (
     <div>
-      <h3 className="text-lg font-semibold mb-4">Created Variants</h3>
-      <div className="flex gap-6">
-        {/* Left side - Variant cards */}
-        <div className="w-1/2">
-          {generatedVariants.map((variant) => (
-            <div
-              key={variant.id}
-              className={`border border-gray-200 overflow-hidden cursor-pointer bg-white mb-2 ${
-                selectedVariant?.id === variant.id ? 'border-l-4 border-l-green-600' : 'border-l-transparent'
-              }`}
-              onClick={() => setSelectedVariant(variant)}
-            >
-              <div className="flex p-3">
-                <div className="w-16 mr-3">
-                  <div className="h-16 w-16 flex items-center justify-center">
-                    {variant.variantImages?.find(img => img.is_primary)?.image_url ? (
-                      <img
-                        src={variant.variantImages.find(img => img.is_primary)?.image_url}
-                        alt={variant.slug}
-                        className="max-h-full max-w-full object-contain"
+      {/* REMOVE Generate Button Div */}
+      {/* <div className="mb-4 flex justify-end"> ... </div> */}
+
+      {/* Update conditional rendering for empty state */}
+      {generatedVariants.length === 0 && !isLoading && !isGenerating && (
+         <div className="p-4 border rounded bg-gray-50 text-center text-gray-600">
+           {allCombinationsUsed 
+             ? "No variants found. All possible combinations seem to be generated."
+             : "No variants found. New combinations might be available."}
+             {/* Optionally add: " Generating variants might create them." if !allCombinationsUsed */} 
+         </div>
+      )}
+
+      {/* Keep variant list and form rendering */}
+      {generatedVariants.length > 0 && (
+        <>
+            <h3 className="text-lg font-semibold mb-4">Created Variants</h3>
+            <div className="flex gap-6">
+              {/* Left side - Variant cards */}
+              <div className="w-1/2">
+                {generatedVariants.map((variant) => (
+                  <div
+                    key={variant.id}
+                    className={`border border-gray-200 overflow-hidden cursor-pointer bg-white mb-2 rounded-xl ${
+                      selectedVariant?.id === variant.id ? 'border-l-4 border-l-green-600' : 'border-l-transparent'
+                    }`}
+                    onClick={() => setSelectedVariant(variant)}
+                  >
+                    <div className="flex p-3">
+                      <div className="w-16 mr-3">
+                        <div className="h-16 w-16 flex items-center justify-center">
+                          {variant.variantImages?.find(img => img.is_primary)?.image_url ? (
+                            <img
+                              src={variant.variantImages.find(img => img.is_primary)?.image_url}
+                              alt={variant.slug}
+                              className="max-h-full max-w-full object-contain"
+                            />
+                          ) : (
+                            <div className="text-gray-400">No image</div>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex-1 pl-4">
+                        <div className="mb-2">
+                          <p className="text-sm font-semibold text-gray-700">ID: {variant.id}</p>
+                        </div>
+                        <div className="space-y-2">
+                          {variant.variantAttributes.map((attr) => (
+                            <div key={attr.id}>
+                              <p className="text-sm text-green-800 font-semibold mb-0.5">{attr.attribute.name}:</p>
+                              <input
+                                type="text"
+                                readOnly
+                                value={attr.term.name}
+                                className="w-full text-sm border border-gray-300 px-3 py-1 rounded bg-gray-50 text-gray-800 focus:outline-none"
+                              />
+                            </div>
+                          ))}
+                        </div>
+                        <div className="flex items-center pt-3 justify-between">
+                          <div className="flex items-center flex-wrap gap-2">
+                            <div className="flex items-center space-x-1 border border-[#005B2F] rounded-md bg-green-50 px-2.5 py-1">
+                              <span className="text-[#14854E] text-sm font-medium">Stock:</span>
+                              <div className="bg-[#14854E] px-1.5 py-0.5 rounded-sm text-white text-sm font-semibold">
+                                {variant.stock}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-1 border border-[#005B2F] rounded-md bg-green-50 px-2.5 py-1">
+                              <span className="text-[#14854E] text-sm font-medium">Price:</span>
+                              <div className="bg-[#14854E] px-1.5 py-0.5 rounded-sm text-white text-sm font-semibold">
+                                ${Number(variant.price).toFixed(2)}
+                              </div>
+                            </div>
+                          </div>
+                          <div className={`px-3 py-1 rounded-md text-sm font-medium ${
+                            variant.status === 'active' 
+                              ? 'bg-white border border-[#005B2F] text-[#14854E]' 
+                              : 'bg-white border border-red-500 text-red-500'
+                          }`}>
+                            {variant.status === 'active' ? 'Active' : 'Inactive'}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="ml-2">
+                        <IconButton 
+                          size="small" 
+                          color="error"
+                          onClick={(e) => { 
+                            e.stopPropagation(); // Prevent card click selection
+                            handleDeleteClick(variant.id); 
+                          }}
+                          disabled={isSubmitting} 
+                        >
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Right side - Variant Details Form */}
+              {selectedVariant && (
+                <div className="w-1/2" key={selectedVariant.id}>
+                  <Paper elevation={3} className="p-4 bg-white">
+                    <div className="flex justify-between items-center mb-4">
+                      <h2 className="text-lg font-bold">Variant Details</h2>
+                      <AppButton 
+                        label="Save" 
+                        onClick={handleSubmit(onSubmit)}
+                        disabled={isSubmitting || !isDirty || !isValid}
+                        loading={isSubmitting}
                       />
-                    ) : (
-                      <div className="text-gray-400">No image</div>
-                    )}
-                  </div>
-                </div>
-                <div className="flex-1 pl-4">
-                  <div className="mb-2">
-                    <p className="text-sm font-semibold text-gray-700">ID: {variant.id}</p>
-                  </div>
-                  <div className="space-y-2">
-                    {variant.variantAttributes.map((attr) => (
-                      <div key={attr.id}>
-                        <p className="text-sm text-green-800 font-semibold mb-0.5">{attr.attribute.name}:</p>
-                        <input
-                          type="text"
-                          readOnly
-                          value={attr.term.name}
-                          className="w-full text-sm border border-gray-300 px-3 py-1 rounded bg-gray-50 text-gray-800 focus:outline-none"
-                        />
-                      </div>
-                    ))}
-                  </div>
-                  <div className="flex items-center pt-3 justify-between">
-                    <div className="flex items-center flex-wrap gap-2">
-                      <div className="flex items-center space-x-1 border border-[#005B2F] rounded-md bg-green-50 px-2.5 py-1">
-                        <span className="text-[#14854E] text-sm font-medium">Stock:</span>
-                        <div className="bg-[#14854E] px-1.5 py-0.5 rounded-sm text-white text-sm font-semibold">
-                          {variant.stock}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-1 border border-[#005B2F] rounded-md bg-green-50 px-2.5 py-1">
-                        <span className="text-[#14854E] text-sm font-medium">Price:</span>
-                        <div className="bg-[#14854E] px-1.5 py-0.5 rounded-sm text-white text-sm font-semibold">
-                          ${Number(variant.price).toFixed(2)}
-                        </div>
+                    </div>
+
+                    {/* Form Fields */}
+                    <div className="grid grid-cols-2 gap-4 mb-4">
+                      <FormTextField name="slug" control={control} label="Slug" required />
+                      <FormTextField name="price" control={control} label="Price" required type="number" />
+                      <FormTextField name="depositPrice" control={control} label="Deposit Price" type="number" />
+                      <FormTextField name="purchasePrice" control={control} label="Purchase Price" type="number" />
+                      <FormTextField name="stock" control={control} label="Stock" required type="number" />
+                      <FormTextField name="lowStockThreshold" control={control} label="Low Stock Threshold" type="number" />
+
+                      <Controller
+                        name="stockStatus"
+                        control={control}
+                        render={({ field, fieldState: { error } }) => (
+                          <FormField label="Stock Status" required error={error?.message}>
+                            <select {...field} className="w-full border border-gray-300 rounded-lg p-2 focus:outline-none focus:ring-1 focus:ring-green-500 bg-white h-10 appearance-none">
+                              <option value="In Stock">In Stock</option>
+                              <option value="Out of Stock">Out of Stock</option>
+                              <option value="Back Order">Back Order</option>
+                            </select>
+                          </FormField>
+                        )}
+                      />
+
+                      <Controller
+                        name="status"
+                        control={control}
+                        render={({ field, fieldState: { error } }) => (
+                          <FormField label="Status" required error={error?.message}>
+                            <select {...field} className="w-full border border-gray-300 rounded-lg p-2 focus:outline-none focus:ring-1 focus:ring-green-500 bg-white h-10 appearance-none">
+                              <option value="active">Active</option>
+                              <option value="inactive">Inactive</option>
+                            </select>
+                          </FormField>
+                        )}
+                      />
+                    </div>
+
+                    {/* Dimensions & Weight */}
+                    <div className="mb-4">
+                      <h3 className="font-semibold mb-3">Dimensions & Weight</h3>
+                      <div className="grid grid-cols-4 gap-4">
+                        <FormTextField name="weight" control={control} label="Weight" type="number" />
+                        <FormTextField name="length" control={control} label="Length" type="number" />
+                        <FormTextField name="width" control={control} label="Width" type="number" />
+                        <FormTextField name="height" control={control} label="Height" type="number" />
                       </div>
                     </div>
-                    <div className={`px-3 py-1 rounded-md text-sm font-medium ${
-                      variant.status === 'active' 
-                        ? 'bg-white border border-[#005B2F] text-[#14854E]' 
-                        : 'bg-white border border-red-500 text-red-500'
-                    }`}>
-                      {variant.status === 'active' ? 'Active' : 'Inactive'}
-                    </div>
-                  </div>
-                </div>
-                <div className="ml-2">
-                  <IconButton size="small" color="error">
-                    <DeleteIcon fontSize="small" />
-                  </IconButton>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
 
-        {/* Right side - Variant Details Form */}
-        {selectedVariant && (
-          <div className="w-1/2" key={selectedVariant.id}>
-            <Paper elevation={3} className="p-4 bg-white">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-lg font-bold">Variant Details</h2>
-                <AppButton 
-                  label="Save" 
-                  onClick={handleSubmit(onSubmit)}
-                  disabled={isSubmitting || !isDirty || !isValid}
-                  loading={isSubmitting}
-                />
-              </div>
+                    {/* Barcode */}
+                    <FormTextField name="barcode" control={control} label="Barcode" />
 
-              {/* Form Fields */}
-              <div className="grid grid-cols-2 gap-4 mb-4">
-                <FormTextField name="slug" control={control} label="Slug" required />
-                <FormTextField name="price" control={control} label="Price" required type="number" />
-                <FormTextField name="depositPrice" control={control} label="Deposit Price" type="number" />
-                <FormTextField name="purchasePrice" control={control} label="Purchase Price" type="number" />
-                <FormTextField name="stock" control={control} label="Stock" required type="number" />
-                <FormTextField name="lowStockThreshold" control={control} label="Low Stock Threshold" type="number" />
-
-                <Controller
-                  name="stockStatus"
-                  control={control}
-                  render={({ field, fieldState: { error } }) => (
-                    <FormField label="Stock Status" required error={error?.message}>
-                      <select {...field} className="w-full border border-gray-300 rounded-lg p-2 focus:outline-none focus:ring-1 focus:ring-green-500 bg-white h-10 appearance-none">
-                        <option value="In Stock">In Stock</option>
-                        <option value="Out of Stock">Out of Stock</option>
-                        <option value="Back Order">Back Order</option>
-                      </select>
-                    </FormField>
-                  )}
-                />
-
-                <Controller
-                  name="status"
-                  control={control}
-                  render={({ field, fieldState: { error } }) => (
-                    <FormField label="Status" required error={error?.message}>
-                      <select {...field} className="w-full border border-gray-300 rounded-lg p-2 focus:outline-none focus:ring-1 focus:ring-green-500 bg-white h-10 appearance-none">
-                        <option value="active">Active</option>
-                        <option value="inactive">Inactive</option>
-                      </select>
-                    </FormField>
-                  )}
-                />
-              </div>
-
-              {/* Dimensions & Weight */}
-              <div className="mb-4">
-                <h3 className="font-semibold mb-3">Dimensions & Weight</h3>
-                <div className="grid grid-cols-4 gap-4">
-                  <FormTextField name="weight" control={control} label="Weight" type="number" />
-                  <FormTextField name="length" control={control} label="Length" type="number" />
-                  <FormTextField name="width" control={control} label="Width" type="number" />
-                  <FormTextField name="height" control={control} label="Height" type="number" />
-                </div>
-              </div>
-
-              {/* Barcode */}
-              <FormTextField name="barcode" control={control} label="Barcode" />
-
-              {/* Description */}
-              <Controller
-                name="description"
-                control={control}
-                render={({ field, fieldState: { error } }) => (
-                  <FormField label="Description" error={error?.message}>
-                    <textarea 
-                      {...field} 
-                      className="w-full border border-gray-300 rounded-lg p-3 h-24 focus:outline-none focus:ring-1 focus:ring-green-500 bg-white" 
-                    />
-                  </FormField>
-                )}
-              />
-
-              {/* Image section */}
-              <div className="mt-4">
-                <h3 className="font-semibold mb-3">Image</h3>
-                {selectedVariant.variantImages && selectedVariant.variantImages.length > 0 && (
-                  <div className="grid grid-cols-4 gap-2 mb-4">
-                    {selectedVariant.variantImages.map((image) => (
-                      <div key={image.id} className="relative border rounded p-1">
-                        <img 
-                          src={image.image_url} 
-                          alt={`Variant ${selectedVariant.id}`} 
-                          className="w-full h-24 object-contain" 
-                        />
-                        <div className="absolute top-1 right-1">
-                          <IconButton 
-                            size="small" 
-                            color="error" 
-                            className="bg-white"
-                            onClick={() => handleDeleteImage(image.id)}
-                            disabled={isSubmitting || imageUploading}
-                          >
-                            <DeleteIcon fontSize="small" />
-                          </IconButton>
-                        </div>
-                        <div className="mt-1 flex justify-center">
-                          <input 
-                            type="radio" 
-                            checked={image.is_primary} 
-                            onChange={() => handleSetPrimaryImage(image.id)}
-                            disabled={isSubmitting || imageUploading} 
+                    {/* Description */}
+                    <Controller
+                      name="description"
+                      control={control}
+                      render={({ field, fieldState: { error } }) => (
+                        <FormField label="Description" error={error?.message}>
+                          <textarea 
+                            {...field} 
+                            className="w-full border border-gray-300 rounded-lg p-3 h-24 focus:outline-none focus:ring-1 focus:ring-green-500 bg-white" 
                           />
-                          <span className="text-xs ml-1">Primary</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                        </FormField>
+                      )}
+                    />
 
-                {/* Upload section */}
-                <div 
-                  {...getRootProps()} 
-                  className={`border rounded flex flex-col items-center justify-center py-8 bg-gray-50 
-                    ${isDragActive ? 'border-green-500 bg-green-50' : 'border-gray-300'}
-                    ${(imageUploading || isSubmitting) ? 'opacity-70 cursor-wait' : 'cursor-pointer'} mb-3`}
-                >
-                  <input {...getInputProps()} disabled={isSubmitting || imageUploading} />
-                  {(imageUploading) ? (
-                    <FuseLoading className="mb-2" />
-                  ) : (
-                    <>
-                      <CloudUploadIcon className="text-gray-400 mb-2" />
-                      <p className="text-center">{isDragActive ? "Drop files here" : "Upload More Images"}</p>
-                      <p className="text-xs text-gray-500">5MB max file size</p>
-                    </>
-                  )}
+                    {/* Image section */}
+                    <div className="mt-4">
+                      <h3 className="font-semibold mb-3">Image</h3>
+                      {selectedVariant.variantImages && selectedVariant.variantImages.length > 0 && (
+                        <div className="grid grid-cols-4 gap-2 mb-4">
+                          {selectedVariant.variantImages.map((image) => (
+                            <div key={image.id} className="relative border rounded p-1">
+                              <img 
+                                src={image.image_url} 
+                                alt={`Variant ${selectedVariant.id}`} 
+                                className="w-full h-24 object-contain" 
+                              />
+                              <div className="absolute top-1 right-1">
+                                <IconButton 
+                                  size="small" 
+                                  color="error" 
+                                  className="bg-white"
+                                  onClick={() => handleDeleteImage(image.id)}
+                                  disabled={isSubmitting || imageUploading}
+                                >
+                                  <DeleteIcon fontSize="small" />
+                                </IconButton>
+                              </div>
+                              <div className="mt-1 flex justify-center">
+                                <input 
+                                  type="radio" 
+                                  checked={image.is_primary} 
+                                  onChange={() => handleSetPrimaryImage(image.id)}
+                                  disabled={isSubmitting || imageUploading} 
+                                />
+                                <span className="text-xs ml-1">Primary</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Upload section */}
+                      <div 
+                        {...getRootProps()} 
+                        className={`border rounded flex flex-col items-center justify-center py-8 bg-gray-50 
+                          ${isDragActive ? 'border-green-500 bg-green-50' : 'border-gray-300'}
+                          ${(imageUploading || isSubmitting) ? 'opacity-70 cursor-wait' : 'cursor-pointer'} mb-3`}
+                      >
+                        <input {...getInputProps()} disabled={isSubmitting || imageUploading} />
+                        {(imageUploading) ? (
+                          <FuseLoading className="mb-2" />
+                        ) : (
+                          <>
+                            <CloudUploadIcon className="text-gray-400 mb-2" />
+                            <p className="text-center">{isDragActive ? "Drop files here" : "Upload More Images"}</p>
+                            <p className="text-xs text-gray-500">5MB max file size</p>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </Paper>
                 </div>
-              </div>
-            </Paper>
-          </div>
-        )}
-      </div>
+              )}
+            </div>
+        </>
+       )}
+
+       {/* Keep Confirmation Dialog */}
+       <Dialog
+         open={isConfirmationDialogOpen}
+         onClose={handleCancelGenerate}
+         aria-labelledby="generate-variants-confirmation-title"
+         aria-describedby="generate-variants-confirmation-description"
+       >
+         <DialogTitle id="generate-variants-confirmation-title">
+           Generate New Variants?
+         </DialogTitle>
+         <DialogContent>
+           <DialogContentText id="generate-variants-confirmation-description">
+             New combinations based on product attributes are available. Do you want to generate these new variants?
+           </DialogContentText>
+         </DialogContent>
+         <DialogActions>
+           <Button onClick={handleCancelGenerate} color="primary">
+             Cancel
+           </Button>
+           <Button onClick={handleConfirmGenerate} color="primary" autoFocus> 
+             Generate 
+           </Button>
+         </DialogActions>
+       </Dialog>
+
+       {/* --- Add Delete Confirmation Dialog --- */ 
+       <Dialog
+         open={isDeleteDialogOpen}
+         onClose={handleCancelDelete}
+         aria-labelledby="delete-variant-confirmation-title"
+         aria-describedby="delete-variant-confirmation-description"
+       >
+         <DialogTitle id="delete-variant-confirmation-title">
+           Confirm Deletion
+         </DialogTitle>
+         <DialogContent>
+           <DialogContentText id="delete-variant-confirmation-description">
+             Are you sure you want to delete this variant (ID: {variantToDeleteId})? This action cannot be undone.
+           </DialogContentText>
+         </DialogContent>
+         <DialogActions>
+           <Button onClick={handleCancelDelete} color="primary">
+             Cancel
+           </Button>
+           <Button onClick={handleConfirmDelete} color="error" autoFocus> 
+             Delete
+           </Button>
+         </DialogActions>
+       </Dialog>
+       }
     </div>
   );
 };

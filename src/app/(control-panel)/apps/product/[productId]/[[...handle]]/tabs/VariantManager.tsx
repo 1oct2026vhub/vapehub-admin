@@ -123,7 +123,7 @@ interface Variant {
   price: number | null; 
   stock: number | null; 
   status: 'Active' | 'Inactive';
-  stockStatus?: 'In Stock' | 'Out of Stock' | 'Back Order'; // Add stockStatus
+  stockStatus?: 'In Stock' | 'Out of Stock' | 'Back Order'; // Add stockStatus using Form format
   depositPrice?: number | null; 
   purchasePrice?: number | null; 
   lowStockThreshold?: number | null; // Use correct casing
@@ -626,7 +626,9 @@ const mapApiStockStatusToForm = (apiStatus?: string | null): 'In Stock' | 'Out o
     case 'in_stock': return 'In Stock';
     case 'out_of_stock': return 'Out of Stock';
     case 'back_order': return 'Back Order';
-    default: return 'In Stock'; // Default if unknown/missing
+    default: 
+      console.warn(`[mapApiStockStatusToForm] Unknown API status: ${apiStatus}, defaulting to 'In Stock'.`);
+      return 'In Stock'; // Explicit default return
   }
 };
 
@@ -647,10 +649,12 @@ const VariantManager = () => {
   const [variants, setVariants] = useState<Variant[]>([]);
   
   const [selectedVariantIndex, setSelectedVariantIndex] = useState<number>(0);
-  const [isSubmitting, setIsSubmitting] = useState<boolean>(false); // CREATE Submit
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [imageUploading, setImageUploading] = useState<boolean>(false);
+  // --- Re-add missing state --- 
   const [isUpdating, setIsUpdating] = useState<boolean>(false);     // UPDATE Submit
-  const [imageUploading, setImageUploading] = useState<boolean>(false); // CREATE Image Upload
   const [isEditImageUploading, setIsEditImageUploading] = useState<boolean>(false); // EDIT Image Upload
+  // --- End re-add ---
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isBulkSubmitting, setIsBulkSubmitting] = useState<boolean>(false);
@@ -990,7 +994,21 @@ const VariantManager = () => {
          removeTemporaryImages(tempIds);
          
          setImageUploading(false);
-         showSnackbar("Failed to upload images", "error");
+          // Check for error structure properly
+      if (error?.errors && error?.errors.length > 0) {
+        showSnackbar(error.errors[0]?.msg, "error");
+      } else if (
+        error?.error &&
+        Array.isArray(error?.error) &&
+        error.error.length > 0
+      ) {
+        showSnackbar(error.error[0]?.message, "error");
+      } else if (error?.message) {
+        showSnackbar(error.message, "error");
+      } else {
+        const errorMessage = "An unexpected error occurred";
+        showSnackbar(errorMessage, "error");
+      }
        })
        .finally(() => {
           // --- Reset specific loading state for edit form --- 
@@ -1052,7 +1070,21 @@ const VariantManager = () => {
 
       } catch (error) {
         console.error("Error uploading images for variant:", error);
-        showSnackbar("Failed to upload images.", "error");
+        // Check for error structure properly
+      if (error?.errors && error?.errors.length > 0) {
+        showSnackbar(error.errors[0]?.msg, "error");
+      } else if (
+        error?.error &&
+        Array.isArray(error?.error) &&
+        error.error.length > 0
+      ) {
+        showSnackbar(error.error[0]?.message, "error");
+      } else if (error?.message) {
+        showSnackbar(error.message, "error");
+      } else {
+        const errorMessage = "An unexpected error occurred";
+        showSnackbar(errorMessage, "error");
+      }
       } finally {
         setImageUploading(false); // Ensure this resets even if handleImageUpload fails internally
       }
@@ -1080,8 +1112,21 @@ const VariantManager = () => {
       showSnackbar("No variants generated. Please add variants manually.", "info");
     } catch (error) {
       setIsLoading(false);
-      showSnackbar("Failed to generate variants", "error");
-    }
+  // Check for error structure properly
+      if (error?.errors && error?.errors.length > 0) {
+        showSnackbar(error.errors[0]?.msg, "error");
+      } else if (
+        error?.error &&
+        Array.isArray(error?.error) &&
+        error.error.length > 0
+      ) {
+        showSnackbar(error.error[0]?.message, "error");
+      } else if (error?.message) {
+        showSnackbar(error.message, "error");
+      } else {
+        const errorMessage = "An unexpected error occurred";
+        showSnackbar(errorMessage, "error");
+      }    }
   };
   
   // Function to fetch product attributes from API
@@ -1109,8 +1154,9 @@ const VariantManager = () => {
             slug: apiVariant.slug,
             price: apiVariant.price,
             stock: apiVariant.stock,
-            status: apiVariant.status === 'active' ? 'active' : 'inactive',
-            stockStatus: mapApiStockStatusToForm(apiVariant.stock_status), // Use helper here
+            // Map API status to capitalized state format
+            status: apiVariant.status === 'active' ? 'Active' : 'Inactive', 
+            stockStatus: mapApiStockStatusToForm(apiVariant.stock_status),
             depositPrice: apiVariant.discount_price,
             purchasePrice: apiVariant.purchase_price,
             lowStockThreshold: apiVariant.low_stock_threshold,
@@ -1203,6 +1249,7 @@ const VariantManager = () => {
       setIsLoading(false);
     } catch (error) {
       console.error('Error fetching product attributes:', error);
+      // showSnackbar('Failed to load product attributes', 'error');
       setIsLoading(false);
     }
   };
@@ -1351,7 +1398,6 @@ const VariantManager = () => {
             price: apiVariant.price,
             stock: apiVariant.stock,
             status: apiVariant.status === 'active' ? 'Active' : 'Inactive',
-            stockStatus: mapApiStockStatusToForm(apiVariant.stock_status), // Use helper here
             depositPrice: apiVariant.discount_price,
             purchasePrice: apiVariant.purchase_price,
             lowStockThreshold: apiVariant.low_stock_threshold,
@@ -1384,6 +1430,7 @@ const VariantManager = () => {
       setIsLoading(false);
     } catch (error) {
       console.error('Error fetching variants:', error);
+      // showSnackbar('Failed to load variants', 'error');
       setIsLoading(false);
     }
   };
@@ -1561,7 +1608,6 @@ const VariantManager = () => {
         price: number;
         stock: number;
         status: 'active' | 'inactive';
-        stock_status: 'in_stock' | 'out_of_stock' | 'back_order'; // Non-nullable API type
         attributes: Array<{ attribute_id: number; term_id: number; }>;
         [key: string]: any; // Allow additional optional properties
       }
@@ -1572,8 +1618,6 @@ const VariantManager = () => {
         price: transformOptionalNumber(data.price) || 0, // Ensure non-null
         stock: transformOptionalNumber(data.stock) || 0, // Ensure non-null
         status: data.status as 'active' | 'inactive',
-        // Read from form data (camelCase) and map, provide default
-        stock_status: mapFormStockStatusToApi(data.stockStatus) || 'in_stock', 
         attributes: Object.values(pendingCombination)
           .filter(value => typeof value === 'object' && value.attribute_id && value.term_id)
           .map(value => ({
@@ -1683,9 +1727,7 @@ const VariantManager = () => {
       showSnackbar("Variant created successfully", "success");
     } catch (error) {
       console.error("Error creating variant:", error);
-console.error("Error saving variants:", error);
-
-      // Check for error structure properly
+  // Check for error structure properly
       if (error?.errors && error?.errors.length > 0) {
         showSnackbar(error.errors[0]?.msg, "error");
       } else if (
@@ -2049,9 +2091,7 @@ console.error("Error saving variants:", error);
       })
       .catch(error => {
         console.error("Error setting primary image:", error);
-console.error("Error saving variants:", error);
-
-      // Check for error structure properly
+  // Check for error structure properly
       if (error?.errors && error?.errors.length > 0) {
         showSnackbar(error.errors[0]?.msg, "error");
       } else if (
@@ -2160,9 +2200,7 @@ console.error("Error saving variants:", error);
       })
       .catch(error => {
         console.error("Error deleting image:", error);
-console.error("Error saving variants:", error);
-
-      // Check for error structure properly
+  // Check for error structure properly
       if (error?.errors && error?.errors.length > 0) {
         showSnackbar(error.errors[0]?.msg, "error");
       } else if (
@@ -2197,12 +2235,12 @@ console.error("Error saving variants:", error);
       return;
     }
 
-    setIsUpdating(true); // Use isUpdating
+    setIsSubmitting(true);
     try {
       const originalVariant = selectedVariant;
       if (!originalVariant) {
           showSnackbar("Original variant data not found for comparison.", "error");
-          setIsUpdating(false);
+          setIsSubmitting(false);
           return;
       }
       
@@ -2239,20 +2277,30 @@ console.error("Error saving variants:", error);
       if (data.slug !== originalVariant.slug) { apiPayload.slug = data.slug; hasChanges = true; }
       if (transformOptionalNumber(data.price) !== transformOptionalNumber(originalVariant.price)) { apiPayload.price = transformOptionalNumber(data.price); hasChanges = true; }
       if (transformOptionalNumber(data.stock) !== transformOptionalNumber(originalVariant.stock)) { apiPayload.stock = transformOptionalNumber(data.stock); hasChanges = true; }
-      if (data.status !== (originalVariant.status === 'Active' ? 'active' : 'inactive')) { apiPayload.status = data.status; hasChanges = true; }
+      
+      // --- EDIT: Check and include status if changed --- 
+      const formStatusApi = data.status as 'active' | 'inactive'; // Value from form
+      const originalStatusApi = (originalVariant.status === 'Active' ? 'active' : 'inactive');
+      if (formStatusApi !== originalStatusApi) { 
+        apiPayload.status = formStatusApi; 
+        hasChanges = true; 
+      }
+      // --- END EDIT --- 
+      
       // Compare attributes (simple JSON comparison)
       const currentAttributePayloadString = JSON.stringify(attributePayload.sort((a,b) => a.attribute_id - b.attribute_id));
       const originalAttributePayloadString = JSON.stringify((originalVariant.variantAttributes || []).map(a => ({attribute_id: a.attribute_id, term_id: a.term_id})).sort((a,b) => a.attribute_id - b.attribute_id));
       if (currentAttributePayloadString !== originalAttributePayloadString) { apiPayload.attributes = attributePayload; hasChanges = true; }
 
-      // --- Add Stock Status Check ---
-      const currentStockStatusApi = mapFormStockStatusToApi(data.stockStatus);
-      const originalStockStatusApi = mapFormStockStatusToApi(originalVariant.stockStatus);
-      if (currentStockStatusApi !== originalStockStatusApi) {
-        apiPayload.stock_status = currentStockStatusApi; 
+      // --- EDIT: Check and include stock_status if changed --- 
+      const formStockStatusApi = mapFormStockStatusToApi(data.stockStatus); // Map form value to API format
+      const originalStockStatusApi = mapFormStockStatusToApi(originalVariant.stockStatus); // Map original state value to API format
+      
+      if (formStockStatusApi !== originalStockStatusApi) {
+        apiPayload.stock_status = formStockStatusApi; 
         hasChanges = true;
       }
-      // --- End Stock Status Check ---
+      // --- END EDIT --- 
 
       // Optional fields (compare simple types, use API names)
       const currentDeposit = transformOptionalNumber(data.depositPrice);
@@ -2285,7 +2333,7 @@ console.error("Error saving variants:", error);
 
       if (!hasChanges) {
           showSnackbar("No changes detected to update.", "info");
-          setIsUpdating(false);
+          setIsSubmitting(false);
           return;
       }
 
@@ -2296,7 +2344,7 @@ console.error("Error saving variants:", error);
 
       if (isNaN(numericProductId) || isNaN(numericVariantId)) {
           showSnackbar("Invalid Product or Variant ID for update.", "error");
-          setIsUpdating(false);
+          setIsSubmitting(false);
           return;
       }
 
@@ -2313,6 +2361,9 @@ console.error("Error saving variants:", error);
               price: transformOptionalNumber(data.price), 
               stock: transformOptionalNumber(data.stock), 
               status: (data.status === 'active' ? 'Active' : 'Inactive') as 'Active' | 'Inactive', 
+              // --- Add stockStatus update here --- 
+              stockStatus: data.stockStatus as 'In Stock' | 'Out of Stock' | 'Back Order', 
+              // --- End Add --- 
               depositPrice: transformOptionalNumber(data.depositPrice),
               purchasePrice: transformOptionalNumber(data.purchasePrice),
               lowStockThreshold: transformOptionalNumber(data.lowStockThreshold), // Use correct casing
@@ -2337,9 +2388,7 @@ console.error("Error saving variants:", error);
 
     } catch (error) {
       console.error("Error updating variant:", error);
-console.error("Error saving variants:", error);
-
-      // Check for error structure properly
+  // Check for error structure properly
       if (error?.errors && error?.errors.length > 0) {
         showSnackbar(error.errors[0]?.msg, "error");
       } else if (
@@ -2354,7 +2403,7 @@ console.error("Error saving variants:", error);
         const errorMessage = "An unexpected error occurred";
         showSnackbar(errorMessage, "error");
       }    } finally {
-      setIsUpdating(false); // Use isUpdating
+      setIsSubmitting(false); 
     }
   };
 
@@ -2398,9 +2447,7 @@ console.error("Error saving variants:", error);
 
     } catch (error) {
       console.error("Error deleting variant:", error);
-console.error("Error saving variants:", error);
-
-      // Check for error structure properly
+  // Check for error structure properly
       if (error?.errors && error?.errors.length > 0) {
         showSnackbar(error.errors[0]?.msg, "error");
       } else if (
@@ -2516,9 +2563,7 @@ console.error("Error saving variants:", error);
       resetBulkForm(); // Reset the bulk form after successful submission
     } catch (error) { 
       console.error("Bulk update failed:", error);
-console.error("Error saving variants:", error);
-
-      // Check for error structure properly
+  // Check for error structure properly
       if (error?.errors && error?.errors.length > 0) {
         showSnackbar(error.errors[0]?.msg, "error");
       } else if (
@@ -2566,10 +2611,11 @@ console.error("Error saving variants:", error);
         price: currentSelectedVariant.price ?? null, 
         stock: currentSelectedVariant.stock ?? null, 
         status: (currentSelectedVariant.status === 'Active' ? 'active' : 'inactive') as 'active' | 'inactive',
+        // Ensure stockStatus uses the value from the current state directly
+        stockStatus: currentSelectedVariant.stockStatus || 'In Stock', 
         depositPrice: currentSelectedVariant.depositPrice ?? null, 
         purchasePrice: currentSelectedVariant.purchasePrice ?? null, 
         lowStockThreshold: currentSelectedVariant.lowStockThreshold ?? null, 
-        stockStatus: ((currentSelectedVariant.stock !== null && currentSelectedVariant.stock > 0) ? "In Stock" : "Out of Stock") as "In Stock" | "Out of Stock" | "Back Order",
         weight: currentSelectedVariant.weight ?? null, 
         length: currentSelectedVariant.length ?? null, 
         width: currentSelectedVariant.width ?? null, 
@@ -2767,14 +2813,17 @@ console.error("Error saving variants:", error);
               setIsDeleteDialogOpen={setIsDeleteDialogOpen}
               // Other
               showSnackbar={showSnackbar}
-              isUpdating={isUpdating}     // Pass update loading state
-              isEditImageUploading={isEditImageUploading} // Pass edit image loading state
+              // --- Add missing props back --- 
+              isUpdating={isUpdating}     
+              isEditImageUploading={isEditImageUploading} 
+              // --- End add ---
             />
           )}
           
           {viewMode === 'generated' && (
             // Assuming GenerateVariantsView mainly needs loading state for now
-            <GenerateVariantsView isLoading={isLoading} /> 
+            <GenerateVariantsView isLoading={isLoading}  allCombinationsUsed={allCombinationsUsed}
+/> 
             // Pass other relevant props if needed, e.g., generatedCombinations, actions
           )}
 
