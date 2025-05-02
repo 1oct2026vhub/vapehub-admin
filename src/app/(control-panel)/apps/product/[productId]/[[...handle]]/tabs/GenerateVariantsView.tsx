@@ -1143,6 +1143,7 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
                     <FormTextField name="barcode" control={control} label="Barcode" />
 
                     {/* Description */}
+                    <div className="mt-2">
                     <Controller
                       name="description"
                       control={control}
@@ -1155,6 +1156,7 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
                         </FormField>
                       )}
                     />
+                    </div>
 
                     {/* Image section */}
                     <div className="mt-4">

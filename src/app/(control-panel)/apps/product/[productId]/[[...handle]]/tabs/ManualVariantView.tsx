@@ -540,6 +540,7 @@ const ManualVariantView: React.FC<ManualVariantViewProps> = ({
             <FormTextField name="barcode" control={createControl} label="Barcode" />
 
             {/* --- Description (Unchanged) --- */}
+            <div className="mt-2">
             <Controller
               name="description"
               control={createControl}
@@ -549,6 +550,7 @@ const ManualVariantView: React.FC<ManualVariantViewProps> = ({
                 </FormField>
               )}
             />
+            </div>
 
             {/* Image section for Create New Variant */} 
             <div className="mt-4">
@@ -833,11 +835,13 @@ const ManualVariantView: React.FC<ManualVariantViewProps> = ({
                        </div>
                     </div>
                     <FormTextField name="barcode" control={editControl} label="Barcode" />
+                    <div className="mt-2">
                     <Controller name="description" control={editControl} render={({ field, fieldState: { error } }) => (
                        <FormField label="Description" error={(error as FieldError)?.message}>
                            <textarea {...field} className="w-full border border-gray-300 rounded-lg p-3 h-24 focus:outline-none focus:ring-1 focus:ring-green-500 bg-white" />
                        </FormField>
                     )}/>
+                    </div>
                     
                     {/* Edit Image Section */} 
                     <div className="mt-4">
