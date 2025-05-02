@@ -41,6 +41,7 @@ import axiosInstance from "@/utils/axiosApi";
 import { useSnackbar } from "@/contexts/SnackbarContext";
 import { formatDate } from "@/utils/actions";
 import useColumnOrder from "@/hooks/useColumnOrder";
+import ClearFiltersButton from "@/components/Shared/ClearFiltersButton";
 
 // // Add delete and restore functions
 // const deleteAttributeTerm = async (id: number) => {
@@ -85,6 +86,34 @@ const AttributeTermTable = ({
   const [localTerms, setLocalTerms] = useState<AttributeTerm[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [manuallyRefreshing, setManuallyRefreshing] = useState(false);
+
+  // --- START ADD: Check if Filters are Active ---
+  const areFiltersActive = useMemo(() => {
+    // Define default states for this table
+    const defaultSortBy = "created_at";
+    const defaultOrder = "DESC";
+    const defaultShowDeleted = false;
+
+    return (
+      search !== "" ||
+      sortBy !== defaultSortBy ||
+      order !== defaultOrder ||
+      showDeleted !== defaultShowDeleted
+    );
+  }, [search, sortBy, order, showDeleted]);
+  // --- END ADD ---
+
+  // --- START ADD: Clear Filters Function ---
+  const clearFilters = () => {
+    setSearch("");
+    setDebouncedSearch("");
+    setShowDeleted(false);
+    setSortBy("created_at");
+    setOrder("DESC");
+    setPage(0); // Reset page index
+    showSnackbar("Filters cleared", "info");
+  };
+  // --- END ADD ---
 
   // Debounce search input
   useEffect(() => {
@@ -331,6 +360,15 @@ const AttributeTermTable = ({
               <MenuItem value="DESC">Descending</MenuItem>
             </Select>
           </FormControl>
+
+          {/* --- START ADD: Clear Filters Button --- */}
+          {areFiltersActive && (
+            <ClearFiltersButton 
+              onClick={clearFilters}
+              sx={{ height: '40px' }} // Match height of other controls
+            />
+          )}
+          {/* --- END ADD --- */}
         </div>
       </div>
 

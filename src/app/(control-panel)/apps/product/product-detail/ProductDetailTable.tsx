@@ -20,14 +20,18 @@ import {
   Tab,
   Stack,
   Container,
+  Select,
+  MenuItem,
+  FormControl,
 } from "@mui/material";
-import { getProduct } from "@/services/apiProduct";
+import { getProduct, updateProductStatus } from "@/services/apiProduct";
 import { useFetch } from "@/hooks/useFetch";
 import FuseLoading from "@fuse/core/FuseLoading";
 import { useEffect, useState } from "react";
 import PageBreadcrumb from "@/components/PageBreadcrumb";
 import parse from "html-react-parser";
 import { formatPounds } from "@/utils/actions";
+import { useSnackbar } from "@/contexts/SnackbarContext";
 
 // Add custom breadcrumb configuration
 const getBreadcrumbItems = (productId: string | number) => [
@@ -132,12 +136,14 @@ export interface ProductType {
   ProductImages: ProductImage[];
   productAttributeTerms: ProductAttributeTerm[];
   variants: Variant[];
+  status: string;
 }
 
 export default function ProductDetailTable() {
   const params = useParams();
   const idParam = params?.id;
   const [tabValue, setTabValue] = useState(0);
+  const { showSnackbar } = useSnackbar();
 
   // Ensure ID is properly cast as a number or set to `null` if invalid
   const id = Array.isArray(idParam)
@@ -163,6 +169,20 @@ export default function ProductDetailTable() {
     setTabValue(newValue);
   };
 
+  const handleStatusChange = async (newStatus: "draft" | "published" | "archived") => {
+    try {
+      await updateProductStatus(id, newStatus);
+      showSnackbar(`Product status updated to ${newStatus}`, "success");
+      // Refresh the product data
+      if (data?.data) {
+        setProductDetail({ ...data.data, status: newStatus });
+      }
+    } catch (error) {
+      console.error("Error updating product status:", error);
+      showSnackbar("Failed to update product status", "error");
+    }
+  };
+
   if (isLoading) return <FuseLoading />;
   if (error || !productDetail) {
     return <p className="text-center text-red-500 mt-28">Product not found!</p>;
@@ -170,11 +190,46 @@ export default function ProductDetailTable() {
 
   return (
     <div className="mt-10">
-      <div>
-        <PageBreadcrumb className="mt-8" />
-        <Typography className="text-4xl font-extrabold leading-none tracking-tight mb-4 mt-8">
-          Product Details
-        </Typography>
+      <div className="flex justify-between items-center">
+        <div>
+          <PageBreadcrumb className="mt-8" />
+          <Typography className="text-4xl font-extrabold leading-none tracking-tight mb-4 mt-8">
+            Product Details
+          </Typography>
+        </div>
+        <FormControl size="small" sx={{ minWidth: 150 }}>
+          <Select
+            value={productDetail?.status || "draft"}
+            onChange={(e) => handleStatusChange(e.target.value as "draft" | "published" | "archived")}
+            variant="outlined"
+            sx={{
+              '& .MuiSelect-select': {
+                display: 'flex',
+                alignItems: 'center',
+                pl: 2
+              }
+            }}
+          >
+            <MenuItem value="draft">
+              <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
+                <Box component="span" sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: 'grey.500', mr: 1 }} />
+                Draft
+              </Box>
+            </MenuItem>
+            <MenuItem value="published">
+              <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
+                <Box component="span" sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: 'success.main', mr: 1 }} />
+                Published
+              </Box>
+            </MenuItem>
+            <MenuItem value="archived">
+              <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
+                <Box component="span" sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: 'warning.main', mr: 1 }} />
+                Archived
+              </Box>
+            </MenuItem>
+          </Select>
+        </FormControl>
       </div>
 
       <Grid container spacing={3}>

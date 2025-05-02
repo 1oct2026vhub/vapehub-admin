@@ -42,6 +42,7 @@ import AppButton from "@/components/Shared/AppButton";
 import { useRoles } from "@/hooks/roleFetch";
 import { useSnackbar } from "@/contexts/SnackbarContext";
 import { formatDate } from "@/utils/actions";
+import ClearFiltersButton from "@/components/Shared/ClearFiltersButton";
 
 export type UserType = {
   id: number;
@@ -75,6 +76,40 @@ const UserTable = () => {
   const [page, setPage] = useState(1);
   const [limit] = useState(10); // Number of records per page
   const { showSnackbar } = useSnackbar();
+
+  // --- START ADD: Check if Filters are Active ---
+  const areFiltersActive = useMemo(() => {
+    // Define default states for this table
+    const defaultOrder = "DESC";
+    const defaultRoleId = "all";
+    const defaultDeleted = null;
+    const defaultVerified = null;
+    const defaultBlocked = null;
+
+    return (
+      search !== "" ||
+      roleId !== defaultRoleId ||
+      order !== defaultOrder ||
+      deleted !== defaultDeleted ||
+      verified !== defaultVerified ||
+      blocked !== defaultBlocked
+    );
+  }, [search, roleId, order, deleted, verified, blocked]);
+  // --- END ADD ---
+
+  // --- START ADD: Clear Filters Function ---
+  const clearFilters = () => {
+    setSearch("");
+    setDebouncedSearch("");
+    setRoleId("all");
+    setOrder("DESC");
+    setDeleted(null);
+    setVerified(null);
+    setBlocked(null);
+    setPage(1); // Reset page number
+    showSnackbar("Filters cleared", "info");
+  };
+  // --- END ADD ---
 
   // Fetch roles at the top level of the component
   const { roles } = useRoles();
@@ -426,6 +461,14 @@ const UserTable = () => {
               <MenuItem value="DESC">Descending</MenuItem>
               <MenuItem value="ASC">Ascending</MenuItem>
             </Select>
+
+            {/* --- START ADD: Clear Filters Button (Desktop) --- */}
+            {areFiltersActive && (
+              <ClearFiltersButton 
+                onClick={clearFilters}
+              />
+            )}
+            {/* --- END ADD --- */}
           </div>
         </div>
 
@@ -642,6 +685,18 @@ const UserTable = () => {
             >
               Apply Filters
             </Button>
+            {/* --- START ADD: Clear Filters Button (Mobile Drawer) --- */}
+            {areFiltersActive && (
+              <ClearFiltersButton 
+                onClick={() => {
+                  clearFilters();
+                  setOpenDrawer(false); // Close drawer after clearing
+                }}
+                fullWidth // Keep fullWidth for drawer
+                sx={{ mt: 1 }} // Add margin top for spacing
+              />
+            )}
+            {/* --- END ADD --- */}
           </ListItem>
         </List>
       </Drawer>

@@ -16,6 +16,7 @@ import VariantTab from "./tabs/VariantTab";
 import { useParams } from "next/navigation";
 import { getProduct } from "@/services/apiProduct";
 import { useSnackbar } from "@/contexts/SnackbarContext";
+import VariantManager from "./tabs/VariantManager";
 
 const steps = ["basic-info", "product-images", "attributes", "variants"];
 
@@ -61,10 +62,13 @@ function ProductContent() {
   }, [productId]);
 
   return (
-    <FusePageCarded
-      header={<ProductHeader />}
-      content={
-        <div className="p-4 sm:p-6 max-w-5xl space-y-6">
+    // <FusePageCarded
+    // className="bg-white"
+    //   header={<ProductHeader />}
+    //   content={
+        <div className="p-4 sm:p-10 space-y-6">
+        <ProductHeader />
+        <div>
           <FuseTabs
             value={steps[formData.currentStep]}
             onChange={handleTabChange}
@@ -101,13 +105,15 @@ function ProductContent() {
               <AttributesTab />
             </div>
             <div className={formData.currentStep !== 3 ? "hidden" : ""}>
-              <VariantTab />
+              <VariantManager />
+              {/* <VariantTab /> */}
             </div>
           </div>
         </div>
-      }
-      scroll={isMobile ? "normal" : "content"}
-    />
+        </div>
+    //   }
+    //   scroll={isMobile ? "normal" : "content"}
+    // />
   );
 }
 
