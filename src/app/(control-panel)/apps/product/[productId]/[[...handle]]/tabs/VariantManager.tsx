@@ -1109,7 +1109,6 @@ const VariantManager = () => {
       setVariants([]);
       
       setIsLoading(false);
-      showSnackbar("No variants generated. Please add variants manually.", "info");
     } catch (error) {
       setIsLoading(false);
   // Check for error structure properly

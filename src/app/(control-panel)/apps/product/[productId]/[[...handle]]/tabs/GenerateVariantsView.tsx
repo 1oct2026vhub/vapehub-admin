@@ -791,7 +791,21 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
       showSnackbar("Variant updated successfully", "success");
     } catch (error) {
       console.error("Error updating variant:", error);
-      showSnackbar("Failed to update variant", "error");
+      // Check for error structure properly
+      if (error?.errors && error?.errors.length > 0) {
+        showSnackbar(error.errors[0]?.msg, "error");
+      } else if (
+        error?.error &&
+        Array.isArray(error?.error) &&
+        error.error.length > 0
+      ) {
+        showSnackbar(error.error[0]?.message, "error");
+      } else if (error?.message) {
+        showSnackbar(error.message, "error");
+      } else {
+        const errorMessage = "An unexpected error occurred";
+        showSnackbar(errorMessage, "error");
+      } 
     } finally {
       setIsSubmitting(false);
     }
