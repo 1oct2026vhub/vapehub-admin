@@ -444,3 +444,65 @@ export const getProductVariants = async (productId: number) => {
     throw error;
   }
 };
+
+// --- Bulk Update Variants --- 
+
+// Interface for the structure within the 'updates' object
+interface BulkVariantUpdateFields {
+  price?: {
+    type: 'set' | 'increase' | 'decrease';
+    value: number;
+    is_percentage?: boolean;
+  };
+  discount_price?: {
+    type: 'set' | 'increase' | 'decrease';
+    value: number;
+    is_percentage?: boolean;
+  };
+  purchase_price?: {
+    type: 'set' | 'increase' | 'decrease';
+    value: number;
+    is_percentage?: boolean;
+  };
+  weight?: number;
+  length?: number;
+  width?: number;
+  height?: number;
+  stock?: number;
+  low_stock_threshold?: number;
+  stock_status?: 'in_stock' | 'out_of_stock' | 'back_order'; // Assuming backend expects snake_case
+  status?: 'active' | 'inactive';
+}
+
+// Interface for the full request body
+// Note: Exporting this interface allows the calling component (BulkUpdateView) 
+// to properly type the data it prepares.
+export interface BulkUpdateProductVariantsPayload {
+  updates: BulkVariantUpdateFields;
+}
+
+/**
+ * Bulk updates variants for a specific product.
+ * @param productId The ID of the product whose variants are being updated.
+ * @param payload The payload containing the updates. The `updates` object within should only contain fields that the user has entered/modified.
+ * @returns The API response data.
+ */
+export const bulkUpdateProductVariants = async (
+  productId: number,
+  payload: BulkUpdateProductVariantsPayload
+) => {
+  try {
+    // The payload should already be structured correctly by the calling component
+    console.log(`[bulkUpdateProductVariants] Sending bulk update for product ${productId}:`, payload);
+    const response = await axiosInstance.put(
+      `/api/admin/product-variants/product/${productId}/bulk-update`,
+      payload // Send the payload { updates: { ... } } directly
+    );
+    console.log("[bulkUpdateProductVariants] API Response:", response.data);
+    return response.data;
+  } catch (error) {
+    console.error(`Error bulk updating variants for product ${productId}:`, error);
+    // Re-throw the error so the calling component can handle it (e.g., show a snackbar)
+    throw error;
+  }
+};
