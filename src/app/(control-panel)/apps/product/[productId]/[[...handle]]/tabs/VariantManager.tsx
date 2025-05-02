@@ -1793,7 +1793,7 @@ const VariantManager = () => {
   // Function to apply attributes to the selected variant
   const applyAttributes = () => {
     if (attributeFields.length === 0) {
-      showSnackbar("No attributes available", "error");
+      // showSnackbar("No attributes available", "error");
       return;
     }
     
@@ -1856,7 +1856,7 @@ const VariantManager = () => {
   // Function to generate combinations of attribute terms
   const generateAttributeCombinations = () => {
     if (productAttributes.length === 0) {
-      showSnackbar("No attributes available", "error");
+      // showSnackbar("No attributes available", "error");
       return;
     }
     
