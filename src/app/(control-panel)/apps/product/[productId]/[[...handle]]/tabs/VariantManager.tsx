@@ -2674,7 +2674,7 @@ const VariantManager = () => {
           >
             Add manually
           </button>
-          {/* <button 
+          <button 
             className={`py-2 px-4 border font-medium rounded-lg ${
               viewMode === 'bulk' 
                 ? 'bg-[#006C38] text-white' 
@@ -2687,7 +2687,7 @@ const VariantManager = () => {
             disabled={isLoading}
           >
             Bulk Update
-          </button> */}
+          </button>
         </div>
 
         {/* Search Bar - Moved to right side */}
@@ -2828,14 +2828,6 @@ const VariantManager = () => {
 
           {viewMode === 'bulk' && (
             <BulkUpdateView
-              control={bulkControl} // Use bulk form control
-              handleSubmit={handleBulkSubmit} // Use bulk form handleSubmit
-              onSubmit={onBulkSubmit} // Pass the bulk submit logic
-              watch={watchBulk} // Use bulk form watch
-              setValue={bulkSetValue} // Use bulk form setValue
-              errors={bulkFormState.errors} // Use bulk form errors
-              formState={bulkFormState} // Pass the full bulk form state object
-              isSubmitting={isBulkSubmitting} // Pass bulk submitting state
             />
           )}
           

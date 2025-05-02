@@ -271,16 +271,18 @@ export const updateProductAttributes = async (
 
 export interface UpdateProductVariantRequest {
   slug: string;
-  price: number;
-  discount_price?: number;
-  purchase_price?: number;
-  stock: number;
-  low_stock_threshold?: number;
-  weight?: number;
-  length?: number;
-  width?: number;
-  height?: number;
-  barcode?: string;
+  price: number | null;
+  discount_price?: number | null;
+  purchase_price?: number | null;
+  stock: number | null;
+  low_stock_threshold?: number | null;
+  weight?: number | null;
+  length?: number | null;
+  width?: number | null;
+  height?: number | null;
+  barcode?: string | null;
+  status?: 'active' | 'inactive';
+  stock_status?: 'in_stock' | 'out_of_stock' | 'back_order' | null;
   attributes: Array<{
     attribute_id: number;
     term_id: number;
