@@ -40,6 +40,7 @@ import FuseSvgIcon from "@fuse/core/FuseSvgIcon";
 import { useSnackbar } from "@/contexts/SnackbarContext";
 import { formatDate } from "@/utils/actions";
 import useColumnOrder from "@/hooks/useColumnOrder";
+import ClearFiltersButton from "@/components/Shared/ClearFiltersButton";
 
 const SORT_FIELDS = [
   { value: "id", label: "ID" },
@@ -75,6 +76,34 @@ const AttributeTable = ({
   const [localAttributes, setLocalAttributes] = useState<Attribute[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [manuallyRefreshing, setManuallyRefreshing] = useState(false);
+
+  // --- START ADD: Check if Filters are Active ---
+  const areFiltersActive = useMemo(() => {
+    // Define default states for this table
+    const defaultSortBy = "created_at";
+    const defaultOrder = "DESC";
+    const defaultShowDeleted = false;
+
+    return (
+      search !== "" ||
+      sortBy !== defaultSortBy ||
+      order !== defaultOrder ||
+      showDeleted !== defaultShowDeleted
+    );
+  }, [search, sortBy, order, showDeleted]);
+  // --- END ADD ---
+
+  // --- START ADD: Clear Filters Function ---
+  const clearFilters = () => {
+    setSearch("");
+    setDebouncedSearch("");
+    setShowDeleted(false);
+    setSortBy("created_at");
+    setOrder("DESC");
+    setPage(1); // Reset page number
+    showSnackbar("Filters cleared", "info");
+  };
+  // --- END ADD ---
 
   // Debounce search input
   useEffect(() => {
@@ -346,6 +375,15 @@ const AttributeTable = ({
               <MenuItem value="DESC">Descending</MenuItem>
             </Select>
           </FormControl>
+
+          {/* --- START ADD: Clear Filters Button --- */}
+          {areFiltersActive && (
+            <ClearFiltersButton 
+              onClick={clearFilters}
+              sx={{ height: '40px' }} // Match height of other controls
+            />
+          )}
+          {/* --- END ADD --- */}
         </div>
       </div>
 

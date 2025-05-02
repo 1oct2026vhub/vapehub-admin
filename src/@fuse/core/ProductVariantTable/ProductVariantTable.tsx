@@ -44,6 +44,7 @@ import {
   restoreVariant,
 } from "@/services/apiProductVariant";
 import { formatDate, formatPounds } from "@/utils/actions";
+import ClearFiltersButton from "@/components/Shared/ClearFiltersButton";
 
 // Extend the base ProductVariant type
 interface ProductVariant extends BaseProductVariant {
@@ -100,6 +101,30 @@ const ProductVariantTable = ({
   const [totalRows, setTotalRows] = useState(0);
   const [variants, setVariants] = useState<ProductVariant[]>([]);
   const [loading, setLoading] = useState(false);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
+
+  // Default filter values
+  const defaultFilters = {
+    search: "",
+    order: "DESC" as "ASC" | "DESC",
+    sortBy: "id",
+    stockStatus: "in_stock",
+    priceRange: "",
+    productId: "",
+    page: 0,
+  };
+
+  // Check if any filters are active
+  const areFiltersActive = useMemo(() => {
+    return (
+      search !== defaultFilters.search ||
+      order !== defaultFilters.order ||
+      sortBy !== defaultFilters.sortBy ||
+      stockStatus !== defaultFilters.stockStatus ||
+      priceRange !== defaultFilters.priceRange ||
+      productId !== defaultFilters.productId
+    );
+  }, [search, order, sortBy, stockStatus, priceRange, productId, defaultFilters]);
 
   // Debounced values
   const debouncedSearch = useDebounce(search, 500);
@@ -165,6 +190,9 @@ const ProductVariantTable = ({
       const response = await listProductVariants(queryParams);
       setVariants(response.data?.variants);
       setTotalRows(response.data?.pagination?.total_count);
+      if (isInitialLoad) {
+        setIsInitialLoad(false);
+      }
     } catch (error) {
       console.error("Error fetching variants:", error);
       showSnackbar("Failed to fetch variants", "error");
@@ -262,7 +290,18 @@ const ProductVariantTable = ({
     }
   };
 
-  if (loading) return <FuseLoading />;
+  // Handler to clear filters
+  const handleClearFilters = () => {
+    setSearch(defaultFilters.search);
+    setOrder(defaultFilters.order);
+    setSortBy(defaultFilters.sortBy);
+    setStockStatus(defaultFilters.stockStatus);
+    setPriceRange(defaultFilters.priceRange);
+    setProductId(defaultFilters.productId);
+    setPage(defaultFilters.page); // Reset page to 0 as well
+  };
+
+  if (loading && isInitialLoad) return <FuseLoading />;
 
   return (
     <>
@@ -332,6 +371,9 @@ const ProductVariantTable = ({
               <MenuItem value="low_stock">Low Stock</MenuItem>
               <MenuItem value="out_of_stock">Out of Stock</MenuItem>
             </Select>
+            {areFiltersActive && (
+              <ClearFiltersButton onClick={handleClearFilters} />
+            )}
           </div>
         </div>
 
@@ -454,25 +496,16 @@ const ProductVariantTable = ({
               <MenuItem value="low_stock">Low Stock</MenuItem>
               <MenuItem value="out_of_stock">Out of Stock</MenuItem>
             </Select>
+            {areFiltersActive && (
+              <ClearFiltersButton
+                onClick={() => {
+                  handleClearFilters();
+                  setOpenDrawer(false);
+                }}
+                fullWidth
+              />
+            )}
           </ListItem>
-          {/* <ListItem>
-            <Select
-              value={deleted === null ? "all" : deleted ? "deleted" : "active"}
-              onChange={(e) =>
-                setDeleted(
-                  e.target.value === "all"
-                    ? null
-                    : e.target.value === "deleted",
-                )
-              }
-              fullWidth
-              size="small"
-            >
-              <MenuItem value="all">All Status</MenuItem>
-              <MenuItem value="active">Active</MenuItem>
-              <MenuItem value="deleted">Deleted</MenuItem>
-            </Select>
-          </ListItem> */}
           <ListItem>
             <Button
               fullWidth

@@ -405,3 +405,42 @@ export const setVariantPrimaryImage = async (
     throw error;
   }
 };
+
+// Update product status
+export const updateProductStatus = async (
+  productId: number,
+  status: "draft" | "published" | "archived"
+): Promise<any> => {
+  try {
+    const { data } = await axiosInstance.post(
+      `/api/admin/products/status`,
+      { productId, status }
+    );
+    return data;
+  } catch (error) {
+    console.error(`Error updating status for product ${productId}:`, error);
+    throw error;
+  }
+};
+
+// Add the generate variants API function
+export const generateProductVariants = async (productId: number) => {
+  try {
+    const response = await axiosInstance.post(`/api/admin/product-variants/product/${productId}/generate`);
+    return response.data;
+  } catch (error) {
+    console.error("Error generating variants:", error);
+    throw error;
+  }
+};
+
+// Add the get product variants API function
+export const getProductVariants = async (productId: number) => {
+  try {
+    const response = await axiosInstance.get(`/api/admin/product-variants/product/${productId}`);
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching product variants:", error);
+    throw error;
+  }
+};

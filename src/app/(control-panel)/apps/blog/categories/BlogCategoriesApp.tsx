@@ -36,6 +36,7 @@ import {
 } from "@/services/apiBlog";
 import DeleteConfirmationModal from "./components/DeleteConfirmationModal";
 import useColumnOrder from "@/hooks/useColumnOrder";
+import ClearFiltersButton from "@/components/Shared/ClearFiltersButton";
 
 // Add pagination interface
 interface Pagination {
@@ -68,6 +69,28 @@ export default function BlogCategoriesApp() {
     null
   );
   const [deleteLoading, setDeleteLoading] = useState(false);
+
+  // --- START ADD: Check if Filters are Active ---
+  const areFiltersActive = useMemo(() => {
+    // Define default states for this table
+    const defaultShowDeleted = false;
+
+    return (
+      search !== "" ||
+      showDeleted !== defaultShowDeleted
+    );
+  }, [search, showDeleted]);
+  // --- END ADD ---
+
+  // --- START ADD: Clear Filters Function ---
+  const clearFilters = () => {
+    setSearch("");
+    setDebouncedSearch("");
+    setShowDeleted(false);
+    setPagination(prev => ({ ...prev, page: 1 })); // Reset page
+    showSnackbar("Filters cleared", "info");
+  };
+  // --- END ADD ---
 
   // Debounce search input
   useEffect(() => {
@@ -300,6 +323,15 @@ export default function BlogCategoriesApp() {
                     <MenuItem value="deleted">Deleted</MenuItem>
                   </Select>
                 </FormControl>
+
+                {/* --- START ADD: Clear Filters Button --- */}
+                {areFiltersActive && (
+                  <ClearFiltersButton 
+                    onClick={clearFilters}
+                    sx={{ height: '40px' }} // Match height of other controls
+                  />
+                )}
+                {/* --- END ADD --- */}
               </div>
 
               <DataTable

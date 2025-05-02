@@ -35,6 +35,7 @@ import AppButton from "@/components/Shared/AppButton";
 import FuseSvgIcon from "../FuseSvgIcon";
 import { useSnackbar } from "@/contexts/SnackbarContext";
 import { formatDate } from "@/utils/actions";
+import ClearFiltersButton from "@/components/Shared/ClearFiltersButton";
 
 export type CategoryType = {
   id: number;
@@ -67,6 +68,25 @@ const ProductCategoryTable = ({
   const [localCategories, setLocalCategories] = useState<CategoryType[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [manuallyRefreshing, setManuallyRefreshing] = useState(false);
+
+  // --- START ADD: Check if Filters are Active ---
+  const areFiltersActive = useMemo(() => {
+    return (
+      search !== "" ||
+      deleted !== null
+    );
+  }, [search, deleted]);
+  // --- END ADD ---
+
+  // --- START ADD: Clear Filters Function ---
+  const clearFilters = () => {
+    setSearch("");
+    setDebouncedSearch("");
+    setDeleted(null);
+    setPage(1); // Reset page to 1
+    showSnackbar("Filters cleared", "info");
+  };
+  // --- END ADD ---
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -309,6 +329,15 @@ const ProductCategoryTable = ({
             <MenuItem value="active">Active</MenuItem>
             <MenuItem value="deleted">Deleted</MenuItem>
           </Select>
+
+          {/* --- EDIT: Conditionally render and remove isVisible prop --- */}
+          {areFiltersActive && (
+            <ClearFiltersButton 
+              onClick={clearFilters}
+              sx={{ height: '40px' }} // Match height of other controls
+            />
+          )}
+          {/* --- END EDIT --- */}
         </div>
       </div>
 

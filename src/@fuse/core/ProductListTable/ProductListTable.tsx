@@ -30,8 +30,9 @@ import {
   InputLabel,
   Autocomplete,
   CircularProgress,
+  Box,
 } from "@mui/material";
-import { listProducts } from "@/services/apiProduct";
+import { listProducts, deleteProduct, restoreProduct, updateProductStatus } from "@/services/apiProduct";
 import { listProductCategory } from "@/services/apiProductCategory";
 import { listProductBrand } from "@/services/apiProductBrand";
 import { useFetch } from "@/hooks/useFetch";
@@ -40,10 +41,10 @@ import { useRouter } from "next/navigation";
 import FuseSvgIcon from "../FuseSvgIcon";
 import AppButton from "@/components/Shared/AppButton";
 import { useSnackbar } from "@/contexts/SnackbarContext";
-import { deleteProduct, restoreProduct } from "@/services/apiProduct";
 import { formatDate } from "@/utils/actions";
 import useColumnOrder from "@/hooks/useColumnOrder";
 import debounce from 'lodash/debounce';
+import ClearFiltersButton from "@/components/Shared/ClearFiltersButton";
 
 export type ProductType = {
   id: number;
@@ -59,6 +60,7 @@ export type ProductType = {
   deletedAt: string | null;
   createdAt: string;
   updatedAt: string;
+  status: "draft" | "published" | "archived";
   // Add Brand and Category properties
   Brand?: {
     id: number;
@@ -132,6 +134,21 @@ const ProductListTable = ({
   const [totalPages, setTotalPages] = useState(0);
   const [manuallyRefreshing, setManuallyRefreshing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+
+  // --- START ADD: Check if Filters are Active ---
+  const areFiltersActive = useMemo(() => {
+    return (
+      search !== "" ||
+      sortBy !== "id" ||
+      order !== "DESC" ||
+      deleted !== null ||
+      isNew !== null ||
+      priceRange !== "" ||
+      categories !== "" ||
+      brands !== ""
+    );
+  }, [search, sortBy, order, deleted, isNew, priceRange, categories, brands]);
+  // --- END ADD ---
 
   // Add debounce effect for search term
   useEffect(() => {
@@ -470,6 +487,20 @@ const ProductListTable = ({
     setSelectedProduct(null);
   };
 
+  const handleStatusChange = async (productId: number, newStatus: "draft" | "published" | "archived", closeMenu: () => void) => {
+    try {
+      await updateProductStatus(productId, newStatus);
+      showSnackbar(`Product status updated to ${newStatus}`, "success");
+      if (refreshData) {
+        await refreshData();
+      }
+      closeMenu();
+    } catch (error) {
+      console.error("Error updating product status:", error);
+      showSnackbar("Failed to update product status", "error");
+    }
+  };
+
   const columns = useMemo<MRT_ColumnDef<ProductType>[]>(
     () => [
       { accessorKey: "id", header: "ID" },
@@ -506,6 +537,46 @@ const ProductListTable = ({
             color={row.original.is_new ? "success" : "default"}
           />
         ),
+      },
+      {
+        accessorKey: "status",
+        header: "Status",
+        Cell: ({ row }) => {
+          const status = row.original.status || "draft";
+          return (
+            <Select
+              value={status}
+              onChange={(e) => handleStatusChange(row.original.id, e.target.value as "draft" | "published" | "archived", () => {})}
+              size="small"
+              sx={{
+                minWidth: 120,
+                '& .MuiSelect-select': {
+                  display: 'flex',
+                  alignItems: 'center',
+                }
+              }}
+            >
+              <MenuItem value="draft">
+                <Box component="span" sx={{ display: 'flex', alignItems: 'center' }}>
+                  <Box component="span" sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: 'grey.500', mr: 1 }} />
+                  Draft
+                </Box>
+              </MenuItem>
+              <MenuItem value="published">
+                <Box component="span" sx={{ display: 'flex', alignItems: 'center' }}>
+                  <Box component="span" sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: 'success.main', mr: 1 }} />
+                  Published
+                </Box>
+              </MenuItem>
+              <MenuItem value="archived">
+                <Box component="span" sx={{ display: 'flex', alignItems: 'center' }}>
+                  <Box component="span" sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: 'warning.main', mr: 1 }} />
+                  Archived
+                </Box>
+              </MenuItem>
+            </Select>
+          );
+        },
       },
       {
         accessorKey: "createdAt",
@@ -558,6 +629,31 @@ const ProductListTable = ({
     }
   };
 
+  // --- START ADD: Clear Filters Function ---
+  const clearFilters = () => {
+    setSearch("");
+    setDebouncedSearch(""); // Also clear debounced search
+    setOrder("DESC");
+    setSortBy("id");
+    setDeleted(null);
+    setIsNew(null);
+    setPriceRange("");
+    setCategories("");
+    setBrands("");
+    setSelectedCategory(null);
+    setSelectedBrand(null);
+    setCategorySearchQuery("");
+    setBrandSearchQuery("");
+    setPage(1); // Reset page to 1
+
+    // Reset dropdown options
+    fetchCategories("");
+    fetchBrands("");
+    
+    showSnackbar("Filters cleared", "info");
+  };
+  // --- END ADD ---
+
   if (isLoading || manuallyRefreshing || (apiLoading && products.length === 0))
     return <FuseLoading />;
   if (error) return <p>Failed to load products</p>;
@@ -606,7 +702,7 @@ const ProductListTable = ({
             }}
           />
 
-          <div className="hidden md:flex gap-2">
+          <div className="hidden md:flex gap-3">
             <Select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
@@ -658,7 +754,7 @@ const ProductListTable = ({
               <MenuItem value="deleted">Deleted</MenuItem>
             </Select>
 
-            <FormControl sx={{ minWidth: 180 }} size="small">
+            <FormControl sx={{ minWidth: 120 }} size="small">
               <Autocomplete
                 options={categoryOptions}
                 getOptionLabel={(option) => option.name}
@@ -721,7 +817,7 @@ const ProductListTable = ({
               />
             </FormControl>
 
-            <FormControl sx={{ minWidth: 180 }} size="small">
+            <FormControl sx={{ minWidth: 120 }} size="small">
               <Autocomplete
                 options={brandOptions}
                 getOptionLabel={(option) => option.name}
@@ -783,6 +879,14 @@ const ProductListTable = ({
                 }}
               />
             </FormControl>
+
+            {/* --- EDIT: Conditionally render and remove isVisible prop (Desktop) --- */}
+            {areFiltersActive && (
+              <ClearFiltersButton 
+                onClick={clearFilters}
+              />
+            )}
+            {/* --- END EDIT --- */}
           </div>
         </div>
 
@@ -809,7 +913,6 @@ const ProductListTable = ({
               key="edit"
               onClick={() => {
                 router.push(`/apps/product/edit?productId=${row.original.id}`);
-                // router.push(`/apps/product/${row.original.id}`);
                 closeMenu();
               }}
             >
@@ -817,6 +920,48 @@ const ProductListTable = ({
                 <FuseSvgIcon>heroicons-outline:pencil-square</FuseSvgIcon>
               </ListItemIcon>
               Edit
+            </MenuItem>,
+            <MenuItem
+              key="status"
+              sx={{ 
+                '& .MuiSelect-select': { 
+                  padding: '0 !important',
+                }
+              }}
+            >
+              <FormControl fullWidth size="small">
+                <Select
+                  value={row.original.status || "draft"}
+                  onChange={(e) => handleStatusChange(row.original.id, e.target.value as "draft" | "published" | "archived", closeMenu)}
+                  variant="standard"
+                  sx={{
+                    '& .MuiSelect-select': {
+                      display: 'flex',
+                      alignItems: 'center',
+                      pl: 0
+                    }
+                  }}
+                >
+                  <MenuItem value="draft">
+                    <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
+                      <Box component="span" sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: 'grey.500', mr: 1 }} />
+                      Draft
+                    </Box>
+                  </MenuItem>
+                  <MenuItem value="published">
+                    <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
+                      <Box component="span" sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: 'success.main', mr: 1 }} />
+                      Published
+                    </Box>
+                  </MenuItem>
+                  <MenuItem value="archived">
+                    <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
+                      <Box component="span" sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: 'warning.main', mr: 1 }} />
+                      Archived
+                    </Box>
+                  </MenuItem>
+                </Select>
+              </FormControl>
             </MenuItem>,
             row.original.deletedAt ? (
               <MenuItem
@@ -1086,9 +1231,21 @@ const ProductListTable = ({
               fullWidth
               variant="contained"
               onClick={() => setOpenDrawer(false)}
+              sx={{ mb: 1 }} // Add margin below
             >
               Apply Filters
             </Button>
+            {/* --- EDIT: Conditionally render and remove isVisible prop (Mobile) --- */}
+            {areFiltersActive && (
+              <ClearFiltersButton 
+                onClick={() => {
+                  clearFilters();
+                  setOpenDrawer(false); // Close drawer after clearing
+                }}
+                fullWidth // Keep fullWidth for drawer
+              />
+            )}
+            {/* --- END EDIT --- */}
           </ListItem>
         </List>
       </Drawer>
