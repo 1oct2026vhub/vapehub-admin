@@ -642,10 +642,15 @@ const mapFormStockStatusToApi = (formStatus?: 'In Stock' | 'Out of Stock' | 'Bac
 };
 // --- End Add: Stock Status Mapping Helpers ---
 
-const VariantManager = () => {
+// Define props interface if not already defined, or add isActive to existing one
+interface VariantManagerProps {
+  isActive: boolean;
+}
+
+const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add isActive prop
   const { showSnackbar } = useSnackbar();
   const searchParams = useSearchParams();
-  const [viewMode, setViewMode] = useState<'initial' | 'generated' | 'manual' | 'bulk'>('initial'); // Explicitly type the state
+  const [viewMode, setViewMode] = useState<'initial' | 'generated' | 'manual' | 'bulk'>('initial');
   const [variants, setVariants] = useState<Variant[]>([]);
   
   const [selectedVariantIndex, setSelectedVariantIndex] = useState<number>(0);
@@ -658,6 +663,23 @@ const VariantManager = () => {
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isBulkSubmitting, setIsBulkSubmitting] = useState<boolean>(false);
+  
+  // --- Add Ref and Effect for Resetting View Mode --- 
+  const prevIsActive = useRef<boolean>(isActive);
+
+  useEffect(() => {
+    // Check if the tab just became active (transitioned from false to true)
+    if (isActive && !prevIsActive.current) {
+      console.log('[VariantManager] Tab became active, resetting viewMode.');
+      setViewMode('initial');
+      // Optionally reset other states if needed when tab becomes active
+      // setSearchTerm(''); 
+      // setSelectedVariantIndex(0); 
+    }
+    // Update the previous value for the next render
+    prevIsActive.current = isActive;
+  }, [isActive]); // Depend only on isActive
+  // --- End Add --- 
   
   // Get the currently selected variant
   const selectedVariant = variants[selectedVariantIndex] || null;
@@ -2691,7 +2713,7 @@ const VariantManager = () => {
         </div>
 
         {/* Search Bar - Moved to right side */}
-        {/* {variants.length > 0 && viewMode !== 'initial' && (
+        {variants.length > 0 && viewMode !== 'initial' && (
           <div className="flex items-center gap-2">
             <div className="flex items-center w-[250px] relative border rounded-full">
               <input 
@@ -2705,10 +2727,10 @@ const VariantManager = () => {
                 <SearchIcon className="text-gray-500 mr-1" />
                 <TuneIcon className="text-gray-500" />
               </div>
-            </div> */}
+            </div>
 
             {/* Reset button - Already checked viewMode !== 'initial' in outer conditional */}
-            {/* <button 
+            <button 
               className="py-2 px-4 bg-[#FF0004] text-white rounded hover:bg-red-600"
               onClick={() => {
                 if (confirm('Are you sure you want to reset? All unsaved variants will be lost.')) {
@@ -2720,10 +2742,10 @@ const VariantManager = () => {
               Remove All
             </button>
           </div>
-        )} */}
+        )}
 
         {/* Show only Remove All button when search bar is hidden */}
-        {(!variants.length || viewMode === 'bulk') && viewMode !== 'initial' && (
+        {/* {(!variants.length || viewMode === 'bulk') && viewMode !== 'initial' && (
           <button 
             className="py-2 px-4 bg-[#FF0004] text-white rounded hover:bg-red-600"
             onClick={() => {
@@ -2735,7 +2757,7 @@ const VariantManager = () => {
           >
             Remove All
           </button>
-        )}
+        )} */}
       </div>
 
       {/* Loading Indicator */}
