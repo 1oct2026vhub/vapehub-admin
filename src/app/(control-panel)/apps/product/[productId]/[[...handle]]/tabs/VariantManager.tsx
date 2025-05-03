@@ -1770,27 +1770,79 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
 
   // Filter variants based on search term
   const filteredVariants = variants.filter(variant => {
-    if (!searchTerm) return true;
+    // --- Add Logging --- 
+    console.log(`[Search Filter] Checking Variant ID: ${variant.id}, Search Term: "${searchTerm}"`);
+    
+    if (!searchTerm) {
+      console.log(`[Search Filter] No search term, including variant.`);
+      return true;
+    }
     
     const searchLower = searchTerm.toLowerCase();
-    
+    let match = false;
+
     // Search in ID
-    if (variant.id.toLowerCase().includes(searchLower)) return true;
+    const idMatch = variant.id?.toString().toLowerCase().includes(searchLower);
+    if (idMatch) {
+      console.log(`[Search Filter] Match found in ID: ${variant.id}`);
+      match = true;
+    }
     
     // Search in slug
-    if (variant.slug.toLowerCase().includes(searchLower)) return true;
+    const slugMatch = !match && variant.slug?.toLowerCase().includes(searchLower);
+    if (slugMatch) {
+      console.log(`[Search Filter] Match found in Slug: ${variant.slug}`);
+      match = true;
+    }
+
+    // Search in Price (convert to string)
+    const priceMatch = !match && variant.price?.toString().includes(searchLower);
+    if (priceMatch) {
+      console.log(`[Search Filter] Match found in Price: ${variant.price}`);
+      match = true;
+    }
     
-    // Search in attributes
-    for (const [key, value] of Object.entries(variant.attributes)) {
-      if (
-        key.toLowerCase().includes(searchLower) ||
-        value.toLowerCase().includes(searchLower)
-      ) {
-        return true;
+    // Search in Stock (convert to string)
+    const stockMatch = !match && variant.stock?.toString().includes(searchLower);
+    if (stockMatch) {
+      console.log(`[Search Filter] Match found in Stock: ${variant.stock}`);
+      match = true;
+    }
+    
+    // Search in Barcode
+    const barcodeMatch = !match && variant.barcode?.toLowerCase().includes(searchLower);
+    if (barcodeMatch) {
+      console.log(`[Search Filter] Match found in Barcode: ${variant.barcode}`);
+      match = true;
+    }
+
+    // Search in Description
+    const descriptionMatch = !match && variant.description?.toLowerCase().includes(searchLower);
+    if (descriptionMatch) {
+      console.log(`[Search Filter] Match found in Description: ${variant.description}`);
+      match = true;
+    }
+    
+    // Search in attributes (both name and term value)
+    if (!match) {
+      try {
+        for (const [key, value] of Object.entries(variant.attributes || {})) { 
+          const keyMatch = key.toLowerCase().includes(searchLower);
+          const valueMatch = value?.toString().toLowerCase().includes(searchLower); 
+          if (keyMatch || valueMatch) {
+            console.log(`[Search Filter] Match found in Attribute - Key: ${key}, Value: ${value}`);
+            match = true;
+            break; // Exit loop once match is found in attributes
+          }
+        }
+      } catch (e) {
+         console.error(`[Search Filter] Error processing attributes for variant ${variant.id}:`, e);
       }
     }
     
-    return false;
+    console.log(`[Search Filter] Final match result for Variant ID ${variant.id}: ${match}`);
+    return match;
+    // --- End Logging Additions ---
   });
 
   // Function to add a new attribute field
