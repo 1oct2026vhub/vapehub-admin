@@ -663,6 +663,8 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isBulkSubmitting, setIsBulkSubmitting] = useState<boolean>(false);
+  // --- Add State for Remove All Dialog --- 
+  const [isRemoveAllDialogOpen, setIsRemoveAllDialogOpen] = useState<boolean>(false);
   
   // --- Add Ref and Effect for Resetting View Mode --- 
   const prevIsActive = useRef<boolean>(isActive);
@@ -2721,6 +2723,64 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
     }
   }, [variants, selectedVariantIndex, resetEditForm, variants[selectedVariantIndex]]);
 
+  // --- Add Function to handle Remove All Variants --- 
+  const handleConfirmRemoveAll = async () => { // Make function async
+    setIsRemoveAllDialogOpen(false); // Close dialog immediately
+    
+    const variantsToDelete = [...variants]; // Copy current variants
+    if (variantsToDelete.length === 0) return; // Should not happen, but safe check
+
+    setIsSubmitting(true); // Start loading indicator
+    let successCount = 0;
+    let errorCount = 0;
+
+    console.log(`[RemoveAll] Starting deletion for ${variantsToDelete.length} variants.`);
+
+    // Process deletions sequentially to avoid overwhelming the backend
+    for (const variant of variantsToDelete) {
+      // Skip temporary variants that haven't been saved
+      if (typeof variant.id === 'string' && variant.id.startsWith('#TEMP')) {
+         console.log(`[RemoveAll] Skipping temporary variant ID: ${variant.id}`);
+         continue; // Don't call API for temp variants
+      }
+      
+      try {
+        console.log(`[RemoveAll] Attempting to delete variant ID: ${variant.id}`);
+        await deleteProductVariant(Number(variant.id));
+        console.log(`[RemoveAll] Successfully deleted variant ID: ${variant.id}`);
+        successCount++;
+      } catch (error) {
+        console.error(`[RemoveAll] Failed to delete variant ID: ${variant.id}`, error);
+        errorCount++;
+        // Optionally show individual error snackbars or collect errors
+        // showSnackbar(`Failed to delete variant ${variant.id}`, "error");
+      }
+    }
+
+    console.log(`[RemoveAll] Deletion complete. Success: ${successCount}, Failed: ${errorCount}`);
+
+    // Update UI after all deletions are attempted
+    setVariants([]);
+    setSelectedVariantIndex(0); // Reset selection
+    resetEditForm(); // Reset the edit form
+    // Consider resetting create form as well if needed: resetCreateForm();
+    setPendingCombination(null); // Clear pending combination
+    // Refetch combinations/attributes if needed to update counts
+    if (formData?.productId) {
+       fetchProductAttributes(formData.productId); 
+    }
+
+    // Show summary snackbar
+    if (errorCount === 0) {
+      showSnackbar(`Successfully removed all ${successCount} variants.`, "success");
+    } else {
+      showSnackbar(`Removed ${successCount} variants. Failed to remove ${errorCount}.`, "warning");
+    }
+
+    setIsSubmitting(false); // Stop loading indicator
+  };
+  
+
   return (
     <div className="w-full">      
       {/* Button Toolbar with Search Field */}
@@ -2785,11 +2845,15 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
             <button 
               className="py-2 px-4 bg-[#FF0004] text-white rounded hover:bg-red-600"
               onClick={() => {
-                if (confirm('Are you sure you want to reset? All unsaved variants will be lost.')) {
-                  handleAddManually();
+                // --- Modify onClick for Remove All --- 
+                if (variants.length === 0) {
+                  showSnackbar("No variants to remove.", "info");
+                  return;
                 }
+                setIsRemoveAllDialogOpen(true); // Open the new confirmation dialog
+                // --- End Modification ---
               }}
-              disabled={isLoading}
+              disabled={isLoading || variants.length === 0} // Disable if no variants
             >
               Remove All
             </button>
@@ -2927,6 +2991,35 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
           </Button>
           <Button onClick={handleConfirmDeleteVariant} color="error" autoFocus disabled={isSubmitting}>
             {isSubmitting ? <CircularProgress size={20} color="inherit"/> : 'Delete'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* --- Add Remove All Confirmation Dialog --- */}
+      <Dialog
+        open={isRemoveAllDialogOpen}
+        onClose={() => setIsRemoveAllDialogOpen(false)}
+        aria-labelledby="remove-all-dialog-title"
+        aria-describedby="remove-all-dialog-description"
+      >
+        <DialogTitle id="remove-all-dialog-title">{"Confirm Remove All Variants"}</DialogTitle>
+        <DialogContent>
+          <DialogContentText id="remove-all-dialog-description">
+            Are you sure you want to remove ALL ({variants.length}) variants for this product?
+            This action cannot be undone.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setIsRemoveAllDialogOpen(false)} color="primary">
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleConfirmRemoveAll} // Call the new handler
+            color="error" 
+            autoFocus 
+            disabled={isSubmitting} // Use existing submitting state
+          >
+            {isSubmitting ? <CircularProgress size={20} color="inherit"/> : 'Confirm Remove All'}
           </Button>
         </DialogActions>
       </Dialog>
