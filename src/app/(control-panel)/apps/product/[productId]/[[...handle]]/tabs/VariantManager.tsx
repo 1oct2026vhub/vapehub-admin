@@ -2959,14 +2959,35 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
           
           {viewMode === 'generated' && (
             // Assuming GenerateVariantsView mainly needs loading state for now
-            <GenerateVariantsView isLoading={isLoading}  allCombinationsUsed={allCombinationsUsed}
-/> 
+            <GenerateVariantsView isLoading={isLoading}  allCombinationsUsed={allCombinationsUsed}/> 
             // Pass other relevant props if needed, e.g., generatedCombinations, actions
           )}
 
           {viewMode === 'bulk' && (
-            <BulkUpdateView
-            />
+              <BulkUpdateView 
+                allCombinationsUsed={allCombinationsUsed} 
+                // --- Pass additional props for list/edit --- 
+                variants={variants}
+                setVariants={setVariants}
+                selectedVariantIndex={selectedVariantIndex}
+                setSelectedVariantIndex={setSelectedVariantIndex}
+                filteredVariants={filteredVariants}
+                editControl={editControl}
+                handleEditSubmit={handleEditSubmit}
+                editFormState={editFormState}
+                handleUpdateVariant={handleUpdateVariant}
+                editGetRootProps={editGetRootProps}
+                editGetInputProps={editGetInputProps}
+                editIsDragActive={editIsDragActive}
+                handleSetPrimaryImage={handleSetPrimaryImage}
+                handleDeleteImage={handleDeleteImage}
+                isEditImageUploading={isEditImageUploading}
+                isUpdating={isUpdating}
+                setVariantToDeleteId={setVariantToDeleteId}
+                setIsDeleteDialogOpen={setIsDeleteDialogOpen}
+                showSnackbar={showSnackbar}
+                // --- End Pass additional props --- 
+              />
           )}
           
           {/* --- REMOVED INLINE JSX FOR VIEWS --- */}
