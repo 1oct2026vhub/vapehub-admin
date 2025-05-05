@@ -18,6 +18,7 @@ import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { OrderStatus, PaymentStatus } from "@/services/apiOrder";
 import { Dayjs } from "dayjs";
 import GenerateReportButton from "./GenerateReportButton";
+import ClearFiltersButton from "@/components/Shared/ClearFiltersButton";
 
 interface OrderFilterDrawerProps {
   open: boolean;
@@ -38,6 +39,8 @@ interface OrderFilterDrawerProps {
   onOrderChange: (value: "ASC" | "DESC") => void;
   onClearFilters: () => void;
   onApplyFilters: () => void;
+  areFiltersActive: boolean;
+  hasUserFiltered: boolean;
 }
 
 const OrderFilterDrawer = ({
@@ -59,6 +62,8 @@ const OrderFilterDrawer = ({
   onOrderChange,
   onClearFilters,
   onApplyFilters,
+  areFiltersActive,
+  hasUserFiltered,
 }: OrderFilterDrawerProps) => {
   return (
     <Drawer anchor="left" open={open} onClose={onClose}>
@@ -180,14 +185,13 @@ const OrderFilterDrawer = ({
 
         {/* Action Buttons */}
         <div className="flex gap-2 mt-4">
-          <Button
-            variant="outlined"
-            color="inherit"
-            onClick={onClearFilters}
-            fullWidth
-          >
-            Clear All
-          </Button>
+          {areFiltersActive && hasUserFiltered && (
+            <ClearFiltersButton 
+              onClick={onClearFilters} 
+              fullWidth
+            />
+          )}
+          
           <Button
             variant="contained"
             color="primary"

@@ -19,6 +19,7 @@ import ClearIcon from "@mui/icons-material/Clear";
 import dayjs from "dayjs";
 import { TransactionStatus, TransactionType } from "@/services/apiTransaction";
 import { debounce } from "lodash";
+import ClearFiltersButton from "@/components/Shared/ClearFiltersButton";
 
 interface TransactionFiltersProps {
   search: string;
@@ -32,6 +33,8 @@ interface TransactionFiltersProps {
   onStartDateChange: (date: dayjs.Dayjs | null) => void;
   onEndDateChange: (date: dayjs.Dayjs | null) => void;
   onClearFilters: () => void;
+  areFiltersActive: boolean;
+  hasUserFiltered: boolean;
   className?: string;
 }
 
@@ -47,6 +50,8 @@ const TransactionFilters: React.FC<TransactionFiltersProps> = ({
   onStartDateChange,
   onEndDateChange,
   onClearFilters,
+  areFiltersActive,
+  hasUserFiltered,
   className = "",
 }) => {
   const [inputValue, setInputValue] = useState(search);
@@ -199,14 +204,9 @@ const TransactionFilters: React.FC<TransactionFiltersProps> = ({
         />
       </LocalizationProvider>
 
-      {/* <Button
-        variant="outlined"
-        size="small"
-        onClick={onClearFilters}
-        color="inherit"
-      >
-        Clear Filters
-      </Button> */}
+      {areFiltersActive && hasUserFiltered && (
+        <ClearFiltersButton onClick={onClearFilters} />
+      )}
     </Box>
   );
 };
