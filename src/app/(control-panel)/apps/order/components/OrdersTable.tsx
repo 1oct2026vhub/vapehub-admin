@@ -261,59 +261,53 @@ const OrdersTable = ({
   };
 
   // Default column definition
-  const defaultColumns = useMemo<MRT_ColumnDef<any>[]>(
-    () => [
-      { accessorKey: "order_unique_id", header: "Order ID" },
-      {
-        accessorKey: "user",
-        header: "Customer",
-        Cell: ({ row }) => {
-          const user = row.original.user;
-          return user
-            ? `${user.first_name || ""} ${user.last_name || ""}`
-            : "Guest";
-        },
+  const defaultColumns = useMemo<MRT_ColumnDef<any>[]>(() => [
+    {
+      accessorKey: "order_unique_id",
+      header: "Order ID",
+      Cell: ({ row }) => row.original.order_unique_id || "N/A",
+    },
+    {
+      accessorKey: "user",
+      header: "Customer",
+      Cell: ({ row }) => {
+        const user = row.original.user;
+        return user ? `${user.first_name || ""} ${user.last_name || ""}`.trim() || "N/A" : "Guest";
       },
-      {
-        accessorKey: "total",
-        header: "Total",
-        Cell: ({ row }) => {
-          const total = parseFloat(row.original.total);
-          return formatPounds(total);
-        },
+    },
+    {
+      accessorKey: "total",
+      header: "Total",
+      Cell: ({ row }) => {
+        const totalValue = row.original.total;
+        if (totalValue === null || totalValue === undefined) {
+          return "N/A";
+        }
+        const total = parseFloat(totalValue);
+        return !isNaN(total) ? formatPounds(total) : "N/A";
       },
-      {
-        accessorKey: "status",
-        header: "Status",
-        Cell: ({ row }) => <OrderStatusChip status={row.original.status} />,
-      },
-      // {
-      //   accessorKey: "payment_status",
-      //   header: "Payment",
-      //   Cell: ({ row }) => (
-      //     <PaymentStatusChip
-      //       status={row.original.payment_status || "N/A"}
-      //     />
-      //   ),
-      // },
-      {
-        accessorKey: "orderItems",
-        header: "Items",
-        Cell: ({ row }) => row.original.orderItems?.length || 0,
-      },
-      {
-        accessorKey: "updatedAt",
-        header: "Date",
-        Cell: ({ row }) => formatRelativeTime(row.original.updatedAt),
-      },
-      {
-        accessorKey: "createdAt",
-        header: "Created At",
-        Cell: ({ row }) => formatDate(row.original.createdAt),
-      },
-    ],
-    []
-  );
+    },
+    {
+      accessorKey: "status",
+      header: "Status",
+      Cell: ({ row }) => row.original.status ? <OrderStatusChip status={row.original.status} /> : "N/A",
+    },
+    {
+      accessorKey: "orderItems",
+      header: "Items",
+      Cell: ({ row }) => row.original.orderItems?.length || 0,
+    },
+    {
+      accessorKey: "updatedAt",
+      header: "Date",
+      Cell: ({ row }) => row.original.updatedAt ? formatRelativeTime(row.original.updatedAt) : "N/A",
+    },
+    {
+      accessorKey: "createdAt",
+      header: "Created At",
+      Cell: ({ row }) => row.original.createdAt ? formatDate(row.original.createdAt) : "N/A",
+    },
+  ], []);
 
   // Use our custom hook for column ordering
   const { columns, columnOrder, onColumnOrderChange } = useColumnOrder('orders', defaultColumns);

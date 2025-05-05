@@ -236,17 +236,15 @@ const CustomerTable = () => {
       {
         accessorKey: "createdAt",
         header: "Created At",
-        Cell: ({ row }) => formatDate(row.original.createdAt),
+        Cell: ({ row }) => row.original.createdAt ? formatDate(row.original.createdAt) : 'N/A',
       },
-      // { accessorKey: "createdAt", header: "Created At" },
       { accessorKey: "phone", header: "Contact" },
       { accessorKey: "gender", header: "Gender" },
       {
         accessorKey: "dob",
         header: "Date of Birth",
-        Cell: ({ row }) => formatDate(row.original.dob),
+        Cell: ({ row }) => row.original.dob ? formatDate(row.original.dob) : 'N/A',
       },
-      // { accessorKey: "dob", header: "Date of Birth" },
       {
         accessorKey: "status",
         header: "Status",
@@ -274,7 +272,7 @@ const CustomerTable = () => {
       ...(deleted ? [{
         accessorKey: "deletedAt",
         header: "Deleted At",
-        Cell: ({ row }) => formatDate(row.original.deletedAt || ''),
+        Cell: ({ row }) => row.original.deletedAt ? formatDate(row.original.deletedAt) : 'N/A',
       }] : []),
     ],
     [deleted],
@@ -285,11 +283,11 @@ const CustomerTable = () => {
 
   const customerData: UserType[] = customers?.map((user: any) => ({
     id: user.id,
-    first_name: user.first_name,
-    last_name: user.last_name,
-    email: user.email,
+    first_name: user.first_name || "N/A",
+    last_name: user.last_name || "N/A",
+    email: user.email || "N/A",
     createdAt: user.createdAt,
-    phone: user.phone,
+    phone: user.phone ?? "N/A",
     gender: user.gender
       ? user.gender.charAt(0).toUpperCase() + user.gender.slice(1)
       : "N/A",

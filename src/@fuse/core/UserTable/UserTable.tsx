@@ -257,20 +257,18 @@ const UserTable = () => {
       { accessorKey: "first_name", header: "First Name" },
       { accessorKey: "last_name", header: "Last Name" },
       { accessorKey: "email", header: "Email" },
-     
-        {
-          accessorKey: "createdAt",
-          header: "Created At",
-          Cell: ({ row }) => formatDate(row.original.createdAt),
-        },
-     
+      {
+        accessorKey: "createdAt",
+        header: "Created At",
+        Cell: ({ row }) => row.original.createdAt ? formatDate(row.original.createdAt) : 'N/A',
+      },
       { accessorKey: "role", header: "Role" },
       { accessorKey: "phone", header: "Contact" },
       { accessorKey: "gender", header: "Gender" },
       {
         accessorKey: "dob",
         header: "Date of Birth",
-          Cell: ({ row }) => formatDate(row.original.dob),
+        Cell: ({ row }) => row.original.dob ? formatDate(row.original.dob) : 'N/A',
       },
       {
         accessorKey: "status",
@@ -311,7 +309,7 @@ const UserTable = () => {
       ...(deleted ? [{
         accessorKey: "deletedAt",
         header: "Deleted At",
-        Cell: ({ row }) => formatDate(row.original.deletedAt || ''),
+        Cell: ({ row }) => row.original.deletedAt ? formatDate(row.original.deletedAt) : 'N/A',
       }] : []),
     ],
     [deleted],
@@ -322,17 +320,16 @@ const UserTable = () => {
 
   const userData: UserType[] = users?.map((user: any) => ({
     id: user.id,
-    first_name: user.first_name,
-    last_name: user.last_name,
-    email: user.email,
+    first_name: user.first_name || "N/A",
+    last_name: user.last_name || "N/A",
+    email: user.email || "N/A",
     createdAt: user.createdAt,
     role:
       user.roles?.role === "super_admin"
         ? "Admin"
         : (user.roles?.role === "customer" && "Customer") || "N/A",
-    roleId: user.roles?.id || "N/A",
-    phone: user.phone,
-    // gender: user.gender,
+    roleId: user.roles?.id ?? "N/A",
+    phone: user.phone ?? "N/A",
     gender: user.gender
       ? user.gender.charAt(0).toUpperCase() + user.gender.slice(1)
       : "N/A",
