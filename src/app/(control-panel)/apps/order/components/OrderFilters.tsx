@@ -16,6 +16,7 @@ import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import SearchIcon from "@mui/icons-material/Search";
 import { OrderStatus, PaymentStatus } from "@/services/apiOrder";
 import { Dayjs } from "dayjs";
+import ClearFiltersButton from "@/components/Shared/ClearFiltersButton";
 
 interface OrderFiltersProps {
   search: string;
@@ -29,6 +30,8 @@ interface OrderFiltersProps {
   onStartDateChange: (value: Dayjs | null) => void;
   onEndDateChange: (value: Dayjs | null) => void;
   onClearFilters: () => void;
+  areFiltersActive: boolean;
+  hasUserFiltered: boolean;
   className?: string;
 }
 
@@ -44,6 +47,8 @@ const OrderFilters = ({
   onStartDateChange,
   onEndDateChange,
   onClearFilters,
+  areFiltersActive,
+  hasUserFiltered,
   className,
 }: OrderFiltersProps) => {
   return (
@@ -135,9 +140,9 @@ const OrderFilters = ({
         />
       </LocalizationProvider>
 
-      {/* <Button variant="outlined" size="small" onClick={onClearFilters}>
-        Clear Filters
-      </Button> */}
+      {areFiltersActive && hasUserFiltered && (
+        <ClearFiltersButton onClick={onClearFilters} />
+      )}
     </Box>
   );
 };

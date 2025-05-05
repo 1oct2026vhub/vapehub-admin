@@ -83,6 +83,7 @@ const OrdersTable = ({
   const [status, setStatus] = useState<OrderStatus | "">("");
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus | "">("");
   const searchDebounceRef = useRef<NodeJS.Timeout | null>(null);
+  const [hasUserFiltered, setHasUserFiltered] = useState(false);
   
   // Set default date filters - from 1 month ago to today
   const [startDateFilter, setStartDateFilter] = useState<dayjs.Dayjs | null>(
@@ -108,6 +109,22 @@ const OrdersTable = ({
       setPage(1);
     }, 500); // 500ms debounce delay
   }, []);
+
+  // --- START ADD: Check if Filters are Active ---
+  const areFiltersActive = useMemo(() => {
+    return (
+      search !== "" ||
+      status !== "" ||
+      paymentStatus !== "" ||
+      startDateFilter !== null || // Check for non-null start date
+      endDateFilter !== null || // Check for non-null end date
+      // Consider if default dates count as 'active'. Assuming null means 'not set'.
+      // If you want the button to show even with default dates, adjust logic here.
+      (initialStartDate && startDateFilter?.format("YYYY-MM-DD") !== initialStartDate) ||
+      (initialEndDate && endDateFilter?.format("YYYY-MM-DD") !== initialEndDate)
+    );
+  }, [search, status, paymentStatus, startDateFilter, endDateFilter, initialStartDate, initialEndDate]);
+  // --- END ADD ---
 
   // Clean up the timer when component unmounts
   useEffect(() => {
@@ -151,14 +168,51 @@ const OrdersTable = ({
     isLoading: apiLoading,
   } = useFetch(["orderList", queryParams], getOrders, queryParams);
 
-  const handleClearFilters = useCallback(() => {
+  // --- Wrapper functions to track user interaction ---
+  const handleSearchChangeWithInteraction = useCallback((value: string) => {
+    handleSearchChange(value); // Call original debounced handler
+    setHasUserFiltered(true);
+  }, [handleSearchChange]);
+
+  const handleStatusChangeWithInteraction = (value: OrderStatus | "") => {
+    setStatus(value);
+    setHasUserFiltered(true);
+  };
+
+  const handlePaymentStatusChangeWithInteraction = (value: PaymentStatus | "") => {
+    setPaymentStatus(value);
+    setHasUserFiltered(true);
+  };
+
+  const handleStartDateChangeWithInteraction = (date: dayjs.Dayjs | null) => {
+    setStartDateFilter(date);
+    setHasUserFiltered(true);
+  };
+
+  const handleEndDateChangeWithInteraction = (date: dayjs.Dayjs | null) => {
+    setEndDateFilter(date);
+    setHasUserFiltered(true);
+  };
+
+  // Original clear filters logic
+  const clearFiltersLogic = useCallback(() => {
     setStatus("");
     setPaymentStatus("");
     setStartDateFilter(null);
     setEndDateFilter(null);
     setSearch("");
+    setSearchInput(""); // Clear search input as well
+    if (searchDebounceRef.current) { // Clear any pending debounce timer
+        clearTimeout(searchDebounceRef.current);
+    }
     setPage(1);
   }, []);
+
+  // Modified clear filters handler to reset interaction flag
+  const handleClearFiltersWithInteraction = useCallback(() => {
+    clearFiltersLogic();
+    setHasUserFiltered(false); // Reset interaction flag
+  }, [clearFiltersLogic]);
 
   // Function to manually refresh data
   const refreshData = useCallback(async () => {
@@ -304,12 +358,14 @@ const OrdersTable = ({
               paymentStatus={paymentStatus}
               startDateFilter={startDateFilter}
               endDateFilter={endDateFilter}
-              onSearchChange={handleSearchChange}
-              onStatusChange={setStatus}
-              onPaymentStatusChange={setPaymentStatus}
-              onStartDateChange={setStartDateFilter}
-              onEndDateChange={setEndDateFilter}
-              onClearFilters={handleClearFilters}
+              onSearchChange={handleSearchChangeWithInteraction}
+              onStatusChange={handleStatusChangeWithInteraction}
+              onPaymentStatusChange={handlePaymentStatusChangeWithInteraction}
+              onStartDateChange={handleStartDateChangeWithInteraction}
+              onEndDateChange={handleEndDateChangeWithInteraction}
+              onClearFilters={handleClearFiltersWithInteraction}
+              areFiltersActive={areFiltersActive}
+              hasUserFiltered={hasUserFiltered}
               className="hidden md:flex"
             />
 
@@ -388,15 +444,17 @@ const OrdersTable = ({
         endDateFilter={endDateFilter}
         sortBy={sortBy}
         order={order}
-        onSearchChange={handleSearchChange}
-        onStatusChange={setStatus}
-        onPaymentStatusChange={setPaymentStatus}
-        onStartDateChange={setStartDateFilter}
-        onEndDateChange={setEndDateFilter}
+        onSearchChange={handleSearchChangeWithInteraction}
+        onStatusChange={handleStatusChangeWithInteraction}
+        onPaymentStatusChange={handlePaymentStatusChangeWithInteraction}
+        onStartDateChange={handleStartDateChangeWithInteraction}
+        onEndDateChange={handleEndDateChangeWithInteraction}
         onSortByChange={setSortBy}
         onOrderChange={setOrder}
-        onClearFilters={handleClearFilters}
+        onClearFilters={handleClearFiltersWithInteraction}
         onApplyFilters={refreshData}
+        areFiltersActive={areFiltersActive}
+        hasUserFiltered={hasUserFiltered}
       />
     </>
   );
