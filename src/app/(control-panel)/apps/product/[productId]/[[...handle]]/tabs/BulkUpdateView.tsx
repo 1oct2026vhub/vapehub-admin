@@ -1,26 +1,130 @@
 'use client';
 
-import React from 'react';
-import { Controller, SubmitHandler, Control, UseFormHandleSubmit, UseFormWatch, UseFormSetValue, FieldErrors, FormState } from 'react-hook-form';
-import { Paper, FormControlLabel, Checkbox, Select, MenuItem, FormControl, InputLabel, FormHelperText } from '@mui/material'; // Assuming MUI imports are needed
+import React, { useState } from 'react';
+import { useForm, Controller, SubmitHandler, FieldError } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { useSearchParams } from 'next/navigation';
+import { useSnackbar } from '@/contexts/SnackbarContext';
+import { Paper, FormControlLabel, Checkbox, Select, MenuItem, FormControl, InputLabel, FormHelperText, Typography } from '@mui/material';
 import AppButton from '@/components/Shared/AppButton';
 import FormTextField from '@/components/Shared/FormTextField'; 
 import { styled } from '@mui/material/styles';
 import TextField from '@mui/material/TextField';
-import { FieldError } from 'react-hook-form'; // Import FieldError
+import { 
+  bulkUpdateProductVariants, 
+  BulkUpdateProductVariantsPayload 
+} from '@/services/apiProduct';
+import { 
+  IconButton, 
+  Dialog, 
+  DialogActions, 
+  DialogContent, 
+  DialogContentText, 
+  DialogTitle, 
+  Button, 
+  CircularProgress 
+} from '@mui/material';
+import DeleteIcon from '@mui/icons-material/Delete';
+import CloudUploadIcon from '@mui/icons-material/CloudUpload';
+import FuseLoading from '@fuse/core/FuseLoading';
+import { useDropzone, DropzoneRootProps, DropzoneInputProps } from 'react-dropzone';
+import { Control, UseFormHandleSubmit, FieldErrors, UseFormStateReturn } from 'react-hook-form';
 
-// Assume BulkUpdateFormData is defined elsewhere or define it here if needed
-// For now, using a generic type
-type BulkUpdateFormData = Record<string, any>; 
+const bulkUpdateSchema = z.object({
+    price: z.object({
+        type: z.enum(['set', 'increase', 'decrease']).optional(),
+        value: z.preprocess(
+            (val) => (val === "" || val === null || val === undefined ? undefined : Number(val)),
+            z.number({ invalid_type_error: "Price value must be a number" })
+             .min(0, "Price value cannot be negative")
+             .refine((val) => {
+                if (val === undefined) return true;
+                const str = val.toString();
+                return !str.includes('.') || str.split('.')[1].length <= 2;
+             }, { message: "Price value can have at most 2 decimal places" })
+             .optional()
+        ),
+        is_percentage: z.boolean().optional(),
+    }).optional().refine(data => !data || (data.type && data.value !== undefined) || (!data.type && data.value === undefined), {
+        message: "If updating price, both type and value are required",
+        path: ["root"]
+    }),
+    depositPrice: z.object({
+        type: z.enum(['set', 'increase', 'decrease']).optional(),
+        value: z.preprocess(
+            (val) => (val === "" || val === null || val === undefined ? undefined : Number(val)),
+            z.number({ invalid_type_error: "Deposit price value must be a number" })
+             .min(0, "Deposit price value cannot be negative")
+             .refine((val) => {
+                if (val === undefined) return true;
+                const str = val.toString();
+                return !str.includes('.') || str.split('.')[1].length <= 2;
+             }, { message: "Deposit price value can have at most 2 decimal places" })
+             .optional()
+        ),
+        is_percentage: z.boolean().optional(),
+    }).optional().refine(data => !data || (data.type && data.value !== undefined) || (!data.type && data.value === undefined), {
+        message: "If updating deposit price, both type and value are required",
+        path: ["root"]
+    }),
+    purchasePrice: z.object({
+        type: z.enum(['set', 'increase', 'decrease']).optional(),
+        value: z.preprocess(
+            (val) => (val === "" || val === null || val === undefined ? undefined : Number(val)),
+            z.number({ invalid_type_error: "Purchase price value must be a number" })
+             .min(0, "Purchase price value cannot be negative")
+             .refine((val) => {
+                if (val === undefined) return true;
+                const str = val.toString();
+                return !str.includes('.') || str.split('.')[1].length <= 2;
+             }, { message: "Purchase price value can have at most 2 decimal places" })
+             .optional()
+        ),
+        is_percentage: z.boolean().optional(),
+    }).optional().refine(data => !data || (data.type && data.value !== undefined) || (!data.type && data.value === undefined), {
+        message: "If updating purchase price, both type and value are required",
+        path: ["root"]
+    }),
+    stock: z.preprocess(
+        (val) => (val === "" || val === null || val === undefined ? undefined : Number(val)),
+        z.number({ invalid_type_error: "Stock must be a whole number" }).int().min(0).optional()
+    ),
+    lowStockThreshold: z.preprocess(
+        (val) => (val === "" || val === null || val === undefined ? undefined : Number(val)),
+        z.number({ invalid_type_error: "Low stock threshold must be a whole number" }).int().min(0).optional()
+    ),
+    stockStatus: z.enum(['In Stock', 'Out of Stock', 'Back Order']).optional(),
+    status: z.enum(['active', 'inactive']).optional(),
+    weight: z.preprocess(
+        (val) => (val === "" || val === null || val === undefined ? undefined : Number(val)),
+        z.number({ invalid_type_error: "Weight must be a number" }).min(0).optional()
+    ),
+    length: z.preprocess(
+        (val) => (val === "" || val === null || val === undefined ? undefined : Number(val)),
+        z.number({ invalid_type_error: "Length must be a number" }).min(0).optional()
+    ),
+    width: z.preprocess(
+        (val) => (val === "" || val === null || val === undefined ? undefined : Number(val)),
+        z.number({ invalid_type_error: "Width must be a number" }).min(0).optional()
+    ),
+    height: z.preprocess(
+        (val) => (val === "" || val === null || val === undefined ? undefined : Number(val)),
+        z.number({ invalid_type_error: "Height must be a number" }).min(0).optional()
+    ),
+}).refine(data => Object.values(data).some(val => val !== undefined && val !== null && (typeof val !== 'object' || Object.values(val).some(v => v !== undefined))), {
+    message: "At least one field must be provided for bulk update",
+    path: ["root"] 
+});
 
-// Define styled TextField if needed, or import from parent/shared component
+type BulkUpdateFormData = z.infer<typeof bulkUpdateSchema>;
+
 const StyledTextField = styled(TextField)(({ theme }) => ({
-  // ... styles from VariantManager ...
   "& .MuiOutlinedInput-root": {
     "& fieldset": { borderColor: "#d1d5db", borderRadius: "8px" },
     "&:hover fieldset": { borderColor: "#9ca3af" },
     "&.Mui-focused fieldset": { borderColor: "#2E9970" },
-    height: "auto", padding: "0", backgroundColor: "white",
+    height: "40px", padding: "0", backgroundColor: "white",
   },
   "& .MuiInputLabel-root": { color: "#2E9970" },
   "& .MuiInputLabel-root.Mui-focused": { color: "#2E9970" },
@@ -28,431 +132,945 @@ const StyledTextField = styled(TextField)(({ theme }) => ({
   width: "100%",
 }));
 
-// Define FormField wrapper or import
-const FormField = ({ label, error, children }: { label: string; error?: string; children: React.ReactNode }) => (
+const FormField = ({ 
+  label, 
+  error, 
+  children, 
+  required
+}: { 
+  label: string; 
+  error?: string; 
+  children: React.ReactNode; 
+  required?: boolean;
+}) => (
   <div className="mb-4">
-    <label className="text-sm text-green-700 mb-1 font-medium block">{label}</label>
+    <label className="text-sm text-green-700 mb-1 font-medium block">
+      {label} {required && <span className="text-red-500">*</span>}
+    </label>
     {children}
     {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
   </div>
 );
 
-
-interface BulkUpdateViewProps {
-  control: Control<BulkUpdateFormData>;
-  handleSubmit: UseFormHandleSubmit<BulkUpdateFormData>;
-  onSubmit: SubmitHandler<BulkUpdateFormData>;
-  watch: UseFormWatch<BulkUpdateFormData>;
-  setValue: UseFormSetValue<BulkUpdateFormData>;
-  errors: FieldErrors<BulkUpdateFormData>;
-  formState: FormState<BulkUpdateFormData>; // Includes isDirty, isValid
-  isSubmitting: boolean;
+interface VariantImage {
+  id: number;
+  image_url: string;
+  is_primary: boolean;
 }
 
-const BulkUpdateView: React.FC<BulkUpdateViewProps> = ({
-  control,
-  handleSubmit,
-  onSubmit,
-  watch,
-  setValue,
-  errors,
-  formState,
-  isSubmitting,
+interface Variant {
+  id: string;
+  slug: string;
+  price: number | null; 
+  stock: number | null; 
+  status: 'Active' | 'Inactive';
+  stockStatus?: 'In Stock' | 'Out of Stock' | 'Back Order'; 
+  attributes: Record<string, string>;
+  images?: VariantImage[];
+  depositPrice?: number | null;
+  purchasePrice?: number | null;
+  lowStockThreshold?: number | null;
+  weight?: number | null;
+  length?: number | null;
+  width?: number | null;
+  height?: number | null;
+  barcode?: string | null;
+  description?: string | null;
+}
+
+const variantSchema = z.object({
+  slug: z.string()
+    .min(1, "Slug is required")
+    .max(100, "Slug cannot exceed 100 characters") 
+    .regex(/^[a-z0-9-]+$/, "Slug must contain only lowercase letters, numbers, and hyphens"), 
+  price: z.preprocess(
+    (val) => {
+      if (val === "" || val === null || val === undefined) return null;
+      const parsed = Number(val);
+      return isNaN(parsed) ? "NaN" : parsed;
+    },
+    z.union([
+      z.literal("NaN").refine(() => false, "Please enter a valid number for price"),
+      z.number()
+        .positive("Price must be greater than zero")
+        .max(9999999.99, "Price exceeds maximum limit")
+        .refine(
+          (val) => {
+            const str = val.toString();
+            return !str.includes(".") || str.split(".")[1].length <= 2;
+          },
+          { message: "Price can have at most 2 decimal places" }
+        ),
+      z.null().refine(() => false, "Price is required"),
+    ])
+  ),
+  stock: z.preprocess(
+      (val) => {
+        if (val === "" || val === null || val === undefined) return null;
+        const parsed = Number(val);
+        return isNaN(parsed) ? "NaN" : parsed;
+      },
+      z.union([
+        z.literal("NaN").refine(() => false, "Please enter a valid number for stock"),
+        z.number()
+          .int("Stock must be a whole number")
+          .min(0, "Stock must be a non-negative number"),
+        z.null().refine(() => false, "Stock is required"),
+      ])
+  ),
+  status: z.enum(["active", "inactive"]).default("active"),
+  stockStatus: z.enum(["In Stock", "Out of Stock", "Back Order"]).default("In Stock"),
+  depositPrice: z.preprocess(
+    (val) => {
+      if (val === "" || val === null || val === undefined) return null;
+      const parsed = Number(val);
+      return isNaN(parsed) ? "NaN" : parsed;
+    },
+    z.union([
+      z.literal("NaN").refine(() => false, "Please enter a valid number for deposit price"),
+      z.number()
+        .min(0, "Deposit price cannot be negative")
+        .max(9999999.99, "Deposit price exceeds maximum limit")
+        .refine(
+          (val) => {
+            const str = val.toString();
+            return !str.includes(".") || str.split(".")[1].length <= 2;
+          },
+          { message: "Deposit price can have at most 2 decimal places" }
+        ),
+      z.null(),
+    ]).optional()
+  ),
+  purchasePrice: z.preprocess(
+    (val) => {
+      if (val === "" || val === null || val === undefined) return null;
+      const parsed = Number(val);
+      return isNaN(parsed) ? "NaN" : parsed;
+    },
+    z.union([
+      z.literal("NaN").refine(() => false, "Please enter a valid number for purchase price"),
+      z.number()
+        .min(0, "Purchase price cannot be negative")
+        .max(9999999.99, "Purchase price exceeds maximum limit")
+        .refine(
+          (val) => {
+            const str = val.toString();
+            return !str.includes(".") || str.split(".")[1].length <= 2;
+          },
+          { message: "Purchase price can have at most 2 decimal places" }
+        ),
+      z.null(),
+    ]).optional()
+  ),
+  lowStockThreshold: z.preprocess(
+    (val) => {
+      if (val === "" || val === null || val === undefined) return null;
+      const parsed = Number(val);
+      return isNaN(parsed) ? "NaN" : parsed;
+    },
+    z.union([
+      z.literal("NaN").refine(() => false, "Please enter a valid number for low stock threshold"),
+      z.number()
+        .int("Low stock threshold must be a whole number")
+        .min(0, "Low stock threshold cannot be negative"),
+      z.null(),
+    ]).optional()
+  ),
+  weight: z.preprocess(
+    (val) => {
+      if (val === "" || val === null || val === undefined) return null;
+      const parsed = Number(val);
+      return isNaN(parsed) ? "NaN" : parsed;
+    },
+    z.union([
+      z.literal("NaN").refine(() => false, "Please enter a valid number for weight"),
+      z.number().min(0, "Weight cannot be negative"),
+      z.null(),
+    ]).optional()
+  ),
+  length: z.preprocess(
+    (val) => {
+      if (val === "" || val === null || val === undefined) return null;
+      const parsed = Number(val);
+      return isNaN(parsed) ? "NaN" : parsed;
+    },
+    z.union([
+      z.literal("NaN").refine(() => false, "Please enter a valid number for length"),
+      z.number().min(0, "Length cannot be negative"),
+      z.null(),
+    ]).optional()
+  ),
+  width: z.preprocess(
+    (val) => {
+      if (val === "" || val === null || val === undefined) return null;
+      const parsed = Number(val);
+      return isNaN(parsed) ? "NaN" : parsed;
+    },
+    z.union([
+      z.literal("NaN").refine(() => false, "Please enter a valid number for width"),
+      z.number().min(0, "Width cannot be negative"),
+      z.null(),
+    ]).optional()
+  ),
+  height: z.preprocess(
+    (val) => {
+      if (val === "" || val === null || val === undefined) return null;
+      const parsed = Number(val);
+      return isNaN(parsed) ? "NaN" : parsed;
+    },
+    z.union([
+      z.literal("NaN").refine(() => false, "Please enter a valid number for height"),
+      z.number().min(0, "Height cannot be negative"),
+      z.null(),
+    ]).optional()
+  ),
+  barcode: z.string()
+    .refine(val => !val || (val.length >= 3 && val.length <= 50), { 
+      message: "Barcode must be between 3 and 50 characters if provided",
+    })
+    .optional()
+    .nullable(),
+  description: z.string()
+    .max(1000, "Description cannot exceed 1000 characters") 
+    .optional()
+    .nullable(),
+});
+
+type VariantFormData = z.infer<typeof variantSchema>;
+
+interface BulkUpdateViewProps {
+  allCombinationsUsed: boolean;
+  variants: Variant[];
+  setVariants: React.Dispatch<React.SetStateAction<Variant[]>>;
+  selectedVariantIndex: number;
+  setSelectedVariantIndex: (index: number) => void;
+  filteredVariants: Variant[];
+  editControl: Control<VariantFormData>;
+  handleEditSubmit: UseFormHandleSubmit<VariantFormData>;
+  editFormState: UseFormStateReturn<VariantFormData>;
+  handleUpdateVariant: SubmitHandler<VariantFormData>;
+  editGetRootProps: (props?: any) => DropzoneRootProps;
+  editGetInputProps: (props?: any) => DropzoneInputProps;
+  editIsDragActive: boolean;
+  handleSetPrimaryImage: (imageId: number) => void;
+  handleDeleteImage: (imageId: number) => void;
+  isEditImageUploading: boolean;
+  isUpdating: boolean;
+  setVariantToDeleteId: (id: string | null) => void;
+  setIsDeleteDialogOpen: (isOpen: boolean) => void;
+  showSnackbar: (message: string, severity: 'success' | 'error' | 'warning' | 'info') => void;
+}
+
+const BulkUpdateView: React.FC<BulkUpdateViewProps> = ({ 
+  allCombinationsUsed,
+  variants,
+  setVariants,
+  selectedVariantIndex,
+  setSelectedVariantIndex,
+  filteredVariants,
+  editControl,
+  handleEditSubmit,
+  editFormState,
+  handleUpdateVariant,
+  editGetRootProps,
+  editGetInputProps,
+  editIsDragActive,
+  handleSetPrimaryImage,
+  handleDeleteImage,
+  isEditImageUploading,
+  isUpdating,
+  setVariantToDeleteId,
+  setIsDeleteDialogOpen,
+  showSnackbar,
 }) => {
-  const { isDirty, isValid } = formState;
+  const [isBulkSubmitting, setIsBulkSubmitting] = useState(false);
+  const searchParams = useSearchParams();
+
+  const { 
+    control: bulkControl,
+    handleSubmit: handleBulkSubmitInternal,
+    watch: watchBulk,
+    setValue: setBulkValue,
+    formState: bulkFormState,
+    reset: resetBulkForm,
+  } = useForm<BulkUpdateFormData>({ 
+    resolver: zodResolver(bulkUpdateSchema),
+    defaultValues: {
+        price: { type: undefined, value: undefined, is_percentage: undefined },
+        depositPrice: { type: undefined, value: undefined, is_percentage: undefined },
+        purchasePrice: { type: undefined, value: undefined, is_percentage: undefined },
+        stock: undefined,
+        lowStockThreshold: undefined,
+        stockStatus: undefined,
+        status: undefined,
+        weight: undefined,
+        length: undefined,
+        width: undefined,
+        height: undefined,
+    },
+    mode: 'onChange', 
+  });
+
+  const onBulkSubmit: SubmitHandler<BulkUpdateFormData> = async (data) => {
+    const productId = searchParams.get('productId');
+    if (!productId) {
+      showSnackbar("Product ID not found.", "error");
+      return;
+    }
+
+    if (!bulkFormState.isDirty) {
+        showSnackbar("No changes detected to apply.", "info");
+        return;
+    }
+
+    setIsBulkSubmitting(true);
+    try {
+      const updates: BulkUpdateProductVariantsPayload['updates'] = {};
+
+      if (data.price?.type && data.price.value !== undefined) {
+          updates.price = { type: data.price.type, value: data.price.value, is_percentage: data.price.is_percentage };
+      }
+      if (data.depositPrice?.type && data.depositPrice.value !== undefined) {
+          updates.discount_price = { type: data.depositPrice.type, value: data.depositPrice.value, is_percentage: data.depositPrice.is_percentage };
+      }
+      if (data.purchasePrice?.type && data.purchasePrice.value !== undefined) {
+          updates.purchase_price = { type: data.purchasePrice.type, value: data.purchasePrice.value, is_percentage: data.purchasePrice.is_percentage };
+      }
+      if (data.stock !== undefined && data.stock !== null) updates.stock = data.stock;
+      if (data.lowStockThreshold !== undefined && data.lowStockThreshold !== null) updates.low_stock_threshold = data.lowStockThreshold;
+      if (data.weight !== undefined && data.weight !== null) updates.weight = data.weight;
+      if (data.length !== undefined && data.length !== null) updates.length = data.length;
+      if (data.width !== undefined && data.width !== null) updates.width = data.width;
+      if (data.height !== undefined && data.height !== null) updates.height = data.height;
+      if (data.status !== undefined) updates.status = data.status;
+
+      if (data.stockStatus !== undefined) {
+        switch (data.stockStatus) {
+          case 'In Stock': updates.stock_status = 'in_stock'; break;
+          case 'Out of Stock': updates.stock_status = 'out_of_stock'; break;
+          case 'Back Order': updates.stock_status = 'back_order'; break;
+        }
+      }
+
+      const payload: BulkUpdateProductVariantsPayload = { updates };
+
+      if (Object.keys(updates).length === 0) {
+          showSnackbar("No update fields provided with valid values.", "warning");
+          setIsBulkSubmitting(false);
+          return;
+      }
+
+      const response = await bulkUpdateProductVariants(Number(productId), payload);
+
+      showSnackbar(response.message || "Variants updated successfully", "success");
+      resetBulkForm();
+
+    } catch (error: any) {
+      console.error("Bulk update failed:", error);
+      showSnackbar(error?.response?.data?.message || error.message || "Bulk update failed", "error");
+    } finally {
+      setIsBulkSubmitting(false);
+    }
+  };
+
+  const selectedVariant = filteredVariants[selectedVariantIndex] || null;
+
+  if (variants.length === 0) {
+    return (
+      <Paper elevation={3} className="p-4 bg-yellow-50 border border-yellow-300 text-center">
+        <Typography color="textSecondary">
+          Bulk Update requires at least one existing variant. Please add or generate variants first.
+        </Typography>
+      </Paper>
+    );
+  }
 
   return (
-    <Paper elevation={3} className="p-4 bg-white mb-6">
-      <h2 className="text-lg font-bold mb-4">Bulk Update Variant Details</h2>
-      <form onSubmit={handleSubmit(onSubmit)}>
-        <div className="mb-6 space-y-6">
-          {/* --- EDIT: Add 2-column grid for Prices and Stock/Status --- */}
-          <div className="grid grid-cols-2 gap-6"> 
-            {/* Column 1: Price Updates */} 
-            <div className="space-y-4"> 
-              {/* Price Field Group */} 
-              <div className="grid grid-cols-12 gap-x-2 items-center border p-3 pt-5 rounded-md relative">
-                <label className="absolute -top-2 left-2 bg-white px-1 text-xs text-gray-500">Price Update</label>
-                {/* Type Select */}
-                <div className="col-span-4">
-                  <Controller
-                    name="price.type"
-                    control={control}
-                    render={({ field }) => (
-                      <FormControl fullWidth variant="outlined" size="small">
-                        <InputLabel>Type</InputLabel>
-                        <Select
+    <div>
+      <Paper elevation={3} className="p-4 bg-white mb-6">
+        <h2 className="text-lg font-bold mb-4">Bulk Update Variant Details</h2>
+        <form onSubmit={handleBulkSubmitInternal(onBulkSubmit)}>
+          <div className="mb-6 space-y-6">
+            <div className="grid grid-cols-3 gap-6">
+              <div className="space-y-4"> 
+                <div className="grid grid-cols-12 gap-x-2 gap-y-1 items-center border p-3 pt-5 rounded-md relative">
+                  <label className="absolute -top-2.5 left-2 bg-white px-1 text-xs text-gray-500 font-bold text-base">Price</label>
+                  <div className="col-span-6">
+                    <Controller
+                      name="price.type"
+                      control={bulkControl}
+                      render={({ field }) => (
+                        <FormControl fullWidth variant="outlined">
+                          <InputLabel>Type</InputLabel>
+                          <Select
+                            {...field}
+                            label="Type"
+                            value={field.value || ""}
+                            onChange={(e) => {
+                              const newType = e.target.value || undefined;
+                              field.onChange(newType);
+                              if (newType === 'set' || newType === undefined) {
+                                setBulkValue('price.is_percentage', false);
+                              } else if (newType === 'increase' || newType === 'decrease') {
+                                setBulkValue('price.is_percentage', true);
+                              }
+                            }}
+                            className="w-full bg-white rounded-lg border-gray-300 focus:border-green-600 focus:ring-1 focus:ring-green-600"
+                            sx={{ height: '40px' }}
+                          >
+                            <MenuItem value="set">Set to</MenuItem>
+                            <MenuItem value="increase">Increase by</MenuItem>
+                            <MenuItem value="decrease">Decrease by</MenuItem>
+                          </Select>
+                        </FormControl>
+                      )}
+                    />
+                  </div>
+                  <div className="col-span-6">
+                    <Controller
+                      name="price.value"
+                      control={bulkControl}
+                      render={({ field }) => (
+                        <StyledTextField
                           {...field}
-                          label="Type"
-                          value={field.value || ""}
-                          onChange={(e) => {
-                            const newType = e.target.value || undefined;
-                            field.onChange(newType);
-                            if (newType === 'set' || newType === undefined) {
-                              setValue('price.is_percentage', false);
-                            } else if (newType === 'increase' || newType === 'decrease') {
-                              setValue('price.is_percentage', true);
-                            }
-                          }}
-                          className="w-full bg-white"
-                        >
-                          <MenuItem value="set">Set to</MenuItem>
-                          <MenuItem value="increase">Increase by</MenuItem>
-                          <MenuItem value="decrease">Decrease by</MenuItem>
-                        </Select>
-                      </FormControl>
-                    )}
-                  />
-                </div>
-                {/* Value Input */}
-                <div className="col-span-4">
-                  <Controller
-                    name="price.value"
-                    control={control}
-                    render={({ field }) => (
-                      <StyledTextField
-                        {...field}
-                        type="number"
-                        value={field.value === undefined || field.value === null ? "" : field.value}
-                        onChange={(e) => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))}
-                        fullWidth
-                        placeholder="Value"
-                        label="Value"
-                        InputLabelProps={{ shrink: true }}
-                        error={!!(errors.price as any)?.value || !!errors.price?.root}
-                        inputProps={{ step: "0.01", className: "h-10 box-border" }}
-                      />
-                    )}
-                  />
-                </div>
-                {/* Percentage Checkbox */}
-                <div className="col-span-4 flex items-center pb-1">
-                  <Controller
-                    name="price.is_percentage"
-                    control={control}
-                    render={({ field }) => (
-                      <FormControlLabel
-                        control={
-                          <Checkbox
-                            checked={!!field.value}
-                            onChange={(e) => field.onChange(e.target.checked)}
-                            disabled={!watch('price.type') || (watch('price.type') === 'set')}
-                            sx={{ '&.Mui-checked': { color: '#2E9970' } }}
-                          />
-                        }
-                        label="Percentage"
-                        labelPlacement="end"
-                      />
-                    )}
-                  />
-                </div>
-                {/* Error Message Area */} 
-                {((errors.price?.type as FieldError)?.message || (errors.price as any)?.value?.message || errors.price?.root?.message) && (
-                    <div className="col-span-12 mt-1">
+                          type="number"
+                          value={field.value === undefined || field.value === null ? "" : field.value}
+                          onChange={(e) => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))}
+                          fullWidth
+                          placeholder="Value"
+                          label="Value"
+                          InputLabelProps={{ shrink: true }}
+                          error={!!(bulkFormState.errors.price as any)?.value || !!bulkFormState.errors.price?.root}
+                          inputProps={{ step: "0.01" }}
+                          sx={{ "& .MuiOutlinedInput-root": { height: '40px' } }}
+                        />
+                      )}
+                    />
+                  </div>
+                  {(bulkFormState.errors.price?.root?.message || (bulkFormState.errors.price as any)?.value?.message) && (
+                    <div className="col-span-12 mt-1 mx-auto">
                         <p className="text-xs text-red-500">
-                            {(errors.price?.type as FieldError)?.message ||
-                             (errors.price as any)?.value?.message || 
-                             errors.price?.root?.message}
+                            {bulkFormState.errors.price?.root?.message || (bulkFormState.errors.price as any)?.value?.message}
                         </p>
                     </div>
-                )}
+                  )}
+                  <div className="col-span-12 mt-1">
+                    <Controller
+                      name="price.is_percentage"
+                      control={bulkControl}
+                      render={({ field }) => (
+                        <FormControlLabel
+                          control={
+                            <Checkbox
+                              checked={!!field.value}
+                              onChange={(e) => field.onChange(e.target.checked)}
+                              disabled={!watchBulk('price.type') || (watchBulk('price.type') === 'set')}
+                              sx={{ '&.Mui-checked': { color: '#2E9970' } }}
+                            />
+                          }
+                          label="Percentage"
+                          labelPlacement="end"
+                        />
+                      )}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-12 gap-x-2 gap-y-1 items-center border p-3 pt-5 rounded-md relative">
+                  <label className="absolute -top-2.5 left-2 bg-white px-1 text-xs text-gray-500 font-bold text-base">Deposit Price</label>
+                  <div className="col-span-6">
+                    <Controller
+                      name="depositPrice.type"
+                      control={bulkControl}
+                      render={({ field }) => (
+                        <FormControl fullWidth variant="outlined">
+                          <InputLabel>Type</InputLabel>
+                          <Select
+                            {...field}
+                            label="Type"
+                            value={field.value || ""}
+                            onChange={(e) => {
+                              const newType = e.target.value || undefined;
+                              field.onChange(newType);
+                              if (newType === 'set' || newType === undefined) {
+                                setBulkValue('depositPrice.is_percentage', false);
+                              } else if (newType === 'increase' || newType === 'decrease') {
+                                setBulkValue('depositPrice.is_percentage', true);
+                              }
+                            }}
+                            className="w-full bg-white rounded-lg border-gray-300 focus:border-green-600 focus:ring-1 focus:ring-green-600"
+                            sx={{ height: '40px' }}
+                          >
+                            <MenuItem value="set">Set to</MenuItem>
+                            <MenuItem value="increase">Increase by</MenuItem>
+                            <MenuItem value="decrease">Decrease by</MenuItem>
+                          </Select>
+                        </FormControl>
+                      )}
+                    />
+                  </div>
+                  <div className="col-span-6">
+                    <Controller
+                      name="depositPrice.value"
+                      control={bulkControl}
+                      render={({ field }) => (
+                        <StyledTextField
+                          {...field}
+                          type="number"
+                          value={field.value === undefined || field.value === null ? "" : field.value}
+                          onChange={(e) => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))}
+                          fullWidth
+                          placeholder="Value"
+                          label="Value"
+                          InputLabelProps={{ shrink: true }}
+                          error={!!(bulkFormState.errors.depositPrice as any)?.value || !!bulkFormState.errors.depositPrice?.root}
+                          inputProps={{ step: "0.01" }}
+                          sx={{ "& .MuiOutlinedInput-root": { height: '40px' } }}
+                        />
+                      )}
+                    />
+                  </div>
+                  {(bulkFormState.errors.depositPrice?.root?.message || (bulkFormState.errors.depositPrice as any)?.value?.message) && (
+                    <div className="col-span-12 mt-1 mx-auto">
+                        <p className="text-xs text-red-500">
+                            {bulkFormState.errors.depositPrice?.root?.message || (bulkFormState.errors.depositPrice as any)?.value?.message}
+                        </p>
+                    </div>
+                  )}
+                  <div className="col-span-12 mt-1">
+                    <Controller
+                      name="depositPrice.is_percentage"
+                      control={bulkControl}
+                      render={({ field }) => (
+                        <FormControlLabel
+                          control={
+                            <Checkbox
+                              checked={!!field.value}
+                              onChange={(e) => field.onChange(e.target.checked)}
+                              disabled={!watchBulk('depositPrice.type') || (watchBulk('depositPrice.type') === 'set')}
+                              sx={{ '&.Mui-checked': { color: '#2E9970' } }}
+                            />
+                          }
+                          label="Percentage"
+                          labelPlacement="end"
+                        />
+                      )}
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-12 gap-x-2 gap-y-1 items-center border p-3 pt-5 rounded-md relative">
+                  <label className="absolute -top-2.5 left-2 bg-white px-1 text-xs text-gray-500 font-bold text-base">Purchase Price</label>
+                  <div className="col-span-6">
+                    <Controller
+                      name="purchasePrice.type"
+                      control={bulkControl}
+                      render={({ field }) => (
+                        <FormControl fullWidth variant="outlined">
+                          <InputLabel>Type</InputLabel>
+                          <Select
+                            {...field}
+                            label="Type"
+                            value={field.value || ""}
+                            onChange={(e) => {
+                              const newType = e.target.value || undefined;
+                              field.onChange(newType);
+                              if (newType === 'set' || newType === undefined) {
+                                setBulkValue('purchasePrice.is_percentage', false);
+                              } else if (newType === 'increase' || newType === 'decrease') {
+                                setBulkValue('purchasePrice.is_percentage', true);
+                              }
+                            }}
+                            className="w-full bg-white rounded-lg border-gray-300 focus:border-green-600 focus:ring-1 focus:ring-green-600"
+                            sx={{ height: '40px' }}
+                          >
+                            <MenuItem value="set">Set to</MenuItem>
+                            <MenuItem value="increase">Increase by</MenuItem>
+                            <MenuItem value="decrease">Decrease by</MenuItem>
+                          </Select>
+                        </FormControl>
+                      )}
+                    />
+                  </div>
+                  <div className="col-span-6">
+                    <Controller
+                      name="purchasePrice.value"
+                      control={bulkControl}
+                      render={({ field }) => (
+                        <StyledTextField
+                          {...field}
+                          type="number"
+                          value={field.value === undefined || field.value === null ? "" : field.value}
+                          onChange={(e) => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))}
+                          fullWidth
+                          placeholder="Value"
+                          label="Value"
+                          InputLabelProps={{ shrink: true }}
+                          error={!!(bulkFormState.errors.purchasePrice as any)?.value || !!bulkFormState.errors.purchasePrice?.root}
+                          inputProps={{ step: "0.01" }}
+                          sx={{ "& .MuiOutlinedInput-root": { height: '40px' } }}
+                        />
+                      )}
+                    />
+                  </div>
+                  {(bulkFormState.errors.purchasePrice?.root?.message || (bulkFormState.errors.purchasePrice as any)?.value?.message) && (
+                    <div className="col-span-12 mt-1">
+                        <p className="text-xs text-red-500">
+                            {bulkFormState.errors.purchasePrice?.root?.message || (bulkFormState.errors.purchasePrice as any)?.value?.message}
+                        </p>
+                    </div>
+                  )}
+                  <div className="col-span-12 mt-1">
+                    <Controller
+                      name="purchasePrice.is_percentage"
+                      control={bulkControl}
+                      render={({ field }) => (
+                        <FormControlLabel
+                          control={
+                            <Checkbox
+                              checked={!!field.value}
+                              onChange={(e) => field.onChange(e.target.checked)}
+                              disabled={!watchBulk('purchasePrice.type') || (watchBulk('purchasePrice.type') === 'set')}
+                              sx={{ '&.Mui-checked': { color: '#2E9970' } }}
+                            />
+                          }
+                          label="Percentage"
+                          labelPlacement="end"
+                        />
+                      )}
+                    />
+                  </div>
+                </div>
               </div>
 
-              {/* Deposit Price Field Group */} 
-              <div className="grid grid-cols-12 gap-x-2 items-center border p-3 pt-5 rounded-md relative">
-                <label className="absolute -top-2 left-2 bg-white px-1 text-xs text-gray-500">Deposit Price Update</label>
-                {/* Type Select */}
-                <div className="col-span-4">
-                  <Controller
-                    name="depositPrice.type"
-                    control={control}
-                    render={({ field }) => (
-                      <FormControl fullWidth variant="outlined" size="small">
-                        <InputLabel>Type</InputLabel>
-                        <Select
-                          {...field}
-                          label="Type"
-                          value={field.value || ""}
-                          onChange={(e) => {
-                            const newType = e.target.value || undefined;
-                            field.onChange(newType);
-                            if (newType === 'set' || newType === undefined) {
-                              setValue('depositPrice.is_percentage', false);
-                            } else if (newType === 'increase' || newType === 'decrease') {
-                              setValue('depositPrice.is_percentage', true);
-                            }
-                          }}
-                          className="w-full bg-white"
-                        >
-                          <MenuItem value="set">Set to</MenuItem>
-                          <MenuItem value="increase">Increase by</MenuItem>
-                          <MenuItem value="decrease">Decrease by</MenuItem>
-                        </Select>
-                      </FormControl>
-                    )}
-                  />
-                </div>
-                {/* Value Input */}
-                <div className="col-span-4">
-                  <Controller
-                    name="depositPrice.value"
-                    control={control}
-                    render={({ field }) => (
-                      <StyledTextField 
+              <div className="space-y-4"> 
+                <FormTextField
+                  name="stock"
+                  control={bulkControl}
+                  label="Stock"
+                  type="number"
+                  placeholder=""
+                  helperText={bulkFormState.errors.stock?.message as string ?? undefined}
+                />
+                <Controller
+                  name="stockStatus"
+                  control={bulkControl}
+                  render={({ field, fieldState: { error } }) => (
+                    <FormControl fullWidth variant="outlined" error={!!error}>
+                      <InputLabel>Stock Status</InputLabel>
+                      <Select
                         {...field}
-                        type="number"
-                        value={field.value === undefined || field.value === null ? "" : field.value}
-                        onChange={(e) => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))}
-                        fullWidth
-                        placeholder="Value"
-                        label="Value"
-                        InputLabelProps={{ shrink: true }}
-                        error={!!(errors.depositPrice as any)?.value || !!errors.depositPrice?.root}
-                        inputProps={{ step: "0.01", className: "h-10 box-border" }}
-                      />
-                    )}
-                  />
-                </div>
-                {/* Percentage Checkbox */} 
-                <div className="col-span-4 flex items-center pb-1"> 
-                  <Controller
-                    name="depositPrice.is_percentage"
-                    control={control}
-                    render={({ field }) => (
-                      <FormControlLabel
-                        control={
-                          <Checkbox 
-                            checked={!!field.value} 
-                            onChange={(e) => field.onChange(e.target.checked)}
-                            disabled={!watch('depositPrice.type') || (watch('depositPrice.type') === 'set')}
-                            sx={{ '&.Mui-checked': { color: '#2E9970' } }}
-                          />
-                        }
-                        label="Percentage"
-                        labelPlacement="end"
-                      />
-                    )}
-                  />
-                </div>
-                {/* Error Message Area */} 
-                {((errors.depositPrice?.type as FieldError)?.message || (errors.depositPrice as any)?.value?.message || errors.depositPrice?.root?.message) && (
-                  <div className="col-span-12 mt-1">
-                     <p className="text-xs text-red-500">
-                      {(errors.depositPrice?.type as FieldError)?.message ||
-                       (errors.depositPrice as any)?.value?.message || 
-                       errors.depositPrice?.root?.message}
-                     </p>
-                  </div>
-                )}
+                        value={field.value || ""}
+                        onChange={(e) => field.onChange(e.target.value || undefined)}
+                        label="Stock Status"
+                        sx={{ height: '40px', backgroundColor: 'white', borderRadius: '8px' }}
+                      >
+                        <MenuItem value="In Stock">In Stock</MenuItem>
+                        <MenuItem value="Out of Stock">Out of Stock</MenuItem>
+                        <MenuItem value="Back Order">Back Order</MenuItem>
+                      </Select>
+                      {error && <FormHelperText>{error.message}</FormHelperText>}
+                    </FormControl>
+                  )}
+                />
+                <FormTextField
+                  name="lowStockThreshold"
+                  control={bulkControl}
+                  label="Low Stock Threshold"
+                  type="number"
+                  placeholder=""
+                  helperText={bulkFormState.errors.lowStockThreshold?.message as string ?? undefined}
+                />
+                <Controller
+                  name="status"
+                  control={bulkControl}
+                  render={({ field, fieldState: { error } }) => (
+                    <FormControl fullWidth variant="outlined" error={!!error}>
+                      <InputLabel>Status</InputLabel>
+                      <Select
+                        {...field}
+                        value={field.value || ""}
+                        onChange={(e) => field.onChange(e.target.value || undefined)}
+                        label="Status"
+                        sx={{ height: '40px', backgroundColor: 'white', borderRadius: '8px' }}
+                      >
+                        <MenuItem value="active">Active</MenuItem>
+                        <MenuItem value="inactive">Inactive</MenuItem>
+                      </Select>
+                      {error && <FormHelperText>{error.message}</FormHelperText>}
+                    </FormControl>
+                  )}
+                />
               </div>
 
-              {/* Purchase Price Field Group */} 
-              <div className="grid grid-cols-12 gap-x-2 items-center border p-3 pt-5 rounded-md relative">
-                <label className="absolute -top-2 left-2 bg-white px-1 text-xs text-gray-500">Purchase Price Update</label>
-                {/* Type Select */}
-                <div className="col-span-4">
-                  <Controller
-                    name="purchasePrice.type"
-                    control={control}
-                    render={({ field }) => (
-                      <FormControl fullWidth variant="outlined" size="small">
-                        <InputLabel>Type</InputLabel>
-                        <Select
-                          {...field}
-                          label="Type"
-                          value={field.value || ""}
-                          onChange={(e) => {
-                            const newType = e.target.value || undefined;
-                            field.onChange(newType);
-                            if (newType === 'set' || newType === undefined) {
-                              setValue('purchasePrice.is_percentage', false);
-                            } else if (newType === 'increase' || newType === 'decrease') {
-                              setValue('purchasePrice.is_percentage', true);
-                            }
-                          }}
-                          className="w-full bg-white"
-                        >
-                          <MenuItem value="set">Set to</MenuItem>
-                          <MenuItem value="increase">Increase by</MenuItem>
-                          <MenuItem value="decrease">Decrease by</MenuItem>
-                        </Select>
-                      </FormControl>
-                    )}
+              <div className="space-y-4"> 
+                <div className="mb-2">
+                  <h3 className="font-semibold">Dimensions & Weight</h3>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <FormTextField 
+                    name="weight"
+                    control={bulkControl}
+                    label="Weight"
+                    type="number"
+                    placeholder=""
+                    helperText={bulkFormState.errors.weight?.message as string ?? undefined}
+                  />
+                  
+                  <FormTextField 
+                    name="length"
+                    control={bulkControl}
+                    label="Length"
+                    type="number"
+                    placeholder=""
+                    helperText={bulkFormState.errors.length?.message as string ?? undefined}
+                  />
+                  
+                  <FormTextField 
+                    name="width"
+                    control={bulkControl}
+                    label="Width"
+                    type="number"
+                    placeholder=""
+                    helperText={bulkFormState.errors.width?.message as string ?? undefined}
+                  />
+                  
+                  <FormTextField 
+                    name="height"
+                    control={bulkControl}
+                    label="Height"
+                    type="number"
+                    placeholder=""
+                    helperText={bulkFormState.errors.height?.message as string ?? undefined}
                   />
                 </div>
-                {/* Value Input */}
-                <div className="col-span-4">
-                  <Controller
-                    name="purchasePrice.value"
-                    control={control}
-                    render={({ field }) => (
-                      <StyledTextField
-                        {...field}
-                        type="number"
-                        value={field.value === undefined || field.value === null ? "" : field.value}
-                        onChange={(e) => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))}
-                        fullWidth
-                        placeholder="Value"
-                        label="Value"
-                        InputLabelProps={{ shrink: true }}
-                        error={!!(errors.purchasePrice as any)?.value || !!errors.purchasePrice?.root}
-                        inputProps={{ step: "0.01", className: "h-10 box-border" }}
-                      />
-                    )}
-                  />
-                </div>
-                {/* Percentage Checkbox */}
-                <div className="col-span-4 flex items-center pb-1">
-                  <Controller
-                    name="purchasePrice.is_percentage"
-                    control={control}
-                    render={({ field }) => (
-                      <FormControlLabel
-                        control={
-                          <Checkbox
-                            checked={!!field.value}
-                            onChange={(e) => field.onChange(e.target.checked)}
-                            disabled={!watch('purchasePrice.type') || (watch('purchasePrice.type') === 'set')}
-                            sx={{ '&.Mui-checked': { color: '#2E9970' } }}
-                          />
-                        }
-                        label="Percentage"
-                        labelPlacement="end"
-                      />
-                    )}
-                  />
-                </div>
-                {/* Error Message Area */} 
-                {((errors.purchasePrice?.type as FieldError)?.message || (errors.purchasePrice as any)?.value?.message || errors.purchasePrice?.root?.message) && (
-                  <div className="col-span-12 mt-1">
-                      <p className="text-xs text-red-500">
-                          {(errors.purchasePrice?.type as FieldError)?.message ||
-                           (errors.purchasePrice as any)?.value?.message || 
-                           errors.purchasePrice?.root?.message}
-                      </p>
-                  </div>
-                )}
               </div>
             </div>
+          </div>
+          
+          <div className="mt-6 text-right">
+            <AppButton 
+              label="Apply Bulk Update"
+              type="submit" 
+              disabled={!bulkFormState.isDirty || !bulkFormState.isValid || isBulkSubmitting}
+              loading={isBulkSubmitting}
+            />
+          </div>
+        </form>
+      </Paper>
 
-            {/* Column 2: Stock/Status Fields */} 
-            <div className="space-y-4"> {/* Use space-y for vertical stacking within column 2 */}
-              <FormTextField
-                name="stock"
-                control={control}
-                label="Stock"
-                type="number"
-                placeholder=""
-                helperText={errors.stock?.message as string ?? undefined}
-              />
-              <Controller
-                name="stockStatus"
-                control={control}
-                render={({ field, fieldState: { error } }) => (
-                  <FormField 
-                    label="Stock Status"
-                    error={error?.message}
-                  >
-                    <select
-                      {...field}
-                      value={field.value || ""}
-                      onChange={(e) => field.onChange(e.target.value || undefined)}
-                      className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-green-500 bg-white appearance-none h-10"
-                    >
-                      <option value="In Stock">In Stock</option>
-                      <option value="Out of Stock">Out of Stock</option>
-                      <option value="Back Order">Back Order</option>
-                    </select>
-                  </FormField>
-                )}
-              />
-              <FormTextField
-                name="lowStockThreshold"
-                control={control}
-                label="Low Stock Threshold"
-                type="number"
-                placeholder=""
-                helperText={errors.lowStockThreshold?.message as string ?? undefined}
-              />
-              <Controller
-                name="status"
-                control={control}
-                render={({ field, fieldState: { error } }) => (
-                  <FormField 
-                    label="Status"
-                    error={error?.message}
-                  >
-                    <select
-                      {...field}
-                      value={field.value || ""}
-                      onChange={(e) => field.onChange(e.target.value || undefined)}
-                      className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-green-500 bg-white appearance-none h-10"
-                    >
-                      <option value="active">Active</option>
-                      <option value="inactive">Inactive</option>
-                    </select>
-                  </FormField>
-                )}
-              />
+      {variants.length > 0 && (
+        <div className="mt-8">
+          <h3 className="text-lg font-semibold mb-4">Created Variants</h3>
+          {filteredVariants.length === 0 && (
+            <div className="text-center py-8 border rounded bg-gray-50">
+              <p className="text-gray-500">No variants match your search</p>
+              <p className="mt-2 text-gray-500">Try adjusting your search criteria</p>
             </div>
-          </div>
-          {/* Dimensions & Weight Heading */}
-          <div className="mt-4 mb-2"> {/* Removed col-span-3 */} 
-            <h3 className="font-semibold">Dimensions & Weight</h3>
-          </div>
+          )}
+          
+          {filteredVariants.length > 0 && (
+            <div className="flex gap-6">
+              <div className="w-1/2">
+                <div>
+                  {filteredVariants.map((variant) => {
+                    const variantIndex = variants.findIndex(v => v.id === variant.id);
+                    return (
+                      <div
+                        key={variant.id}
+                        data-variant-id={variant.id}
+                        className={`border border-gray-200 overflow-hidden cursor-pointer bg-white mb-2 rounded-xl ${ 
+                          selectedVariantIndex === variantIndex ? 'border-l-4 border-l-green-600' : 'border-l-transparent' 
+                        }`}
+                        onClick={() => setSelectedVariantIndex(variantIndex)}
+                      >
+                        <div className="flex p-3">
+                          <div className="w-16 mr-3">
+                             <div className="h-16 w-16 flex items-center justify-center">
+                               {(() => {
+                                 const primaryImage = variant.images?.find((img: VariantImage) => img.is_primary);
+                                 const displayImage = primaryImage || variant.images?.[0];
+                                 if (displayImage) {
+                                   return <img src={displayImage.image_url} alt={`Variant ${variant.id}`} className="max-h-full max-w-full object-contain" />;
+                                 } else {
+                                   return <div className="text-gray-400">No image</div>;
+                                 }
+                               })()}
+                             </div>
+                          </div>
+                          <div className="flex-1 pl-4">
+                             <div className="mb-2">
+                               <p className="text-sm font-semibold text-gray-700">ID: {variant.id}</p>
+                             </div>
+                             <div className="space-y-2">
+                              {Object.entries(variant.attributes).map(([key, value], attrIndex) => (
+                                <div key={`${key}-${attrIndex}`} >
+                                  <p className="text-sm text-green-800 font-semibold mb-0.5">{key}:</p>
+                                  <input 
+                                    type="text" 
+                                    readOnly 
+                                    value={value} 
+                                    className="w-full text-sm border border-gray-300 px-3 py-1 rounded bg-gray-50 text-gray-800 focus:outline-none" 
+                                  />
+                                </div>
+                              ))}
+                            </div>
+                             <div className="flex items-center pt-3 justify-between">
+                               <div className="flex items-center flex-wrap gap-2">
+                                 <div className="flex items-center space-x-1 border border-[#005B2F] rounded-md bg-green-50 px-2.5 py-1">
+                                   <span className="text-[#14854E] text-sm font-medium">Stock:</span>
+                                   <div className="bg-[#14854E] px-1.5 py-0.5 rounded-sm text-white text-sm font-semibold stock-value">
+                                     {variant.stock ?? 'N/A'}
+                                   </div>
+                                 </div>
+                                 <div className="flex items-center gap-1 border border-[#005B2F] rounded-md bg-green-50 px-2.5 py-1">
+                                   <span className="text-[#14854E] text-sm font-medium">Price:</span>
+                                   <div className="bg-[#14854E] px-1.5 py-0.5 rounded-sm text-white text-sm font-semibold price-value">
+                                     ${variant.price !== null ? Number(variant.price).toFixed(2) : 'N/A'}
+                                   </div>
+                                 </div>
+                               </div>
+                               <div className={`px-3 py-1 rounded-md text-sm font-medium status-value ${ 
+                                 variant.status === 'Active' ? 'bg-white border border-[#005B2F] text-[#14854E]' : 'bg-white border border-red-500 text-red-500' 
+                               }`}>
+                                 {variant.status}
+                               </div>
+                             </div>
+                          </div>
+                          <div className="ml-2">
+                            <IconButton 
+                              size="small" 
+                              color="error" 
+                              onClick={(e) => { 
+                                e.stopPropagation(); 
+                                setVariantToDeleteId(variant.id); 
+                                setIsDeleteDialogOpen(true); 
+                              }}
+                              disabled={isUpdating || isBulkSubmitting}
+                            >
+                              <DeleteIcon fontSize="small" />
+                            </IconButton>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+              
+              {selectedVariant && (
+                <div className="w-1/2">
+                  <Paper elevation={3} className="p-4 bg-white">
+                    <div className="flex justify-between items-center mb-4">
+                      <h2 className="text-lg font-bold">Variant Details</h2>
+                      <AppButton 
+                        label="Save" 
+                        onClick={handleEditSubmit(handleUpdateVariant)}
+                        disabled={isUpdating || !editFormState.isDirty || !editFormState.isValid || isBulkSubmitting}
+                        loading={isUpdating}
+                      />
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-4 mb-4">
+                      <Controller name="stockStatus" control={editControl} render={({ field, fieldState: { error } }) => (
+                        <FormField label="Stock Status" required error={(error as FieldError)?.message}>
+                          <select {...field} className="w-full border border-gray-300 rounded-lg p-2 focus:outline-none focus:ring-1 focus:ring-green-500 bg-white h-10 appearance-none">
+                            <option value="In Stock">In Stock</option>
+                            <option value="Out of Stock">Out of Stock</option>
+                            <option value="Back Order">Back Order</option>
+                          </select>
+                        </FormField>
+                      )}/>
+                      <Controller name="status" control={editControl} render={({ field, fieldState: { error } }) => (
+                        <FormField label="Status" required error={(error as FieldError)?.message}>
+                          <select {...field} className="w-full border border-gray-300 rounded-lg p-2 focus:outline-none focus:ring-1 focus:ring-green-500 bg-white h-10 appearance-none">
+                            <option value="active">Active</option>
+                            <option value="inactive">Inactive</option>
+                          </select>
+                        </FormField>
+                      )}/>
+                    </div>
+                    <div className="grid grid-cols-3 gap-4 mb-4">
+                        <FormTextField name="price" control={editControl} label="Price" required type="number" inputProps={{ step: "0.01" }}/>
+                        <FormTextField name="depositPrice" control={editControl} label="Deposit Price" type="number" inputProps={{ step: "0.01" }}/>
+                        <FormTextField name="purchasePrice" control={editControl} label="Purchase Price" type="number" inputProps={{ step: "0.01" }}/>
+                    </div>
+                    <div className="grid grid-cols-3 gap-4 mb-4">
+                         <FormTextField name="stock" control={editControl} label="Stock" required type="number" inputProps={{ step: "1" }}/>
+                         <FormTextField name="lowStockThreshold" control={editControl} label="Low Stock Threshold" type="number" inputProps={{ step: "1" }}/>
+                         <FormTextField name="slug" control={editControl} label="Slug" required />
+                    </div>
+                     <div className="mb-4">
+                       <h3 className="font-semibold mb-3">Dimensions & Weight</h3>
+                       <div className="grid grid-cols-4 gap-4">
+                           <FormTextField name="weight" control={editControl} label="Weight" type="number" inputProps={{ min: "0", step: "0.01" }}/>
+                           <FormTextField name="length" control={editControl} label="Length" type="number" inputProps={{ min: "0", step: "0.01" }}/>
+                           <FormTextField name="width" control={editControl} label="Width" type="number" inputProps={{ min: "0", step: "0.01" }}/>
+                           <FormTextField name="height" control={editControl} label="Height" type="number" inputProps={{ min: "0", step: "0.01" }}/>
+                       </div>
+                    </div>
+                    <FormTextField name="barcode" control={editControl} label="Barcode" />
+                    <div className="mt-2">
+                    <Controller name="description" control={editControl} render={({ field, fieldState: { error } }) => (
+                       <FormField label="Description" error={(error as FieldError)?.message}>
+                           <textarea {...field} className="w-full border border-gray-300 rounded-lg p-3 h-24 focus:outline-none focus:ring-1 focus:ring-green-500 bg-white" />
+                       </FormField>
+                    )}/>
+                    </div>
 
-          {/* Dimensions grouped together */}
-          {/* --- EDIT: Use grid for dimensions --- */} 
-          <div className="grid grid-cols-4 gap-4"> {/* Removed col-span-3 */} 
-            <FormTextField 
-              name="weight"
-              control={control}
-              label="Weight"
-              type="number"
-              placeholder=""
-              helperText={errors.weight?.message as string ?? undefined}
-            />
-            
-            <FormTextField 
-              name="length"
-              control={control}
-              label="Length"
-              type="number"
-              placeholder=""
-              helperText={errors.length?.message as string ?? undefined}
-            />
-            
-            <FormTextField 
-              name="width"
-              control={control}
-              label="Width"
-              type="number"
-              placeholder=""
-              helperText={errors.width?.message as string ?? undefined}
-            />
-            
-            <FormTextField 
-              name="height"
-              control={control}
-              label="Height"
-              type="number"
-              placeholder=""
-              helperText={errors.height?.message as string ?? undefined}
-            />
-          </div>
+                    <div className="mt-4">
+                      <h3 className="font-semibold mb-3">Image</h3>
+                      {selectedVariant.images && selectedVariant.images.length > 0 && (
+                        <div className="grid grid-cols-4 gap-2 mb-4">
+                          {selectedVariant.images.map((image: VariantImage, idx: number) => (
+                            <div key={`${image.id}-${idx}`} className="relative border rounded p-1">
+                              <img src={image.image_url} alt={`Variant image ${idx}`} className="w-full h-24 object-contain" />
+                              <div className="absolute top-1 right-1">
+                                <IconButton 
+                                  size="small" 
+                                  color="error" 
+                                  className="bg-white" 
+                                  onClick={() => handleDeleteImage(image.id)}
+                                  disabled={isUpdating || isBulkSubmitting || isEditImageUploading}
+                                >
+                                  <DeleteIcon fontSize="small" />
+                                </IconButton>
+                              </div>
+                              <div className="mt-1 flex justify-center">
+                                <input 
+                                   type="radio" 
+                                   name={`primary-edit-${selectedVariantIndex}`} 
+                                   checked={image.is_primary} 
+                                   onChange={() => handleSetPrimaryImage(image.id)}
+                                   disabled={isUpdating || isBulkSubmitting || isEditImageUploading}
+                                />
+                                <span className="text-xs ml-1">Primary</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      <div {...editGetRootProps()} className={`border rounded flex flex-col items-center justify-center py-8 bg-gray-50 ${editIsDragActive ? 'border-green-500 bg-green-50' : 'border-gray-300'} ${isEditImageUploading ? 'opacity-70 cursor-wait' : 'cursor-pointer'} mb-3`}>
+                        <input {...editGetInputProps()} disabled={isEditImageUploading || isUpdating || isBulkSubmitting} />
+                        {(isEditImageUploading) ? (
+                          <FuseLoading className="mb-2" />
+                        ) : (
+                          <>
+                            <CloudUploadIcon className="text-gray-400 mb-2" />
+                            <p className="text-center">{editIsDragActive ? "Drop files here" : "Upload More Images"}</p>
+                            <p className="text-xs text-gray-500">5MB max file size</p>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </Paper>
+                </div>
+              )}
+            </div>
+          )}
         </div>
-        
-        {/* Submit Button */} 
-        <div className="mt-6 text-right">
-          <AppButton 
-            label="Apply Bulk Update"
-            type="submit" 
-            disabled={!isDirty || !isValid || isSubmitting} 
-            loading={isSubmitting}
-          />
-        </div>
-      </form>
-    </Paper>
+      )}
+    </div>
   );
 };
 

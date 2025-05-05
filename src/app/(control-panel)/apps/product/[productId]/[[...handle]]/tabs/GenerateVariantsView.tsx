@@ -256,6 +256,7 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
   const [isLoading, setIsLoading] = useState(initialLoading);
   const [generatedVariants, setGeneratedVariants] = useState<GeneratedVariant[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [fetchErrorOccurred, setFetchErrorOccurred] = useState(false);
   const [selectedVariant, setSelectedVariant] = useState<GeneratedVariant | null>(null);
   const { showSnackbar } = useSnackbar();
   const searchParams = useSearchParams();
@@ -271,8 +272,9 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
   const {
     control,
     handleSubmit,
+    getValues,
     reset: resetForm,
-    formState: { errors, isDirty, isValid },
+    formState: { errors, isDirty, isValid, dirtyFields },
   } = useForm<VariantFormData>({
     resolver: zodResolver(variantSchema),
     mode: "all",
@@ -293,6 +295,42 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
       stockStatus: "In Stock",
     },
   });
+
+  // --- Define Helper Functions at Component Scope --- 
+  const getFieldValue = (value: any): string => {
+    if (value === null || value === undefined || value === '') {
+      return '';
+    }
+    return value.toString();
+  };
+
+  // Updated to return null if value is null/undefined/empty/NaN
+  const getNumericValue = (value: any): number | null => { 
+    if (value === null || value === undefined || value === '') return null; // Return null for empty
+    const num = Number(value);
+    return isNaN(num) ? null : num; // Return null if NaN, otherwise the number
+  };
+
+  const getValidStockStatus = (status: string | null | undefined): "In Stock" | "Out of Stock" | "Back Order" => {
+    // Use selectedVariant from component state if needed for fallback
+    const currentStock = selectedVariant?.stock ?? 0;
+    const lowerStatus = status?.toLowerCase();
+    switch (lowerStatus) {
+      case "in_stock":
+      case "in stock":
+        return "In Stock";
+      case "out_of_stock":
+      case "out of stock":
+        return "Out of Stock";
+      case "back_order":
+      case "back order":
+        return "Back Order";
+      default:
+        // Provide a fallback based on stock value if status is invalid/missing
+        return currentStock > 0 ? "In Stock" : "Out of Stock";
+    }
+  };
+  // --- End Helper Functions --- 
 
   // Add dropzone hook for image uploads
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -370,9 +408,30 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
           setGeneratedVariants(prevVariants => 
             prevVariants.map(variant => {
               if (variant.id === selectedVariant.id) {
+                // <<< Step 1: Get current unsaved form values >>>
+                const currentFormValues = getValues();
+                console.log("[onDrop] Current form values:", currentFormValues);
+
                 // Create the updated variant object - REPLACE images with potentially modified newImages list
                 const newlyUpdatedVariant = {
                   ...variant,
+                  ...currentFormValues, // Overwrite with unsaved form values
+                  // <<< Step 3: Ensure correct types and map field names, using null for empty/invalid >>>
+                  price: String(getNumericValue(currentFormValues.price) ?? variant.price ?? 0), // Use helper, fallback to existing, then 0
+                  stock: getNumericValue(currentFormValues.stock) ?? variant.stock ?? 0, // Use helper, fallback to existing, then 0
+                  slug: String(currentFormValues.slug || variant.slug || ''),
+                  discount_price: String(getNumericValue(currentFormValues.depositPrice) ?? variant.discount_price ?? null), // Map form name, use null
+                  purchase_price: String(getNumericValue(currentFormValues.purchasePrice) ?? variant.purchase_price ?? null), // Use null
+                  low_stock_threshold: getNumericValue(currentFormValues.lowStockThreshold) ?? variant.low_stock_threshold ?? null, // Use null
+                  weight: String(getNumericValue(currentFormValues.weight) ?? variant.weight ?? null), // Use null
+                  length: String(getNumericValue(currentFormValues.length) ?? variant.length ?? null), // Use null
+                  width: String(getNumericValue(currentFormValues.width) ?? variant.width ?? null), // Use null
+                  height: String(getNumericValue(currentFormValues.height) ?? variant.height ?? null), // Keep null possible
+                  barcode: String(currentFormValues.barcode || variant.barcode || ''),
+                  description: String(currentFormValues.description || variant.description || ''),
+                  status: String(currentFormValues.status || variant.status || 'inactive'),
+                  stock_status: String(currentFormValues.stockStatus || variant.stock_status || 'Out of Stock'),
+                  // <<< Step 4: NOW overwrite the images with the new list >>>
                   variantImages: newImages.map(img => ({ 
                     id: img.id,
                     image_url: img.image_url,
@@ -561,6 +620,7 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
   const fetchVariants = async (productId: string, isMounted: boolean) => {
     setIsLoading(true); 
     setError(null);
+    setFetchErrorOccurred(false);
     try {
       console.log(`[fetchVariants] Fetching variants for ID: ${productId}`);
       const response = await getProductVariants(Number(productId));
@@ -587,9 +647,11 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
       if (!isMounted) return;
       console.error('[fetchVariants] Error fetching variants:', error);
       setError(error.message || 'Failed to fetch variants'); 
-      showSnackbar(error.message || 'Failed to fetch variants', 'error');
+      setFetchErrorOccurred(true);
+      // showSnackbar(error.message || 'Failed to fetch variants', 'error');
        setGeneratedVariants([]); 
        setSelectedVariant(null);
+       setIsLoading(false);
     } finally {
        if (isMounted) setIsLoading(false); // Ensure loading stops
     }
@@ -600,6 +662,7 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
     let isMounted = true; // Add mount check flag
     setHasGeneratedThisLoad(false); // Reset generation flag
     setIsConfirmationDialogOpen(false); // Ensure dialog is closed initially
+    setFetchErrorOccurred(false);
 
     const productId = searchParams.get('productId');
     if (productId) {
@@ -622,15 +685,16 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
   }, [searchParams, showSnackbar]); // Dependencies: only things that trigger initial load/reset
 
   // --- ADDED: useEffect to control dialog visibility --- 
-  useEffect(() => {
-    console.log(`[DialogEffect] Checking: !allCombinationsUsed=${!allCombinationsUsed}, !hasGeneratedThisLoad=${!hasGeneratedThisLoad}`);
-    // Only open if combinations are available AND we haven't generated this load
+  useEffect(() => {    
+    // Open dialog if EITHER fetch failed OR (combinations available AND not generated this load)
     if (!allCombinationsUsed && !hasGeneratedThisLoad) {
-       console.log("[DialogEffect] Opening confirmation dialog.");
        setIsConfirmationDialogOpen(true);
-    } 
-    // No 'else' needed to close it here, closing happens on Cancel/Confirm actions
-  }, [allCombinationsUsed, hasGeneratedThisLoad]); // Run when combination status or generation flag changes
+    } else {
+        console.log(`[DialogEffect] Conditions NOT met. Dialog remains closed.`);
+        // Ensure dialog is closed if conditions aren't met (e.g., after generation)
+        setIsConfirmationDialogOpen(false); 
+    }
+  }, [ allCombinationsUsed, hasGeneratedThisLoad, generatedVariants.length]); // Add fetchErrorOccurred and generatedVariants.length
 
   // Update useEffect to handle form reset with selected variant
   useEffect(() => {
@@ -640,75 +704,44 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
       // Log the variant data being used
       console.log('[useEffect resetEditForm] currentSelectedVariant:', JSON.stringify(selectedVariant, null, 2));
 
-      const getFieldValue = (value: any): string => {
-        if (value === null || value === undefined || value === '') {
-          return '';
-        }
-        return value.toString();
-      };
-
-      // Updated to return 0 if value is null/undefined/empty
-      const getNumericValue = (value: any): number => { // Return type is now number
-        if (value === null || value === undefined || value === '') return 0; // Return 0 for null/undefined/empty
-        const num = Number(value);
-        return isNaN(num) ? 0 : num; // Return 0 if NaN, otherwise the number
-      };
-
-      const getValidStockStatus = (status: string | null | undefined): "In Stock" | "Out of Stock" | "Back Order" => {
-        const lowerStatus = status?.toLowerCase();
-        switch (lowerStatus) {
-          case "in_stock":
-          case "in stock":
-            return "In Stock";
-          case "out_of_stock":
-          case "out of stock":
-            return "Out of Stock";
-          case "back_order":
-          case "back order":
-            return "Back Order";
-          default:
-            // Provide a fallback based on stock value if status is invalid/missing
-            return (selectedVariant.stock ?? 0) > 0 ? "In Stock" : "Out of Stock";
-        }
-      };
-
       const resetValues = {
-        slug: getFieldValue(selectedVariant.slug), // Text field: use getFieldValue -> ''
-        price: getNumericValue(selectedVariant.price), // Numeric field: use getNumericValue -> 0 for null
-        stock: getNumericValue(selectedVariant.stock), // Numeric field: use getNumericValue -> 0 for null
-        status: (selectedVariant.status?.toLowerCase() === 'active' ? 'active' : 'inactive') as 'active' | 'inactive', // Explicit cast
-        depositPrice: getNumericValue(selectedVariant.discount_price), // Numeric field: use getNumericValue -> 0 for null
-        purchasePrice: getNumericValue(selectedVariant.purchase_price), // Numeric field: use getNumericValue -> 0 for null
-        lowStockThreshold: getNumericValue(selectedVariant.low_stock_threshold), // Numeric field: use getNumericValue -> 0 for null
+        slug: getFieldValue(selectedVariant.slug),
+        price: getNumericValue(selectedVariant.price), // Required, should not be null from valid state
+        stock: getNumericValue(selectedVariant.stock), // Required, should not be null from valid state
+        status: (selectedVariant.status?.toLowerCase() === 'active' ? 'active' : 'inactive') as 'active' | 'inactive',
+        // --- MODIFIED: Pass null for optional fields if value is null --- 
+        depositPrice: getNumericValue(selectedVariant.discount_price), // Use helper which returns null
+        purchasePrice: getNumericValue(selectedVariant.purchase_price), // Use helper which returns null
+        lowStockThreshold: getNumericValue(selectedVariant.low_stock_threshold), // Use helper which returns null
         stockStatus: getValidStockStatus(selectedVariant.stock_status),
-        weight: getNumericValue(selectedVariant.weight), // Numeric field: use getNumericValue -> 0 for null
-        length: getNumericValue(selectedVariant.length), // Numeric field: use getNumericValue -> 0 for null
-        width: getNumericValue(selectedVariant.width), // Numeric field: use getNumericValue -> 0 for null
-        height: getNumericValue(selectedVariant.height), // Numeric field: use getNumericValue -> 0 for null
-        barcode: getFieldValue(selectedVariant.barcode), // Text field: use getFieldValue -> ''
-        description: getFieldValue(selectedVariant.description) // Text field: use getFieldValue -> ''
+        weight: getNumericValue(selectedVariant.weight), // Use helper which returns null
+        length: getNumericValue(selectedVariant.length), // Use helper which returns null
+        width: getNumericValue(selectedVariant.width), // Use helper which returns null
+        height: getNumericValue(selectedVariant.height), // Use helper which returns null
+        barcode: getFieldValue(selectedVariant.barcode),
+        description: getFieldValue(selectedVariant.description)
       };
       console.log('[useEffect resetEditForm] Values passed to resetForm:', JSON.stringify(resetValues, null, 2));
-      resetForm(resetValues); // No need for 'as any' now
+      resetForm(resetValues); 
 
     } else {
       console.log('[useEffect resetEditForm] No variant selected, resetting to defaults.');
-      // Reset all fields to empty strings or 0 for numbers
+      // Reset all fields to empty strings or null for potentially required fields
       resetForm({
         slug: '',
-        price: 0, // Use 0 for numbers
-        stock: 0, // Use 0 for numbers
+        price: null, // Use null for potentially required number fields initially
+        stock: null, // Use null for potentially required number fields initially
         status: 'active',
-        depositPrice: 0, // Use 0 for numbers
-        purchasePrice: 0, // Use 0 for numbers
-        lowStockThreshold: 0, // Use 0 for numbers
+        depositPrice: null, // Use null for optional numbers
+        purchasePrice: null, // Use null for optional numbers
+        lowStockThreshold: null, // Use null for optional numbers
         stockStatus: 'In Stock',
-        weight: 0, // Use 0 for numbers
-        length: 0, // Use 0 for numbers
-        width: 0, // Use 0 for numbers
-        height: 0, // Use 0 for numbers
-        barcode: '',
-        description: ''
+        weight: null, // Use null for optional numbers
+        length: null, // Use null for optional numbers
+        width: null, // Use null for optional numbers
+        height: null, // Use null for optional numbers
+        barcode: '', // Use empty string for optional strings
+        description: '' // Use empty string for optional strings
       });
     }
   }, [selectedVariant, resetForm]);
@@ -717,71 +750,103 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
   const onSubmit = async (data: VariantFormData) => {
     if (!selectedVariant) return;
 
+    // Check if the form is actually dirty before proceeding
+    if (!isDirty) {
+      console.log("[onSubmit] Form is not dirty, no update necessary.");
+      showSnackbar("No changes to save.", "info");
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       const productId = searchParams.get('productId');
       if (!productId) {
         showSnackbar("Product ID not found", "error");
+        setIsSubmitting(false); // Stop submission
         return;
       }
 
-      // Helper function for number transformation
       const transformOptionalNumber = (value: number | string | null | undefined): number | null => {
         if (value === null || value === undefined || value === '') return null;
         const num = Number(value);
         return isNaN(num) ? null : num;
       };
 
-      // --- ADDED: Helper to map stock status to API format ---
-      const mapStockStatusToApi = (status: string): string | null => {
-        switch (status) {
-          case "In Stock": return "in_stock";
-          case "Out of Stock": return "out_of_stock";
-          case "Back Order": return "back_order";
-          default: return null; // Or handle invalid case appropriately
+      // Start with an empty payload, explicitly typed
+      const apiPayload: Partial<UpdateProductVariantRequest> = {};
+
+      console.log("[onSubmit] Dirty fields:", dirtyFields);
+      console.log("[onSubmit] Submitted data:", data);
+
+      // Dynamically add fields to payload ONLY if they are dirty
+      if (dirtyFields.slug) apiPayload.slug = data.slug;
+      if (dirtyFields.price) apiPayload.price = transformOptionalNumber(data.price);
+      if (dirtyFields.stock) apiPayload.stock = transformOptionalNumber(data.stock);
+      if (dirtyFields.depositPrice) apiPayload.discount_price = transformOptionalNumber(data.depositPrice);
+      if (dirtyFields.purchasePrice) apiPayload.purchase_price = transformOptionalNumber(data.purchasePrice);
+      if (dirtyFields.lowStockThreshold) apiPayload.low_stock_threshold = transformOptionalNumber(data.lowStockThreshold);
+      if (dirtyFields.weight) apiPayload.weight = transformOptionalNumber(data.weight);
+      if (dirtyFields.length) apiPayload.length = transformOptionalNumber(data.length);
+      if (dirtyFields.width) apiPayload.width = transformOptionalNumber(data.width);
+      if (dirtyFields.height) apiPayload.height = transformOptionalNumber(data.height);
+      if (dirtyFields.barcode) apiPayload.barcode = data.barcode || null;
+      // --- ADDED: Include status and stock_status if dirty --- 
+      if (dirtyFields.status) {
+        apiPayload.status = data.status; // Assuming API expects 'active' | 'inactive'
+      }
+      if (dirtyFields.stockStatus) {
+        // Map form value to API expected value
+        switch (data.stockStatus) {
+          case 'In Stock': apiPayload.stock_status = 'in_stock'; break;
+          case 'Out of Stock': apiPayload.stock_status = 'out_of_stock'; break;
+          case 'Back Order': apiPayload.stock_status = 'back_order'; break;
+          default: apiPayload.stock_status = null; // Or handle as error/default
         }
-      };
-      // --- END Helper ---
+      }
 
-      // Build API payload with correct types
-      const apiPayload: UpdateProductVariantRequest = {
-        slug: data.slug,
-        price: transformOptionalNumber(data.price),
-        stock: transformOptionalNumber(data.stock),
-        discount_price: transformOptionalNumber(data.depositPrice),
-        purchase_price: transformOptionalNumber(data.purchasePrice),
-        low_stock_threshold: transformOptionalNumber(data.lowStockThreshold),
-        weight: transformOptionalNumber(data.weight),
-        length: transformOptionalNumber(data.length),
-        width: transformOptionalNumber(data.width),
-        height: transformOptionalNumber(data.height),
-        barcode: data.barcode || null,
-        attributes: selectedVariant.variantAttributes.map(attr => ({
-          attribute_id: attr.attribute_id,
-          term_id: attr.term_id
-        }))
-      };
+      // --- IMPORTANT: Always include attributes if required by backend --- 
+      apiPayload.attributes = selectedVariant.variantAttributes.map(attr => ({
+        attribute_id: attr.attribute_id,
+        term_id: attr.term_id
+      }));
 
-      await updateProductVariant(Number(productId), selectedVariant.id, apiPayload);
+      // --- Safety check: Include required fields if they weren't dirty ---
+      if (apiPayload.slug === undefined && data.slug !== undefined) apiPayload.slug = data.slug;
+      if (apiPayload.price === undefined && data.price !== undefined) apiPayload.price = transformOptionalNumber(data.price);
+      if (apiPayload.stock === undefined && data.stock !== undefined) apiPayload.stock = transformOptionalNumber(data.stock);
 
-      // Update local state with correct types
-      setGeneratedVariants(prev => 
+      // Check if there are any actual changes being sent (besides attributes/required fields)
+      const fieldsBeingSent = Object.keys(apiPayload).filter(key => key !== 'attributes');
+      if (fieldsBeingSent.length === 0) {
+        console.log("[onSubmit] No fields detected in payload to update (excluding attributes). Skipping API call.");
+        setIsSubmitting(false);
+        return; // Early return as no meaningful update needed
+      }
+
+      console.log("[onSubmit] Sending API payload:", apiPayload);
+
+      await updateProductVariant(Number(productId), selectedVariant.id, apiPayload as UpdateProductVariantRequest);
+
+      // --- Local State Update --- 
+      setGeneratedVariants(prev =>
         prev.map(variant => {
           if (variant.id === selectedVariant.id) {
             return {
               ...variant,
-              slug: apiPayload.slug,
-              price: String(apiPayload.price || 0),
-              stock: apiPayload.stock || 0,
-              discount_price: apiPayload.discount_price ? String(apiPayload.discount_price) : '0',
-              purchase_price: apiPayload.purchase_price ? String(apiPayload.purchase_price) : '0',
-              low_stock_threshold: apiPayload.low_stock_threshold || 0,
-              weight: apiPayload.weight ? String(apiPayload.weight) : '0',
-              length: apiPayload.length ? String(apiPayload.length) : '0',
-              width: apiPayload.width ? String(apiPayload.width) : '0',
-              height: apiPayload.height ? String(apiPayload.height) : null,
-              barcode: apiPayload.barcode || '',
-              stock_status: data.stockStatus
+              slug: data.slug,
+              price: String(data.price || 0),
+              stock: Number(data.stock || 0),
+              discount_price: String(data.depositPrice || 0),
+              purchase_price: String(data.purchasePrice || 0),
+              low_stock_threshold: Number(data.lowStockThreshold || 0),
+              weight: String(data.weight || 0),
+              length: String(data.length || 0),
+              width: String(data.width || 0),
+              height: String(data.height || null),
+              barcode: data.barcode || '',
+              description: data.description || '',
+              stock_status: data.stockStatus,
+              status: data.status
             };
           }
           return variant;
@@ -789,6 +854,11 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
       );
 
       showSnackbar("Variant updated successfully", "success");
+
+      // --- Explicitly reset dirty state after successful update --- 
+      // This tells RHF that the current form values are now the 'clean' baseline
+      resetForm(data, { keepValues: true, keepDirty: false });
+
     } catch (error) {
       console.error("Error updating variant:", error);
       // Check for error structure properly
@@ -805,7 +875,7 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
       } else {
         const errorMessage = "An unexpected error occurred";
         showSnackbar(errorMessage, "error");
-      } 
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -962,15 +1032,6 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
            <span className="ml-2">Generating new variants...</span>
          </div>
        );
-  }
-
-  // Error display
-  if (error && !isGenerating) { // Don't show fetch error if generation is in progress
-    return (
-      <div className="p-4 border border-red-200 rounded bg-red-50 text-center text-red-600">
-        {error}
-      </div>
-    );
   }
 
   // --- Render component ---
@@ -1229,11 +1290,11 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
          aria-describedby="generate-variants-confirmation-description"
        >
          <DialogTitle id="generate-variants-confirmation-title">
-           Generate New Variants?
+                    Generate New Variants?
          </DialogTitle>
          <DialogContent>
            <DialogContentText id="generate-variants-confirmation-description">
-             New combinations based on product attributes are available. Do you want to generate these new variants?
+                          New combinations based on product attributes are available. Do you want to generate these new variants?
            </DialogContentText>
          </DialogContent>
          <DialogActions>

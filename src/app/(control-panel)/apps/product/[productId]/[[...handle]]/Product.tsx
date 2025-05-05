@@ -12,7 +12,7 @@ import ProductImagesTab from "./tabs/ProductImagesTab";
 import AttributesTab from "./tabs/AttributesTab";
 // import PricingTab from "./tabs/PricingTab";
 import { ProductFormProvider, useProductForm } from "./ProductFormContext";
-import VariantTab from "./tabs/VariantTab";
+// import VariantTab from "./tabs/VariantTab";
 import { useParams } from "next/navigation";
 import { getProduct } from "@/services/apiProduct";
 import { useSnackbar } from "@/contexts/SnackbarContext";
@@ -105,7 +105,7 @@ function ProductContent() {
               <AttributesTab />
             </div>
             <div className={formData.currentStep !== 3 ? "hidden" : ""}>
-              <VariantManager />
+              <VariantManager isActive={formData.currentStep === 3} />
               {/* <VariantTab /> */}
             </div>
           </div>
