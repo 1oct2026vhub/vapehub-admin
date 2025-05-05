@@ -71,6 +71,7 @@ const TransactionsTable = ({
   const [endDateFilter, setEndDateFilter] = useState<dayjs.Dayjs | null>(
     initialEndDate ? dayjs(initialEndDate) : null
   );
+  const [hasUserFiltered, setHasUserFiltered] = useState(false);
 
   // Initial setup of filters from props
   useEffect(() => {
@@ -282,6 +283,50 @@ const TransactionsTable = ({
     setPage(newPage);
   };
 
+  // --- START ADD: Check if Filters are Active ---
+  const areFiltersActive = useMemo(() => {
+    return (
+      search !== "" ||
+      status !== "" ||
+      transactionType !== "" ||
+      startDateFilter !== null ||
+      endDateFilter !== null
+    );
+  }, [search, status, transactionType, startDateFilter, endDateFilter]);
+  // --- END ADD ---
+
+  // --- Wrapper functions to track user interaction ---
+  const handleSearchChangeWithInteraction = (value: string) => {
+    setSearch(value);
+    setHasUserFiltered(true);
+  };
+
+  const handleStatusChangeWithInteraction = (value: TransactionStatus | "") => {
+    setStatus(value);
+    setHasUserFiltered(true);
+  };
+
+  const handleTransactionTypeChangeWithInteraction = (value: TransactionType | "") => {
+    setTransactionType(value);
+    setHasUserFiltered(true);
+  };
+
+  const handleStartDateChangeWithInteraction = (date: dayjs.Dayjs | null) => {
+    handleStartDateFilterChange(date);
+    setHasUserFiltered(true);
+  };
+
+  const handleEndDateChangeWithInteraction = (date: dayjs.Dayjs | null) => {
+    handleEndDateFilterChange(date);
+    setHasUserFiltered(true);
+  };
+
+  // Modified clear filters handler to reset interaction flag
+  const handleClearFiltersWithInteraction = useCallback(() => {
+    handleClearFilters();
+    setHasUserFiltered(false);
+  }, [handleClearFilters]);
+
   if (isLoading || (apiLoading && transactions.length === 0))
     return <FuseLoading />;
   if (error) return <p>Failed to load transactions</p>;
@@ -315,12 +360,14 @@ const TransactionsTable = ({
               transactionType={transactionType}
               startDateFilter={startDateFilter}
               endDateFilter={endDateFilter}
-              onSearchChange={setSearch}
-              onStatusChange={setStatus}
-              onTransactionTypeChange={setTransactionType}
-              onStartDateChange={handleStartDateFilterChange}
-              onEndDateChange={handleEndDateFilterChange}
-              onClearFilters={handleClearFilters}
+              onSearchChange={handleSearchChangeWithInteraction}
+              onStatusChange={handleStatusChangeWithInteraction}
+              onTransactionTypeChange={handleTransactionTypeChangeWithInteraction}
+              onStartDateChange={handleStartDateChangeWithInteraction}
+              onEndDateChange={handleEndDateChangeWithInteraction}
+              onClearFilters={handleClearFiltersWithInteraction}
+              areFiltersActive={areFiltersActive}
+              hasUserFiltered={hasUserFiltered}
             />
           </Box>
         </div>
