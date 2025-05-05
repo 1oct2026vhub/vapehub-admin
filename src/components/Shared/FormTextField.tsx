@@ -40,6 +40,11 @@ const FormTextField = <T extends FieldValues>({
             '& label.Mui-focused': { color: '#005B2F' }, // Style focused label state
             '& .MuiOutlinedInput-input': { 
               backgroundColor: 'white', 
+              height: '36px',
+            },
+            '& .MuiOutlinedInput-root': { 
+              borderRadius: '8px',
+              height: '36px',
             },
           }}
         />

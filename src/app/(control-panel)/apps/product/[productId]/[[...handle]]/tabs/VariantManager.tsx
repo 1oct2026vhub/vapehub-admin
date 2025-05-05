@@ -642,10 +642,15 @@ const mapFormStockStatusToApi = (formStatus?: 'In Stock' | 'Out of Stock' | 'Bac
 };
 // --- End Add: Stock Status Mapping Helpers ---
 
-const VariantManager = () => {
+// Define props interface if not already defined, or add isActive to existing one
+interface VariantManagerProps {
+  isActive: boolean;
+}
+
+const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add isActive prop
   const { showSnackbar } = useSnackbar();
   const searchParams = useSearchParams();
-  const [viewMode, setViewMode] = useState<'initial' | 'generated' | 'manual' | 'bulk'>('initial'); // Explicitly type the state
+  const [viewMode, setViewMode] = useState<'initial' | 'generated' | 'manual' | 'bulk'>('initial');
   const [variants, setVariants] = useState<Variant[]>([]);
   
   const [selectedVariantIndex, setSelectedVariantIndex] = useState<number>(0);
@@ -658,6 +663,25 @@ const VariantManager = () => {
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isBulkSubmitting, setIsBulkSubmitting] = useState<boolean>(false);
+  // --- Add State for Remove All Dialog --- 
+  const [isRemoveAllDialogOpen, setIsRemoveAllDialogOpen] = useState<boolean>(false);
+  
+  // --- Add Ref and Effect for Resetting View Mode --- 
+  const prevIsActive = useRef<boolean>(isActive);
+
+  useEffect(() => {
+    // Check if the tab just became active (transitioned from false to true)
+    if (isActive && !prevIsActive.current) {
+      console.log('[VariantManager] Tab became active, resetting viewMode.');
+      setViewMode('initial');
+      // Optionally reset other states if needed when tab becomes active
+      // setSearchTerm(''); 
+      // setSelectedVariantIndex(0); 
+    }
+    // Update the previous value for the next render
+    prevIsActive.current = isActive;
+  }, [isActive]); // Depend only on isActive
+  // --- End Add --- 
   
   // Get the currently selected variant
   const selectedVariant = variants[selectedVariantIndex] || null;
@@ -1748,27 +1772,79 @@ const VariantManager = () => {
 
   // Filter variants based on search term
   const filteredVariants = variants.filter(variant => {
-    if (!searchTerm) return true;
+    // --- Add Logging --- 
+    console.log(`[Search Filter] Checking Variant ID: ${variant.id}, Search Term: "${searchTerm}"`);
+    
+    if (!searchTerm) {
+      console.log(`[Search Filter] No search term, including variant.`);
+      return true;
+    }
     
     const searchLower = searchTerm.toLowerCase();
-    
+    let match = false;
+
     // Search in ID
-    if (variant.id.toLowerCase().includes(searchLower)) return true;
+    const idMatch = variant.id?.toString().toLowerCase().includes(searchLower);
+    if (idMatch) {
+      console.log(`[Search Filter] Match found in ID: ${variant.id}`);
+      match = true;
+    }
     
     // Search in slug
-    if (variant.slug.toLowerCase().includes(searchLower)) return true;
+    const slugMatch = !match && variant.slug?.toLowerCase().includes(searchLower);
+    if (slugMatch) {
+      console.log(`[Search Filter] Match found in Slug: ${variant.slug}`);
+      match = true;
+    }
+
+    // Search in Price (convert to string)
+    const priceMatch = !match && variant.price?.toString().includes(searchLower);
+    if (priceMatch) {
+      console.log(`[Search Filter] Match found in Price: ${variant.price}`);
+      match = true;
+    }
     
-    // Search in attributes
-    for (const [key, value] of Object.entries(variant.attributes)) {
-      if (
-        key.toLowerCase().includes(searchLower) ||
-        value.toLowerCase().includes(searchLower)
-      ) {
-        return true;
+    // Search in Stock (convert to string)
+    const stockMatch = !match && variant.stock?.toString().includes(searchLower);
+    if (stockMatch) {
+      console.log(`[Search Filter] Match found in Stock: ${variant.stock}`);
+      match = true;
+    }
+    
+    // Search in Barcode
+    const barcodeMatch = !match && variant.barcode?.toLowerCase().includes(searchLower);
+    if (barcodeMatch) {
+      console.log(`[Search Filter] Match found in Barcode: ${variant.barcode}`);
+      match = true;
+    }
+
+    // Search in Description
+    const descriptionMatch = !match && variant.description?.toLowerCase().includes(searchLower);
+    if (descriptionMatch) {
+      console.log(`[Search Filter] Match found in Description: ${variant.description}`);
+      match = true;
+    }
+    
+    // Search in attributes (both name and term value)
+    if (!match) {
+      try {
+        for (const [key, value] of Object.entries(variant.attributes || {})) { 
+          const keyMatch = key.toLowerCase().includes(searchLower);
+          const valueMatch = value?.toString().toLowerCase().includes(searchLower); 
+          if (keyMatch || valueMatch) {
+            console.log(`[Search Filter] Match found in Attribute - Key: ${key}, Value: ${value}`);
+            match = true;
+            break; // Exit loop once match is found in attributes
+          }
+        }
+      } catch (e) {
+         console.error(`[Search Filter] Error processing attributes for variant ${variant.id}:`, e);
       }
     }
     
-    return false;
+    console.log(`[Search Filter] Final match result for Variant ID ${variant.id}: ${match}`);
+    return match;
+    // --- End Logging Additions ---
   });
 
   // Function to add a new attribute field
@@ -1793,7 +1869,7 @@ const VariantManager = () => {
   // Function to apply attributes to the selected variant
   const applyAttributes = () => {
     if (attributeFields.length === 0) {
-      showSnackbar("No attributes available", "error");
+      // showSnackbar("No attributes available", "error");
       return;
     }
     
@@ -1856,7 +1932,7 @@ const VariantManager = () => {
   // Function to generate combinations of attribute terms
   const generateAttributeCombinations = () => {
     if (productAttributes.length === 0) {
-      showSnackbar("No attributes available", "error");
+      // showSnackbar("No attributes available", "error");
       return;
     }
     
@@ -2647,6 +2723,64 @@ const VariantManager = () => {
     }
   }, [variants, selectedVariantIndex, resetEditForm, variants[selectedVariantIndex]]);
 
+  // --- Add Function to handle Remove All Variants --- 
+  const handleConfirmRemoveAll = async () => { // Make function async
+    setIsRemoveAllDialogOpen(false); // Close dialog immediately
+    
+    const variantsToDelete = [...variants]; // Copy current variants
+    if (variantsToDelete.length === 0) return; // Should not happen, but safe check
+
+    setIsSubmitting(true); // Start loading indicator
+    let successCount = 0;
+    let errorCount = 0;
+
+    console.log(`[RemoveAll] Starting deletion for ${variantsToDelete.length} variants.`);
+
+    // Process deletions sequentially to avoid overwhelming the backend
+    for (const variant of variantsToDelete) {
+      // Skip temporary variants that haven't been saved
+      if (typeof variant.id === 'string' && variant.id.startsWith('#TEMP')) {
+         console.log(`[RemoveAll] Skipping temporary variant ID: ${variant.id}`);
+         continue; // Don't call API for temp variants
+      }
+      
+      try {
+        console.log(`[RemoveAll] Attempting to delete variant ID: ${variant.id}`);
+        await deleteProductVariant(Number(variant.id));
+        console.log(`[RemoveAll] Successfully deleted variant ID: ${variant.id}`);
+        successCount++;
+      } catch (error) {
+        console.error(`[RemoveAll] Failed to delete variant ID: ${variant.id}`, error);
+        errorCount++;
+        // Optionally show individual error snackbars or collect errors
+        // showSnackbar(`Failed to delete variant ${variant.id}`, "error");
+      }
+    }
+
+    console.log(`[RemoveAll] Deletion complete. Success: ${successCount}, Failed: ${errorCount}`);
+
+    // Update UI after all deletions are attempted
+    setVariants([]);
+    setSelectedVariantIndex(0); // Reset selection
+    resetEditForm(); // Reset the edit form
+    // Consider resetting create form as well if needed: resetCreateForm();
+    setPendingCombination(null); // Clear pending combination
+    // Refetch combinations/attributes if needed to update counts
+    if (formData?.productId) {
+       fetchProductAttributes(formData.productId); 
+    }
+
+    // Show summary snackbar
+    if (errorCount === 0) {
+      showSnackbar(`Successfully removed all ${successCount} variants.`, "success");
+    } else {
+      showSnackbar(`Removed ${successCount} variants. Failed to remove ${errorCount}.`, "warning");
+    }
+
+    setIsSubmitting(false); // Stop loading indicator
+  };
+  
+
   return (
     <div className="w-full">      
       {/* Button Toolbar with Search Field */}
@@ -2674,7 +2808,7 @@ const VariantManager = () => {
           >
             Add manually
           </button>
-          {/* <button 
+          <button 
             className={`py-2 px-4 border font-medium rounded-lg ${
               viewMode === 'bulk' 
                 ? 'bg-[#006C38] text-white' 
@@ -2687,11 +2821,11 @@ const VariantManager = () => {
             disabled={isLoading}
           >
             Bulk Update
-          </button> */}
+          </button>
         </div>
 
         {/* Search Bar - Moved to right side */}
-        {/* {variants.length > 0 && viewMode !== 'initial' && (
+        {variants.length > 0 && viewMode !== 'initial' && (
           <div className="flex items-center gap-2">
             <div className="flex items-center w-[250px] relative border rounded-full">
               <input 
@@ -2705,25 +2839,29 @@ const VariantManager = () => {
                 <SearchIcon className="text-gray-500 mr-1" />
                 <TuneIcon className="text-gray-500" />
               </div>
-            </div> */}
+            </div>
 
             {/* Reset button - Already checked viewMode !== 'initial' in outer conditional */}
-            {/* <button 
+            <button 
               className="py-2 px-4 bg-[#FF0004] text-white rounded hover:bg-red-600"
               onClick={() => {
-                if (confirm('Are you sure you want to reset? All unsaved variants will be lost.')) {
-                  handleAddManually();
+                // --- Modify onClick for Remove All --- 
+                if (variants.length === 0) {
+                  showSnackbar("No variants to remove.", "info");
+                  return;
                 }
+                setIsRemoveAllDialogOpen(true); // Open the new confirmation dialog
+                // --- End Modification ---
               }}
-              disabled={isLoading}
+              disabled={isLoading || variants.length === 0} // Disable if no variants
             >
               Remove All
             </button>
           </div>
-        )} */}
+        )}
 
         {/* Show only Remove All button when search bar is hidden */}
-        {(!variants.length || viewMode === 'bulk') && viewMode !== 'initial' && (
+        {/* {(!variants.length || viewMode === 'bulk') && viewMode !== 'initial' && (
           <button 
             className="py-2 px-4 bg-[#FF0004] text-white rounded hover:bg-red-600"
             onClick={() => {
@@ -2735,7 +2873,7 @@ const VariantManager = () => {
           >
             Remove All
           </button>
-        )}
+        )} */}
       </div>
 
       {/* Loading Indicator */}
@@ -2821,22 +2959,35 @@ const VariantManager = () => {
           
           {viewMode === 'generated' && (
             // Assuming GenerateVariantsView mainly needs loading state for now
-            <GenerateVariantsView isLoading={isLoading}  allCombinationsUsed={allCombinationsUsed}
-/> 
+            <GenerateVariantsView isLoading={isLoading}  allCombinationsUsed={allCombinationsUsed}/> 
             // Pass other relevant props if needed, e.g., generatedCombinations, actions
           )}
 
           {viewMode === 'bulk' && (
-            <BulkUpdateView
-              control={bulkControl} // Use bulk form control
-              handleSubmit={handleBulkSubmit} // Use bulk form handleSubmit
-              onSubmit={onBulkSubmit} // Pass the bulk submit logic
-              watch={watchBulk} // Use bulk form watch
-              setValue={bulkSetValue} // Use bulk form setValue
-              errors={bulkFormState.errors} // Use bulk form errors
-              formState={bulkFormState} // Pass the full bulk form state object
-              isSubmitting={isBulkSubmitting} // Pass bulk submitting state
-            />
+              <BulkUpdateView 
+                allCombinationsUsed={allCombinationsUsed} 
+                // --- Pass additional props for list/edit --- 
+                variants={variants}
+                setVariants={setVariants}
+                selectedVariantIndex={selectedVariantIndex}
+                setSelectedVariantIndex={setSelectedVariantIndex}
+                filteredVariants={filteredVariants}
+                editControl={editControl}
+                handleEditSubmit={handleEditSubmit}
+                editFormState={editFormState}
+                handleUpdateVariant={handleUpdateVariant}
+                editGetRootProps={editGetRootProps}
+                editGetInputProps={editGetInputProps}
+                editIsDragActive={editIsDragActive}
+                handleSetPrimaryImage={handleSetPrimaryImage}
+                handleDeleteImage={handleDeleteImage}
+                isEditImageUploading={isEditImageUploading}
+                isUpdating={isUpdating}
+                setVariantToDeleteId={setVariantToDeleteId}
+                setIsDeleteDialogOpen={setIsDeleteDialogOpen}
+                showSnackbar={showSnackbar}
+                // --- End Pass additional props --- 
+              />
           )}
           
           {/* --- REMOVED INLINE JSX FOR VIEWS --- */}
@@ -2861,6 +3012,35 @@ const VariantManager = () => {
           </Button>
           <Button onClick={handleConfirmDeleteVariant} color="error" autoFocus disabled={isSubmitting}>
             {isSubmitting ? <CircularProgress size={20} color="inherit"/> : 'Delete'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* --- Add Remove All Confirmation Dialog --- */}
+      <Dialog
+        open={isRemoveAllDialogOpen}
+        onClose={() => setIsRemoveAllDialogOpen(false)}
+        aria-labelledby="remove-all-dialog-title"
+        aria-describedby="remove-all-dialog-description"
+      >
+        <DialogTitle id="remove-all-dialog-title">{"Confirm Remove All Variants"}</DialogTitle>
+        <DialogContent>
+          <DialogContentText id="remove-all-dialog-description">
+            Are you sure you want to remove ALL ({variants.length}) variants for this product?
+            This action cannot be undone.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setIsRemoveAllDialogOpen(false)} color="primary">
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleConfirmRemoveAll} // Call the new handler
+            color="error" 
+            autoFocus 
+            disabled={isSubmitting} // Use existing submitting state
+          >
+            {isSubmitting ? <CircularProgress size={20} color="inherit"/> : 'Confirm Remove All'}
           </Button>
         </DialogActions>
       </Dialog>
