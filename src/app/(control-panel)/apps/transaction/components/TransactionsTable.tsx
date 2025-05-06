@@ -187,93 +187,88 @@ const TransactionsTable = ({
   );
 
   // Rename columns to defaultColumns
-  const defaultColumns = useMemo<MRT_ColumnDef<any>[]>(
-    () => [
-      {
-        accessorKey: "referenceNumber",
-        header: "Reference",
-        size: 170,
+  const defaultColumns = useMemo<MRT_ColumnDef<any>[]>(() => [
+    {
+      accessorKey: "referenceNumber",
+      header: "Reference",
+      size: 170,
+      Cell: ({ row }) => row.original.referenceNumber || "N/A",
+    },
+    {
+      accessorKey: "order",
+      header: "Order ID",
+      Cell: ({ row }) => {
+        return row.original.order?.order_unique_id || "N/A";
       },
-      {
-        accessorKey: "order",
-        header: "Order ID",
-        Cell: ({ row }) => {
-          return row.original.order
-            ? row.original.order.order_unique_id
-            : "N/A";
-        },
+    },
+    {
+      accessorKey: "status",
+      header: "Status",
+      Cell: ({ row }) => {
+        const rawStatus = row.original.status;
+        const status = typeof rawStatus === 'string' 
+          ? rawStatus.toLowerCase() as TransactionStatus
+          : 'pending';
+        return <TransactionStatusChip status={status} />;
       },
-        {
-        accessorKey: "status",
-        header: "Status",
-        Cell: ({ row }) => {
-          // Convert status to lowercase
-          const rawStatus = row.original.status;
-          const status = typeof rawStatus === 'string' 
-            ? rawStatus.toLowerCase() as TransactionStatus
-            : 'pending';
-          
-          return <TransactionStatusChip status={status} />;
-        },
+    },
+    {
+      accessorKey: "user",
+      header: "Customer",
+      Cell: ({ row }) => {
+        const user = row.original.user;
+        return user ? `${user.first_name || ""} ${user.last_name || ""}`.trim() || "N/A" : "N/A";
       },
-      {
-        accessorKey: "user",
-        header: "Customer",
-        Cell: ({ row }) => {
-          const user = row.original.user;
-          return user
-            ? `${user.first_name || ""} ${user.last_name || ""}`
-            : "N/A";
-        },
+    },
+    {
+      accessorKey: "email",
+      header: "Email",
+      Cell: ({ row }) => {
+        return row.original.user?.email || "N/A";
       },
-      {
-        accessorKey: "email",
-        header: "Email",
-        Cell: ({ row }) => {
-          const user = row.original.user;
-          return user ? `${user.email}` : "N/A";
-        },
+    },
+    {
+      accessorKey: "transactionType",
+      header: "Type",
+      Cell: ({ row }) => {
+        const rawType = row.original.transactionType;
+        const type = typeof rawType === 'string' 
+          ? rawType.toLowerCase() as TransactionType
+          : 'purchase';
+        return <TransactionTypeChip type={type} />;
       },
-      {
-        accessorKey: "transactionType",
-        header: "Type",
-        Cell: ({ row }) => {
-          const rawType = row.original.transactionType;
-          const type = typeof rawType === 'string' 
-            ? rawType.toLowerCase() as TransactionType
-            : 'purchase';
-          
-          return <TransactionTypeChip type={type} />;
-        },
+    },
+    {
+      accessorKey: "paymentMethod",
+      header: "Payment Method",
+      Cell: ({ row }) => {
+        const method = row.original.paymentMethod;
+        return method ? method.charAt(0).toUpperCase() + method.slice(1) : "N/A";
       },
-      {
-        accessorKey: "paymentMethod",
-        header: "Payment Method",
-        Cell: ({ row }) => {
-          const method = row.original.paymentMethod;
-          return method.charAt(0).toUpperCase() + method.slice(1);
-        },
+    },
+    {
+      accessorKey: "amount",
+      header: "Amount",
+      Cell: ({ row }) => {
+        const amountValue = row.original.amount;
+        if (amountValue === null || amountValue === undefined) {
+          return "N/A";
+        }
+        const amount = parseFloat(amountValue);
+        return !isNaN(amount) ? formatCurrency(amount, row.original.currency) : "N/A";
       },
-      {
-        accessorKey: "amount",
-        header: "Amount",
-        Cell: ({ row }) => {
-          const amount = parseFloat(row.original.amount);
-          return formatCurrency(amount, row.original.currency);
-        },
+    },
+    {
+      accessorKey: "createdAt",
+      header: "Date",
+      Cell: ({ row }) => {
+        return row.original.createdAt ? formatDate(row.original.createdAt) : "N/A";
       },
-      
-      {
-        accessorKey: "createdAt",
-        header: "Date",
-        Cell: ({ row }) => formatDate(row.original.createdAt),
-      },
-    ],
-    []
-  );
+    },
+  ], []);
 
   // Use the column order hook
-  const { columns, columnOrder, onColumnOrderChange } = useColumnOrder('transactions', defaultColumns);
+  const { columns: orderedColumns, columnOrder, onColumnOrderChange } = useColumnOrder('transactions', defaultColumns);
 
   // When the page changes
   const handlePageChange = (
@@ -374,7 +369,7 @@ const TransactionsTable = ({
 
         <DataTable
           data={transactions}
-          columns={columns}
+          columns={orderedColumns}
           enableColumnOrdering
           onColumnOrderChange={onColumnOrderChange}
           state={{ columnOrder }}
