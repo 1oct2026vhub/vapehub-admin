@@ -25,7 +25,7 @@ import UserGrowthChart from "./components/UserGrowthChart";
 import TransactionChart from "./components/TransactionChart";
 import RecentOrdersTable from "./components/RecentOrdersTable";
 import RecentTransactionsTable from "./components/RecentTransactionsTable";
-import { formatPounds } from "@/utils/actions";
+import { formatPounds, formatStatusText } from "@/utils/actions";
 import {
   getDashboardStats,
   getSalesChartData,
@@ -39,6 +39,25 @@ import {
 import FuseLoading from "@fuse/core/FuseLoading";
 
 type ChartPeriod = "daily" | "weekly" | "monthly";
+
+// Helper function to get color for status count
+const getStatusCountColor = (status: string | undefined | null): string => {
+  const lowerStatus = status?.toLowerCase();
+  switch (lowerStatus) {
+    case 'pending': return '#FF9800'; // Orange
+    case 'fail': return '#F44336';    // Red
+    case 'cancel': return '#9E9E9E';    // Grey
+    case 'processing': return '#2196F3'; // Blue
+    case 'shipped': return '#4CAF50';    // Green
+    case 'completed': return '#673AB7';   // Purple
+    case 'delivered': return '#009688';   // Teal
+    case 'return_requested': return '#FF5722'; // Deep Orange
+    case 'return_received': return '#795548';  // Brown
+    case 'out_for_delivery': return '#03A9F4'; // Light Blue
+    case 'packed': return '#8BC34A';    // Light Green
+    default: return '#333';           // Default dark color
+  }
+};
 
 const AdminDashboardApp = () => {
   const [stats, setStats] = useState<DashboardStats | null>(null);
@@ -116,7 +135,7 @@ const AdminDashboardApp = () => {
         <Grid item xs={12} sm={6} md={3}>
           <StatisticsCard
             title="Today's Sales"
-            value={salesFormatted.todayAbbreviated || stats?.sales.today}
+            value={salesFormatted?.todayAbbreviated || stats?.sales.today}
             fullValue={stats?.sales.today}
             icon="sales"
             color="#4CAF50"
@@ -125,7 +144,7 @@ const AdminDashboardApp = () => {
         <Grid item xs={12} sm={6} md={3}>
           <StatisticsCard
             title="Weekly Sales"
-            value={salesFormatted.weeklyAbbreviated || stats?.sales.weekly}
+            value={salesFormatted?.weeklyAbbreviated || stats?.sales.weekly}
             fullValue={stats?.sales.weekly}
             icon="sales"
             color="#2196F3"
@@ -134,7 +153,7 @@ const AdminDashboardApp = () => {
         <Grid item xs={12} sm={6} md={3}>
           <StatisticsCard
             title="Monthly Sales"
-            value={salesFormatted.monthlyAbbreviated || stats?.sales.monthly}
+            value={salesFormatted?.monthlyAbbreviated || stats?.sales.monthly}
             fullValue={stats?.sales.monthly}
             icon="sales"
             color="#9C27B0"
@@ -143,7 +162,7 @@ const AdminDashboardApp = () => {
         <Grid item xs={12} sm={6} md={3}>
           <StatisticsCard
             title="Yearly Sales"
-            value={salesFormatted.yearlyAbbreviated || (salesFormatted.yearly || "N/A")}
+            value={salesFormatted?.yearlyAbbreviated || (salesFormatted?.yearly || "N/A")}
             fullValue={(stats?.sales as any)?.yearly}
             icon="sales"
             color="#F44336"
@@ -360,7 +379,7 @@ const AdminDashboardApp = () => {
           </Paper>
         </Grid>
 
-        {/* Orders Status */}
+        {/* Orders Status - Updated Logic */}
         <Grid item xs={12} md={4}>
           <Paper sx={{ p: 2, height: '100%', minHeight: '240px' }}>
             <Typography variant="h6" gutterBottom sx={{ mb: 2, color: '#333' }}>
@@ -368,153 +387,47 @@ const AdminDashboardApp = () => {
             </Typography>
             <Box sx={{ height: 'calc(100% - 50px)', display: 'flex', alignItems: 'center' }}>
               <Grid container spacing={1.5}>
-                {/* First row: Pending, Fail, Cancel (3 cards) */}
-                {stats?.orders
-                  .filter(order => ['pending', 'fail', 'cancel'].includes(order.status.toLowerCase()))
-                  .map((order, index) => (
-                    <Grid item xs={4} key={`order-${order.status || "unknown"}-${index}`}>
-                      <Box
-                        sx={{
-                          p: 1.5,
-                          backgroundColor: '#fff',
-                          borderRadius: 1,
-                          border: '1px solid #e0e0e0',
-                          minHeight: '60px',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          justifyContent: 'center',
-                          alignItems: 'center',
-                          textAlign: 'center'
-                        }}
-                      >
-                        <Typography 
-                          color="textSecondary"
-                          sx={{ 
-                            fontSize: '0.813rem',
-                            mb: 0.5
-                          }}
-                        >
-                          {order.status
-                            ? order.status.charAt(0).toUpperCase() +
-                              order.status.slice(1)
-                            : "Unknown"}
-                        </Typography>
-                        <Typography 
-                          sx={{ 
-                            fontWeight: 600,
-                            fontSize: '1.375rem',
-                            color: order.status.toLowerCase() === 'pending' 
-                              ? '#FF9800' 
-                              : order.status.toLowerCase() === 'fail' 
-                              ? '#F44336' 
-                              : '#9E9E9E'
-                          }}
-                        >
-                          {order.count}
-                        </Typography>
-                      </Box>
-                    </Grid>
-                  ))}
-                
-                {/* Second row: Processing, Shipped, Completed (3 cards) */}
-                {stats?.orders
-                  .filter(order => ['processing', 'shipped', 'completed'].includes(order.status.toLowerCase()))
-                  .map((order, index) => (
-                    <Grid
-                      item
-                      xs={4}
-                      key={`order-${order.status || "unknown"}-${index}`}
+                {/* Map ALL statuses consistently */}
+                {stats?.orders.map((order, index) => (
+                  <Grid item xs={4} key={`order-${order.status || "unknown"}-${index}`}>
+                    <Box
+                      sx={{
+                        p: 1.5,
+                        backgroundColor: '#fff',
+                        borderRadius: 1,
+                        border: '1px solid #e0e0e0',
+                        height: '100%',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        textAlign: 'center'
+                      }}
                     >
-                      <Box
-                        sx={{
-                          p: 1.5,
-                          backgroundColor: '#fff',
-                          borderRadius: 1,
-                          border: '1px solid #e0e0e0',
-                          minHeight: '60px',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          justifyContent: 'center',
-                          alignItems: 'center',
-                          textAlign: 'center'
+                      <Typography 
+                        color="textSecondary"
+                        sx={{ 
+                          fontSize: '0.813rem',
+                          mb: 0.5,
+                          lineHeight: 1.2 // Add line height to prevent text jumping
                         }}
                       >
-                        <Typography 
-                          color="textSecondary"
-                          sx={{ 
-                            fontSize: '0.813rem',
-                            mb: 0.5
-                          }}
-                        >
-                          {order.status
-                            ? order.status.charAt(0).toUpperCase() +
-                              order.status.slice(1)
-                            : "Unknown"}
-                        </Typography>
-                        <Typography 
-                          sx={{ 
-                            fontWeight: 600,
-                            fontSize: '1.375rem',
-                            color: order.status.toLowerCase() === 'processing' 
-                              ? '#2196F3' 
-                              : order.status.toLowerCase() === 'shipped' 
-                              ? '#4CAF50' 
-                              : '#673AB7',
-                          }}
-                        >
-                          {order.count}
-                        </Typography>
-                      </Box>
-                    </Grid>
-                  ))}
-                
-                {/* Any other status types would go here in a third row if needed */}
-                {stats?.orders
-                  .filter(order => !['pending', 'fail', 'cancel', 'processing', 'shipped', 'completed'].includes(order.status.toLowerCase()))
-                  .map((order, index) => (
-                    <Grid
-                      item
-                      xs={4}
-                      key={`order-${order.status || "unknown"}-${index}`}
-                    >
-                      <Box
-                        sx={{
-                          p: 1.5,
-                          backgroundColor: '#fff',
-                          borderRadius: 1,
-                          border: '1px solid #e0e0e0',
-                          minHeight: '60px',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          justifyContent: 'center',
-                          alignItems: 'center',
-                          textAlign: 'center'
+                        {/* Use formatStatusText */}
+                        {formatStatusText(order.status || "Unknown")}
+                      </Typography>
+                      <Typography 
+                        sx={{ 
+                          fontWeight: 600,
+                          fontSize: '1.375rem',
+                          // Use the helper function for color
+                          color: getStatusCountColor(order.status)
                         }}
                       >
-                        <Typography 
-                          color="textSecondary"
-                          sx={{ 
-                            fontSize: '0.813rem',
-                            mb: 0.5
-                          }}
-                        >
-                          {order.status
-                            ? order.status.charAt(0).toUpperCase() +
-                              order.status.slice(1)
-                            : "Unknown"}
-                        </Typography>
-                        <Typography 
-                          sx={{ 
-                            fontWeight: 600,
-                            fontSize: '1.375rem',
-                            color: '#333'
-                          }}
-                        >
-                          {order.count}
-                        </Typography>
-                      </Box>
-                    </Grid>
-                  ))}
+                        {order.count}
+                      </Typography>
+                    </Box>
+                  </Grid>
+                ))}
               </Grid>
             </Box>
           </Paper>

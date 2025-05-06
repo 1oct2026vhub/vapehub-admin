@@ -336,99 +336,106 @@ export default function BlogPostsApp() {
   };
 
   // Rename columns to defaultColumns for clarity
-  const defaultColumns = useMemo<MRT_ColumnDef<BlogPost>[]>(
-    () => [
-      {
-        accessorKey: "title",
-        header: "Title",
-        size: 200,
+  const defaultColumns = useMemo<MRT_ColumnDef<BlogPost>[]>(() => [
+    {
+      accessorKey: "title",
+      header: "Title",
+      size: 200,
+      Cell: ({ row }) => row.original.title || "N/A",
+    },
+    {
+      accessorKey: "slug",
+      header: "Slug",
+      size: 150,
+      Cell: ({ row }) => row.original.slug || "N/A",
+    },
+    {
+      accessorKey: "published_at",
+      header: "Published Date",
+      size: 150,
+      Cell: ({ row }) => {
+        return row.original.status === "published" && row.original.published_at
+          ? formatDate(row.original.published_at)
+          : "Not published";
       },
-      {
-        accessorKey: "slug",
-        header: "Slug",
-        size: 150,
-      },
-      {
-        accessorKey: "published_at",
-        header: "Published Date",
-        size: 150,
-        Cell: ({ row }) => {
-          return row.original.status === "published" && row.original.published_at
-            ? formatDate(row.original.published_at)
-            : "Not published";
-        },
-      },
-      {
-        accessorKey: "status",
-        header: "Status",
-        size: 100,
-        Cell: ({ row }) => {
-          const status = row.original.status;
-          const capitalizedStatus =
-            status?.charAt(0).toUpperCase() + status?.slice(1) || "N/A";
+    },
+    {
+      accessorKey: "status",
+      header: "Status",
+      size: 100,
+      Cell: ({ row }) => {
+        const status = row.original.status;
+        const capitalizedStatus =
+          status?.charAt(0).toUpperCase() + status?.slice(1) || "N/A";
 
-          return (
-            <div className={status ? "text-green-600" : ""}>
-              {capitalizedStatus}
-            </div>
-          );
-        },
+        return (
+          <div className={status ? "text-green-600" : ""}>
+            {capitalizedStatus}
+          </div>
+        );
       },
-      {
-        accessorKey: "categories",
-        header: "Categories",
-        size: 200,
-        Cell: ({ row }) => {
-          const postCategories = row.original.categories || [];
-          return (
-            <Box sx={{ display: "flex", gap: 0.5, flexWrap: "wrap" }}>
-              {postCategories.map((category) => (
-                <Chip
-                  key={`category-${category.id}`}
-                  label={category.name}
-                  size="small"
-                  color="primary"
-                  variant="outlined"
-                />
-              ))}
-            </Box>
-          );
-        },
+    },
+    {
+      accessorKey: "categories",
+      header: "Categories",
+      size: 200,
+      Cell: ({ row }) => {
+        const postCategories = row.original.categories || [];
+          if (postCategories.length === 0) {
+          return "N/A";
+        }
+        return (
+          <Box sx={{ display: "flex", gap: 0.5, flexWrap: "wrap" }}>
+            {postCategories.map((category) => (
+              <Chip
+                key={`category-${category.id}`}
+                label={category.name || "N/A"}
+                size="small"
+                color="primary"
+                variant="outlined"
+              />
+            ))}
+          </Box>
+        );
       },
-      {
-        accessorKey: "tags",
-        header: "Tags",
-        size: 200,
-        Cell: ({ row }) => {
-          const postTags = row.original.tags || [];
-          return (
-            <Box sx={{ display: "flex", gap: 0.5, flexWrap: "wrap" }}>
-              {postTags.map((tag) => (
-                <Chip
-                  key={`tag-${tag.id}`}
-                  label={tag.name}
-                  size="small"
-                  color="secondary"
-                  variant="outlined"
-                />
-              ))}
-            </Box>
-          );
-        },
+    },
+    {
+      accessorKey: "tags",
+      header: "Tags",
+      size: 200,
+      Cell: ({ row }) => {
+        const postTags = row.original.tags || [];
+        
+        if (postTags.length === 0) {
+          return "N/A";
+        }
+        
+        return (
+          <Box sx={{ display: "flex", gap: 0.5, flexWrap: "wrap" }}>
+            {postTags.map((tag) => (
+              <Chip
+                key={`tag-${tag.id}`}
+                label={tag.name || "N/A"}
+                size="small"
+                color="secondary"
+                variant="outlined"
+              />
+            ))}
+          </Box>
+        );
       },
-      {
-        accessorKey: "created_at",
-        header: "Created At",
-        size: 150,
-        Cell: ({ row }) => {
-          return row.original.created_at
-            ? formatDate(row.original.created_at)
-            : "N/A";
-        },
+    },
+    {
+      accessorKey: "created_at",
+      header: "Created At",
+      size: 150,
+      Cell: ({ row }) => {
+        return row.original.created_at
+          ? formatDate(row.original.created_at)
+          : "N/A";
       },
-    ],
-    [router]
-  );
+    },
+  ], [router]);
 
   // Use the column order hook
   const { columns, columnOrder, onColumnOrderChange } = useColumnOrder('blog-posts', defaultColumns);

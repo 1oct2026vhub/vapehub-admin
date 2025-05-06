@@ -94,6 +94,21 @@ interface BrandType {
   name: string;
 }
 
+// Helper function to determine chip color based on status
+const getStatusChipColor = (status: string | undefined | null): "success" | "warning" | "error" | "default" => {
+  const lowerStatus = status?.toLowerCase();
+  switch (lowerStatus) {
+    case 'published':
+      return 'success';
+    case 'archived':
+      return 'warning';
+    case 'draft':
+      return 'default'; // Or 'info' or another color
+    default:
+      return 'default';
+  }
+};
+
 const ProductListTable = ({
   refreshData: setExternalRefreshFn,
 }: ProductListTableProps) => {
@@ -541,40 +556,29 @@ const ProductListTable = ({
       {
         accessorKey: "status",
         header: "Status",
+        size: 120,
         Cell: ({ row }) => {
-          const status = row.original.status || "draft";
+          const status = row.original.status;
+          const capitalizedStatus = status ? status.charAt(0).toUpperCase() + status.slice(1) : 'N/A';
+          const color = getStatusChipColor(status);
+          
+          // Display a Chip instead of the dropdown
           return (
-            <Select
-              value={status}
-              onChange={(e) => handleStatusChange(row.original.id, e.target.value as "draft" | "published" | "archived", () => {})}
-              size="small"
-              sx={{
-                minWidth: 120,
-                '& .MuiSelect-select': {
-                  display: 'flex',
-                  alignItems: 'center',
+            <Chip 
+              label={capitalizedStatus} 
+              color={color} 
+              size="small" 
+              variant="outlined" // Or "filled"
+              icon={
+                  <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: `${color}.main`, mr: 0.5 }} />
+              }
+              sx={{ 
+                paddingLeft: '10px', // Add some padding for the icon
+                '& .MuiChip-icon': {
+                    marginLeft: '4px' // Adjust icon margin if needed
                 }
-              }}
-            >
-              <MenuItem value="draft">
-                <Box component="span" sx={{ display: 'flex', alignItems: 'center' }}>
-                  <Box component="span" sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: 'grey.500', mr: 1 }} />
-                  Draft
-                </Box>
-              </MenuItem>
-              <MenuItem value="published">
-                <Box component="span" sx={{ display: 'flex', alignItems: 'center' }}>
-                  <Box component="span" sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: 'success.main', mr: 1 }} />
-                  Published
-                </Box>
-              </MenuItem>
-              <MenuItem value="archived">
-                <Box component="span" sx={{ display: 'flex', alignItems: 'center' }}>
-                  <Box component="span" sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: 'warning.main', mr: 1 }} />
-                  Archived
-                </Box>
-              </MenuItem>
-            </Select>
+              }} 
+            />
           );
         },
       },
