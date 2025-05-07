@@ -6,9 +6,13 @@ import EditForm from "./EditForm"; // Assuming EditForm is in the same directory
 export default function AttributeUpdateClientPage() {
   const searchParams = useSearchParams();
   const params = useParams();
-  const attributeDataString = searchParams.get("attributeData");
   
-  const { id } = params; // id from URL path
+  // Null check for searchParams before calling .get()
+  const attributeDataString = searchParams ? searchParams.get("attributeData") : null;
+  
+  // Access id safely. If params is null, id will be undefined.
+  // If params.id is an array, take the first element, otherwise use it as is.
+  const id = params?.id ? (Array.isArray(params.id) ? params.id[0] : params.id) : undefined;
 
   const attribute = attributeDataString
     ? JSON.parse(decodeURIComponent(attributeDataString))
