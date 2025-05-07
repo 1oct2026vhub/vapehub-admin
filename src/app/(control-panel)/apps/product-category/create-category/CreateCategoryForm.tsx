@@ -103,7 +103,10 @@ const schema = z.object({
   ]).optional().nullable(),
 });
 
-const defaultValues = {
+// Infer the type from the Zod schema
+type InferredSchemaType = z.infer<typeof schema>;
+
+const defaultValues: InferredSchemaType = {
   name: "",
   slug: "",
   description: "",
@@ -111,13 +114,8 @@ const defaultValues = {
   parent_id: null,
 };
 
-export type FormType = {
-  name: string;
-  slug: string;
-  description?: string;
-  logo?: File;
-  parent_id?: number | null;
-};
+// Align FormType with Zod schema or use InferredSchemaType directly
+export type FormType = InferredSchemaType; // Simplest way to keep them in sync
 
 function CreateCategoryForm() {
   const router = useRouter();
@@ -126,7 +124,7 @@ function CreateCategoryForm() {
   const [hasImageError, setHasImageError] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
-  const { control, formState, handleSubmit, setValue, watch } = useForm({
+  const { control, formState, handleSubmit, setValue, watch } = useForm<InferredSchemaType>({
     mode: "all",
     defaultValues,
     resolver: zodResolver(schema),
@@ -151,7 +149,7 @@ function CreateCategoryForm() {
     createCategory,
   );
 
-  async function onSubmit(formData: FormType) {
+  async function onSubmit(formData: InferredSchemaType) {
     setIsLoading(true);
 
     try {

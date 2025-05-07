@@ -56,7 +56,8 @@ export type FormType = {
 
 const EditAttributeForm = ({ attribute }: { attribute: FormType }) => {
   const router = useRouter();
-  const { id } = useParams();
+  const params = useParams();
+  const id = params?.id ? (Array.isArray(params.id) ? params.id[0] : params.id) : undefined;
   const { showSnackbar } = useSnackbar();
   const [isLoading, setIsLoading] = useState(false);
 
@@ -107,8 +108,8 @@ const EditAttributeForm = ({ attribute }: { attribute: FormType }) => {
         throw new Error("Attribute ID is missing");
       }
 
-      // Make sure id is a valid number or string
-      const attributeId = typeof id === 'object' ? id.toString() : id;
+      // id is guaranteed to be a string here due to the check above.
+      const attributeId = id;
 
       const attributeData = {
         name: formData.name.trim(),
