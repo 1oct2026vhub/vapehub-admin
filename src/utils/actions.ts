@@ -113,7 +113,7 @@ export const formatCurrency = (amount: number | string, currencyCode?: string | 
  */
 export const formatPounds = (amount: number | string): string => {
   const numericAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
-  return `£${isNaN(numericAmount) ? '0.00' : numericAmount.toFixed(2)}`;
+  return `£${isNaN(numericAmount) ? '0.00' : numericAmount?.toFixed(2)}`;
 };
 
 // Add the formatStatusText function export

@@ -265,7 +265,16 @@ const AttributeTable = ({
       { accessorKey: "id", header: "ID" },
       { accessorKey: "name", header: "Name" },
       { accessorKey: "slug", header: "Slug" },
-      { accessorKey: "type", header: "Type" },
+      {
+        accessorKey: "type",
+        header: "Type",
+        Cell: ({ row }) => {
+          const typeValue = row.original.type;
+          return typeValue
+            ? typeValue.charAt(0).toUpperCase() + typeValue.slice(1)
+            : "";
+        },
+      },
       { accessorKey: "sort_order", header: "Sort Order" },
       {
         accessorKey: "created_at",

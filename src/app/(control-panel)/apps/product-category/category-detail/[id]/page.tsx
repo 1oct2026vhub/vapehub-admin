@@ -1,17 +1,31 @@
-"use client";
-import { useSearchParams } from "next/navigation";
+// "use client";
+// import { useSearchParams } from "next/navigation";
+import { Metadata, ResolvingMetadata } from 'next';
 import CategoryDetailTable from "../CategoryDetailTable";
 
-const categoryDetailPage = () => {
-  const searchParams = useSearchParams();
-  const categoryData = searchParams.get("userData");
+type Props = {
+  params: { id: string };
+};
+export async function generateMetadata(
+  { params }: Props,
+  parent: ResolvingMetadata
+): Promise<Metadata> {
+  return {
+    title: defaultTitle,
+  };
+}
+  // const id = params.id;
+const defaultTitle = "Category Details | VapeHub";
 
-  const category = categoryData
-    ? JSON.parse(decodeURIComponent(categoryData))
-    : null;
+// const categoryDetailPage = () => {
+  // const searchParams = useSearchParams();
+  // const categoryData = searchParams.get("userData");
 
-  //   if (!user) return <p>No user data found.</p>;
-
+  // const category = categoryData
+  //   ? JSON.parse(decodeURIComponent(categoryData))
+  //   : null;
+  // //   if (!user) return <p>No user data found.</p>;
+export default function categoryDetailPage({ params }: Props) {
   return (
     <div className="p-4">
       <CategoryDetailTable />
@@ -19,4 +33,4 @@ const categoryDetailPage = () => {
   );
 };
 
-export default categoryDetailPage;
+// export default categoryDetailPage;

@@ -1,28 +1,37 @@
-"use client";
-import { useSearchParams, useParams } from "next/navigation";
-import EditForm from "../EditForm";
+import { Metadata, ResolvingMetadata } from 'next';
+import { getAttributeDetails } from '@/services/apiAttribute'; // Service to fetch attribute details
+import AttributeUpdateClientPage from "../AttributeUpdateClientPage"; // Import the new client component
 
-const EditAttributePage = () => {
-  const searchParams = useSearchParams();
-  const params = useParams();
-  const attributeData = searchParams.get("attributeData");
-  
-  // Get the ID from the URL params
-  const { id } = params;
-
-  const attribute = attributeData
-    ? JSON.parse(decodeURIComponent(attributeData))
-    : null;
-
-  // Log for debugging
-  console.log("Attribute ID from params:", id);
-  console.log("Attribute data:", attribute);
-
-  if (!attribute) {
-    return <p>No attribute data found. Please go back and try again.</p>;
-  }
-
-  return <EditForm attribute={attribute} />;
+type Props = {
+  params: { id: string };
 };
 
-export default EditAttributePage;
+export async function generateMetadata(
+  { params }: Props,
+  parent: ResolvingMetadata
+): Promise<Metadata> {
+  const id = params.id;
+  const defaultTitle = "Update Attribute | VapeHub";
+
+  if (id && !isNaN(Number(id))) {
+    try {
+      const response = await getAttributeDetails(id as string);
+      if (response?.data?.attribute?.name) {
+        const attributeName = response.data.attribute.name;
+        return {
+          title: `Update ${attributeName} | VapeHub`,
+        };
+      }
+    } catch (error) {
+      console.error(`Failed to fetch attribute name for metadata (Update Page ID: ${id}):`, error);
+    }
+  }
+  return {
+    title: defaultTitle,
+  };
+}
+
+// This page.tsx is now a Server Component
+export default function EditAttributeServerPage({ params, searchParams }: Props & { searchParams: { [key: string]: string | string[] | undefined }}) {
+  return <AttributeUpdateClientPage />;
+}

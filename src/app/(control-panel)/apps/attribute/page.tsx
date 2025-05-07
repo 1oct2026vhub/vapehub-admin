@@ -1,32 +1,12 @@
-"use client";
+import { Metadata } from 'next';
+import Attribute from './Attribute'; // Import the new client component
 
-import { useCallback, useRef } from "react";
-import AttributeHeader from "./AttributeHeader";
-import AttributeTable from "@fuse/core/AttributeTable/AttributeTable";
+// metadata is a server-side export
+export const metadata: Metadata = {
+  title: 'Attributes | VapeHub',
+};
 
-function AttributePage() {
-  // Create a ref to store the refreshData function from AttributeTable
-  const refreshDataRef = useRef<(() => Promise<void>) | null>(null);
-
-  // Pass this function to AttributeHeader
-  const handleRefreshData = useCallback(() => {
-    if (refreshDataRef.current) {
-      return refreshDataRef.current();
-    }
-    return Promise.resolve();
-  }, []);
-
-  // Store the refreshData function from AttributeTable
-  const setRefreshFunction = useCallback((refreshFn: () => Promise<void>) => {
-    refreshDataRef.current = refreshFn;
-  }, []);
-
-  return (
-    <div className="w-full p-8">
-      <AttributeHeader refreshData={handleRefreshData} />
-      <AttributeTable refreshData={setRefreshFunction} />
-    </div>
-  );
+// This page.tsx is now a Server Component
+export default function AttributePage() {
+  return <Attribute />;
 }
-
-export default AttributePage;

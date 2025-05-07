@@ -11,7 +11,6 @@ const EditCategoryPage = () => {
     : null;
 
   //   if (!user) return <p>No user data found.</p>;
-
   return <EditForm category={category} />;
 };
 
