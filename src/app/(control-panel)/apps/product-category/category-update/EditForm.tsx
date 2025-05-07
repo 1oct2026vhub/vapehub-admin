@@ -111,7 +111,10 @@ const schema = z.object({
     .nullable(),
 });
 
-const defaultValues = {
+// Infer the type from the Zod schema
+type InferredSchemaType = z.infer<typeof schema>;
+
+const defaultValues: InferredSchemaType = {
   name: "",
   slug: "",
   description: "",
@@ -134,17 +137,17 @@ const EditCategoryForm = ({
   category: FormType;
 }) => {
   const router = useRouter();
-  const { id } = useParams();
+  const params = useParams();
+  const id = params?.id ? (Array.isArray(params.id) ? params.id[0] : params.id) : undefined;
   const { showSnackbar } = useSnackbar();
   const [isLoading, setIsLoading] = useState(false);
   const [isImageDeleting, setIsImageDeleting] = useState(false);
   const [hasImageError, setHasImageError] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
-  // Use ref to maintain a mutable reference to the category data
   const categoryRef = useRef<FormType>(initialCategory);
 
-  const { control, formState, handleSubmit, setValue, watch } = useForm({
+  const { control, formState, handleSubmit, setValue, watch } = useForm<InferredSchemaType>({
     mode: "onChange",
     defaultValues,
     resolver: zodResolver(schema),
@@ -194,7 +197,6 @@ const EditCategoryForm = ({
       setValue("name", initialCategory.name);
       setValue("slug", initialCategory.slug);
       setValue("description", initialCategory.description || "");
-      // Handle parent_id properly
       if (
         initialCategory.parent_id !== undefined &&
         initialCategory.parent_id !== null
@@ -203,14 +205,15 @@ const EditCategoryForm = ({
       } else {
         setValue("parent_id", null);
       }
-      // Set the logo field with the existing logo URL
       if (initialCategory.logo_url) {
-        setValue("logo", initialCategory.logo_url);
+        setValue("logo", initialCategory.logo_url as InferredSchemaType['logo']);
+      } else {
+        setValue("logo", undefined as InferredSchemaType['logo']);
       }
     }
   }, [initialCategory, setValue]);
 
-  const onSubmit = async (formData: FormType) => {
+  const onSubmit = async (formData: InferredSchemaType) => {
     setIsLoading(true);
 
     try {
@@ -292,7 +295,7 @@ const EditCategoryForm = ({
 
       // Update the category object to reflect the removal of the image
       if (categoryRef.current) {
-        categoryRef.current.logo_url = null;
+        categoryRef.current.logo_url = undefined;
         categoryRef.current.logo = null;
       }
 
