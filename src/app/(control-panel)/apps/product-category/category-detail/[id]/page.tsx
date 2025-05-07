@@ -24,7 +24,6 @@ const defaultTitle = "Category Details | VapeHub";
   // const category = categoryData
   //   ? JSON.parse(decodeURIComponent(categoryData))
   //   : null;
-
   // //   if (!user) return <p>No user data found.</p>;
 export default function categoryDetailPage({ params }: Props) {
   return (
