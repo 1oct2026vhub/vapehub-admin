@@ -1,7 +1,11 @@
-"use client";
+import { Metadata } from 'next';
+import CreateTermsClient from "./CreateTerms"; // Assuming CreateTerms.tsx exports the client logic
 
-import CreateTerms from "./CreateTerms";
+export const metadata: Metadata = {
+  title: 'Create Attribute Term | VapeHub',
+};
 
-export default function CreateTermsPage() {
-  return <CreateTerms />;
+// This page.tsx is now a Server Component
+export default function CreateTermServerPage() {
+  return <CreateTermsClient />;
 }

@@ -1,9 +1,13 @@
-import CreateCategoryForm from "./CreateCategoryForm";
-import type { Metadata } from "next";
+// src/app/(control-panel)/apps/product-category/create-category/page.tsx
+// THIS FILE MUST NOT HAVE "use client";
+import { Metadata } from "next";
+import CreateCategoryFormClient from "./CreateCategoryForm"; // Assuming CreateCategoryForm.tsx is the client logic
 
 export const metadata: Metadata = {
-  title: "Create category | VapeHub",
-  description: "Create a new brand in the VapeHub platform.",
+  title: "Create New Product Category | VapeHub",
+  description: "Add a new product category to the platform.",
 };
 
-export default CreateCategoryForm;
+export default function CreateCategoryPage() {
+  return <CreateCategoryFormClient />;
+}

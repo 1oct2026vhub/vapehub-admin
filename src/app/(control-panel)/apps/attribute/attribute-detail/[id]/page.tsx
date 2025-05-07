@@ -1,33 +1,40 @@
-// "use client";
+import { Metadata, ResolvingMetadata } from 'next';
+import { getAttributeDetails } from '@/services/apiAttribute';
+import AttributeDetailDisplay from "../AttributeDetail";
 
-// import AttributeDetail from "../AttributeDetail";
-
-// export default function AttributeDetailPage({
-//   params,
-// }: {
-//   params: { id: string };
-// }) {
-//   return <AttributeDetail />;
-// }
-
-
-"use client";
-import { useSearchParams } from "next/navigation";
-import AttributeDetail from "../AttributeDetail";
-
-const AttributeDetailPage = () => {
-  const searchParams = useSearchParams();
-  const userData = searchParams.get("userData");
-
-  const user = userData ? JSON.parse(decodeURIComponent(userData)) : null;
-
-  //   if (!user) return <p>No user data found.</p>;
-
-  return (
-    <div className="p-4">
-      <AttributeDetail />
-    </div>
-  );
+type Props = {
+  params: { id: string };
 };
 
-export default AttributeDetailPage;
+export async function generateMetadata(
+  { params }: Props,
+  parent: ResolvingMetadata
+): Promise<Metadata> {
+  const id = params.id;
+  const defaultTitle = "Attribute Details | VapeHub";
+
+  if (id && !isNaN(Number(id))) {
+    try {
+      const response = await getAttributeDetails(id as string);
+      if (response?.data?.attribute?.name) {
+        const attributeName = response.data.attribute.name;
+        return {
+          title: `${attributeName} Details | VapeHub`,
+        };
+      }
+    } catch (error) {
+      console.error(`Failed to fetch attribute name for metadata (ID: ${id}):`, error);
+    }
+  }
+  return {
+    title: defaultTitle,
+  };
+}
+
+export default function AttributeDetailPage({ params }: Props) {
+  return (
+    <div className="p-4">
+      <AttributeDetailDisplay />
+    </div>
+  );
+}

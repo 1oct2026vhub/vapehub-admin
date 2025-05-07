@@ -324,17 +324,17 @@ const OrderStatusTimeline: React.FC<OrderStatusTimelineProps> = ({
                   </Typography>
                 )}
 
-                {((isCompleted && status !== "cancel") || step.status === "cancel") && logItem?.additional_info && (
+                {/* {((isCompleted && status !== "cancel") || step.status === "cancel") && logItem?.additional_info && (
                   <Typography variant="body2" color="text.secondary">
                     {logItem.additional_info}
                   </Typography>
-                )}
+                )} */}
 
-                {((isCompleted && status !== "cancel") || step.status === "cancel") && step.status === "shipped" && logItem?.additional_info && (
+                {/* {((isCompleted && status !== "cancel") || step.status === "cancel") && step.status === "shipped" && logItem?.additional_info && (
                   <Typography variant="body2" className="text-gray-600 mt-1">
                     Tracking ID: {logItem.additional_info}
                   </Typography>
-                )}
+                )} */}
               </div>
             </div>
           );
