@@ -102,7 +102,12 @@ const schema = z.object({
     .nullable(),
 });
 
-const defaultValues = {
+// Infer the type from the Zod schema
+type InferredSchemaType = z.infer<typeof schema>;
+// Explicitly define the type for the logo field based on the schema inference
+type LogoFieldValue = InferredSchemaType['logo'];
+
+const defaultValues: InferredSchemaType = {
   name: "",
   slug: "",
   description: "",
@@ -119,7 +124,9 @@ export type FormType = {
 
 const EditBrandForm = ({ brand: initialBrand }: { brand: FormType }) => {
   const router = useRouter();
-  const { id } = useParams();
+  const params = useParams(); // Get the params object first
+  // Safely access id, handling potential null params and array value for id
+  const id = params?.id ? (Array.isArray(params.id) ? params.id[0] : params.id) : undefined;
   const { showSnackbar } = useSnackbar();
   const [isLoading, setIsLoading] = useState(false);
   const [isImageDeleting, setIsImageDeleting] = useState(false);
@@ -129,7 +136,7 @@ const EditBrandForm = ({ brand: initialBrand }: { brand: FormType }) => {
   // Use ref to maintain a mutable reference to the brand data
   const brandRef = useRef<FormType>(initialBrand);
 
-  const { control, formState, handleSubmit, setValue, watch } = useForm({
+  const { control, formState, handleSubmit, setValue, watch } = useForm<InferredSchemaType>({
     mode: "all",
     defaultValues,
     resolver: zodResolver(schema),
@@ -166,14 +173,15 @@ const EditBrandForm = ({ brand: initialBrand }: { brand: FormType }) => {
       setValue("name", initialBrand.name);
       setValue("slug", initialBrand.slug);
       setValue("description", initialBrand.description || "");
-      // Set the logo field with the existing logo URL
       if (initialBrand.logo_url) {
-        setValue("logo", initialBrand.logo_url);
+        setValue("logo", initialBrand.logo_url as LogoFieldValue);
+      } else {
+        setValue("logo", undefined as LogoFieldValue);
       }
     }
   }, [initialBrand, setValue]);
 
-  const onSubmit = async (formData: FormType) => {
+  const onSubmit = async (formData: InferredSchemaType) => {
     setIsLoading(true);
 
     try {
@@ -243,8 +251,8 @@ const EditBrandForm = ({ brand: initialBrand }: { brand: FormType }) => {
 
       // Update the brand object to reflect the removal of the image
       if (brandRef.current) {
-        brandRef.current.logo_url = null;
-        brandRef.current.logo = null;
+        brandRef.current.logo_url = undefined;
+        brandRef.current.logo = null as LogoFieldValue;
       }
 
       showSnackbar("Brand image removed successfully", "success");
