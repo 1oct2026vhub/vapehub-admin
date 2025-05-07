@@ -6,8 +6,13 @@ import EditTermForm from "./EditTerm"; // Assuming EditTerm.tsx is the form comp
 export default function TermUpdateClientPage() {
   const searchParams = useSearchParams();
   const params = useParams(); // To get ID from path if needed, though current logic uses searchParams
-  const termDataString = searchParams.get("termData");
-  const { id } = params; // id from URL path
+  
+  // Null check for searchParams before calling .get()
+  const termDataString = searchParams ? searchParams.get("termData") : null;
+  
+  // Access id safely. If params is null, id will be undefined.
+  // If params.id is an array, take the first element, otherwise use it as is.
+  const id = params?.id ? (Array.isArray(params.id) ? params.id[0] : params.id) : undefined;
 
   const term = termDataString
     ? JSON.parse(decodeURIComponent(termDataString))
