@@ -892,7 +892,7 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
      setVariants(updatedVariants);
      
      // Get the product ID and variant ID for the API call
-     const productId = searchParams.get('productId');
+     const productId = searchParams ? searchParams.get('productId') : null;
      const variantId = selectedVariant.id;
      
      if (!productId || !variantId) {
@@ -1074,9 +1074,9 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
         showSnackbar("Please select an existing variant to upload images.", "warning");
         return;
       }
-      const productId = searchParams.get('productId');
+      const productId = searchParams ? searchParams.get('productId') : null;
       if (!productId) {
-        showSnackbar("Product ID not found", "error");
+        // showSnackbar("Product ID not found", "error");
         return;
       }
 
@@ -1994,7 +1994,7 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
     }
     
     // Calculate which combinations are already used by checking existing variants
-    const usedCombos = [];
+    const usedCombos: Record<string, any>[] = [];
     
     variants.forEach(variant => {
       const matchingCombination = allCombinations.find(combo => {
@@ -2066,7 +2066,7 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
   // Add function to set up the form for a specific combination
   const setupFormForCombination = (combination: Record<string, any>) => {
     // Update attribute fields based on the combination
-    const newAttributeFields = [];
+    const newAttributeFields: VariantAttributeField[] = [];
     
     for (const [key, value] of Object.entries(combination)) {
       if (typeof value === 'object' && value.attribute_id && value.term_id) {
@@ -2131,7 +2131,7 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
   const handleSetPrimaryImage = (imageId: number) => {
     if (!selectedVariant) return;
     
-    const productId = searchParams.get('productId');
+    const productId = searchParams ? searchParams.get('productId') : null;
     const variantId = selectedVariant.id;
     
     if (!productId || !variantId) {
@@ -2214,7 +2214,7 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
       return;
     }
     
-    const productId = searchParams.get('productId');
+    const productId = searchParams ? searchParams.get('productId') : null;
     const variantId = selectedVariant.id;
     
     if (!productId || !variantId) {
@@ -2304,7 +2304,7 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
       return;
     }
 
-    const productId = searchParams.get('productId');
+    const productId = searchParams ? searchParams.get('productId') : null;
     if (!productId) {
       showSnackbar("Product ID not found", "error");
       return;
@@ -2893,17 +2893,17 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
               // Add key prop based on selected variant ID
               key={selectedVariant ? selectedVariant.id : 'manual-view-no-variant'} 
               // EDIT Form Props
-              editControl={editControl}
+              editControl={editControl as any}
               handleEditSubmit={handleEditSubmit}
               editErrors={editFormState.errors}
               editFormState={editFormState} // Pass full edit form state
-              setEditValue={setEditValue}
+              setEditValue={setEditValue as any}
               // CREATE Form Props
-              createControl={createControl}
+              createControl={createControl as any}
               handleCreateSubmit={handleCreateSubmit}
               createErrors={createFormState.errors}
               createFormState={createFormState} // Pass full create form state
-              setCreateValue={setCreateValue}
+              setCreateValue={setCreateValue as any}
               // Submit Handlers (passed separately)
               onSubmitCreate={onSubmit} // Pass the original combined onSubmit (now create logic)
               onSubmitUpdate={handleUpdateVariant} // Pass the specific update handler
@@ -2959,7 +2959,8 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
           
           {viewMode === 'generated' && (
             // Assuming GenerateVariantsView mainly needs loading state for now
-            <GenerateVariantsView isLoading={isLoading}  allCombinationsUsed={allCombinationsUsed}/> 
+            <GenerateVariantsView isLoading={isLoading}  allCombinationsUsed={allCombinationsUsed}    productAttributes={productAttributes}
+/> 
             // Pass other relevant props if needed, e.g., generatedCombinations, actions
           )}
 

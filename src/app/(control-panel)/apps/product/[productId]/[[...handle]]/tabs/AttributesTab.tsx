@@ -124,12 +124,11 @@ function AttributesTab() {
   const fetchedRef = useRef(false);
   const productIdRef = useRef<number | null>(null);
 
-  // Get productId from URL or formData and ensure it's a number
-  const productId =
-    formData.productId ||
-    (searchParams.get("productId")
-      ? Number(searchParams.get("productId"))
-      : null);
+  // Use ref to track fetch status
+  const urlProductIdStr = searchParams ? searchParams.get("productId") : null;
+  const urlProductIdNum = urlProductIdStr ? Number(urlProductIdStr) : null;
+  
+  const productId = formData.productId || (urlProductIdNum !== null && !isNaN(urlProductIdNum) ? urlProductIdNum : 0);
 
   // Determine if we're in edit mode based on existing attributes
   const isEditMode = Boolean(
@@ -205,7 +204,7 @@ function AttributesTab() {
             : Promise.resolve({ data: { terms: [] } })
         )
       ),
-    { enabled: attributeIds.some((id) => id > 0) }
+    { enabled: attributeIds.some((id) => id !== null && id > 0) }
   );
 
   // State for term search results
@@ -305,6 +304,7 @@ function AttributesTab() {
   // Fetch product data including attributes
   const fetchProductData = useCallback(async () => {
     if (!productId) {
+      console.log("fetchProductData skipped: Product ID is null or invalid.");
       setIsLoading(false);
       return;
     }
@@ -321,7 +321,7 @@ function AttributesTab() {
     setIsLoading(true);
     try {
       console.log("Fetching product data for ID:", productId);
-      const response = await getProduct(Number(productId));
+      const response = await getProduct(productId);
       console.log("Product data received:", response?.data);
 
       // Update the form data with product ID if not already set
@@ -639,7 +639,7 @@ function AttributesTab() {
 
   const onSubmit = async (data: FormData) => {
     if (!productId) {
-      showSnackbar("Please complete the previous steps first", "error");
+      showSnackbar("Product ID is missing. Cannot save attributes.", "error");
       return;
     }
 
@@ -682,7 +682,7 @@ function AttributesTab() {
         };
 
         console.log("Updating product attributes:", updateRequest);
-        response = await updateProductAttributes(Number(productId), updateRequest);
+        response = await updateProductAttributes(productId, updateRequest);
         showSnackbar("Product attributes updated successfully", "success");
       } else {
         // For new products, flatten attributes and terms into attribute-term pairs
@@ -698,7 +698,7 @@ function AttributesTab() {
         };
 
         console.log("Adding product attributes:", addRequest);
-        response = await addProductAttributes(Number(productId), addRequest);
+        response = await addProductAttributes(productId, addRequest);
         showSnackbar("Product attributes saved successfully", "success");
         nextStep();
       }
@@ -770,16 +770,16 @@ function AttributesTab() {
 
   // Add the handleDeleteAttribute function
   const handleDeleteAttribute = async (index: number) => {
+    if (!productId) {
+      showSnackbar("Product ID not found", "error");
+      return;
+    }
+
     try {
       setIsLoading(true);
       const attributeToDelete = fields[index];
       const productAttributeTerms =
         formData.attributesResponse?.productAttributeTerms;
-
-      if (!productId) {
-        showSnackbar("Product ID not found", "error");
-        return;
-      }
 
       if (fields.length <= 1) {
         showSnackbar("Cannot delete the last attribute", "error");
@@ -798,7 +798,7 @@ function AttributesTab() {
             `Deleting attribute term ID: ${term.id} for product ${productId}`
           );
           try {
-            await deleteProductAttributeTerm(Number(productId), term.id);
+            await deleteProductAttributeTerm(productId, term.id);
             console.log(`Successfully deleted attribute term ID: ${term.id}`);
           } catch (error) {
             console.error(
@@ -920,8 +920,8 @@ function AttributesTab() {
           console.log("Form validation errors:", errors);
           
           // Show specific error messages based on which fields failed validation
-          if (errors.attributes) {
-            const errorMessages = [];
+          if (errors.attributes && Array.isArray(errors.attributes)) {
+            const errorMessages: string[] = [];
             
             errors.attributes.forEach((attrError, index) => {
               if (attrError?.attribute_id) {
@@ -1112,7 +1112,7 @@ function AttributesTab() {
               <AccordionDetails className="p-5">
                 <div className="flex flex-col space-y-4">
                   {/* --- Start Edit: Conditionally Render ENTIRE Attribute Section --- */}
-                  {!initialAttributeIds.has(field.attribute_id) && (
+                  {field.attribute_id !== null && !initialAttributeIds.has(field.attribute_id as number) && (
                     // Only render this section for NEW attributes
                     <div> 
                       <p className="font-medium mb-1">Attribute <span className="text-red-500">*</span></p>
@@ -1151,11 +1151,13 @@ function AttributesTab() {
                                   : null
                               }
                               onChange={(event, newValue) => {
-                                onChange(newValue ? newValue.value : null);
-                                handleAttributeChange(
-                                  actualIndex,
-                                  newValue ? Number(newValue.value) : null
-                                );
+                                const newAttributeId = newValue ? Number(newValue.value) : null;
+                                if (newAttributeId !== null) {
+                                  handleAttributeChange(actualIndex, newAttributeId);
+                                } else {
+                                  // Handle the case where the attribute is cleared (e.g., reset terms)
+                                  // You might want to call setValue(`attributes.${actualIndex}.term_ids`, []) here
+                                }
                               }}
                               onInputChange={(event, value) => {
                                 if (event && event.type === "change") {
@@ -1261,7 +1263,7 @@ function AttributesTab() {
                             }
                             onChange={(event, newValue) => {
                               // Check for duplicates before updating
-                              const uniqueValues = [];
+                              const uniqueValues: Array<{ value: number; label: string; }> = [];
                               const uniqueSet = new Set();
                               
                               newValue.forEach(item => {
@@ -1495,7 +1497,9 @@ function AttributesTab() {
             Cancel
           </Button>
           <Button onClick={() => {
-            handleDeleteAttribute(attributeToDeleteIndex);
+            if (attributeToDeleteIndex !== null) {
+              handleDeleteAttribute(attributeToDeleteIndex);
+            }
             setIsDeleteDialogOpen(false);
           }} color="primary" autoFocus>
             Delete

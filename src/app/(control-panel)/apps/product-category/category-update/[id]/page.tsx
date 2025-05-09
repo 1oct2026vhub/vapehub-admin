@@ -4,7 +4,7 @@ import EditForm from "../EditForm";
 
 const EditCategoryPage = () => {
   const searchParams = useSearchParams();
-  const categoryData = searchParams.get("categoryData");
+  const categoryData = searchParams ? searchParams.get("categoryData") : null;
 
   const category = categoryData
     ? JSON.parse(decodeURIComponent(categoryData))

@@ -4,7 +4,7 @@ import ProductDetailTable from "../ProductDetailTable";
 
 const ProductDetailPage = () => {
   const searchParams = useSearchParams();
-  const userData = searchParams.get("userData");
+  const userData = searchParams ? searchParams.get("userData") : null;
 
   const user = userData ? JSON.parse(decodeURIComponent(userData)) : null;
 
