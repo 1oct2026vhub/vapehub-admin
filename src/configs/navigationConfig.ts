@@ -14,6 +14,39 @@ const navigationConfig: FuseNavItemType[] = [
     // url: "/dashboards/project",
   },
   {
+    id: "analytics",
+    title: "Analytics",
+    // translate: 'EXAMPLE',
+    type: "collapse",
+    icon: "heroicons-outline:chart-bar",
+    children: [
+      {
+        id: "analytics.overview",
+        title: "Realtime Overview",
+        type: "item",
+        url: "/apps/analytics",
+      },
+      // {
+      //   id: "analytics.realtime-pages",
+      //   title: "Realtime Pages",
+      //   type: "item",
+      //   url: "/apps/analytics/realtime-pages",
+      // },
+      // {
+      //   id: "analytics.generate-leads",
+      //   title: "Generate Leads Overview",
+      //   type: "item",
+      //   url: "/apps/analytics/generate-leads",
+      // },
+      // {
+      //   id: "analytics.traffic-overview",
+      //   title: "Traffic Overview",
+      //   type: "item",
+      //   url: "/apps/analytics/traffic-overview",
+      // },
+    ],
+  },
+  {
     id: "attributes",
     title: "Attributes",
     type: "item",

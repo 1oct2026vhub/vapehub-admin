@@ -412,7 +412,7 @@ const BulkUpdateView: React.FC<BulkUpdateViewProps> = ({
   });
 
   const onBulkSubmit: SubmitHandler<BulkUpdateFormData> = async (data) => {
-    const productId = searchParams.get('productId');
+    const productId = searchParams ? searchParams.get('productId') : null;
     if (!productId) {
       showSnackbar("Product ID not found.", "error");
       return;
@@ -1013,7 +1013,7 @@ const BulkUpdateView: React.FC<BulkUpdateViewProps> = ({
                     <div className="mt-2">
                     <Controller name="description" control={editControl} render={({ field, fieldState: { error } }) => (
                        <FormField label="Description" error={(error as FieldError)?.message}>
-                           <textarea {...field} className="w-full border border-gray-300 rounded-lg p-3 h-24 focus:outline-none focus:ring-1 focus:ring-green-500 bg-white" />
+                           <textarea {...field} value={field.value ?? ''} className="w-full border border-gray-300 rounded-lg p-3 h-24 focus:outline-none focus:ring-1 focus:ring-green-500 bg-white" />
                        </FormField>
                     )}/>
                     </div>

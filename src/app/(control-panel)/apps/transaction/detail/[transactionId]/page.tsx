@@ -1,31 +1,31 @@
-import { Metadata, ResolvingMetadata } from 'next';
+// import { Metadata, ResolvingMetadata } from 'next';
 import TransactionDetailApp from "./TransactionDetailApp";
 
-type Props = {
-  params: { transactionId: string };
-  searchParams: { [key: string]: string | string[] | undefined };
-};
+// type Props = {
+//   params: { transactionId: string };
+//   searchParams: { [key: string]: string | string[] | undefined };
+// };
 
-export async function generateMetadata(
-  { params, searchParams }: Props,
-  parent: ResolvingMetadata
-): Promise<Metadata> {
-  // read route params
-  const transactionId = params.transactionId;
+// export async function generateMetadata(
+//   { params, searchParams }: Props,
+//   parent: ResolvingMetadata
+// ): Promise<Metadata> {
+//   // read route params
+//   const transactionId = params.transactionId;
 
   // optionally, fetch data to generate metadata (e.g., transaction details)
   // const transaction = await fetch(`https://.../transactions/${transactionId}`).then((res) => res.json());
 
-  return {
-    title: `Transaction #${transactionId} | VapeHub`,
-    description: `View details for transaction ${transactionId}.`,
-    // openGraph: {
-    //   title: `Transaction #${transactionId} - Admin Dashboard | VapeHub`,
-    //   description: `Details for transaction ${transactionId}`,
-    //   // images: [transaction.imageUrl || '/default-transaction-image.png'],
-    // },
-  };
-}
+//   return {
+//     title: `Transaction #${transactionId} | VapeHub`,
+//     description: `View details for transaction ${transactionId}.`,
+//     // openGraph: {
+//     //   title: `Transaction #${transactionId} - Admin Dashboard | VapeHub`,
+//     //   description: `Details for transaction ${transactionId}`,
+//     //   // images: [transaction.imageUrl || '/default-transaction-image.png'],
+//     // },
+//   };
+// }
 
 // The page component itself
 // The existing function TransactionDetailPage() can likely remain as is if 

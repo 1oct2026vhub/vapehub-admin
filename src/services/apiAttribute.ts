@@ -17,15 +17,17 @@ export interface CreateAttributeData {
   slug: string;
   description?: string;
   type: string;
-  sort_order: number;
+  sort_order: string;
+  image?: File;
 }
 
 export interface UpdateAttributeData {
-  name: string;
-  slug: string;
+  name?: string;
+  slug?: string;
   description?: string;
-  type: string;
-  sort_order: string;
+  type?: string;
+  sort_order?: string;
+  image?: File | null;
 }
 
 export interface AttributeListParams {
@@ -93,7 +95,20 @@ export interface BulkUpdateResponse {
 }
 
 export const createAttribute = async (data: CreateAttributeData) => {
-  const response = await axiosInstance.post("/api/admin/attributes", data);
+  const formData = new FormData();
+  formData.append('name', data.name);
+  formData.append('slug', data.slug);
+  if (data.description) {
+    formData.append('description', data.description);
+  }
+  formData.append('type', data.type);
+  formData.append('sort_order', data.sort_order);
+  if (data.image) {
+    formData.append('image', data.image);
+  }
+
+  // Axios automatically sets Content-Type to multipart/form-data when posting FormData
+  const response = await axiosInstance.post("/api/admin/attributes", formData);
   return response.data;
 };
 
@@ -101,14 +116,40 @@ export const updateAttribute = async (
   id: string | number,
   data: UpdateAttributeData,
 ) => {
-  // Ensure id is a number if it's a numeric string
   const attributeId = typeof id === 'string' && !isNaN(Number(id)) 
     ? Number(id) 
     : id;
-  
-  console.log("Updating attribute with ID:", attributeId, "and data:", data);
-  
-  const response = await axiosInstance.put(`/api/admin/attributes/${attributeId}`, data);
+
+  const formData = new FormData();
+
+  // Append fields only if they exist in the data object
+  if (data.name !== undefined) formData.append('name', data.name);
+  if (data.slug !== undefined) formData.append('slug', data.slug);
+  if (data.description !== undefined) formData.append('description', data.description);
+  if (data.type !== undefined) formData.append('type', data.type);
+  if (data.sort_order !== undefined) formData.append('sort_order', data.sort_order);
+
+  // Handle image update/replacement
+  if (data.image instanceof File) {
+    formData.append('image', data.image);
+    formData.append('new_image', 'true'); // Signal new image upload
+  }
+  // Note: Logic for *removing* an existing image is not explicitly defined here.
+  // If data.image is explicitly null, we might need to send a different flag or 
+  // handle it based on backend expectations (e.g., sending new_image=true without an image file?).
+  // For now, we only handle replacement.
+
+  // Axios requires a specific way to send FormData with PUT, often using POST with a method override.
+  // Adding _method field common practice.
+  formData.append('_method', 'PUT'); 
+
+  console.log("Updating attribute with ID:", attributeId, "and FormData... (image file not shown)");
+  // Use POST because PUT with FormData can be problematic. Backend should handle _method=PUT.
+  const response = await axiosInstance.post(`/api/admin/attributes/${attributeId}`, formData, {
+    headers: {
+      // Content-Type is set automatically by Axios for FormData
+    }
+  });
   return response.data;
 };
 
@@ -161,6 +202,12 @@ export const restoreAttribute = async (id: string | number) => {
     `/api/admin/attributes/${id}/restore`,
   );
   return response.data;
+};
+
+// New function to remove attribute image
+export const removeAttributeImage = async (id: string | number) => {
+  const response = await axiosInstance.delete(`/api/admin/attributes/${id}/remove-image`);
+  return response.data; // Assuming response structure { success: boolean, data: string, message: string }
 };
 
 // Download sample Excel file

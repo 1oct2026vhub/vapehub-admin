@@ -117,7 +117,7 @@ function ProductImagesTab() {
   const isUploadingRef = useRef(false);
   
   // Get productId from URL or formData
-  const productId = formData.productId || searchParams.get("productId");
+  const productId = formData.productId || (searchParams ? searchParams.get("productId") : null);
 
   // Fetch product data including images
   const fetchProductData = useCallback(async () => {
@@ -163,7 +163,17 @@ function ProductImagesTab() {
         // If we auto-selected the first image as primary, update it on the server
         if (!hasExistingPrimary && updatedImages.length > 0) {
           try {
-            await updatePrimaryImage(Number(productId), updatedImages[0].id);
+            const firstImageId = updatedImages[0].id; // Get the ID
+            if (productId) {
+              const numericProductId = Number(productId); 
+              if (!isNaN(numericProductId) && typeof firstImageId === 'number') { // Check both ID types
+                 await updatePrimaryImage(numericProductId, firstImageId); // Pass numeric IDs
+              } else {
+                 console.error("Invalid Product ID or Image ID for setting default primary image.", {productId, firstImageId});
+              }
+            } else {
+              console.error("Product ID is missing, cannot set default primary image.");
+            }
           } catch (error) {
             console.error("Error setting default primary image:", error);
           }
@@ -218,7 +228,7 @@ function ProductImagesTab() {
   };
 
   // Upload all valid files in a single API call
-  const uploadFiles = async (filesToUpload: NewFile[], fileStartIndex: number) => {
+  const uploadFiles = async (filesToUpload: NewFile[], fileStartIndex: number): Promise<boolean> => {
     if (!productId) {
       showSnackbar("Please complete the basic info first", "error");
       return false;
@@ -293,7 +303,18 @@ function ProductImagesTab() {
             primaryImageId = uploadedImagesData[primaryIndex].id;
             
             // Set this new image as primary
-            await updatePrimaryImage(Number(productId), primaryImageId);
+            if (productId) { 
+              const numericProductId = Number(productId); // Convert here
+              // Check primaryImageId as well
+              if (!isNaN(numericProductId) && primaryImageId != null && typeof primaryImageId === 'number') { 
+                 await updatePrimaryImage(numericProductId, primaryImageId);
+              } else {
+                 console.error("Invalid Product ID or Primary Image ID for setting primary image.", { numericProductId, primaryImageId });
+              }
+            } else {
+              console.error("Product ID is missing, cannot set primary image.");
+              // Optionally show a snackbar error here
+            }
           }
         } catch (error) {
           console.error("Error setting primary image:", error);
@@ -470,7 +491,12 @@ function ProductImagesTab() {
 
       // Update primary image on server only for non-temp images
       if (!isTemp) {
-        await updatePrimaryImage(Number(productId), imageId as number);
+        const numericProductId = Number(productId);
+        if (!isNaN(numericProductId)) {
+          await updatePrimaryImage(numericProductId, imageId as number);
+        } else {
+          console.error("Product ID is not a valid number:", productId);
+        }
       }
       
       // Update form context directly without triggering another fetch
@@ -540,7 +566,12 @@ function ProductImagesTab() {
           const nonTempImages = updatedImages.filter(img => !img.isTemp);
           if (nonTempImages.length > 0) {
             const newPrimaryId = nonTempImages[0].id;
-            await updatePrimaryImage(Number(productId), newPrimaryId as number);
+            const numericProductId = Number(productId);
+            if (!isNaN(numericProductId)) {
+              await updatePrimaryImage(numericProductId, newPrimaryId as number);
+            } else {
+              console.error("Product ID is not a valid number:", productId);
+            }
             
             // Update local state to reflect new primary
             setUploadedImages(prev => prev.map(img => ({
@@ -553,8 +584,7 @@ function ProductImagesTab() {
 
       showSnackbar("Image deleted successfully", "success");
     } catch (error) {
-      console.error("Error deleting image:", error);
-      showSnackbar("Failed to delete image", "error");
+      showSnackbar(error.message || "Failed to delete image", "error");
     }
   };
 
