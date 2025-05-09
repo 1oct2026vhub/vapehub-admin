@@ -145,7 +145,7 @@ export const updateAttribute = async (
 
   console.log("Updating attribute with ID:", attributeId, "and FormData... (image file not shown)");
   // Use POST because PUT with FormData can be problematic. Backend should handle _method=PUT.
-  const response = await axiosInstance.post(`/api/admin/attributes/${attributeId}`, formData, {
+  const response = await axiosInstance.put(`/api/admin/attributes/${attributeId}`, formData, {
     headers: {
       // Content-Type is set automatically by Axios for FormData
     }

@@ -867,7 +867,7 @@ function AnalyticsOverview() {
 			// setAnalyticsRealtimeData({}); // Optionally clear previous data, or keep stale data while loading
 
 			// --- IMPORTANT: Replace with your actual GA4 Property ID ---
-			const propertyId = '488118134'; 
+			const propertyId = process.env.NEXT_PUBLIC_GA_PROPERTY_ID;
 			// --------------------------------------------------------
 
 			// if (propertyId === '488118134') {
