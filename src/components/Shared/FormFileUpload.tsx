@@ -111,95 +111,37 @@ function FormFileUpload({
         fieldState: { error: fieldError },
       }) => {
         useEffect(() => {
-          if (existingImage && !(value instanceof File) && previewUrl !== existingImage) {
-            setPreviewUrl(existingImage);
-          }
-          else if (!existingImage && !(value instanceof File)) {
+          if (value === null && previewUrl) {
             setPreviewUrl(null);
+          } else if (typeof value === "string" && value !== previewUrl) {
+            setPreviewUrl(value);
           }
-          else if (!value && !existingImage) {
-             setPreviewUrl(null);
-          }
-        }, [existingImage, value, previewUrl]);
+        }, [value, previewUrl]);
 
         return (
           <Box className="flex flex-col space-y-4">
             <Typography>{label}</Typography>
 
-            {/* Upload Area - Always visible unless deleting */}
-            {!isDeleting && (
-              <>
-                <input
-                  type="file"
-                  accept={ACCEPTED_FILE_TYPES.join(",")}
-                  onChange={(e) => handleFileChange(e, onChange)}
-                  hidden
-                  id={name}
-                />
-                <label htmlFor={name}>
-                  <Box
-                    className={`border-2 border-dashed border-gray-300 rounded-lg p-6 cursor-pointer hover:border-[#2E9970] transition-colors`}
-                    sx={{
-                      "&:hover": {
-                        "& .upload-icon": {
-                          color: "#2E9970",
-                        },
-                      },
-                    }}
-                  >
-                    <div className="flex flex-col items-center space-y-2">
-                      {/* Always show icon */}
-                      <CloudUploadIcon
-                        className="upload-icon text-gray-400"
-                        style={{ fontSize: 48 }}
-                      />
-                      <Typography variant="body1" className="font-medium">
-                        {previewUrl
-                          ? "Click to change image"
-                          : "Click to upload or drag and drop"
-                        }
-                      </Typography>
-                      <Typography variant="body2" color="textSecondary">
-                        PNG, JPG, JPEG or WEBP (max. 5MB)
-                      </Typography>
-                    </div>
-                  </Box>
-                </label>
-              </>
-            )}
-            {/* Deleting state indicator */}
-            {isDeleting && (
-              <Box
-                className={`border-2 border-dashed border-gray-300 rounded-lg p-6 opacity-70 transition-colors`}
-              >
-                <div className="flex flex-col items-center space-y-2">
-                  <CircularProgress size={48} />
-                  <Typography variant="body1" className="font-medium">
-                    Deleting...
-                  </Typography>
-                </div>
-              </Box>
-            )}
-
-            {/* Preview Area - Moved below upload area */}
+            {/* Preview Area */}
             {previewUrl && (
-              <Box className="relative w-48 h-48 border rounded-lg overflow-hidden group mt-4"> {/* Added mt-4 for spacing */}
+              <Box className="relative w-48 h-48 border rounded-lg overflow-hidden group">
                 <img
                   src={previewUrl}
                   alt="Preview"
-                  className={`w-full h-full object-contain ${ 
+                  className={`w-full h-full object-contain ${
                     isDeleting ? "opacity-60" : ""
                   }`}
-                  style={{ maxHeight: '100px' }} 
                 />
+                {/* Replace black background with a centered loader */}
                 {isDeleting && (
                   <div className="absolute inset-0 flex items-center justify-center z-10">
                     <CircularProgress size={30} sx={{ color: "#2E9970" }} />
                   </div>
                 )}
                 <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                  {!isDeleting && (
+                  {isDeleting ? null : (
                     <>
+                      {/* Use handleDelete for existing images or handleRemove for newly added images */}
                       {previewUrl === existingImage ? (
                         <IconButton
                           className="bg-white hover:bg-red-50 shadow-md"
@@ -207,8 +149,14 @@ function FormFileUpload({
                           onClick={handleDelete}
                           disabled={isDeleting}
                           sx={{
-                            "& .MuiSvgIcon-root": { color: "#ef4444" },
-                            "&:hover": { "& .MuiSvgIcon-root": { color: "#dc2626" } },
+                            "& .MuiSvgIcon-root": {
+                              color: "#ef4444", // Red color
+                            },
+                            "&:hover": {
+                              "& .MuiSvgIcon-root": {
+                                color: "#dc2626", // Darker red on hover
+                              },
+                            },
                           }}
                         >
                           <DeleteIcon />
@@ -220,8 +168,14 @@ function FormFileUpload({
                           onClick={() => handleRemove(onChange)}
                           disabled={isDeleting}
                           sx={{
-                            "& .MuiSvgIcon-root": { color: "#ef4444" },
-                            "&:hover": { "& .MuiSvgIcon-root": { color: "#dc2626" } },
+                            "& .MuiSvgIcon-root": {
+                              color: "#ef4444", // Red color
+                            },
+                            "&:hover": {
+                              "& .MuiSvgIcon-root": {
+                                color: "#dc2626", // Darker red on hover
+                              },
+                            },
                           }}
                         >
                           <DeleteIcon />
@@ -231,6 +185,55 @@ function FormFileUpload({
                   )}
                 </div>
               </Box>
+            )}
+
+            {/* Upload Button */}
+            {!previewUrl && (
+              <>
+                <input
+                  type="file"
+                  accept={ACCEPTED_FILE_TYPES.join(",")}
+                  onChange={(e) => handleFileChange(e, onChange)}
+                  hidden
+                  id={name}
+                  disabled={isDeleting}
+                />
+                <label htmlFor={name}>
+                  <Box
+                    className={`border-2 border-dashed border-gray-300 rounded-lg p-6 ${
+                      !isDeleting
+                        ? "cursor-pointer hover:border-[#2E9970]"
+                        : "opacity-70"
+                    } transition-colors`}
+                    sx={{
+                      "&:hover": {
+                        "& .upload-icon": {
+                          color: isDeleting ? "inherit" : "#2E9970",
+                        },
+                      },
+                    }}
+                  >
+                    <div className="flex flex-col items-center space-y-2">
+                      {isDeleting ? (
+                        <CircularProgress size={48} />
+                      ) : (
+                        <CloudUploadIcon
+                          className="upload-icon text-gray-400"
+                          style={{ fontSize: 48 }}
+                        />
+                      )}
+                      <Typography variant="body1" className="font-medium">
+                        {isDeleting
+                          ? "Deleting..."
+                          : "Click to upload or drag and drop"}
+                      </Typography>
+                      <Typography variant="body2" color="textSecondary">
+                        PNG, JPG, JPEG or WEBP (max. 5MB)
+                      </Typography>
+                    </div>
+                  </Box>
+                </label>
+              </>
             )}
 
             {/* Error Messages */}

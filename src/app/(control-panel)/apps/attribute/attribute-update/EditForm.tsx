@@ -13,7 +13,7 @@ import { updateAttribute, getAttributeDetails, Attribute, UpdateAttributeData, r
 import { useSnackbar } from "@/contexts/SnackbarContext";
 import FormSelectField from "@/components/Shared/SelectField";
 import PageBreadcrumb from "@/components/PageBreadcrumb";
-import FormFileUpload from "@/components/Shared/FormFileUpload";
+import FormFileUploadField from "@/components/Shared/FormFileUploadField";
 
 // Image validation constants
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
@@ -29,14 +29,19 @@ const schema = z.object({
   type: z.string().min(1, "Type is required"),
   sort_order: z.string().min(1, "Sort order is required"),
   image: z
-    .instanceof(File, { message: "Invalid file type." })
+    .any()
     .optional()
     .nullable()
-    .refine((file) => !file || file.size <= MAX_FILE_SIZE, `Max image size is 5MB.`)
-    .refine(
-      (file) => !file || ACCEPTED_IMAGE_TYPES.includes(file.type),
-      "Only .jpg, .jpeg, .png, and .webp formats are supported."
-    ),
+    .refine((file) => {
+      if (!file) return true;
+      if (!(file instanceof File)) return true;
+      return file.size <= MAX_FILE_SIZE;
+    }, `Max image size is 5MB.`)
+    .refine((file) => {
+      if (!file) return true;
+      if (!(file instanceof File)) return true;
+      return ACCEPTED_IMAGE_TYPES.includes(file.type);
+    }, "Only .jpg, .jpeg, .png, and .webp formats are supported."),
 });
 
 export type FormType = {
@@ -45,7 +50,7 @@ export type FormType = {
   description?: string;
   type: string;
   sort_order: string;
-  image?: File | null;
+  image?: File | string | null;
 };
 
 const defaultValues: Partial<FormType> = {
@@ -77,19 +82,19 @@ const EditAttributeForm = ({ attribute: initialAttributeData }: { attribute: Att
   const { showSnackbar } = useSnackbar();
   const [isLoading, setIsLoading] = useState(false);
   const [isDeletingImage, setIsDeletingImage] = useState(false);
-  const [existingImageUrl, setExistingImageUrl] = useState<string | undefined>(undefined);
+  const [newImageFile, setNewImageFile] = useState<File | null>(null);
 
-  const { data: fetchedAttribute, error: fetchError } = useFetch(
+  const { data: fetchedAttribute, error: fetchError, isLoading: isFetchingAttribute } = useFetch(
     id ? `attributeDetails-${id}` : null,
     () => getAttributeDetails(id!),
-    { enabled: !!id }
+    { enabled: !!id, revalidateOnFocus: false }
   );
 
   const attribute = fetchedAttribute?.data?.attribute || initialAttributeData;
 
   const { control, formState, handleSubmit, setValue, reset, setError } = useForm<FormType>({
     mode: "all",
-    defaultValues: defaultValues as FormType,
+    defaultValues,
     resolver: zodResolver(schema),
   });
 
@@ -102,19 +107,25 @@ const EditAttributeForm = ({ attribute: initialAttributeData }: { attribute: Att
 
   useEffect(() => {
     if (attribute) {
+      const defaultImageData = (attribute as any).image_url || null;
       reset({
         name: attribute.name || "",
         slug: attribute.slug || "",
         description: attribute.description || "",
         type: attribute.type || "select",
         sort_order: attribute.sort_order?.toString() || "custom",
-        image: undefined,
+        image: defaultImageData,
       });
-      setExistingImageUrl((attribute as any).image_url || undefined);
+      setNewImageFile(null);
     } else if (fetchError) {
       showSnackbar("Failed to load attribute data.", "error");
     }
   }, [attribute, reset, fetchError, showSnackbar]);
+
+  const handleFileChange = (file: File | null) => {
+    setNewImageFile(file);
+    setValue("image", file, { shouldValidate: true, shouldDirty: true });
+  };
 
   const onSubmit = async (formData: FormType) => {
     if (!id) {
@@ -123,18 +134,22 @@ const EditAttributeForm = ({ attribute: initialAttributeData }: { attribute: Att
     }
     setIsLoading(true);
 
-    const dataToUpdate: UpdateAttributeData = {
-      ...(dirtyFields.name && { name: formData.name }),
-      ...(dirtyFields.slug && { slug: formData.slug }),
-      ...(dirtyFields.description && { description: formData.description }),
-      ...(dirtyFields.type && { type: formData.type }),
-      ...(dirtyFields.sort_order && { sort_order: formData.sort_order }),
-      ...(formData.image instanceof File && { image: formData.image }),
-    };
+    const dataToUpdate: UpdateAttributeData = {};
+    if (dirtyFields.name) dataToUpdate.name = formData.name;
+    if (dirtyFields.slug) dataToUpdate.slug = formData.slug;
+    if (dirtyFields.description || formData.description === '') dataToUpdate.description = formData.description;
+    if (dirtyFields.type) dataToUpdate.type = formData.type;
+    if (dirtyFields.sort_order) dataToUpdate.sort_order = formData.sort_order;
+    
+    if (newImageFile) {
+      dataToUpdate.image = newImageFile;
+    } else if (formData.image === null) {
+      // This case is handled by the separate DELETE API call via handleDeleteExistingImage
+    }
 
-    const hasChanges = Object.keys(dataToUpdate).length > 0;
+    const hasTextChanges = (dirtyFields.name || dirtyFields.slug || dirtyFields.description || dirtyFields.type || dirtyFields.sort_order);
 
-    if (!hasChanges) {
+    if (!hasTextChanges && !newImageFile && formData.image !== null) {
       showSnackbar("No changes detected.", "info");
       setIsLoading(false);
       return;
@@ -175,8 +190,8 @@ const EditAttributeForm = ({ attribute: initialAttributeData }: { attribute: Att
     try {
       const response = await removeAttributeImage(id);
       showSnackbar(response.message || "Image removed successfully!", "success");
-      setExistingImageUrl(undefined);
-      setValue('image', undefined, { shouldValidate: true });
+      setValue('image', null, { shouldDirty: true, shouldValidate: true });
+      setNewImageFile(null);
     } catch (err: any) {
       showSnackbar(err.message || "Failed to remove image.", "error");
     } finally {
@@ -184,14 +199,17 @@ const EditAttributeForm = ({ attribute: initialAttributeData }: { attribute: Att
     }
   };
 
-  if (!attribute && !fetchError && id) {
+  if (isFetchingAttribute && id) {
     return <Typography>Loading attribute data...</Typography>;
   }
-  if (fetchError) {
+  if (fetchError && id) {
     return <Alert severity="error">Failed to load attribute data. Please try again later.</Alert>;
   }
-  if (!attribute) {
-    return <Alert severity="error">Attribute data not available.</Alert>;
+  if (!attribute && id) {
+    return <Alert severity="error">Attribute not found.</Alert>;
+  }
+  if (!id) {
+    return <Alert severity="error">Attribute ID is missing from URL.</Alert>;
   }
 
   return (
@@ -251,14 +269,14 @@ const EditAttributeForm = ({ attribute: initialAttributeData }: { attribute: Att
           required
         />
 
-        <FormFileUpload 
+        <FormFileUploadField 
           name="image"
           control={control}
           label="Attribute Image (Optional)"
-          setValue={setValue}
-          existingImage={existingImageUrl}
-          onDelete={handleDeleteExistingImage}
-          isDeleting={isDeletingImage}
+          onFileChange={handleFileChange}
+          accept="image/jpeg, image/png, image/webp, image/jpg"
+          helperText="Upload an image for the attribute (max 5MB)"
+          defaultImage={typeof control._getWatch("image") === 'string' ? control._getWatch("image") : undefined}
         />
 
         <AppButton
@@ -267,7 +285,7 @@ const EditAttributeForm = ({ attribute: initialAttributeData }: { attribute: Att
           type="submit"
           fullWidth
           size="large"
-          disabled={!dirtyFields || !isValid || isMutating || isLoading}
+          disabled={!dirtyFields && !newImageFile && control._getWatch("image") !== null || !isValid || isMutating || isLoading}
           className="mt-4 w-full"
         />
       </form>
