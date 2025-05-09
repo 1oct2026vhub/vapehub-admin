@@ -256,7 +256,7 @@ function BasicInfoTab() {
   // Fetch product data when component mounts or productId changes
   useEffect(() => {
     const fetchProductData = async () => {
-      const urlProductId = searchParams.get("productId");
+      const urlProductId = searchParams ? searchParams.get("productId") : null;
       const finalProductId = urlProductId || localStorage.getItem("productId");
 
       if (finalProductId && finalProductId !== "new") {

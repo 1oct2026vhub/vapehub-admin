@@ -4,7 +4,7 @@ import VariantDetailTable from "../VariantDetailTable";
 
 const VariantDetailPage = () => {
   const searchParams = useSearchParams();
-  const categoryData = searchParams.get("userData");
+  const categoryData = searchParams ? searchParams.get("userData") : null;
 
   const category = categoryData
     ? JSON.parse(decodeURIComponent(categoryData))

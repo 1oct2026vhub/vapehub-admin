@@ -4,7 +4,7 @@ import EditForm from "../EditForm";
 
 const EditVariantPage = () => {
   const searchParams = useSearchParams();
-  const variantData = searchParams.get("brandData");
+  const variantData = searchParams ? searchParams.get("brandData") : null;
 
   const brand = variantData
     ? JSON.parse(decodeURIComponent(variantData))

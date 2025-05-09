@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import FuseLoading from '@fuse/core/FuseLoading';
 import { generateProductVariants, getProductVariants, updateProductVariant, UpdateProductVariantRequest, deleteProductVariant } from '@/services/apiProduct';
 import { useSnackbar } from '@/contexts/SnackbarContext';
@@ -20,6 +20,7 @@ interface GenerateVariantsViewProps {
   isLoading: boolean;
   onSuccess?: () => void;
     allCombinationsUsed: boolean;
+    productAttributes:any[];
 
 }
 
@@ -252,7 +253,7 @@ const variantSchema = z.object({
 
 type VariantFormData = z.infer<typeof variantSchema>;
 
-const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: initialLoading, onSuccess , allCombinationsUsed}) => {
+const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: initialLoading, onSuccess , allCombinationsUsed, productAttributes}) => {
   const [isLoading, setIsLoading] = useState(initialLoading);
   const [generatedVariants, setGeneratedVariants] = useState<GeneratedVariant[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -260,6 +261,8 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
   const [selectedVariant, setSelectedVariant] = useState<GeneratedVariant | null>(null);
   const { showSnackbar } = useSnackbar();
   const searchParams = useSearchParams();
+  // Get productId safely once at the top
+  const productId = searchParams ? searchParams.get('productId') : null;
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [imageUploading, setImageUploading] = useState(false);
   const [isConfirmationDialogOpen, setIsConfirmationDialogOpen] = useState(false);
@@ -267,6 +270,9 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
   const [hasGeneratedThisLoad, setHasGeneratedThisLoad] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [variantToDeleteId, setVariantToDeleteId] = useState<number | null>(null);
+
+  const originalSelectedVariantRef = useRef<GeneratedVariant | null>(null);
+  const prevSelectedVariantIdRef = useRef<number | null>(null);
 
   // Add form handling
   const {
@@ -337,7 +343,7 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
     onDrop: async (acceptedFiles) => {
       if (!selectedVariant) return;
       
-      const productId = searchParams.get('productId');
+      // Use the derived productId variable
       if (!productId) {
         showSnackbar("Product ID not found", "error");
         return;
@@ -487,7 +493,7 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
   const handleSetPrimaryImage = async (imageId: number) => {
     if (!selectedVariant) return;
 
-    const productId = searchParams.get('productId');
+    // Use the derived productId variable
     if (!productId) {
       showSnackbar("Product ID not found", "error");
       return;
@@ -541,7 +547,7 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
   const handleDeleteImage = async (imageId: number) => {
     if (!selectedVariant) return;
 
-    const productId = searchParams.get('productId');
+    // Use the derived productId variable
     if (!productId) {
       showSnackbar("Product ID not found", "error");
       return;
@@ -617,13 +623,13 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
   };
 
   // Fetch EXISTING variants (Simplified: No dialog logic here)
-  const fetchVariants = async (productId: string, isMounted: boolean) => {
+  const fetchVariants = async (productIdParam: string, isMounted: boolean) => {
     setIsLoading(true); 
     setError(null);
     setFetchErrorOccurred(false);
     try {
-      console.log(`[fetchVariants] Fetching variants for ID: ${productId}`);
-      const response = await getProductVariants(Number(productId));
+      console.log(`[fetchVariants] Fetching variants for ID: ${productIdParam}`);
+      const response = await getProductVariants(Number(productIdParam));
       console.log("[fetchVariants] Response:", response);
       if (!isMounted) return; // Check mount state after await
 
@@ -648,7 +654,6 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
       console.error('[fetchVariants] Error fetching variants:', error);
       setError(error.message || 'Failed to fetch variants'); 
       setFetchErrorOccurred(true);
-      // showSnackbar(error.message || 'Failed to fetch variants', 'error');
        setGeneratedVariants([]); 
        setSelectedVariant(null);
        setIsLoading(false);
@@ -664,7 +669,7 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
     setIsConfirmationDialogOpen(false); // Ensure dialog is closed initially
     setFetchErrorOccurred(false);
 
-    const productId = searchParams.get('productId');
+    // Use the derived productId variable
     if (productId) {
       // Call fetchVariants (now only fetches data)
       fetchVariants(productId, isMounted); 
@@ -682,23 +687,23 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
     return () => {
       isMounted = false;
     };
-  }, [searchParams, showSnackbar]); // Dependencies: only things that trigger initial load/reset
+  }, [productId, showSnackbar]); // Dependencies: only things that trigger initial load/reset
 
   // --- ADDED: useEffect to control dialog visibility --- 
   useEffect(() => {    
     // Open dialog if EITHER fetch failed OR (combinations available AND not generated this load)
-    if (!allCombinationsUsed && !hasGeneratedThisLoad) {
+    if (!allCombinationsUsed && !hasGeneratedThisLoad && productAttributes.length > 0 ) {
        setIsConfirmationDialogOpen(true);
     } else {
         console.log(`[DialogEffect] Conditions NOT met. Dialog remains closed.`);
         // Ensure dialog is closed if conditions aren't met (e.g., after generation)
         setIsConfirmationDialogOpen(false); 
     }
-  }, [ allCombinationsUsed, hasGeneratedThisLoad, generatedVariants.length]); // Add fetchErrorOccurred and generatedVariants.length
+  }, [ allCombinationsUsed, hasGeneratedThisLoad, generatedVariants.length,productAttributes]); // Add fetchErrorOccurred and generatedVariants.length
 
   // Update useEffect to handle form reset with selected variant
   useEffect(() => {
-    console.log(`[useEffect resetEditForm] Running for variant ID: ${selectedVariant?.id}`);
+    console.log(`[useEffect resetEditForm] Running for variant ID: ${selectedVariant?.id}, Prev ID: ${prevSelectedVariantIdRef.current}`);
     // Explicitly check if variants exist and index is valid before resetting
     if (selectedVariant) {
       // Log the variant data being used
@@ -724,6 +729,12 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
       console.log('[useEffect resetEditForm] Values passed to resetForm:', JSON.stringify(resetValues, null, 2));
       resetForm(resetValues); 
 
+      if (prevSelectedVariantIdRef.current !== selectedVariant.id) {
+        console.log('[useEffect resetEditForm] Variant ID changed. Storing original state.');
+        originalSelectedVariantRef.current = JSON.parse(JSON.stringify(selectedVariant)); // Deep copy for comparison
+      }
+      prevSelectedVariantIdRef.current = selectedVariant.id;
+
     } else {
       console.log('[useEffect resetEditForm] No variant selected, resetting to defaults.');
       // Reset all fields to empty strings or null for potentially required fields
@@ -743,29 +754,76 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
         barcode: '', // Use empty string for optional strings
         description: '' // Use empty string for optional strings
       });
+      originalSelectedVariantRef.current = null;
+      prevSelectedVariantIdRef.current = null;
     }
   }, [selectedVariant, resetForm]);
+
+  const calculateIsActuallyDirty = () => {
+    if (!selectedVariant || !originalSelectedVariantRef.current) {
+      // If selectedVariant is present but no original, treat as dirty (e.g. for a new variant flow if that existed here).
+      // If neither, not dirty.
+      return !!selectedVariant; 
+    }
+
+    const formValues = getValues();
+
+    // Construct an object representing the current state based on RHF form values and selectedVariant for non-form data.
+    const currentStateToCompare: Partial<GeneratedVariant> = {
+        // Fields from selectedVariant state (not in RHF form directly but part of the variant)
+        id: selectedVariant.id,
+        product_id: selectedVariant.product_id,
+        variantImages: selectedVariant.variantImages || [],
+        variantAttributes: selectedVariant.variantAttributes || [],
+
+        // Fields from the form (obtained via getValues())
+        slug: formValues.slug,
+        price: String(getNumericValue(formValues.price) ?? originalSelectedVariantRef.current.price), // Fallback to original for comparison consistency
+        stock: getNumericValue(formValues.stock) ?? originalSelectedVariantRef.current.stock,
+        status: formValues.status, // 'active' | 'inactive'
+        discount_price: String(getNumericValue(formValues.depositPrice) ?? originalSelectedVariantRef.current.discount_price),
+        purchase_price: String(getNumericValue(formValues.purchasePrice) ?? originalSelectedVariantRef.current.purchase_price),
+        low_stock_threshold: getNumericValue(formValues.lowStockThreshold) ?? originalSelectedVariantRef.current.low_stock_threshold,
+        weight: String(getNumericValue(formValues.weight) ?? originalSelectedVariantRef.current.weight),
+        length: String(getNumericValue(formValues.length) ?? originalSelectedVariantRef.current.length),
+        width: String(getNumericValue(formValues.width) ?? originalSelectedVariantRef.current.width),
+        height: String(getNumericValue(formValues.height) ?? originalSelectedVariantRef.current.height),
+        description: formValues.description ?? originalSelectedVariantRef.current.description, // Fallback to original if form value is null/undefined
+        barcode: formValues.barcode ?? originalSelectedVariantRef.current.barcode,
+        stock_status: formValues.stockStatus, // e.g., "In Stock", "Out of Stock"
+    };
+
+    const dirty = JSON.stringify(currentStateToCompare) !== JSON.stringify(originalSelectedVariantRef.current);
+    // console.log("Is Dirty:", dirty);
+    // if (dirty) {
+    //   console.log("Current for compare:", JSON.stringify(currentStateToCompare));
+    //   console.log("Original for compare:", JSON.stringify(originalSelectedVariantRef.current));
+    // }
+    return dirty;
+  };
 
   // Add onSubmit handler for variant updates
   const onSubmit = async (data: VariantFormData) => {
     if (!selectedVariant) return;
 
-    // Check if the form is actually dirty before proceeding
-    if (!isDirty) {
-      console.log("[onSubmit] Form is not dirty, no update necessary.");
+    // Use the derived productId variable
+    if (!productId) {
+      // showSnackbar("Product ID not found", "error");
+      setIsSubmitting(false); // Stop submission
+      return;
+    }
+
+    const isActuallyDirty = calculateIsActuallyDirty();
+
+    // Check if there are actual changes before proceeding
+    if (!isActuallyDirty) {
+      console.log("[onSubmit] Form is not actually dirty, no update necessary.");
       showSnackbar("No changes to save.", "info");
       return;
     }
 
     setIsSubmitting(true);
     try {
-      const productId = searchParams.get('productId');
-      if (!productId) {
-        showSnackbar("Product ID not found", "error");
-        setIsSubmitting(false); // Stop submission
-        return;
-      }
-
       const transformOptionalNumber = (value: number | string | null | undefined): number | null => {
         if (value === null || value === undefined || value === '') return null;
         const num = Number(value);
@@ -858,6 +916,16 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
       // --- Explicitly reset dirty state after successful update --- 
       // This tells RHF that the current form values are now the 'clean' baseline
       resetForm(data, { keepValues: true, keepDirty: false });
+      // Update the original ref to the new clean state
+      if (selectedVariant) { // selectedVariant state should have been updated by setGeneratedVariants
+        const updatedVersionInState = generatedVariants.find(v => v.id === selectedVariant.id);
+        if (updatedVersionInState) {
+            originalSelectedVariantRef.current = JSON.parse(JSON.stringify(updatedVersionInState));
+        } else {
+            // Fallback if somehow not found, though it should be
+            originalSelectedVariantRef.current = JSON.parse(JSON.stringify(selectedVariant)); 
+        }
+      }
 
     } catch (error) {
       console.error("Error updating variant:", error);
@@ -883,9 +951,9 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
 
   // --- Function to trigger actual generation (Called from Dialog Confirm) ---
   const triggerVariantGeneration = async () => {
-    const productId = searchParams.get('productId');
+    // Use the derived productId variable
     if (!productId) {
-      showSnackbar('Product ID is missing.', 'error');
+      // showSnackbar('Product ID is missing.', 'error');
       return; 
     }
 
@@ -956,9 +1024,9 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
   const handleConfirmDelete = async () => {
     if (!variantToDeleteId) return;
     
-    const productId = searchParams.get('productId');
+    // Use the derived productId variable
     if (!productId) {
-        showSnackbar('Product ID is missing.', 'error');
+        // showSnackbar('Product ID is missing.', 'error');
         setIsDeleteDialogOpen(false);
         setVariantToDeleteId(null);
         return;
@@ -1147,7 +1215,7 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
                       <AppButton 
                         label="Save" 
                         onClick={handleSubmit(onSubmit)}
-                        disabled={isSubmitting || !isDirty || !isValid}
+                        disabled={isSubmitting || !calculateIsActuallyDirty() || !isValid}
                         loading={isSubmitting}
                       />
                     </div>
@@ -1212,7 +1280,8 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
                         <FormField label="Description" error={error?.message}>
                           <textarea 
                             {...field} 
-                            className="w-full border border-gray-300 rounded-lg p-3 h-24 focus:outline-none focus:ring-1 focus:ring-green-500 bg-white" 
+                            value={field.value ?? ''}
+                            className="w-full border border-gray-300 rounded-lg p-3 h-24 focus:outline-none focus:ring-1 focus:ring-green-500 bg-white"
                           />
                         </FormField>
                       )}
