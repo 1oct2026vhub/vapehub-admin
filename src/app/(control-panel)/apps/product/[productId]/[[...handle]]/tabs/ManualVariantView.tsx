@@ -483,8 +483,8 @@ const ManualVariantView: React.FC<ManualVariantViewProps> = ({
           <form onSubmit={handleCreateSubmit(handleCreateSubmitWrapper)}>
             {/* --- Row 1: Price Fields --- */}
             <div className="grid grid-cols-3 gap-4 mb-4">
-              <FormTextField name="price" control={createControl} label="Price" required type="number" placeholder="e.g., 19.99" />
-              <FormTextField name="depositPrice" control={createControl} label="Deposit Price" type="number" />
+              <FormTextField name="price" control={createControl} label="Regular Price" required type="number" placeholder="e.g., 19.99" />
+              <FormTextField name="depositPrice" control={createControl} label="Sale Price" type="number" />
               <FormTextField name="purchasePrice" control={createControl} label="Purchase Price" type="number" />
             </div>
 
@@ -756,11 +756,11 @@ const ManualVariantView: React.FC<ManualVariantViewProps> = ({
                     </div>
                     {/* Row 1: Price Fields */}
                     <div className="grid grid-cols-3 gap-4 mb-4">
-                        <FormTextField name="price" control={editControl} label="Price" required type="number" inputProps={{ step: "0.01" }}/>
+                        <FormTextField name="price" control={editControl} label="Regular Price" required type="number" inputProps={{ step: "0.01" }}/>
                         <FormTextField 
                            name="depositPrice"
                            control={editControl} 
-                           label="Deposit Price" 
+                           label="Sale Price" 
                            type="number" 
                            inputProps={{ step: "0.01" }}
                         />
