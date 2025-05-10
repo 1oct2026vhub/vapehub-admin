@@ -1112,8 +1112,8 @@ function AttributesTab() {
               <AccordionDetails className="p-5">
                 <div className="flex flex-col space-y-4">
                   {/* --- Start Edit: Conditionally Render ENTIRE Attribute Section --- */}
-                  {field.attribute_id !== null && !initialAttributeIds.has(field.attribute_id as number) && (
-                    // Only render this section for NEW attributes
+                  {/* {field.attribute_id !== null && !initialAttributeIds.has(field.attribute_id as number) && ( */}
+                    {/* // Only render this section for NEW attributes */}
                     <div> 
                       <p className="font-medium mb-1">Attribute <span className="text-red-500">*</span></p>
                       {/* Existing conditional logic for dropdown remains inside */} 
@@ -1210,7 +1210,7 @@ function AttributesTab() {
                         />
                       </FormControl>
                     </div>
-                  )}
+                  {/* )} */}
                   {/* --- End Edit --- */}
 
                   <div>
