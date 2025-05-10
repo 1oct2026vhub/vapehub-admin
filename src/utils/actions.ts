@@ -130,4 +130,50 @@ export const formatStatusText = (status: string): string => {
     .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
     .join(' ');
 };
+
+export const formatCustomerNameSafely = (customerData: any): string => {
+  if (!customerData) {
+    return "N/A"; // Or an empty string, depending on display preference
+  }
+
+  // If it's already a string, return it
+  if (typeof customerData === 'string') {
+    return customerData.trim();
+  }
+
+  // If it's an object, try common patterns
+  if (typeof customerData === 'object' && customerData !== null) {
+    // Check for a direct 'name' property
+    if (typeof customerData.name === 'string' && customerData.name.trim() !== '') {
+      return customerData.name.trim();
+    }
+
+    // Check for firstName/lastName or first_name/last_name patterns
+    const firstName = customerData.firstName || customerData.first_name;
+    const lastName = customerData.lastName || customerData.last_name;
+
+    if (typeof firstName === 'string' && typeof lastName === 'string') {
+      const fName = firstName.trim();
+      const lName = lastName.trim();
+      if (fName && lName) {
+        return `${fName} ${lName}`;
+      }
+      // Handle cases where only one part might be present
+      if (fName) return fName;
+      if (lName) return lName;
+    }
+    
+    // If only one part is available as a string (and the other wasn't a string or was empty)
+    if (typeof firstName === 'string' && firstName.trim() !== '') return firstName.trim();
+    if (typeof lastName === 'string' && lastName.trim() !== '') return lastName.trim();
+
+    // Fallback for other object structures: log a warning and return a placeholder
+    console.warn("Unformattable customer data object:", customerData);
+    return "Invalid Customer Data"; 
+  }
+
+  // For other types (e.g., number, boolean), convert to string or handle as an error/placeholder
+  console.warn("Unexpected customer data type:", typeof customerData, customerData);
+  return String(customerData); // Or "Invalid Customer Data"
+}; 
   

@@ -526,7 +526,7 @@ const BulkUpdateView: React.FC<BulkUpdateViewProps> = ({
             <div className="grid grid-cols-3 gap-6">
               <div className="space-y-4"> 
                 <div className="grid grid-cols-12 gap-x-2 gap-y-1 items-center border p-3 pt-5 rounded-md relative">
-                  <label className="absolute -top-2.5 left-2 bg-white px-1 text-xs text-gray-500 font-bold text-base">RegularPrice</label>
+                  <label className="absolute -top-2.5 left-2 bg-white px-1 text-xs text-gray-500 font-bold text-base">Regular Price</label>
                   <div className="col-span-6">
                     <Controller
                       name="price.type"

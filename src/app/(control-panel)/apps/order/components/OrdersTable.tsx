@@ -30,6 +30,7 @@ import GenerateReportButton from "./GenerateReportButton";
 import OrderStatistics from "./OrderStatistics";
 import relativeTime from "dayjs/plugin/relativeTime";
 import useColumnOrder from "@/hooks/useColumnOrder";
+import { formatCustomerNameSafely } from "@/utils/actions";
 
 // Initialize dayjs plugins
 dayjs.extend(relativeTime);
@@ -268,12 +269,10 @@ const OrdersTable = ({
       Cell: ({ row }) => row.original.order_unique_id || "N/A",
     },
     {
-      accessorKey: "user",
+      id: 'user',
       header: "Customer",
-      Cell: ({ row }) => {
-        const user = row.original.user;
-        return user ? `${user.first_name || ""} ${user.last_name || ""}`.trim() || "N/A" : "Guest";
-      },
+      accessorFn: (row) => formatCustomerNameSafely(row.user),
+      Cell: ({ cell }) => cell.getValue<string>(),
     },
     {
       accessorKey: "total",
