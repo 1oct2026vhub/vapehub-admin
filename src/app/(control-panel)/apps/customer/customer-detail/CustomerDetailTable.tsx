@@ -14,26 +14,22 @@ export type UserType = {
   first_name: string | null;
   last_name: string | null;
   email: string;
-  phone: number;
+  phone: number | null;
   gender: string | null;
   dob: string | null;
-  blocked?: boolean; // Added 'blocked' field if needed
+  blocked?: boolean;
   createdAt?: string | null;
 };
 
 export default function CustomerDetailsPage() {
   const params = useParams();
   const id = params?.id;
-
-  // State should be an object (UserType | null) instead of an array
   const [customerDetail, setCustomerDetail] = useState<UserType | null>(null);
 
-  // Prevent API call if ID is missing or invalid
   if (!id || isNaN(Number(id))) {
     return <p className="text-center text-red-500">Invalid customer ID</p>;
   }
 
-  // Fetch customer data using SWR (useFetch)
   const { data, error, isLoading } = useFetch(["customerDetail", id], () =>
     customerDetails(id),
   );
@@ -51,35 +47,49 @@ export default function CustomerDetailsPage() {
     );
   }
 
-  // Table Columns
   const columns: MRT_ColumnDef<UserType>[] = [
-    { accessorKey: "first_name", header: "First Name" },
-    { accessorKey: "last_name", header: "Last Name" },
-    { accessorKey: "email", header: "Email" },
-    { accessorKey: "createdAt", header: "Created At" },
-    { accessorKey: "phone", header: "Contact" },
-    { accessorKey: "gender", header: "Gender" },
-    { accessorKey: "dob", header: "Date of Birth" },
+    {
+      accessorKey: "first_name",
+      header: "First Name",
+      Cell: ({ row }) => row.original.first_name || "N/A",
+    },
+    {
+      accessorKey: "last_name",
+      header: "Last Name",
+      Cell: ({ row }) => row.original.last_name || "N/A",
+    },
+    {
+      accessorKey: "email",
+      header: "Email",
+      Cell: ({ row }) => row.original.email || "N/A",
+    },
+    {
+      accessorKey: "createdAt",
+      header: "Created At",
+      Cell: ({ row }) => 
+        row.original.createdAt 
+          ? new Date(row.original.createdAt).toLocaleDateString("en-GB").replace(/\//g, "-") 
+          : "N/A",
+    },
+    {
+      accessorKey: "phone",
+      header: "Contact",
+      Cell: ({ row }) => (row.original.phone != null ? String(row.original.phone) : "N/A"),
+    },
+    {
+      accessorKey: "gender",
+      header: "Gender",
+      Cell: ({ row }) => row.original.gender || "N/A",
+    },
+    {
+      accessorKey: "dob",
+      header: "Date of Birth",
+      Cell: ({ row }) => 
+        row.original.dob 
+          ? new Date(row.original.dob).toISOString().split("T")[0] 
+          : "N/A",
+    },
   ];
-
-  // Ensure customerDetail is not null before accessing properties
-  const customerDetailData: UserType = {
-    id: customerDetail.id,
-    first_name: customerDetail.first_name,
-    last_name: customerDetail.last_name,
-    email: customerDetail.email,
-    createdAt: customerDetail.createdAt
-      ? new Date(customerDetail.createdAt)
-        .toLocaleDateString("en-GB")
-        .replace(/\//g, "-")
-      : "",
-    phone: customerDetail.phone,
-    gender: customerDetail.gender,
-    dob: customerDetail.dob
-      ? new Date(customerDetail.dob).toISOString().split("T")[0]
-      : "",
-    blocked: customerDetail.blocked,
-  };
 
   return (
     <div className="mt-10">
@@ -94,7 +104,12 @@ export default function CustomerDetailsPage() {
         className="flex flex-col flex-auto shadow-1 rounded-lg overflow-hidden w-full h-full p-4"
         elevation={1}
       >
-        <DataTable data={[customerDetailData]} columns={columns} />
+        <DataTable 
+          data={[customerDetail]} 
+          columns={columns} 
+          // enableRowSelection={false}
+          enableRowActions={false}
+        />
       </Paper>
     </div>
   );
