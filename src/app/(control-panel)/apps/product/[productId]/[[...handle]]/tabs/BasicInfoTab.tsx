@@ -22,7 +22,9 @@ import { getAuthToken } from "@/utils/auth";
 import FormSearchableSelectField from "@/components/Shared/FormSearchableSelectField";
 import FormCKEditor from "@/components/Shared/FormCKEditor";
 import debounce from 'lodash/debounce';
-import { Grid, Stack } from "@mui/material";
+import { Grid, Stack, Button as MuiButton, Box as MuiBox } from "@mui/material";
+import AddNewCategoryModal from "../components/AddNewCategoryModal";
+import AddNewBrandModal from "../components/AddNewBrandModal";
 
 const schema = z.object({
   name: z
@@ -69,6 +71,10 @@ function BasicInfoTab() {
   const { formData, updateFormData, nextStep, markStepAsCompleted } = useProductForm();
   const [productId, setProductId] = useState<number | null>(null);
   
+  // State for modals
+  const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
+  const [isBrandModalOpen, setIsBrandModalOpen] = useState(false);
+
   // State for searchable select options
   const [categoryLoading, setCategoryLoading] = useState(false);
   const [categoryOptions, setCategoryOptions] = useState<Option[]>([]);
@@ -457,6 +463,29 @@ function BasicInfoTab() {
     });
   };
 
+  const handleCategoryCreated = (newCategory: { id: number; name: string }) => {
+    // Add to options if not already present to avoid duplicates from subsequent full fetch
+    setCategoryOptions(prev => {
+      if (!prev.some(option => option.value === newCategory.id)) {
+        return [...prev, { value: newCategory.id, label: newCategory.name }];
+      }
+      return prev;
+    });
+    setIsCategoryModalOpen(false);
+    fetchCategories(""); 
+  };
+
+  const handleBrandCreated = (newBrand: { id: number; name: string }) => {
+    setBrandOptions(prev => {
+      if (!prev.some(option => option.value === newBrand.id)) {
+        return [...prev, { value: newBrand.id, label: newBrand.name }];
+      }
+      return prev;
+    });
+    setIsBrandModalOpen(false);
+    fetchBrands("");
+  };
+
   return (
     <form
       onSubmit={handleSubmit(onSubmit)}
@@ -494,54 +523,74 @@ function BasicInfoTab() {
         </Grid>
         
         <Grid item xs={12} md={6}>
-          <FormSearchableSelectField
-            name="category_id"
-            control={control}
-            label="Category"
-            options={categoryOptions}
-            loading={false}
-            errorMessage={categoryError || errors.category_id?.message?.toString()}
-            onInputChange={(query) => {
-              setCategorySearchInput(query);
-              fetchCategories(query);
-            }}
-            searchTerm={categorySearchInput}
-            required
-            loadingText="Searching categories..."
-            noOptionsText={
-              categorySearchInput.length < 2 && categorySearchInput.length > 0
-                ? "Please enter at least 2 characters"
-                : categoryOptions.length === 0 
-                  ? "No categories found" 
-                  : "No matching categories"
-            }
-            placeholder="Search for a category..."
-          />
+          <MuiBox sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+            <FormSearchableSelectField
+              name="category_id"
+              control={control}
+              label="Category"
+              options={categoryOptions}
+              loading={false}
+              errorMessage={categoryError || errors.category_id?.message?.toString()}
+              onInputChange={(query) => {
+                setCategorySearchInput(query);
+                fetchCategories(query);
+              }}
+              searchTerm={categorySearchInput}
+              required
+              loadingText="Searching categories..."
+              noOptionsText={
+                categorySearchInput.length < 2 && categorySearchInput.length > 0
+                  ? "Please enter at least 2 characters"
+                  : categoryOptions.length === 0 
+                    ? "No categories found" 
+                    : "No matching categories"
+              }
+              placeholder="Search for a category..."
+            />
+            <MuiButton 
+              variant="text" 
+              size="small" 
+              onClick={() => setIsCategoryModalOpen(true)}
+              sx={{ alignSelf: 'flex-start', mt: -0.5, textTransform: 'none' }}
+            >
+              + Add New Category
+            </MuiButton>
+          </MuiBox>
         </Grid>
         <Grid item xs={12} md={6}>
-          <FormSearchableSelectField
-            name="brand_id"
-            control={control}
-            label="Brand"
-            options={brandOptions}
-            loading={false}
-            errorMessage={brandError || errors.brand_id?.message?.toString()}
-            onInputChange={(query) => {
-              setBrandSearchInput(query);
-              fetchBrands(query);
-            }}
-            searchTerm={brandSearchInput}
-            required
-            loadingText="Searching brands..."
-            noOptionsText={
-              brandSearchInput.length < 2 && brandSearchInput.length > 0
-                ? "Please enter at least 2 characters"
-                : brandOptions.length === 0 
-                  ? "No brands found" 
-                  : "No matching brands"
-            }
-            placeholder="Search for a brand..."
-          />
+          <MuiBox sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+            <FormSearchableSelectField
+              name="brand_id"
+              control={control}
+              label="Brand"
+              options={brandOptions}
+              loading={false}
+              errorMessage={brandError || errors.brand_id?.message?.toString()}
+              onInputChange={(query) => {
+                setBrandSearchInput(query);
+                fetchBrands(query);
+              }}
+              searchTerm={brandSearchInput}
+              required
+              loadingText="Searching brands..."
+              noOptionsText={
+                brandSearchInput.length < 2 && brandSearchInput.length > 0
+                  ? "Please enter at least 2 characters"
+                  : brandOptions.length === 0 
+                    ? "No brands found" 
+                    : "No matching brands"
+              }
+              placeholder="Search for a brand..."
+            />
+            <MuiButton 
+              variant="text" 
+              size="small" 
+              onClick={() => setIsBrandModalOpen(true)}
+              sx={{ alignSelf: 'flex-start', mt: -0.5, textTransform: 'none' }}
+            >
+              + Add New Brand
+            </MuiButton>
+          </MuiBox>
         </Grid>
         
         <Grid item xs={12}>
@@ -564,6 +613,16 @@ function BasicInfoTab() {
           />
         </Grid>
       </Grid>
+      <AddNewCategoryModal
+        open={isCategoryModalOpen}
+        onClose={() => setIsCategoryModalOpen(false)}
+        onCategoryCreated={handleCategoryCreated}
+      />
+      <AddNewBrandModal
+        open={isBrandModalOpen}
+        onClose={() => setIsBrandModalOpen(false)}
+        onBrandCreated={handleBrandCreated}
+      />
     </form>
   );
 }
