@@ -532,7 +532,7 @@ const OrderDetailApp = () => {
                     {order?.user?.first_name} {order?.user?.last_name}
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
-                    Customer
+                    Customer ID: {order?.user?.id}
                   </Typography>
                 </div>
               </div>
