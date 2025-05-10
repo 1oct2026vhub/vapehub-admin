@@ -13,10 +13,14 @@ import { useState } from "react";
 import FormSelectField from "@/components/Shared/SelectField";
 import PageBreadcrumb from "@/components/PageBreadcrumb";
 import FormFileUpload from "@/components/Shared/FormFileUpload";
+import { FormHelperText as MuiFormHelperText } from "@mui/material";
+import FormFileUploadField from "@/components/Shared/FormFileUploadField";
 
 // Image validation constants
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
+const REQUIRED_WIDTH = 58;
+const REQUIRED_HEIGHT = 58;
 
 // ✅ Schema with strict validation rules and image field
 const schema = z.object({
@@ -43,15 +47,35 @@ const schema = z.object({
     message: "Invalid sort order value",
   }),
 
-  // Added image file validation
   image: z
     .instanceof(File, { message: "Please select an image." })
     .optional()
+    .nullable() // Allow null for when no image is selected
     .refine((file) => !file || file.size <= MAX_FILE_SIZE, `Max image size is 5MB.`)
     .refine(
       (file) => !file || ACCEPTED_IMAGE_TYPES.includes(file.type),
       "Only .jpg, .jpeg, .png, and .webp formats are supported."
-    ),
+    )
+    .refine(async (file) => {
+      if (!file) return true; // Optional image
+      return new Promise<boolean>((resolve) => { // Explicitly type the Promise
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const img = new Image();
+          img.onload = () => {
+            resolve(img.naturalWidth === REQUIRED_WIDTH && img.naturalHeight === REQUIRED_HEIGHT);
+          };
+          img.onerror = () => resolve(false);
+          if (e.target?.result) {
+            img.src = e.target.result as string;
+          } else {
+            resolve(false); // Could not read file result
+          }
+        };
+        reader.onerror = () => resolve(false);
+        reader.readAsDataURL(file);
+      });
+    }, `Image dimensions must be ${REQUIRED_WIDTH}px x ${REQUIRED_HEIGHT}px.`),
 });
 
 export type FormType = z.infer<typeof schema>;
@@ -83,18 +107,23 @@ function CreateAttribute() {
   const { showSnackbar } = useSnackbar();
   const [isLoading, setIsLoading] = useState(false);
 
-  const { control, formState, handleSubmit, setError, setValue } = useForm<FormType>({
+  const { control, formState, handleSubmit, setError, setValue, watch } = useForm<FormType>({
     mode: "all",
     defaultValues,
     resolver: zodResolver(schema),
   });
 
   const { isValid, dirtyFields, errors } = formState;
+  const imageError = errors.image?.message;
 
   const { trigger: triggerCreateAttribute, isMutating } = usePost(
     "createAttribute",
     createAttribute
   );
+
+  const handleFileChange = (file: File | null) => {
+    setValue("image", file as File, { shouldValidate: true, shouldDirty: true }); // Cast to File, Zod schema expects File or undefined
+  };
 
   const onSubmit = async (formData: FormType) => {
     setIsLoading(true); // Start loading
@@ -186,12 +215,16 @@ function CreateAttribute() {
           required
         />
 
-        <FormFileUpload 
-          name="image" 
-          control={control} 
-          label="Attribute Image (Optional)" 
-          setValue={setValue}
+          <FormFileUploadField 
+          name="image"
+          control={control}
+          label="Attribute Image (Optional)"
+          onFileChange={handleFileChange}
+          accept="image/jpeg, image/png, image/webp, image/jpg"
+          helperText={`Upload an image for the attribute (max 5MB, ${REQUIRED_WIDTH}x${REQUIRED_HEIGHT}px).`}
+          defaultImage={typeof control._getWatch("image") === 'string' ? control._getWatch("image") : undefined}
         />
+      
 
         <AppButton
           label="Create"
