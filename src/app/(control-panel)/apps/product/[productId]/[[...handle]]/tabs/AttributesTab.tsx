@@ -498,30 +498,37 @@ function AttributesTab() {
 
   // Handle attribute search input change
   const handleAttributeSearchChange = (index: number, value: string) => {
-    // Always call search - if value is empty, it will load all attributes
+    const trimmedValue = value.trim();
+    if (trimmedValue.length >= 2) { 
+      setAttributeOptions((prev) => ({
+        ...prev,
+        [index]: undefined,
+      }));
+    }
     searchAttributes(index, value);
   };
 
   // Function to get available attributes for a specific row
   const getAvailableAttributes = (currentIndex: number) => {
-    // Use attributeOptions if available, otherwise use attributes data
-    const allAttributeOptions =
-      attributeOptions[currentIndex] ||
-      attributes?.data?.attributes?.map((attr) => ({
+    let optionsForThisField = attributeOptions[currentIndex];
+
+    if (optionsForThisField === undefined && isAttributeSearching) {
+      return [];
+    }
+
+    if (optionsForThisField === undefined && !isAttributeSearching) {
+      optionsForThisField = attributes?.data?.attributes?.map((attr) => ({
         value: attr.id,
         label: attr.name,
-      })) ||
-      [];
+      })) || [];
+    }
+    
+    const allAttributeOptions = optionsForThisField || [];
 
-    // If no options are available yet, return empty array
-    if (!allAttributeOptions || allAttributeOptions.length === 0) return [];
-
-    // Get all selected attribute IDs except the current row
     const selectedAttributeIds = attributeSelections
       .map((attr, index) => (index !== currentIndex ? attr.attribute_id : null))
-      .filter((id) => id !== null);
+      .filter((id) => id !== null && id !== undefined);
 
-    // Filter out already selected attributes, but keep the current attribute
     return allAttributeOptions.filter(
       (attr) => !selectedAttributeIds.includes(attr.value)
     );
@@ -1132,7 +1139,7 @@ function AttributesTab() {
                           }) => (
                             <Autocomplete
                               options={getAvailableAttributes(actualIndex)}
-                              getOptionLabel={(option) => option.label}
+                              getOptionLabel={(option) => option.label || ''} 
                               value={
                                 value
                                   ? attributeOptions[actualIndex]?.find(
@@ -1145,7 +1152,7 @@ function AttributesTab() {
                                           value,
                                           label: attributes.data.attributes.find(
                                             (attr) => attr.id === value
-                                          ).name,
+                                          )!.name,
                                         }
                                       : null)
                                   : null
@@ -1155,13 +1162,13 @@ function AttributesTab() {
                                 if (newAttributeId !== null) {
                                   handleAttributeChange(actualIndex, newAttributeId);
                                 } else {
-                                  // Handle the case where the attribute is cleared (e.g., reset terms)
-                                  // You might want to call setValue(`attributes.${actualIndex}.term_ids`, []) here
+                                  // Handle clear
+                                  handleAttributeChange(actualIndex, null as any);
                                 }
                               }}
-                              onInputChange={(event, value) => {
+                              onInputChange={(event, inputValue) => {
                                 if (event && event.type === "change") {
-                                  handleAttributeSearchChange(actualIndex, value);
+                                  handleAttributeSearchChange(actualIndex, inputValue);
                                 }
                               }}
                               onOpen={() => {
