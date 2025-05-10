@@ -30,6 +30,8 @@ import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import FuseLoading from '@fuse/core/FuseLoading';
 import { useDropzone, DropzoneRootProps, DropzoneInputProps } from 'react-dropzone';
 import { Control, UseFormHandleSubmit, FieldErrors, UseFormStateReturn } from 'react-hook-form';
+import VariantDisplayCard from '../components/VariantDisplayCard';
+import VariantDetailsForm, { VariantFormData as SharedVariantFormData } from '../components/VariantDetailsForm';
 
 const bulkUpdateSchema = z.object({
     price: z.object({
@@ -54,13 +56,13 @@ const bulkUpdateSchema = z.object({
         type: z.enum(['set', 'increase', 'decrease']).optional(),
         value: z.preprocess(
             (val) => (val === "" || val === null || val === undefined ? undefined : Number(val)),
-            z.number({ invalid_type_error: "Deposit price value must be a number" })
-             .min(0, "Deposit price value cannot be negative")
+            z.number({ invalid_type_error: "Sale price value must be a number" })
+             .min(0, "Sale price value cannot be negative")
              .refine((val) => {
                 if (val === undefined) return true;
                 const str = val.toString();
                 return !str.includes('.') || str.split('.')[1].length <= 2;
-             }, { message: "Deposit price value can have at most 2 decimal places" })
+             }, { message: "Sale price value can have at most 2 decimal places" })
              .optional()
         ),
         is_percentage: z.boolean().optional(),
@@ -229,14 +231,14 @@ const variantSchema = z.object({
     z.union([
       z.literal("NaN").refine(() => false, "Please enter a valid number for deposit price"),
       z.number()
-        .min(0, "Deposit price cannot be negative")
-        .max(9999999.99, "Deposit price exceeds maximum limit")
+        .min(0, "Sale price cannot be negative")
+        .max(9999999.99, "Sale price exceeds maximum limit")
         .refine(
           (val) => {
             const str = val.toString();
             return !str.includes(".") || str.split(".")[1].length <= 2;
           },
-          { message: "Deposit price can have at most 2 decimal places" }
+          { message: "Sale price can have at most 2 decimal places" }
         ),
       z.null(),
     ]).optional()
@@ -337,6 +339,36 @@ const variantSchema = z.object({
 });
 
 type VariantFormData = z.infer<typeof variantSchema>;
+
+// Helper to map Variant (from BulkUpdateView state) to VariantForCard
+const mapVariantForDisplayCardBulk = (variant: Variant | null) => {
+  if (!variant) return null; // Should ideally not happen if we have a selected variant
+  const displayAttributes = Object.entries(variant.attributes || {}).map(([key, value], idx) => ({
+    id: idx, // Placeholder ID, consider a more robust way if available (e.g., attribute_id from productAttributes)
+    attribute_name: key,
+    term_name: value,
+  }));
+
+  return {
+    id: Number(variant.id), // Convert string ID to number
+    slug: variant.slug || '',
+    price: variant.price !== null ? variant.price : 0, // Default to 0 if null
+    stock: variant.stock !== null ? variant.stock : 0, // Default to 0 if null
+    status: variant.status === 'Active' ? 'active' : 'inactive', // Map status
+    variantImages: variant.images?.map(img => ({ ...img })) || [],
+    variantAttributes: displayAttributes,
+  };
+};
+
+// Helper to map Variant to SelectedVariantForForm
+const mapVariantForDetailsFormBulk = (variant: Variant | null) => {
+  if (!variant) return null;
+  return {
+    id: Number(variant.id), // Convert string ID to number
+    slug: variant.slug,
+    variantImages: variant.images?.map(img => ({ ...img })) || [],
+  };
+};
 
 interface BulkUpdateViewProps {
   allCombinationsUsed: boolean;
@@ -494,7 +526,7 @@ const BulkUpdateView: React.FC<BulkUpdateViewProps> = ({
             <div className="grid grid-cols-3 gap-6">
               <div className="space-y-4"> 
                 <div className="grid grid-cols-12 gap-x-2 gap-y-1 items-center border p-3 pt-5 rounded-md relative">
-                  <label className="absolute -top-2.5 left-2 bg-white px-1 text-xs text-gray-500 font-bold text-base">Price</label>
+                  <label className="absolute -top-2.5 left-2 bg-white px-1 text-xs text-gray-500 font-bold text-base">RegularPrice</label>
                   <div className="col-span-6">
                     <Controller
                       name="price.type"
@@ -577,7 +609,7 @@ const BulkUpdateView: React.FC<BulkUpdateViewProps> = ({
                 </div>
 
                 <div className="grid grid-cols-12 gap-x-2 gap-y-1 items-center border p-3 pt-5 rounded-md relative">
-                  <label className="absolute -top-2.5 left-2 bg-white px-1 text-xs text-gray-500 font-bold text-base">Deposit Price</label>
+                  <label className="absolute -top-2.5 left-2 bg-white px-1 text-xs text-gray-500 font-bold text-base">Sale Price</label>
                   <div className="col-span-6">
                     <Controller
                       name="depositPrice.type"
@@ -991,8 +1023,8 @@ const BulkUpdateView: React.FC<BulkUpdateViewProps> = ({
                       )}/>
                     </div>
                     <div className="grid grid-cols-3 gap-4 mb-4">
-                        <FormTextField name="price" control={editControl} label="Price" required type="number" inputProps={{ step: "0.01" }}/>
-                        <FormTextField name="depositPrice" control={editControl} label="Deposit Price" type="number" inputProps={{ step: "0.01" }}/>
+                        <FormTextField name="price" control={editControl} label="Regular Price" required type="number" inputProps={{ step: "0.01" }}/>
+                        <FormTextField name="depositPrice" control={editControl} label="Sale Price" type="number" inputProps={{ step: "0.01" }}/>
                         <FormTextField name="purchasePrice" control={editControl} label="Purchase Price" type="number" inputProps={{ step: "0.01" }}/>
                     </div>
                     <div className="grid grid-cols-3 gap-4 mb-4">

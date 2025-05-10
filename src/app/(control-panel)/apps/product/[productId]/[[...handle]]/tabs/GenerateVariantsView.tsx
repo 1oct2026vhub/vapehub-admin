@@ -15,6 +15,8 @@ import AppButton from '@/components/Shared/AppButton';
 import { useDropzone } from 'react-dropzone';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import { uploadVariantImages, setVariantPrimaryImage, deleteVariantImage } from '@/services/apiProduct';
+import VariantDisplayCard from '../components/VariantDisplayCard';
+import VariantDetailsForm, { VariantFormData } from '../components/VariantDetailsForm';
 
 interface GenerateVariantsViewProps {
   isLoading: boolean;
@@ -70,6 +72,31 @@ interface GeneratedVariant {
   variantImages: VariantImage[];
   variantAttributes: VariantAttribute[];
 }
+
+// Helper to map GeneratedVariant to VariantForCard (for VariantDisplayCard)
+const mapVariantForDisplayCard = (variant: GeneratedVariant) => ({
+  id: variant.id,
+  slug: variant.slug,
+  price: variant.price,
+  stock: variant.stock,
+  status: variant.status,
+  variantImages: variant.variantImages?.map(img => ({ id: img.id, image_url: img.image_url, is_primary: img.is_primary })),
+  variantAttributes: variant.variantAttributes.map(attr => ({
+    id: attr.id, // or attr.term.id if more appropriate for key
+    attribute_name: attr.attribute.name,
+    term_name: attr.term.name,
+  })),
+});
+
+// Helper to map GeneratedVariant to SelectedVariantForForm (for VariantDetailsForm)
+const mapVariantForDetailsForm = (variant: GeneratedVariant | null) => {
+  if (!variant) return null;
+  return {
+    id: variant.id,
+    slug: variant.slug,
+    variantImages: variant.variantImages?.map(img => ({ id: img.id, image_url: img.image_url, is_primary: img.is_primary })),
+  };
+};
 
 // Add FormField component
 const FormField = ({ 
@@ -144,14 +171,14 @@ const variantSchema = z.object({
     z.union([
       z.literal("NaN").refine(() => false, "Please enter a valid number for deposit price"),
       z.number()
-        .min(0, "Deposit price cannot be negative")
-        .max(9999999.99, "Deposit price exceeds maximum limit")
+        .min(0, "Sale price cannot be negative")
+        .max(9999999.99, "Sale price exceeds maximum limit")
         .refine(
           (val) => {
             const str = val.toString();
             return !str.includes(".") || str.split(".")[1].length <= 2;
           },
-          { message: "Deposit price can have at most 2 decimal places" }
+          { message: "Sale price can have at most 2 decimal places" }
         ),
       z.null(),
     ]).optional()
@@ -251,7 +278,7 @@ const variantSchema = z.object({
     .nullable(),
 });
 
-type VariantFormData = z.infer<typeof variantSchema>;
+// type VariantFormData = z.infer<typeof variantSchema>; // Removed local type definition
 
 const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: initialLoading, onSuccess , allCombinationsUsed, productAttributes}) => {
   const [isLoading, setIsLoading] = useState(initialLoading);
@@ -286,8 +313,8 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
     mode: "all",
     defaultValues: { 
       slug: "",
-      price: null as any,
-      stock: null as any,
+      price: 1,
+      stock: 0,
       status: "active",
       depositPrice: null,
       purchasePrice: null,
@@ -505,6 +532,10 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
 
       let updatedSelectedVariantAfterPrimary : GeneratedVariant | null = null;
 
+      // --- Get current form values to preserve edits ---
+      const currentFormValues = getValues();
+      // --- End get current form values ---
+
       // Update local state
       setGeneratedVariants(prevVariants => 
         prevVariants.map(variant => {
@@ -519,9 +550,25 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
 
             console.log(`[handleSetPrimaryImage] Updating variant ${variant.id}, images primary status:`, updatedImages.map(i => ({id: i.id, is_primary: i.is_primary})) );
 
-            // Create the updated variant object
-            const newlyUpdatedVariant = {
-              ...variant,
+            // Create the updated variant object, merging form values
+            const newlyUpdatedVariant: GeneratedVariant = {
+              ...variant, // Start with the existing variant from state
+              // Overwrite with potentially unsaved form values, applying correct typing/mapping
+              slug: String(currentFormValues.slug || variant.slug || ''),
+              price: String(getNumericValue(currentFormValues.price) ?? variant.price ?? 0),
+              stock: getNumericValue(currentFormValues.stock) ?? variant.stock ?? 0,
+              status: String(currentFormValues.status || variant.status || 'inactive') as 'active' | 'inactive',
+              discount_price: String(getNumericValue(currentFormValues.depositPrice) ?? variant.discount_price ?? null),
+              purchase_price: String(getNumericValue(currentFormValues.purchasePrice) ?? variant.purchase_price ?? null),
+              low_stock_threshold: getNumericValue(currentFormValues.lowStockThreshold) ?? variant.low_stock_threshold ?? null,
+              weight: String(getNumericValue(currentFormValues.weight) ?? variant.weight ?? null),
+              length: String(getNumericValue(currentFormValues.length) ?? variant.length ?? null),
+              width: String(getNumericValue(currentFormValues.width) ?? variant.width ?? null),
+              height: String(getNumericValue(currentFormValues.height) ?? variant.height ?? null),
+              barcode: String(currentFormValues.barcode || variant.barcode || ''),
+              description: String(currentFormValues.description || variant.description || ''),
+              stock_status: String(currentFormValues.stockStatus || variant.stock_status || 'Out of Stock'),
+              // NOW overwrite the images with the new list
               variantImages: updatedImages
             };
              // Store for selectedVariant update
@@ -560,6 +607,10 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
       let updatedSelectedVariantAfterDelete : GeneratedVariant | null = null;
       let newPrimaryImageId: number | null = null; // <-- Store new primary ID if needed
 
+      // --- Get current form values to preserve edits ---
+      const currentFormValues = getValues();
+      // --- End get current form values ---
+
       // Update local state - Ensure this triggers re-render
       setGeneratedVariants(prevVariants => 
         prevVariants.map(variant => {
@@ -584,9 +635,25 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
             }
             // --- End Auto-set ---
 
-            // Create the updated variant object
-            const newlyUpdatedVariant = {
-              ...variant,
+            // Create the updated variant object, merging form values
+            const newlyUpdatedVariant: GeneratedVariant = {
+              ...variant, // Start with the existing variant from state
+              // Overwrite with potentially unsaved form values, applying correct typing/mapping
+              slug: String(currentFormValues.slug || variant.slug || ''),
+              price: String(getNumericValue(currentFormValues.price) ?? variant.price ?? 0),
+              stock: getNumericValue(currentFormValues.stock) ?? variant.stock ?? 0,
+              status: String(currentFormValues.status || variant.status || 'inactive') as 'active' | 'inactive',
+              discount_price: String(getNumericValue(currentFormValues.depositPrice) ?? variant.discount_price ?? null),
+              purchase_price: String(getNumericValue(currentFormValues.purchasePrice) ?? variant.purchase_price ?? null),
+              low_stock_threshold: getNumericValue(currentFormValues.lowStockThreshold) ?? variant.low_stock_threshold ?? null,
+              weight: String(getNumericValue(currentFormValues.weight) ?? variant.weight ?? null),
+              length: String(getNumericValue(currentFormValues.length) ?? variant.length ?? null),
+              width: String(getNumericValue(currentFormValues.width) ?? variant.width ?? null),
+              height: String(getNumericValue(currentFormValues.height) ?? variant.height ?? null),
+              barcode: String(currentFormValues.barcode || variant.barcode || ''),
+              description: String(currentFormValues.description || variant.description || ''),
+              stock_status: String(currentFormValues.stockStatus || variant.stock_status || 'Out of Stock'),
+              // NOW overwrite the images with the new list
               variantImages: updatedImages // Use the potentially modified list
             };
             updatedSelectedVariantAfterDelete = newlyUpdatedVariant;
@@ -1126,225 +1193,35 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
               {/* Left side - Variant cards */}
               <div className="w-1/2">
                 {generatedVariants.map((variant) => (
-                  <div
+                  <VariantDisplayCard
                     key={variant.id}
-                    className={`border border-gray-200 overflow-hidden cursor-pointer bg-white mb-2 rounded-xl ${
-                      selectedVariant?.id === variant.id ? 'border-l-4 border-l-green-600' : 'border-l-transparent'
-                    }`}
+                    variant={mapVariantForDisplayCard(variant)}
+                    isSelected={selectedVariant?.id === variant.id}
                     onClick={() => setSelectedVariant(variant)}
-                  >
-                    <div className="flex p-3">
-                      <div className="w-16 mr-3">
-                        <div className="h-16 w-16 flex items-center justify-center">
-                          {variant.variantImages?.find(img => img.is_primary)?.image_url ? (
-                            <img
-                              src={variant.variantImages.find(img => img.is_primary)?.image_url}
-                              alt={variant.slug}
-                              className="max-h-full max-w-full object-contain"
-                            />
-                          ) : (
-                            <div className="text-gray-400">No image</div>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex-1 pl-4">
-                        <div className="mb-2">
-                          <p className="text-sm font-semibold text-gray-700">ID: {variant.id}</p>
-                        </div>
-                        <div className="space-y-2">
-                          {variant.variantAttributes.map((attr) => (
-                            <div key={attr.id}>
-                              <p className="text-sm text-green-800 font-semibold mb-0.5">{attr.attribute.name}:</p>
-                              <input
-                                type="text"
-                                readOnly
-                                value={attr.term.name}
-                                className="w-full text-sm border border-gray-300 px-3 py-1 rounded bg-gray-50 text-gray-800 focus:outline-none"
-                              />
-                            </div>
-                          ))}
-                        </div>
-                        <div className="flex items-center pt-3 justify-between">
-                          <div className="flex items-center flex-wrap gap-2">
-                            <div className="flex items-center space-x-1 border border-[#005B2F] rounded-md bg-green-50 px-2.5 py-1">
-                              <span className="text-[#14854E] text-sm font-medium">Stock:</span>
-                              <div className="bg-[#14854E] px-1.5 py-0.5 rounded-sm text-white text-sm font-semibold">
-                                {variant.stock}
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-1 border border-[#005B2F] rounded-md bg-green-50 px-2.5 py-1">
-                              <span className="text-[#14854E] text-sm font-medium">Price:</span>
-                              <div className="bg-[#14854E] px-1.5 py-0.5 rounded-sm text-white text-sm font-semibold">
-                                ${Number(variant.price).toFixed(2)}
-                              </div>
-                            </div>
-                          </div>
-                          <div className={`px-3 py-1 rounded-md text-sm font-medium ${
-                            variant.status === 'active' 
-                              ? 'bg-white border border-[#005B2F] text-[#14854E]' 
-                              : 'bg-white border border-red-500 text-red-500'
-                          }`}>
-                            {variant.status === 'active' ? 'Active' : 'Inactive'}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="ml-2">
-                        <IconButton 
-                          size="small" 
-                          color="error"
-                          onClick={(e) => { 
-                            e.stopPropagation(); // Prevent card click selection
-                            handleDeleteClick(variant.id); 
-                          }}
-                          disabled={isSubmitting} 
-                        >
-                          <DeleteIcon fontSize="small" />
-                        </IconButton>
-                      </div>
-                    </div>
-                  </div>
+                    onDelete={handleDeleteClick} // Assuming handleDeleteClick is already defined and takes variant.id
+                    isActionDisabled={isSubmitting} // or another relevant state like isDeleting
+                  />
                 ))}
               </div>
 
               {/* Right side - Variant Details Form */}
               {selectedVariant && (
-                <div className="w-1/2" key={selectedVariant.id}>
-                  <Paper elevation={3} className="p-4 bg-white">
-                    <div className="flex justify-between items-center mb-4">
-                      <h2 className="text-lg font-bold">Variant Details</h2>
-                      <AppButton 
-                        label="Save" 
-                        onClick={handleSubmit(onSubmit)}
-                        disabled={isSubmitting || !calculateIsActuallyDirty() || !isValid}
-                        loading={isSubmitting}
-                      />
-                    </div>
-
-                    {/* Form Fields */}
-                    <div className="grid grid-cols-2 gap-4 mb-4">
-                      <FormTextField name="slug" control={control} label="Slug" required />
-                      <FormTextField name="price" control={control} label="Price" required type="number" />
-                      <FormTextField name="depositPrice" control={control} label="Deposit Price" type="number" />
-                      <FormTextField name="purchasePrice" control={control} label="Purchase Price" type="number" />
-                      <FormTextField name="stock" control={control} label="Stock" required type="number" />
-                      <FormTextField name="lowStockThreshold" control={control} label="Low Stock Threshold" type="number" />
-
-                      <Controller
-                        name="stockStatus"
-                        control={control}
-                        render={({ field, fieldState: { error } }) => (
-                          <FormField label="Stock Status" required error={error?.message}>
-                            <select {...field} className="w-full border border-gray-300 rounded-lg p-2 focus:outline-none focus:ring-1 focus:ring-green-500 bg-white h-10 appearance-none">
-                              <option value="In Stock">In Stock</option>
-                              <option value="Out of Stock">Out of Stock</option>
-                              <option value="Back Order">Back Order</option>
-                            </select>
-                          </FormField>
-                        )}
-                      />
-
-                      <Controller
-                        name="status"
-                        control={control}
-                        render={({ field, fieldState: { error } }) => (
-                          <FormField label="Status" required error={error?.message}>
-                            <select {...field} className="w-full border border-gray-300 rounded-lg p-2 focus:outline-none focus:ring-1 focus:ring-green-500 bg-white h-10 appearance-none">
-                              <option value="active">Active</option>
-                              <option value="inactive">Inactive</option>
-                            </select>
-                          </FormField>
-                        )}
-                      />
-                    </div>
-
-                    {/* Dimensions & Weight */}
-                    <div className="mb-4">
-                      <h3 className="font-semibold mb-3">Dimensions & Weight</h3>
-                      <div className="grid grid-cols-4 gap-4">
-                        <FormTextField name="weight" control={control} label="Weight" type="number" />
-                        <FormTextField name="length" control={control} label="Length" type="number" />
-                        <FormTextField name="width" control={control} label="Width" type="number" />
-                        <FormTextField name="height" control={control} label="Height" type="number" />
-                      </div>
-                    </div>
-
-                    {/* Barcode */}
-                    <FormTextField name="barcode" control={control} label="Barcode" />
-
-                    {/* Description */}
-                    <div className="mt-2">
-                    <Controller
-                      name="description"
-                      control={control}
-                      render={({ field, fieldState: { error } }) => (
-                        <FormField label="Description" error={error?.message}>
-                          <textarea 
-                            {...field} 
-                            value={field.value ?? ''}
-                            className="w-full border border-gray-300 rounded-lg p-3 h-24 focus:outline-none focus:ring-1 focus:ring-green-500 bg-white"
-                          />
-                        </FormField>
-                      )}
-                    />
-                    </div>
-
-                    {/* Image section */}
-                    <div className="mt-4">
-                      <h3 className="font-semibold mb-3">Image</h3>
-                      {selectedVariant.variantImages && selectedVariant.variantImages.length > 0 && (
-                        <div className="grid grid-cols-4 gap-2 mb-4">
-                          {selectedVariant.variantImages.map((image) => (
-                            <div key={image.id} className="relative border rounded p-1">
-                              <img 
-                                src={image.image_url} 
-                                alt={`Variant ${selectedVariant.id}`} 
-                                className="w-full h-24 object-contain" 
-                              />
-                              <div className="absolute top-1 right-1">
-                                <IconButton 
-                                  size="small" 
-                                  color="error" 
-                                  className="bg-white"
-                                  onClick={() => handleDeleteImage(image.id)}
-                                  disabled={isSubmitting || imageUploading}
-                                >
-                                  <DeleteIcon fontSize="small" />
-                                </IconButton>
-                              </div>
-                              <div className="mt-1 flex justify-center">
-                                <input 
-                                  type="radio" 
-                                  checked={image.is_primary} 
-                                  onChange={() => handleSetPrimaryImage(image.id)}
-                                  disabled={isSubmitting || imageUploading} 
-                                />
-                                <span className="text-xs ml-1">Primary</span>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-
-                      {/* Upload section */}
-                      <div 
-                        {...getRootProps()} 
-                        className={`border rounded flex flex-col items-center justify-center py-8 bg-gray-50 
-                          ${isDragActive ? 'border-green-500 bg-green-50' : 'border-gray-300'}
-                          ${(imageUploading || isSubmitting) ? 'opacity-70 cursor-wait' : 'cursor-pointer'} mb-3`}
-                      >
-                        <input {...getInputProps()} disabled={isSubmitting || imageUploading} />
-                        {(imageUploading) ? (
-                          <FuseLoading className="mb-2" />
-                        ) : (
-                          <>
-                            <CloudUploadIcon className="text-gray-400 mb-2" />
-                            <p className="text-center">{isDragActive ? "Drop files here" : "Upload More Images"}</p>
-                            <p className="text-xs text-gray-500">5MB max file size</p>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  </Paper>
+                <div className="w-1/2" key={selectedVariant.id}> {/* Ensure key is on a stable element if selectedVariant itself is the key source */}
+                  <VariantDetailsForm
+                    control={control} // From useForm for this view
+                    handleSubmit={handleSubmit} // From useForm for this view
+                    onSubmit={onSubmit} // This is the existing onSubmit function for variant updates
+                    selectedVariant={mapVariantForDetailsForm(selectedVariant)} // Mapped selected variant
+                    isSaving={isSubmitting} // Or a more specific isUpdatingVariant state if you have one
+                    isSaveDisabled={isSubmitting || !calculateIsActuallyDirty() || !isValid}
+                    // Image handling props - these need to be passed from GenerateVariantsView
+                    imageGetRootProps={getRootProps} // from useDropzone
+                    imageGetInputProps={getInputProps} // from useDropzone
+                    isImageDragActive={isDragActive} // from useDropzone
+                    isImageUploading={imageUploading} // state for image upload spinner
+                    onSetPrimaryImage={handleSetPrimaryImage} // existing function
+                    onDeleteImage={handleDeleteImage} // existing function
+                  />
                 </div>
               )}
             </div>

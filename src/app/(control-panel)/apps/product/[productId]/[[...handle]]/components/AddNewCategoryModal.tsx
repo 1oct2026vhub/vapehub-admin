@@ -268,7 +268,6 @@ function AddNewCategoryModal({
                     }}
                     helperText={`Upload a category image (${MAX_IMAGE_WIDTH}×${MAX_IMAGE_HEIGHT} px, Max size: 5MB). Supported formats: PNG, JPG, JPEG, WebP`}
                 />
-                 {logoError && <Typography color="error" variant="caption">{logoError}</Typography>}
             </Grid>
             <Grid item xs={12}>
               <FormInputField
