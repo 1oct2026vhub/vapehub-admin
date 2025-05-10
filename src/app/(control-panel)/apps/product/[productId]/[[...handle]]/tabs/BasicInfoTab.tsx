@@ -551,7 +551,7 @@ function BasicInfoTab() {
               variant="text" 
               size="small" 
               onClick={() => setIsCategoryModalOpen(true)}
-              sx={{ alignSelf: 'flex-start', mt: -0.5, textTransform: 'none' }}
+              sx={{ alignSelf: 'flex-start', mt: -0.5, textTransform: 'none', color: '#247c5c' }}
             >
               + Add New Category
             </MuiButton>
@@ -586,7 +586,7 @@ function BasicInfoTab() {
               variant="text" 
               size="small" 
               onClick={() => setIsBrandModalOpen(true)}
-              sx={{ alignSelf: 'flex-start', mt: -0.5, textTransform: 'none' }}
+              sx={{ alignSelf: 'flex-start', mt: -0.5, textTransform: 'none', color: '#247c5c' }}
             >
               + Add New Brand
             </MuiButton>
