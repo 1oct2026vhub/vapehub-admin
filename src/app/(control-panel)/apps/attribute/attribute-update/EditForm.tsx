@@ -18,6 +18,8 @@ import FormFileUploadField from "@/components/Shared/FormFileUploadField";
 // Image validation constants
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
+const REQUIRED_WIDTH = 58;
+const REQUIRED_HEIGHT = 58;
 
 const schema = z.object({
   name: z.string().min(1, "Attribute Name is required").max(50, "Name must be less than 50 characters"),
@@ -33,15 +35,37 @@ const schema = z.object({
     .optional()
     .nullable()
     .refine((file) => {
-      if (!file) return true;
-      if (!(file instanceof File)) return true;
+      if (!file || typeof file === 'string') return true; // Allow existing image URL (string) or no file
+      if (!(file instanceof File)) return true; // Should be a File object if new
       return file.size <= MAX_FILE_SIZE;
     }, `Max image size is 5MB.`)
     .refine((file) => {
-      if (!file) return true;
+      if (!file || typeof file === 'string') return true;
       if (!(file instanceof File)) return true;
       return ACCEPTED_IMAGE_TYPES.includes(file.type);
-    }, "Only .jpg, .jpeg, .png, and .webp formats are supported."),
+    }, "Only .jpg, .jpeg, .png, and .webp formats are supported.")
+    .refine(async (file) => {
+      if (!file || typeof file === 'string') return true; // Allow existing image URL or no new file
+      if (!(file instanceof File)) return true; // Not a file, so skip dimension check for this path
+      
+      return new Promise<boolean>((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const img = new Image();
+          img.onload = () => {
+            resolve(img.naturalWidth === REQUIRED_WIDTH && img.naturalHeight === REQUIRED_HEIGHT);
+          };
+          img.onerror = () => resolve(false);
+          if (e.target?.result) {
+            img.src = e.target.result as string;
+          } else {
+            resolve(false); // Could not read file result
+          }
+        };
+        reader.onerror = () => resolve(false);
+        reader.readAsDataURL(file);
+      });
+    }, `Image dimensions must be ${REQUIRED_WIDTH}px x ${REQUIRED_HEIGHT}px.`),
 });
 
 export type FormType = {
@@ -275,7 +299,7 @@ const EditAttributeForm = ({ attribute: initialAttributeData }: { attribute: Att
           label="Attribute Image (Optional)"
           onFileChange={handleFileChange}
           accept="image/jpeg, image/png, image/webp, image/jpg"
-          helperText="Upload an image for the attribute (max 5MB)"
+          helperText={`Upload an image for the attribute (max 5MB, ${REQUIRED_WIDTH}x${REQUIRED_HEIGHT}px).`}
           defaultImage={typeof control._getWatch("image") === 'string' ? control._getWatch("image") : undefined}
         />
 
