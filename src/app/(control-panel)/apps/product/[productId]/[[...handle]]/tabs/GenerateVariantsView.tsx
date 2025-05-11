@@ -1115,7 +1115,6 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
         setGeneratedVariants(prevVariants => 
           prevVariants.filter(variant => variant.id !== variantToDeleteId)
         );
-
         // If the deleted variant was selected, clear the selection
         if (selectedVariant?.id === variantToDeleteId) {
           console.log("[handleConfirmDelete] Deleted variant was selected. Clearing selection.");
@@ -1128,7 +1127,6 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
           console.log("[handleConfirmDelete] Calling parent onSuccess callback.");
           onSuccess(); 
         }
-
       } else {
         const errorMsg = response.message || 'Failed to delete variant.';
         console.error("[handleConfirmDelete] API Error:", errorMsg);
