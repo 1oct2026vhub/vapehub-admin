@@ -116,30 +116,32 @@ interface VariantImage {
   is_primary: boolean;
 }
 
-// --- EDIT: Use simple nullable types consistent with schema --- 
+// --- EDIT: Align Variant type with BulkUpdateView's EditableVariantData expectations ---
 interface Variant {
-  id: string;
+  id: number; // Changed from string
+  product_id: number; // Added
   slug: string;
-  price: number | null; 
-  stock: number | null; 
-  status: 'Active' | 'Inactive';
-  stockStatus?: 'In Stock' | 'Out of Stock' | 'Back Order'; // Add stockStatus using Form format
-  depositPrice?: number | null; 
-  purchasePrice?: number | null; 
-  lowStockThreshold?: number | null; // Use correct casing
-  weight?: number | null; 
-  length?: number | null; 
-  width?: number | null; 
-  height?: number | null; 
-  barcode?: string | null; 
-  description?: string | null; 
-  attributes: Record<string, string>;
-  variantAttributes?: VariantAttribute[];
-  images?: VariantImage[];
+  price: string; // Changed from number | null, API often returns string
+  stock: number; // Changed from number | null
+  status: string; // Changed from 'Active' | 'Inactive' to e.g., "active"
+  stock_status: string; // Changed from UI enum to API string e.g., "in_stock", MADE REQUIRED
+  discount_price: string | null; // Renamed from depositPrice, changed type, MADE NON-OPTIONAL
+  purchase_price: string | null; // Changed type, MADE NON-OPTIONAL
+  low_stock_threshold: number | null; // Kept as number | null, MADE NON-OPTIONAL
+  weight: string | null; // Changed type, MADE NON-OPTIONAL
+  length: string | null; // Changed type, MADE NON-OPTIONAL
+  width: string | null; // Changed type, MADE NON-OPTIONAL
+  height: string | null; // Changed type, MADE NON-OPTIONAL
+  barcode: string | null; // Kept as string | null, MADE NON-OPTIONAL
+  description: string | null; // Kept as string | null, MADE NON-OPTIONAL
+  sku?: string | null; // Added, kept optional as in EditableVariantData
+  attributes: Record<string, string>; // Simplified key-value for display/filtering in VariantManager
+  variantAttributes: VariantAttribute[]; // Detailed attributes for API/editing, MADE NON-OPTIONAL
+  variantImages: VariantImage[]; // Renamed from images, MADE NON-OPTIONAL
   pendingImages?: File[];
-  errors?: Record<string, string>; 
+  errors?: Record<string, string>;
 }
-// --- END EDIT --- 
+// --- END EDIT ---
 
 // Add a type for variant attributes
 interface VariantAttributeField {
@@ -642,6 +644,17 @@ const mapFormStockStatusToApi = (formStatus?: 'In Stock' | 'Out of Stock' | 'Bac
 };
 // --- End Add: Stock Status Mapping Helpers ---
 
+// Helper function to convert API stock status to display format for the edit form
+const getDisplayStockStatusManager = (apiStockStatus?: string | null, currentStockVal?: number): "In Stock" | "Out of Stock" | "Back Order" => {
+  const stock = currentStockVal ?? 0;
+  switch (apiStockStatus?.toLowerCase()) {
+    case "in_stock": return "In Stock";
+    case "out_of_stock": return "Out of Stock";
+    case "back_to_order": case "back_order": return "Back Order";
+    default: return stock > 0 ? "In Stock" : "Out of Stock";
+  }
+};
+
 // Define props interface if not already defined, or add isActive to existing one
 interface VariantManagerProps {
   isActive: boolean;
@@ -815,14 +828,14 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
     const currentVariants = [...variants];
     
     // Filter out temporary images
-    const permanentImages = currentVariants[selectedVariantIndex].images?.filter(
+    const permanentImages = currentVariants[selectedVariantIndex].variantImages?.filter(
       img => !tempIds.includes(Number(img.id))
     ) || [];
     
     // Update the variant without the temporary images
     currentVariants[selectedVariantIndex] = {
       ...currentVariants[selectedVariantIndex],
-      images: permanentImages
+      variantImages: permanentImages
     };
     
     setVariants(currentVariants);
@@ -874,14 +887,14 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
      const updatedVariants = variants.map(variant => ({...variant}));
      
      // Make a deep copy of selected variant's images array or initialize it
-     const currentImages = updatedVariants[selectedVariantIndex].images ? 
-       [...updatedVariants[selectedVariantIndex].images] : 
+     const currentImages = updatedVariants[selectedVariantIndex].variantImages ? 
+       [...updatedVariants[selectedVariantIndex].variantImages] : 
        [];
      
      // Add preview images to the variant
      updatedVariants[selectedVariantIndex] = {
        ...updatedVariants[selectedVariantIndex],
-       images: [...currentImages, ...previewImages],
+       variantImages: [...currentImages, ...previewImages],
        pendingImages: [
          ...(updatedVariants[selectedVariantIndex].pendingImages || []),
          ...validFiles
@@ -966,7 +979,7 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
             const currentVariant = latestVariants[selectedVariantIndex];
             
             // Remove any temporary preview images (negative IDs that we tracked)
-            const permanentImages = currentVariant.images?.filter(
+            const permanentImages = currentVariant.variantImages?.filter(
             img => !tempIds.includes(Number(img.id))
             ) || [];
             
@@ -995,7 +1008,7 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
             // Update the variant with the deduplicated images
             latestVariants[selectedVariantIndex] = {
             ...currentVariant,
-            images: [...processedPermanentImages, ...processedUniqueNewImages],
+            variantImages: [...processedPermanentImages, ...processedUniqueNewImages],
             pendingImages: [] // Clear pending files for this variant
             };
 
@@ -1070,7 +1083,7 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
     isDragActive: editIsDragActive 
   } = useDropzone({
     onDrop: async acceptedFiles => {
-      if (!selectedVariant || (typeof selectedVariant.id === 'string' && selectedVariant.id.startsWith('#'))) { // Check type for startsWith
+      if (!selectedVariant) { // ID is number, startsWith removed
         showSnackbar("Please select an existing variant to upload images.", "warning");
         return;
       }
@@ -1115,7 +1128,7 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
     },
     accept: { 'image/*': ['.jpeg', '.jpg', '.png', '.gif', '.webp'] },
     multiple: true,
-    disabled: isSubmitting || imageUploading || !selectedVariant || (typeof selectedVariant.id === 'string' && selectedVariant.id.startsWith('#')), // Check type
+    disabled: isSubmitting || imageUploading || !selectedVariant, // ID is number, startsWith removed
   });
   // --- End Dropzone Hooks ---
   
@@ -1173,31 +1186,33 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
           
           // Create our variant object
           return {
-            id: apiVariant.id.toString(),
+            id: Number(apiVariant.id), // Store as number
+            product_id: Number(productId), // Populate product_id
             slug: apiVariant.slug,
-            price: apiVariant.price,
-            stock: apiVariant.stock,
-            // Map API status to capitalized state format
-            status: apiVariant.status === 'active' ? 'Active' : 'Inactive', 
-            stockStatus: mapApiStockStatusToForm(apiVariant.stock_status),
-            depositPrice: apiVariant.discount_price,
-            purchasePrice: apiVariant.purchase_price,
-            lowStockThreshold: apiVariant.low_stock_threshold,
-            weight: apiVariant.weight,
-            length: apiVariant.length,
-            width: apiVariant.width,
-            height: apiVariant.height,
-            barcode: apiVariant.barcode,
-            description: apiVariant.description,
-            attributes,
-            // Map images if they exist
-            images: apiVariant.variantImages 
-              ? apiVariant.variantImages.map((img: any) => ({
-                  id: img.id,
+            price: String(apiVariant.price), // Store as string
+            stock: Number(apiVariant.stock),   // Store as number
+            status: apiVariant.status, // Store API string (e.g., "active")
+            stock_status: apiVariant.stock_status, // Ensure this is stock_status and it exists on apiVariant
+            discount_price: apiVariant.discount_price !== null && apiVariant.discount_price !== undefined ? String(apiVariant.discount_price) : null,
+            purchase_price: apiVariant.purchase_price !== null && apiVariant.purchase_price !== undefined ? String(apiVariant.purchase_price) : null,
+            low_stock_threshold: apiVariant.low_stock_threshold !== null && apiVariant.low_stock_threshold !== undefined ? Number(apiVariant.low_stock_threshold) : null,
+            weight: apiVariant.weight !== null && apiVariant.weight !== undefined ? String(apiVariant.weight) : null,
+            length: apiVariant.length !== null && apiVariant.length !== undefined ? String(apiVariant.length) : null,
+            width: apiVariant.width !== null && apiVariant.width !== undefined ? String(apiVariant.width) : null,
+            height: apiVariant.height !== null && apiVariant.height !== undefined ? String(apiVariant.height) : null,
+            barcode: apiVariant.barcode || null,
+            description: apiVariant.description || null,
+            sku: apiVariant.sku || null,
+            attributes: apiVariant.attributes ? Object.entries(apiVariant.attributes).reduce((acc, [key, val]) => {
+              acc[key] = String(val); // Ensure value is string
+              return acc;
+            }, {} as Record<string, string>) : {},
+            variantAttributes: apiVariant.variantAttributes || [],
+            variantImages: apiVariant.variantImages?.map((img: any) => ({ // Already renamed
+                  id: Number(img.id),
                   image_url: img.image_url,
                   is_primary: img.is_primary
-                }))
-              : [],
+                })) || [],
             errors: {}
           };
         });
@@ -1421,9 +1436,10 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
             price: apiVariant.price,
             stock: apiVariant.stock,
             status: apiVariant.status === 'active' ? 'Active' : 'Inactive',
-            depositPrice: apiVariant.discount_price,
-            purchasePrice: apiVariant.purchase_price,
-            lowStockThreshold: apiVariant.low_stock_threshold,
+            stock_status: mapApiStockStatusToForm(apiVariant.stock_status),
+            discount_price: apiVariant.discount_price,
+            purchase_price: apiVariant.purchase_price,
+            low_stock_threshold: apiVariant.low_stock_threshold,
             weight: apiVariant.weight,
             length: apiVariant.length,
             width: apiVariant.width,
@@ -1432,7 +1448,7 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
             description: apiVariant.description,
             attributes,
             // Map images if they exist
-            images: apiVariant.variantImages 
+            variantImages: apiVariant.variantImages 
               ? apiVariant.variantImages.map((img: any) => ({
                   id: img.id,
                   image_url: img.image_url,
@@ -1565,12 +1581,12 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
           const currentVariant = updatedVariants[variantIndex];
           
           // Ensure the images array exists
-          const existingImages = currentVariant.images || [];
+          const existingImages = currentVariant.variantImages || [];
           
           // Add the new images (could add de-duplication if needed)
           updatedVariants[variantIndex] = {
             ...currentVariant,
-            images: [...existingImages, ...processedImages]
+            variantImages: [...existingImages, ...processedImages]
           };
           
           return updatedVariants;
@@ -1699,27 +1715,34 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
       
       // --- EDIT: Create local state variant using simple types from FORM DATA --- 
       const newVariant: Variant = {
-        id: createdVariantId ? String(createdVariantId) : `#TEMP-${Date.now()}`,
+        id: createdVariantId ? Number(createdVariantId) : 0,
+        product_id: Number(formData.productId),
         slug: data.slug,
-        attributes: Object.entries(pendingCombination).reduce((acc, [key, value]) => {
-          if (typeof value === 'object' && value.value) {
-            acc[key] = value.value;
-          }
-          return acc;
-        }, {} as Record<string, string>),
-        price: transformOptionalNumber(data.price),
-        stock: transformOptionalNumber(data.stock),
-        status: data.status === 'active' ? 'Active' : 'Inactive', 
-        depositPrice: transformOptionalNumber(data.depositPrice),
-        purchasePrice: transformOptionalNumber(data.purchasePrice),
-        lowStockThreshold: transformOptionalNumber(data.lowStockThreshold), // Use correct casing
-        weight: transformOptionalNumber(data.weight),
-        length: transformOptionalNumber(data.length),
-        width: transformOptionalNumber(data.width),
-        height: transformOptionalNumber(data.height),
-        barcode: data.barcode || null,
+        price: String(transformOptionalNumber(data.price)),
+        stock: Number(transformOptionalNumber(data.stock)),
+        status: data.status === 'active' ? 'Active' : 'Inactive',
+        stock_status: data.stockStatus === 'In Stock' ? 'in_stock' : data.stockStatus === 'Out of Stock' ? 'out_of_stock' : 'back_order',
+        discount_price: String(transformOptionalNumber(data.depositPrice)),
+        purchase_price: String(transformOptionalNumber(data.purchasePrice)),
+        low_stock_threshold: transformOptionalNumber(data.lowStockThreshold),
+        weight: String(transformOptionalNumber(data.weight)),
+        length: String(transformOptionalNumber(data.length)),
+        width: String(transformOptionalNumber(data.width)),
+        height: String(transformOptionalNumber(data.height)),
+        barcode: data.barcode?.trim() || null,
         description: data.description?.trim() || null,
-        images: uploadedImages, 
+        sku: null,
+        attributes: Object.fromEntries(Object.entries(pendingCombination).map(([key, value]) => [key, String((value as any).value)])), // Ensure value is string
+        variantAttributes: Object.entries(pendingCombination).map(([attrName, comboValue]) => ({ 
+          attribute_id: Number((comboValue as any).attribute_id),
+          term_id: Number((comboValue as any).term_id),
+          term: { id: Number((comboValue as any).term_id), name: String((comboValue as any).value) }, // Ensure name is string
+          attribute: {
+            id: Number((comboValue as any).attribute_id),
+            name: attrName // Correctly use attrName (the key/name of the attribute from pendingCombination)
+          }
+        })),
+        variantImages: uploadedImages,
         pendingImages: [],
         errors: {}
       };
@@ -1902,22 +1925,26 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
       // Otherwise create a new variant
       // --- EDIT: Correctly initialize new variant --- 
       const newVariant: Variant = {
-        id: `#${Math.floor(Math.random() * 10000000)}`,
+        id: 0,
+        product_id: Number(formData.productId),
         slug: generateSlugFromAttributes(attributes),
-        attributes,
-        price: null, // Initialize as null
-        stock: null, // Initialize as null
+        price: String(null),
+        stock: Number(null),
         status: 'Active',
-        depositPrice: null,
-        purchasePrice: null,
-        lowStockThreshold: null,
-        weight: null,
-        length: null,
-        width: null,
-        height: null,
+        stock_status: 'in_stock',
+        discount_price: String(null),
+        purchase_price: String(null),
+        low_stock_threshold: null,
+        weight: String(null),
+        length: String(null),
+        width: String(null),
+        height: String(null),
         barcode: null,
         description: null,
-        images: [],
+        sku: null,
+        attributes,
+        variantAttributes: [],
+        variantImages: [],
         pendingImages: [],
         errors: {}
       };
@@ -2141,7 +2168,7 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
     
     // First update UI for immediate feedback
     const updatedVariants = [...variants];
-    const currentImages = updatedVariants[selectedVariantIndex].images || [];
+    const currentImages = updatedVariants[selectedVariantIndex].variantImages || [];
     
     // Store original state for error recovery
     const originalVariants = [...variants];
@@ -2154,7 +2181,7 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
     
     updatedVariants[selectedVariantIndex] = {
       ...updatedVariants[selectedVariantIndex],
-      images: updatedImages
+      variantImages: updatedImages
     };
     
     setVariants(updatedVariants);
@@ -2194,7 +2221,7 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
     if (imageId < 0) {
       // Just remove from local state without API call
       const updatedVariants = [...variants];
-      const currentImages = updatedVariants[selectedVariantIndex].images || [];
+      const currentImages = updatedVariants[selectedVariantIndex].variantImages || [];
       
       // Find the temporary image to remove its preview URL
       const imageToRemove = currentImages.find(img => img.id === imageId);
@@ -2205,7 +2232,7 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
       // Remove the image from local state
       updatedVariants[selectedVariantIndex] = {
         ...updatedVariants[selectedVariantIndex],
-        images: currentImages.filter(img => img.id !== imageId),
+        variantImages: currentImages.filter(img => img.id !== imageId),
         pendingImages: (updatedVariants[selectedVariantIndex].pendingImages || [])
           .filter((_, idx) => idx !== currentImages.findIndex(img => img.id === imageId))
       };
@@ -2228,7 +2255,7 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
     const currentVariantIndex = variants.findIndex(v => v.id === selectedVariant.id);
     if (currentVariantIndex === -1) return; 
 
-    const currentImages = variants[currentVariantIndex].images || [];
+    const currentImages = variants[currentVariantIndex].variantImages || [];
     const imageToDelete = currentImages.find(img => img.id === imageId);
     const wasPrimary = imageToDelete?.is_primary || false; // Check if it was primary BEFORE optimistic update
     // --- End Edit --- 
@@ -2236,10 +2263,10 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
     // First update the UI to give immediate feedback (Optimistic Update)
     const updatedVariants = [...variants];
     // --- Start Edit: Use correct index for optimistic update --- 
-    const updatedImages = updatedVariants[currentVariantIndex].images || [];
+    const updatedImages = updatedVariants[currentVariantIndex].variantImages || [];
     updatedVariants[currentVariantIndex] = {
       ...updatedVariants[currentVariantIndex],
-      images: updatedImages.filter(img => img.id !== imageId)
+      variantImages: updatedImages.filter(img => img.id !== imageId)
     };
     // --- End Edit --- 
     
@@ -2257,7 +2284,7 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
               const variantIdx = currentState.findIndex(v => v.id === variantId);
               if (variantIdx === -1) return currentState; // Should not happen
 
-              const remainingImages = currentState[variantIdx].images || [];
+              const remainingImages = currentState[variantIdx].variantImages || [];
               if (remainingImages.length > 0) {
                   const newPrimaryImageId = remainingImages[0].id;
                   // Check if the new candidate is valid and not already primary (it shouldn't be)
@@ -2299,7 +2326,7 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
   const handleUpdateVariant = async (data: VariantFormData) => { 
     const variantId = selectedVariant?.id;
 
-    if (!variantId || variantId.startsWith('#TEMP')) {
+    if (!variantId) { // ID is number, startsWith removed
       showSnackbar("Cannot update unsaved variant", "error");
       return;
     }
@@ -2369,7 +2396,7 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
 
       // --- EDIT: Check and include stock_status if changed --- 
       const formStockStatusApi = mapFormStockStatusToApi(data.stockStatus); // Map form value to API format
-      const originalStockStatusApi = mapFormStockStatusToApi(originalVariant.stockStatus); // Map original state value to API format
+      const originalStockStatusApi = originalVariant.stock_status; // Use API value directly
       
       if (formStockStatusApi !== originalStockStatusApi) {
         apiPayload.stock_status = formStockStatusApi; 
@@ -2379,13 +2406,13 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
 
       // Optional fields (compare simple types, use API names)
       const currentDeposit = transformOptionalNumber(data.depositPrice);
-      if (currentDeposit !== transformOptionalNumber(originalVariant.depositPrice)) { apiPayload.discount_price = currentDeposit; hasChanges = true; }
+      if (currentDeposit !== transformOptionalNumber(originalVariant.discount_price)) { apiPayload.discount_price = currentDeposit; hasChanges = true; }
 
       const currentPurchase = transformOptionalNumber(data.purchasePrice);
-      if (currentPurchase !== transformOptionalNumber(originalVariant.purchasePrice)) { apiPayload.purchase_price = currentPurchase; hasChanges = true; }
+      if (currentPurchase !== transformOptionalNumber(originalVariant.purchase_price)) { apiPayload.purchase_price = currentPurchase; hasChanges = true; }
 
       const currentLowStock = transformOptionalNumber(data.lowStockThreshold); // Use correct casing for form data
-      if (currentLowStock !== transformOptionalNumber(originalVariant.lowStockThreshold)) { apiPayload.low_stock_threshold = currentLowStock; hasChanges = true; } // API uses snake_case
+      if (currentLowStock !== transformOptionalNumber(originalVariant.low_stock_threshold)) { apiPayload.low_stock_threshold = currentLowStock; hasChanges = true; } // API uses snake_case
 
       const currentWeight = transformOptionalNumber(data.weight);
       if (currentWeight !== transformOptionalNumber(originalVariant.weight)) { apiPayload.weight = currentWeight; hasChanges = true; }
@@ -2433,24 +2460,24 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
             const updatedVariant: Variant = { 
               ...v, 
               slug: data.slug,
-              price: transformOptionalNumber(data.price), 
-              stock: transformOptionalNumber(data.stock), 
+              price: String(transformOptionalNumber(data.price)), 
+              stock: Number(transformOptionalNumber(data.stock)), 
               status: (data.status === 'active' ? 'Active' : 'Inactive') as 'Active' | 'Inactive', 
               // --- Add stockStatus update here --- 
-              stockStatus: data.stockStatus as 'In Stock' | 'Out of Stock' | 'Back Order', 
+              stock_status: data.stockStatus === 'In Stock' ? 'in_stock' : data.stockStatus === 'Out of Stock' ? 'out_of_stock' : 'back_order', 
               // --- End Add --- 
-              depositPrice: transformOptionalNumber(data.depositPrice),
-              purchasePrice: transformOptionalNumber(data.purchasePrice),
-              lowStockThreshold: transformOptionalNumber(data.lowStockThreshold), // Use correct casing
-              weight: transformOptionalNumber(data.weight),
-              length: transformOptionalNumber(data.length),
-              width: transformOptionalNumber(data.width),
-              height: transformOptionalNumber(data.height),
+              discount_price: String(transformOptionalNumber(data.depositPrice)),
+              purchase_price: String(transformOptionalNumber(data.purchasePrice)),
+              low_stock_threshold: transformOptionalNumber(data.lowStockThreshold), // Use correct casing
+              weight: String(transformOptionalNumber(data.weight)),
+              length: String(transformOptionalNumber(data.length)),
+              width: String(transformOptionalNumber(data.width)),
+              height: String(transformOptionalNumber(data.height)),
               barcode: transformOptionalBarcode(data.barcode),
               description: data.description?.trim() || null,
               // Keep existing variantAttributes and images unless specifically updated elsewhere
               variantAttributes: v.variantAttributes, 
-              images: v.images,       
+              variantImages: v.variantImages,       
             }; 
             console.log(`[handleUpdateVariant] Updating LOCAL state for variant ${variantId}:`, updatedVariant);
             return updatedVariant;
@@ -2490,14 +2517,13 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
     if (variantToDeleteId.startsWith('#TEMP')) {
       // Ensure selectedVariant is accessible if used here for comparison
       const currentSelectedId = selectedVariant?.id;
-      const deletedIndex = variants.findIndex(v => v.id === variantToDeleteId);
-      setVariants(prevVariants => prevVariants.filter(v => v.id !== variantToDeleteId)); // Ensure setVariants and variantToDeleteId are accessible
-      showSnackbar("Unsaved variant removed", "success"); // Ensure showSnackbar is accessible
-      setIsDeleteDialogOpen(false); // Ensure setIsDeleteDialogOpen is accessible
-      setVariantToDeleteId(null); // Ensure setVariantToDeleteId is accessible
-      // Reset selection if the deleted one was selected
-      if(currentSelectedId === variantToDeleteId) { 
-        setSelectedVariantIndex(Math.max(0, deletedIndex - 1)); // Ensure setSelectedVariantIndex is accessible
+      const deletedIndex = variants.findIndex(v => v.id === Number(variantToDeleteId)); // Compare numbers
+      setVariants(prevVariants => prevVariants.filter(v => v.id !== Number(variantToDeleteId))); // Compare numbers
+      showSnackbar("Unsaved variant removed", "success");
+      setIsDeleteDialogOpen(false); 
+      setVariantToDeleteId(null); 
+      if(currentSelectedId === Number(variantToDeleteId)) { // Compare numbers
+        setSelectedVariantIndex(Math.max(0, deletedIndex - 1)); 
       }
       return;
     }
@@ -2506,9 +2532,9 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
     try {
       await deleteProductVariant(Number(variantToDeleteId)); 
 
-      const deletedIndex = variants.findIndex(v => v.id === variantToDeleteId);
+      const deletedIndex = variants.findIndex(v => v.id === Number(variantToDeleteId)); // Compare numbers
       
-      const newVariants = variants.filter(v => v.id !== variantToDeleteId);
+      const newVariants = variants.filter(v => v.id !== Number(variantToDeleteId)); // Compare numbers
       setVariants(newVariants); // Ensure setVariants is accessible
       
       showSnackbar("Variant deleted successfully", "success");
@@ -2611,21 +2637,21 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
           if (changes.price && changes.price.type === 'set') { 
             // This is a simplified example for local state update.
             // A real implementation would need to handle increase/decrease/percentage logic.
-            updatedFields.price = Number(changes.price.value); 
+            updatedFields.price = String(changes.price.value); 
           } 
           if (changes.stock !== undefined) updatedFields.stock = Number(changes.stock);
           if (changes.status !== undefined) updatedFields.status = changes.status === 'active' ? 'Active' : 'Inactive'; // Ensure capitalized
           if (changes.depositPrice && changes.depositPrice.type === 'set') { 
-             updatedFields.depositPrice = Number(changes.depositPrice.value); 
+             updatedFields.discount_price = String(changes.depositPrice.value); 
           }
           if (changes.purchasePrice && changes.purchasePrice.type === 'set') { 
-             updatedFields.purchasePrice = Number(changes.purchasePrice.value); 
+             updatedFields.purchase_price = String(changes.purchasePrice.value); 
           }
-          if (changes.lowStockThreshold !== undefined) updatedFields.lowStockThreshold = Number(changes.lowStockThreshold);
-          if (changes.weight !== undefined) updatedFields.weight = Number(changes.weight);
-          if (changes.length !== undefined) updatedFields.length = Number(changes.length);
-          if (changes.width !== undefined) updatedFields.width = Number(changes.width);
-          if (changes.height !== undefined) updatedFields.height = Number(changes.height);
+          if (changes.lowStockThreshold !== undefined) updatedFields.low_stock_threshold = Number(changes.lowStockThreshold);
+          if (changes.weight !== undefined) updatedFields.weight = String(changes.weight);
+          if (changes.length !== undefined) updatedFields.length = String(changes.length);
+          if (changes.width !== undefined) updatedFields.width = String(changes.width);
+          if (changes.height !== undefined) updatedFields.height = String(changes.height);
           if (changes.barcode !== undefined) updatedFields.barcode = String(changes.barcode);
           if (changes.description !== undefined) updatedFields.description = String(changes.description);
           // Note: stockStatus is form-only, update based on actual stock if needed
@@ -2681,22 +2707,21 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
       // Log the variant data being used
       console.log('[useEffect resetEditForm] currentSelectedVariant:', JSON.stringify(currentSelectedVariant, null, 2)); 
       
-      const resetData = { 
-        slug: currentSelectedVariant.slug ?? null,
-        price: currentSelectedVariant.price ?? null, 
-        stock: currentSelectedVariant.stock ?? null, 
-        status: (currentSelectedVariant.status === 'Active' ? 'active' : 'inactive') as 'active' | 'inactive',
-        // Ensure stockStatus uses the value from the current state directly
-        stockStatus: currentSelectedVariant.stockStatus || 'In Stock', 
-        depositPrice: currentSelectedVariant.depositPrice ?? null, 
-        purchasePrice: currentSelectedVariant.purchasePrice ?? null, 
-        lowStockThreshold: currentSelectedVariant.lowStockThreshold ?? null, 
-        weight: currentSelectedVariant.weight ?? null, 
-        length: currentSelectedVariant.length ?? null, 
-        width: currentSelectedVariant.width ?? null, 
-        height: currentSelectedVariant.height ?? null, 
-        barcode: currentSelectedVariant.barcode ?? null, 
-        description: currentSelectedVariant.description ?? null, 
+      const resetData = {
+        slug: currentSelectedVariant.slug ?? '',
+        price: currentSelectedVariant.price ? Number(currentSelectedVariant.price) : null,
+        stock: currentSelectedVariant.stock ?? 0, // stock is already number in Variant interface
+        status: (currentSelectedVariant.status?.toLowerCase() === 'active' ? 'active' : 'inactive') as 'active' | 'inactive',
+        stockStatus: getDisplayStockStatusManager(currentSelectedVariant.stock_status, currentSelectedVariant.stock), // Use the new local helper
+        depositPrice: currentSelectedVariant.discount_price ? Number(currentSelectedVariant.discount_price) : null,
+        purchasePrice: currentSelectedVariant.purchase_price ? Number(currentSelectedVariant.purchase_price) : null,
+        lowStockThreshold: currentSelectedVariant.low_stock_threshold ?? null, // low_stock_threshold is already number | null in Variant interface
+        weight: currentSelectedVariant.weight ? Number(currentSelectedVariant.weight) : null,
+        length: currentSelectedVariant.length ? Number(currentSelectedVariant.length) : null,
+        width: currentSelectedVariant.width ? Number(currentSelectedVariant.width) : null,
+        height: currentSelectedVariant.height ? Number(currentSelectedVariant.height) : null,
+        barcode: currentSelectedVariant.barcode ?? '',
+        description: currentSelectedVariant.description ?? '',
       };
       // Log the data being sent to reset
       console.log('[useEffect resetEditForm] Resetting form with data:', JSON.stringify(resetData, null, 2));
@@ -2738,11 +2763,10 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
 
     // Process deletions sequentially to avoid overwhelming the backend
     for (const variant of variantsToDelete) {
-      // Skip temporary variants that haven't been saved
-      if (typeof variant.id === 'string' && variant.id.startsWith('#TEMP')) {
-         console.log(`[RemoveAll] Skipping temporary variant ID: ${variant.id}`);
-         continue; // Don't call API for temp variants
-      }
+      // The check for string-based temporary IDs (e.g., variant.id.startsWith('#TEMP'))
+      // has been removed because variant.id is now always a number.
+      // If a mechanism to skip API deletion for certain (e.g., unsaved) variants is needed,
+      // it should be based on a different property or convention (e.g., negative ID, a flag).
       
       try {
         console.log(`[RemoveAll] Attempting to delete variant ID: ${variant.id}`);
@@ -2893,11 +2917,11 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
               // Add key prop based on selected variant ID
               key={selectedVariant ? selectedVariant.id : 'manual-view-no-variant'} 
               // EDIT Form Props
-              editControl={editControl as any}
-              handleEditSubmit={handleEditSubmit}
-              editErrors={editFormState.errors}
-              editFormState={editFormState} // Pass full edit form state
-              setEditValue={setEditValue as any}
+              // editControl={editControl as any}
+              // handleEditSubmit={handleEditSubmit}
+              // editErrors={editFormState.errors}
+              // editFormState={editFormState} // Pass full edit form state
+              // setEditValue={setEditValue as any}
               // CREATE Form Props
               createControl={createControl as any}
               handleCreateSubmit={handleCreateSubmit}
@@ -2906,17 +2930,17 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
               setCreateValue={setCreateValue as any}
               // Submit Handlers (passed separately)
               onSubmitCreate={onSubmit} // Pass the original combined onSubmit (now create logic)
-              onSubmitUpdate={handleUpdateVariant} // Pass the specific update handler
+              // onSubmitUpdate={handleUpdateVariant} // Pass the specific update handler
               // Other general props (remove form-specific ones if not needed by ManualVariantView directly)
               // reset={resetEditForm} // Reset handled by specific functions now
               // watch={watchEdit} // Watch can be derived from control if needed
               // trigger={triggerEdit} // Trigger handled by specific functions now
               // Variant & Attribute State
-              variants={variants}
-              selectedVariant={selectedVariant}
-              selectedVariantIndex={selectedVariantIndex}
-              setSelectedVariantIndex={setSelectedVariantIndex}
-              setVariants={setVariants} // Pass setVariants function
+              // variants={variants}
+              // selectedVariant={selectedVariant}
+              // selectedVariantIndex={selectedVariantIndex}
+              // setSelectedVariantIndex={setSelectedVariantIndex}
+              // setVariants={setVariants} // Pass setVariants function
               productAttributes={productAttributes}
               attributeTerms={attributeTerms}
               attributeFields={attributeFields}
@@ -2928,7 +2952,7 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
               isCombinationMatch={isCombinationMatch} // Pass helper
               setupFormForCombination={setupFormForCombination}
               allCombinationsUsed={allCombinationsUsed}
-              filteredVariants={filteredVariants} // Pass filtered list
+              // filteredVariants={filteredVariants} // Pass filtered list
               // Loading & Submission States
               isSubmitting={isSubmitting}
               imageUploading={imageUploading}
@@ -2940,19 +2964,19 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
               createGetRootProps={createGetRootProps}
               createGetInputProps={createGetInputProps}
               createIsDragActive={createIsDragActive}
-              editGetRootProps={editGetRootProps}
-              editGetInputProps={editGetInputProps}
-              editIsDragActive={editIsDragActive}
-              handleSetPrimaryImage={handleSetPrimaryImage}
-              handleDeleteImage={handleDeleteImage}
+              // editGetRootProps={editGetRootProps}
+              // editGetInputProps={editGetInputProps}
+              // editIsDragActive={editIsDragActive}
+              // handleSetPrimaryImage={handleSetPrimaryImage}
+              // handleDeleteImage={handleDeleteImage}
               // Dialog State & Handlers
-              setVariantToDeleteId={setVariantToDeleteId}
-              setIsDeleteDialogOpen={setIsDeleteDialogOpen}
+              // setVariantToDeleteId={setVariantToDeleteId}
+              // setIsDeleteDialogOpen={setIsDeleteDialogOpen}
               // Other
-              showSnackbar={showSnackbar}
+              // showSnackbar={showSnackbar}
               // --- Add missing props back --- 
-              isUpdating={isUpdating}     
-              isEditImageUploading={isEditImageUploading} 
+              // isUpdating={isUpdating}     
+              // isEditImageUploading={isEditImageUploading} 
               // --- End add ---
             />
           )}
@@ -2967,29 +2991,82 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
           {viewMode === 'bulk' && (
               <BulkUpdateView 
                 allCombinationsUsed={allCombinationsUsed} 
-                // --- Pass additional props for list/edit --- 
                 variants={variants}
                 setVariants={setVariants}
-                selectedVariantIndex={selectedVariantIndex}
-                setSelectedVariantIndex={setSelectedVariantIndex}
-                filteredVariants={filteredVariants}
-                editControl={editControl}
-                handleEditSubmit={handleEditSubmit}
-                editFormState={editFormState}
-                handleUpdateVariant={handleUpdateVariant}
-                editGetRootProps={editGetRootProps}
-                editGetInputProps={editGetInputProps}
-                editIsDragActive={editIsDragActive}
-                handleSetPrimaryImage={handleSetPrimaryImage}
-                handleDeleteImage={handleDeleteImage}
-                isEditImageUploading={isEditImageUploading}
-                isUpdating={isUpdating}
-                setVariantToDeleteId={setVariantToDeleteId}
-                setIsDeleteDialogOpen={setIsDeleteDialogOpen}
+                // selectedVariantIndex, setSelectedVariantIndex, filteredVariants, and all individual edit form props (editControl, etc.)
+                // are managed internally by BulkUpdateView or not applicable to it when passed from VariantManager.
                 showSnackbar={showSnackbar}
-                // --- End Pass additional props --- 
               />
-          )}
+            )}
+            {/* Manual Variant View - kept for reference or if switching is needed */}
+          {/* {viewMode === 'manual' && (
+            <ManualVariantView
+              // Add key prop based on selected variant ID
+              key={selectedVariant ? selectedVariant.id : 'manual-view-no-variant'} 
+              // EDIT Form Props
+              // editControl={editControl as any}
+              // handleEditSubmit={handleEditSubmit}
+              // editErrors={editFormState.errors}
+              // editFormState={editFormState} // Pass full edit form state
+              // setEditValue={setEditValue as any}
+              // CREATE Form Props
+              createControl={createControl as any}
+              handleCreateSubmit={handleCreateSubmit}
+              createErrors={createFormState.errors}
+              createFormState={createFormState} // Pass full create form state
+              setCreateValue={setCreateValue as any}
+              // Submit Handlers (passed separately)
+              onSubmitCreate={onSubmit} // Pass the original combined onSubmit (now create logic)
+              // onSubmitUpdate={handleUpdateVariant} // Pass the specific update handler
+              // Other general props (remove form-specific ones if not needed by ManualVariantView directly)
+              // reset={resetEditForm} // Reset handled by specific functions now
+              // watch={watchEdit} // Watch can be derived from control if needed
+              // trigger={triggerEdit} // Trigger handled by specific functions now
+              // Variant & Attribute State
+              // variants={variants}
+              // selectedVariant={selectedVariant}
+              // selectedVariantIndex={selectedVariantIndex}
+              // setSelectedVariantIndex={setSelectedVariantIndex}
+              // setVariants={setVariants} // Pass setVariants function
+              productAttributes={productAttributes}
+              attributeTerms={attributeTerms}
+              attributeFields={attributeFields}
+              setAttributeFields={setAttributeFields}
+              pendingCombination={pendingCombination}
+              setPendingCombination={setPendingCombination}
+              allPossibleCombinations={allPossibleCombinations}
+              usedCombinations={usedCombinations}
+              isCombinationMatch={isCombinationMatch} // Pass helper
+              setupFormForCombination={setupFormForCombination}
+              allCombinationsUsed={allCombinationsUsed}
+              // filteredVariants={filteredVariants} // Pass filtered list
+              // Loading & Submission States
+              isSubmitting={isSubmitting}
+              imageUploading={imageUploading}
+              // Image Handling
+              pendingCreateImages={pendingCreateImages}
+              setPendingCreateImages={setPendingCreateImages}
+              pendingCreateImagePreviews={pendingCreateImagePreviews}
+              setPendingCreateImagePreviews={setPendingCreateImagePreviews}
+              createGetRootProps={createGetRootProps}
+              createGetInputProps={createGetInputProps}
+              createIsDragActive={createIsDragActive}
+              // editGetRootProps={editGetRootProps}
+              // editGetInputProps={editGetInputProps}
+              // editIsDragActive={editIsDragActive}
+              // handleSetPrimaryImage={handleSetPrimaryImage}
+              // handleDeleteImage={handleDeleteImage}
+              // Dialog State & Handlers
+              // setVariantToDeleteId={setVariantToDeleteId}
+              // setIsDeleteDialogOpen={setIsDeleteDialogOpen}
+              // Other
+              // showSnackbar={showSnackbar}
+              // --- Add missing props back --- 
+              // isUpdating={isUpdating}     
+              // isEditImageUploading={isEditImageUploading} 
+              // --- End add ---
+            />
+          )} */}
           
           {/* --- REMOVED INLINE JSX FOR VIEWS --- */}
         </>
