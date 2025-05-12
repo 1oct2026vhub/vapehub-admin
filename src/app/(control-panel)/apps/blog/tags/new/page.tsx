@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
   Box,
@@ -46,6 +46,10 @@ export default function CreateBlogTag() {
   const router = useRouter();
   const { showSnackbar } = useSnackbar();
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    document.title = "Create New Tag | VapeHub";
+  }, []);
 
   const {
     control,

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import type { Metadata } from 'next';
 import {
   Box,
   Container,
@@ -112,6 +113,10 @@ export default function CreateBlogCategory() {
   const [submitting, setSubmitting] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [categories, setCategories] = useState<BlogCategory[]>([]);
+
+  useEffect(() => {
+    document.title = "Create New Category | VapeHub";
+  }, []);
 
   // Fetch categories for parent selection
   useEffect(() => {

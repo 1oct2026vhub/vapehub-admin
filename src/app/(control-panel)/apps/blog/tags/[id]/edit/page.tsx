@@ -47,6 +47,10 @@ export default function EditBlogTag() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
+  useEffect(() => {
+    document.title = "Edit Blog Tag | VapeHub";
+  }, []);
+
   const methods = useForm<TagFormType>({
     mode: "all",
     resolver: zodResolver(tagSchema),

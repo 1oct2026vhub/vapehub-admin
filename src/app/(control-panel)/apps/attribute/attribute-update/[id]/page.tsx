@@ -48,6 +48,7 @@
 "use client";
 import { useSearchParams, useParams } from "next/navigation";
 import EditForm from "../EditForm";
+import { useEffect } from "react";
 
 const EditAttributePage = () => {
   const searchParams = useSearchParams();
@@ -56,6 +57,10 @@ const EditAttributePage = () => {
   
   // Get the ID from the URL params
   const id = params ? params.id : null;
+
+  useEffect(() => {
+    document.title = "Edit Attribute | VapeHub";
+  }, []);
 
   const attribute = attributeData
     ? JSON.parse(decodeURIComponent(attributeData))

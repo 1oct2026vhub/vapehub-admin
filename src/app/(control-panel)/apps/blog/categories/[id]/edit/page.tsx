@@ -116,6 +116,9 @@ export default function EditBlogCategory() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [categories, setCategories] = useState<BlogCategory[]>([]);
   const [category, setCategory] = useState<BlogCategory | null>(null);
+useEffect(() => {
+    document.title = "Edit Blog Category | VapeHub";
+  }, []);
 
   const {
     control,

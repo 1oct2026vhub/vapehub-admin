@@ -29,6 +29,10 @@ export default function BlogTagDetail() {
   const [tag, setTag] = useState<BlogTag | null>(null);
   const [loading, setLoading] = useState(true);
 
+  useEffect(() => {
+    document.title = "Blog Tag Details | VapeHub";
+  }, []);
+
   // Fetch tag details
   const fetchTagDetails = async () => {
     try {

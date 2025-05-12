@@ -32,6 +32,10 @@ export default function BlogPostDetailPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    document.title = "Blog Post Details | VapeHub";
+  }, []);
+
+  useEffect(() => {
     const fetchPost = async () => {
       try {
         setLoading(true);
