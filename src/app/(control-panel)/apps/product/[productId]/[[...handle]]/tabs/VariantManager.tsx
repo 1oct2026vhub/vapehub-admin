@@ -678,6 +678,8 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
   const [isBulkSubmitting, setIsBulkSubmitting] = useState<boolean>(false);
   // --- Add State for Remove All Dialog --- 
   const [isRemoveAllDialogOpen, setIsRemoveAllDialogOpen] = useState<boolean>(false);
+  // --- Add state to track if variants have been generated ---
+  const [hasGeneratedVariants, setHasGeneratedVariants] = useState<boolean>(false);
   
   // --- Add Ref and Effect for Resetting View Mode --- 
   const prevIsActive = useRef<boolean>(isActive);
@@ -1137,6 +1139,7 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
     // Switch to generated mode and fetch variants from API
     setIsLoading(true);
     setViewMode('generated');
+    setHasGeneratedVariants(true); // Set flag to indicate variants have been generated
     
     try {
       // This would be replaced with an actual API call to generate variants
@@ -1221,6 +1224,7 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
         setVariants(apiVariants);
         if (apiVariants.length > 0) {
           setSelectedVariantIndex(0);
+          setHasGeneratedVariants(true); // Set flag when variants are loaded
         }
       }
       
@@ -1463,6 +1467,7 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
         setVariants(apiVariants);
         if (apiVariants.length > 0) {
           setSelectedVariantIndex(0);
+          setHasGeneratedVariants(true); // Set flag when variants are loaded
         }
       }
       
@@ -1751,6 +1756,7 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
       const updatedVariants = [...variants, newVariant];
       setVariants(updatedVariants);
       setSelectedVariantIndex(updatedVariants.length - 1);
+      setHasGeneratedVariants(true); // Set flag when a new variant is created
       
       if (pendingCombination) {
         const newUsedCombinations = [...usedCombinations, pendingCombination];
@@ -2572,6 +2578,11 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
       const newVariants = variants.filter(v => v.id !== Number(variantToDeleteId)); // Compare numbers
       setVariants(newVariants); // Ensure setVariants is accessible
       
+      // Check if all variants have been removed
+      if (newVariants.length === 0) {
+        setHasGeneratedVariants(false); // Reset the flag if all variants are removed
+      }
+      
       showSnackbar("Variant deleted successfully", "success");
       
       if (newVariants.length === 0) {
@@ -2824,6 +2835,8 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
     resetEditForm(); // Reset the edit form
     // Consider resetting create form as well if needed: resetCreateForm();
     setPendingCombination(null); // Clear pending combination
+    setHasGeneratedVariants(false); // Reset the flag when all variants are removed
+    
     // Refetch combinations/attributes if needed to update counts
     if (formData?.productId) {
        fetchProductAttributes(formData.productId); 
@@ -3011,8 +3024,8 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
           </button>
         </div>
 
-        {/* Search Bar - Moved to right side */}
-        {variants.length > 0 && viewMode !== 'initial' && (
+        {/* Search Bar and Remove All Button */}
+        {(variants.length > 0 && (viewMode !== 'initial')) && (
           <div className="flex items-center gap-2">
             <div className="flex items-center w-[250px] relative border rounded-full">
               <input 
@@ -3040,39 +3053,22 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
               </div>
             </div>
 
-            {/* Reset button - Already checked viewMode !== 'initial' in outer conditional */}
+            {/* Remove All button */}
             <button 
               className="py-2 px-4 bg-[#FF0004] text-white rounded hover:bg-red-600 cursor-pointer"
               onClick={() => {
-                // --- Modify onClick for Remove All --- 
                 if (variants.length === 0) {
                   showSnackbar("No variants to remove.", "info");
                   return;
                 }
-                setIsRemoveAllDialogOpen(true); // Open the new confirmation dialog
-                // --- End Modification ---
+                setIsRemoveAllDialogOpen(true);
               }}
-              disabled={isLoading || variants.length === 0} // Disable if no variants
+              disabled={isLoading || variants.length === 0}
             >
               Remove All
             </button>
           </div>
         )}
-
-        {/* Show only Remove All button when search bar is hidden */}
-        {/* {(!variants.length || viewMode === 'bulk') && viewMode !== 'initial' && (
-          <button 
-            className="py-2 px-4 bg-[#FF0004] text-white rounded hover:bg-red-600"
-            onClick={() => {
-              if (confirm('Are you sure you want to reset? All unsaved variants will be lost.')) {
-                handleAddManually();
-              }
-            }}
-            disabled={isLoading}
-          >
-            Remove All
-          </button>
-        )} */}
       </div>
 
       {/* Loading Indicator */}
@@ -3136,6 +3132,14 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
               productAttributes={productAttributes}
               filteredVariants={searchTerm ? filteredVariants.map(mapToGeneratedVariant) : undefined}
               searchTerm={searchTerm || ""}
+              onSuccess={() => {
+                // Callback when variants are generated successfully
+                setHasGeneratedVariants(true);
+                // Optionally fetch variants again to refresh the list
+                if (formData?.productId) {
+                  fetchProductAttributes(formData.productId);
+                }
+              }}
             /> 
           )}
 

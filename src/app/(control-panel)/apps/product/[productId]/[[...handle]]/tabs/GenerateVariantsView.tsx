@@ -298,6 +298,8 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
   const [hasGeneratedThisLoad, setHasGeneratedThisLoad] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [variantToDeleteId, setVariantToDeleteId] = useState<number | null>(null);
+  // Add state to track if dialog was manually closed
+  const [dialogManuallyClosed, setDialogManuallyClosed] = useState(false);
 
   const originalSelectedVariantRef = useRef<GeneratedVariant | null>(null);
   const prevSelectedVariantIdRef = useRef<number | null>(null);
@@ -736,6 +738,7 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
     setHasGeneratedThisLoad(false); // Reset generation flag
     setIsConfirmationDialogOpen(false); // Ensure dialog is closed initially
     setFetchErrorOccurred(false);
+    setDialogManuallyClosed(false); // Reset the manually closed flag when productId changes
 
     // Use the derived productId variable
     if (productId) {
@@ -759,15 +762,15 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
 
   // --- ADDED: useEffect to control dialog visibility --- 
   useEffect(() => {    
-    // Open dialog if EITHER fetch failed OR (combinations available AND not generated this load)
-    if (!allCombinationsUsed && !hasGeneratedThisLoad && productAttributes.length > 0 ) {
+    // Only open dialog if combinations are available, not generated this load, no variants exist yet, and dialog wasn't manually closed
+    if (!allCombinationsUsed && !hasGeneratedThisLoad && productAttributes.length > 0 && generatedVariants.length === 0 && !dialogManuallyClosed) {
        setIsConfirmationDialogOpen(true);
     } else {
         console.log(`[DialogEffect] Conditions NOT met. Dialog remains closed.`);
         // Ensure dialog is closed if conditions aren't met (e.g., after generation)
         setIsConfirmationDialogOpen(false); 
     }
-  }, [ allCombinationsUsed, hasGeneratedThisLoad, generatedVariants.length,productAttributes]); // Add fetchErrorOccurred and generatedVariants.length
+  }, [allCombinationsUsed, hasGeneratedThisLoad, generatedVariants.length, productAttributes, dialogManuallyClosed]); // Add dialogManuallyClosed to dependencies
 
   // Update useEffect to handle form reset with selected variant
   useEffect(() => {
@@ -1036,6 +1039,7 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
       if (response.success) {
         showSnackbar('Variants generated successfully', 'success');
         setHasGeneratedThisLoad(true); // <-- Set flag BEFORE fetching
+        setDialogManuallyClosed(false); // Reset the manually closed flag after successful generation
         await fetchVariants(productId, true); // Fetch the updated list directly in this component
         if (onSuccess) { // Still call parent callback if provided
            onSuccess(); 
@@ -1072,6 +1076,7 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
   const handleCancelGenerate = () => {
     console.log("[Dialog] Cancelled Generation");
     setIsConfirmationDialogOpen(false); // Close dialog
+    setDialogManuallyClosed(true); // Mark that the dialog was manually closed
     // Optionally refetch variants if needed, but fetchVariants on load might suffice
     // const productId = searchParams.get('productId');
     // if (productId) fetchVariants(productId); 
