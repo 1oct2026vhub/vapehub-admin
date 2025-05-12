@@ -366,6 +366,8 @@ interface BulkUpdateViewProps {
   variants: EditableVariantData[];
   setVariants: React.Dispatch<React.SetStateAction<EditableVariantData[]>>;
   showSnackbar: (message: string, severity: 'success' | 'error' | 'warning' | 'info') => void;
+  filteredVariants?: EditableVariantData[];
+  searchTerm?: string;
 }
 
 // API Service to fetch detailed variants for BulkUpdateView
@@ -393,6 +395,8 @@ const BulkUpdateView: React.FC<BulkUpdateViewProps> = ({
   variants,
   setVariants,
   showSnackbar,
+  filteredVariants,
+  searchTerm
 }) => {
   const { showSnackbar: useSnackbarShowSnackbar } = useSnackbar();
   const searchParams = useSearchParams();
@@ -618,6 +622,7 @@ const BulkUpdateView: React.FC<BulkUpdateViewProps> = ({
         width: getEditNumericValue(data.width),
         height: getEditNumericValue(data.height),
         barcode: data.barcode || null,
+        description: data.description || null,
         // Ensure attributes are correctly mapped if they can be edited or need to be re-sent
         attributes: selectedVariantForEdit.variantAttributes.map(attr => ({
             attribute_id: attr.attribute_id,
@@ -1029,6 +1034,9 @@ const BulkUpdateView: React.FC<BulkUpdateViewProps> = ({
     }
   }, [productId, setVariants, showSnackbar]);
 
+  // Use filteredVariants when available with searchTerm
+  const variantsToShow = searchTerm && filteredVariants ? filteredVariants : variants;
+
   if (isLoadingVariants) {
     return (
       <div className="flex justify-center items-center py-8">
@@ -1038,7 +1046,7 @@ const BulkUpdateView: React.FC<BulkUpdateViewProps> = ({
     );
   }
 
-  if (variants.length === 0 && !allCombinationsUsed) {
+  if (variantsToShow.length === 0 && !allCombinationsUsed) {
     return (
       <Paper elevation={3} className="p-4 bg-yellow-50 border border-yellow-300 text-center">
         <Typography color="textSecondary">
@@ -1047,7 +1055,7 @@ const BulkUpdateView: React.FC<BulkUpdateViewProps> = ({
       </Paper>
     );
   }
-  if (variants.length === 0 && allCombinationsUsed ) {
+  if (variantsToShow.length === 0 && allCombinationsUsed ) {
     return (
       <Paper elevation={3} className="p-4 bg-gray-50 border border-gray-300 text-center">
         <Typography color="textSecondary">
@@ -1430,12 +1438,12 @@ const BulkUpdateView: React.FC<BulkUpdateViewProps> = ({
           </div>
         </form>
       </Paper>
-      {variants.length > 0 && (
+      {variantsToShow.length > 0 && (
         <div className="mt-8">
           <h3 className="text-lg font-semibold mb-4">Manage Individual Variants</h3>
           <div className="flex flex-col md:flex-row gap-6">
             <div className="w-full md:w-1/2 max-h-[600px] overflow-y-auto pr-2">
-              {variants.map((variant, index) => {
+              {variantsToShow.map((variant, index) => {
                 const mappedDisplayCardVariant = mapVariantForDisplayCardBulk(variant);
                 if (!mappedDisplayCardVariant) return null;
 
