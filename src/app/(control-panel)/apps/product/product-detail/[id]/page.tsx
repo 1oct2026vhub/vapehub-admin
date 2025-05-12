@@ -1,13 +1,16 @@
 "use client";
 import { useSearchParams } from "next/navigation";
 import ProductDetailTable from "../ProductDetailTable";
+import { useEffect } from "react";
 
 const ProductDetailPage = () => {
   const searchParams = useSearchParams();
   const userData = searchParams ? searchParams.get("userData") : null;
 
   const user = userData ? JSON.parse(decodeURIComponent(userData)) : null;
-
+useEffect(() => {
+    document.title = "Product Details | VapeHub";
+  }, []);
   //   if (!user) return <p>No user data found.</p>;
 
   return (
