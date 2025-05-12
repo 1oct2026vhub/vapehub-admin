@@ -329,6 +329,10 @@ interface ManualVariantViewProps {
   createGetInputProps: (props?: any) => DropzoneInputProps;
   createIsDragActive: boolean;
   // showSnackbar: (message: string, severity: 'success' | 'error' | 'warning' | 'info') => void; // Already in useSnackbar context
+  
+  // Add new props for search functionality
+  filteredVariants?: ManualVariantData[];
+  searchTerm?: string;
 }
 
 // API Service Placeholders - These will now call the actual imported services
@@ -496,8 +500,8 @@ const ManualVariantView: React.FC<ManualVariantViewProps> = ({
   isCombinationMatch,
   setupFormForCombination,
   allCombinationsUsed,
-  isSubmitting: isCreateSubmitting, // Renamed for clarity
-  imageUploading: isCreateImageUploading, // Renamed for clarity
+  isSubmitting: isCreateSubmitting,
+  imageUploading: isCreateImageUploading,
   pendingCreateImages,
   setPendingCreateImages,
   pendingCreateImagePreviews,
@@ -505,6 +509,8 @@ const ManualVariantView: React.FC<ManualVariantViewProps> = ({
   createGetRootProps,
   createGetInputProps,
   createIsDragActive,
+  filteredVariants,
+  searchTerm
 }) => {
   const { showSnackbar } = useSnackbar();
   const searchParams = useSearchParams();
@@ -926,6 +932,9 @@ const ManualVariantView: React.FC<ManualVariantViewProps> = ({
     }
   };
 
+  // Use filteredVariants when available with searchTerm
+  const variantsToShow = searchTerm && filteredVariants ? filteredVariants : manualVariants;
+
   return (
     <div className="w-full">
       {/* --- START: CREATE NEW VARIANT FORM (Existing UI) --- */}
@@ -1138,12 +1147,12 @@ const ManualVariantView: React.FC<ManualVariantViewProps> = ({
       {/* --- END: CREATE NEW VARIANT FORM --- */}
 
       {/* --- START: LIST AND EDIT MANUALLY CREATED VARIANTS --- */}
-        {manualVariants.length > 0 && (
+        {variantsToShow.length > 0 && (
         <>
           <div className="flex flex-col md:flex-row gap-6">
             {/* Left side - Variant cards */}
             <div className="w-full md:w-1/2">
-              {manualVariants.map((variant) => (
+              {variantsToShow.map((variant) => (
                 <VariantDisplayCard
                   key={variant.id}
                   variant={mapManualVariantForDisplayCard(variant)}
@@ -1178,6 +1187,15 @@ const ManualVariantView: React.FC<ManualVariantViewProps> = ({
           </>
         )}
       {/* --- END: LIST AND EDIT MANUALLY CREATED VARIANTS --- */}
+
+      {/* Add empty state message with searchTerm */}
+      {variantsToShow.length === 0 && !isLoadingManualVariants && (
+        <div className="p-4 border rounded bg-gray-50 text-center text-gray-600">
+          {searchTerm 
+            ? `No variants found matching "${searchTerm}". Try a different search term.`
+            : "No manual variants found. Create your first variant using the form above."}
+        </div>
+      )}
 
       {/* Delete Confirmation Dialog for Manual Variants */}
       <Dialog

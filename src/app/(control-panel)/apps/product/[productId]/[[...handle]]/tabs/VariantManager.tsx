@@ -1848,7 +1848,8 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
       match = true;
     }
     
-    // Search in attributes (both name and term value)
+    // Search in simple attributes (both name and term value) 
+    // This is for the flattened attributes structure (attributes: Record<string, string>)
     if (!match) {
       try {
         for (const [key, value] of Object.entries(variant.attributes || {})) { 
@@ -1862,6 +1863,40 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
         }
       } catch (e) {
          console.error(`[Search Filter] Error processing attributes for variant ${variant.id}:`, e);
+      }
+    }
+
+    // Search in detailed variantAttributes 
+    // This checks the more detailed attribute structure with term/attribute objects
+    if (!match && Array.isArray(variant.variantAttributes)) {
+      try {
+        for (const attr of variant.variantAttributes) {
+          // Check attribute name
+          if (attr.attribute?.name?.toLowerCase().includes(searchLower)) {
+            console.log(`[Search Filter] Match found in variantAttributes - Attribute name: ${attr.attribute.name}`);
+            match = true;
+            break;
+          }
+          
+          // Check term name
+          if (attr.term?.name?.toLowerCase().includes(searchLower)) {
+            console.log(`[Search Filter] Match found in variantAttributes - Term name: ${attr.term.name}`);
+            match = true;
+            break;
+          }
+
+          // Check attribute.name + term.name combination (like "Flavour: Cherry Lemon Mints")
+          if (attr.attribute?.name && attr.term?.name) {
+            const combinedValue = `${attr.attribute.name}: ${attr.term.name}`.toLowerCase();
+            if (combinedValue.includes(searchLower)) {
+              console.log(`[Search Filter] Match found in variantAttributes - Combined: ${combinedValue}`);
+              match = true;
+              break;
+            }
+          }
+        }
+      } catch (e) {
+        console.error(`[Search Filter] Error processing variantAttributes for variant ${variant.id}:`, e);
       }
     }
     
@@ -2804,6 +2839,134 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
     setIsSubmitting(false); // Stop loading indicator
   };
   
+  // Add mapping functions for different variant types
+  const mapToManualVariantData = (variant: Variant): any => {
+    // Transform Variant to ManualVariantData
+    return {
+      id: variant.id,
+      product_id: variant.product_id,
+      slug: variant.slug,
+      price: String(variant.price),
+      discount_price: variant.discount_price,
+      purchase_price: variant.purchase_price,
+      weight: variant.weight,
+      length: variant.length,
+      width: variant.width,
+      height: variant.height,
+      description: variant.description,
+      barcode: variant.barcode,
+      stock: variant.stock,
+      low_stock_threshold: variant.low_stock_threshold,
+      stock_status: variant.stock_status,
+      status: variant.status,
+      // Map variantImages - add required variant_id field
+      variantImages: variant.variantImages?.map(img => ({
+        id: img.id,
+        variant_id: variant.id, // Add required variant_id
+        image_url: img.image_url,
+        is_primary: img.is_primary
+      })),
+      // Map the variantAttributes structure - generate a unique ID for each
+      variantAttributes: variant.variantAttributes?.map((attr, index) => ({
+        id: variant.id * 1000 + index, // Generate a deterministic ID based on variant ID and index
+        variant_id: variant.id,
+        attribute_id: attr.attribute_id,
+        term_id: attr.term_id,
+        is_visible: true, // Default value
+        used_in_variation: true, // Default value
+        term: {
+          id: attr.term?.id || attr.term_id,
+          name: attr.term?.name || "",
+          slug: attr.term?.name?.toLowerCase().replace(/\s+/g, '-') || ""
+        },
+        attribute: {
+          id: attr.attribute?.id || attr.attribute_id,
+          name: attr.attribute?.name || "",
+          type: "select" // Default value
+        }
+      }))
+    };
+  };
+
+  const mapToGeneratedVariant = (variant: Variant): any => {
+    // For GenerateVariantsView, transform Variant to GeneratedVariant
+    return {
+      id: variant.id,
+      product_id: variant.product_id,
+      slug: variant.slug,
+      price: String(variant.price),
+      discount_price: variant.discount_price,
+      purchase_price: variant.purchase_price,
+      weight: variant.weight,
+      length: variant.length,
+      width: variant.width,
+      height: variant.height,
+      description: variant.description,
+      barcode: variant.barcode,
+      stock: variant.stock,
+      low_stock_threshold: variant.low_stock_threshold,
+      stock_status: variant.stock_status,
+      status: variant.status,
+      variantImages: variant.variantImages,
+      // Update variantAttributes for compatibility
+      variantAttributes: variant.variantAttributes.map((attr, index) => ({
+        id: variant.id * 1000 + index, // Generate a deterministic ID
+        variant_id: variant.id,
+        attribute_id: attr.attribute_id,
+        term_id: attr.term_id,
+        is_visible: true,
+        used_in_variation: true,
+        term: {
+          id: attr.term?.id || attr.term_id,
+          name: attr.term?.name || "",
+          slug: attr.term?.name?.toLowerCase().replace(/\s+/g, '-') || ""
+        },
+        attribute: {
+          id: attr.attribute?.id || attr.attribute_id,
+          name: attr.attribute?.name || "",
+          type: "select"
+        }
+      }))
+    };
+  };
+
+  const mapToEditableVariantData = (variant: Variant): any => {
+    // For BulkUpdateView, transform Variant to EditableVariantData
+    return {
+      id: variant.id,
+      product_id: variant.product_id,
+      slug: variant.slug,
+      price: String(variant.price),
+      discount_price: variant.discount_price,
+      purchase_price: variant.purchase_price,
+      weight: variant.weight,
+      length: variant.length,
+      width: variant.width,
+      height: variant.height,
+      description: variant.description,
+      barcode: variant.barcode,
+      stock: variant.stock,
+      low_stock_threshold: variant.low_stock_threshold,
+      stock_status: variant.stock_status,
+      status: variant.status,
+      // No need to transform variantImages
+      variantImages: variant.variantImages,
+      // Update attribute mapping to ensure all required fields
+      variantAttributes: variant.variantAttributes.map((attr, index) => ({
+        id: variant.id * 1000 + index, // Generate a deterministic ID
+        attribute_id: attr.attribute_id,
+        term_id: attr.term_id,
+        attribute: {
+          id: attr.attribute?.id || attr.attribute_id,
+          name: attr.attribute?.name || "",
+        },
+        term: {
+          id: attr.term?.id || attr.term_id,
+          name: attr.term?.name || "",
+        }
+      }))
+    };
+  };
 
   return (
     <div className="w-full">      
@@ -2860,6 +3023,18 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
               <div className="absolute right-2 flex items-center">
+                {searchTerm && (
+                  <span 
+                    className="cursor-pointer text-gray-500 flex items-center mr-2" 
+                    onClick={() => setSearchTerm('')}
+                    title="Clear search"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <line x1="18" y1="6" x2="6" y2="18"></line>
+                      <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                  </span>
+                )}
                 <SearchIcon className="text-gray-500 mr-1" />
                 <TuneIcon className="text-gray-500" />
               </div>
@@ -2867,7 +3042,7 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
 
             {/* Reset button - Already checked viewMode !== 'initial' in outer conditional */}
             <button 
-              className="py-2 px-4 bg-[#FF0004] text-white rounded hover:bg-red-600"
+              className="py-2 px-4 bg-[#FF0004] text-white rounded hover:bg-red-600 cursor-pointer"
               onClick={() => {
                 // --- Modify onClick for Remove All --- 
                 if (variants.length === 0) {
@@ -2916,12 +3091,9 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
             <ManualVariantView
               // Add key prop based on selected variant ID
               key={selectedVariant ? selectedVariant.id : 'manual-view-no-variant'} 
-              // EDIT Form Props
-              // editControl={editControl as any}
-              // handleEditSubmit={handleEditSubmit}
-              // editErrors={editFormState.errors}
-              // editFormState={editFormState} // Pass full edit form state
-              // setEditValue={setEditValue as any}
+              // Add filtered variants and search term props - with proper mapping
+              filteredVariants={searchTerm ? filteredVariants.map(mapToManualVariantData) : undefined}
+              searchTerm={searchTerm || ""}
               // CREATE Form Props
               createControl={createControl as any}
               handleCreateSubmit={handleCreateSubmit}
@@ -2930,17 +3102,7 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
               setCreateValue={setCreateValue as any}
               // Submit Handlers (passed separately)
               onSubmitCreate={onSubmit} // Pass the original combined onSubmit (now create logic)
-              // onSubmitUpdate={handleUpdateVariant} // Pass the specific update handler
-              // Other general props (remove form-specific ones if not needed by ManualVariantView directly)
-              // reset={resetEditForm} // Reset handled by specific functions now
-              // watch={watchEdit} // Watch can be derived from control if needed
-              // trigger={triggerEdit} // Trigger handled by specific functions now
               // Variant & Attribute State
-              // variants={variants}
-              // selectedVariant={selectedVariant}
-              // selectedVariantIndex={selectedVariantIndex}
-              // setSelectedVariantIndex={setSelectedVariantIndex}
-              // setVariants={setVariants} // Pass setVariants function
               productAttributes={productAttributes}
               attributeTerms={attributeTerms}
               attributeFields={attributeFields}
@@ -2952,7 +3114,6 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
               isCombinationMatch={isCombinationMatch} // Pass helper
               setupFormForCombination={setupFormForCombination}
               allCombinationsUsed={allCombinationsUsed}
-              // filteredVariants={filteredVariants} // Pass filtered list
               // Loading & Submission States
               isSubmitting={isSubmitting}
               imageUploading={imageUploading}
@@ -2964,41 +3125,33 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
               createGetRootProps={createGetRootProps}
               createGetInputProps={createGetInputProps}
               createIsDragActive={createIsDragActive}
-              // editGetRootProps={editGetRootProps}
-              // editGetInputProps={editGetInputProps}
-              // editIsDragActive={editIsDragActive}
-              // handleSetPrimaryImage={handleSetPrimaryImage}
-              // handleDeleteImage={handleDeleteImage}
-              // Dialog State & Handlers
-              // setVariantToDeleteId={setVariantToDeleteId}
-              // setIsDeleteDialogOpen={setIsDeleteDialogOpen}
-              // Other
-              // showSnackbar={showSnackbar}
-              // --- Add missing props back --- 
-              // isUpdating={isUpdating}     
-              // isEditImageUploading={isEditImageUploading} 
-              // --- End add ---
             />
           )}
           
           {viewMode === 'generated' && (
-            // Assuming GenerateVariantsView mainly needs loading state for now
-            <GenerateVariantsView isLoading={isLoading}  allCombinationsUsed={allCombinationsUsed}    productAttributes={productAttributes}
-/> 
-            // Pass other relevant props if needed, e.g., generatedCombinations, actions
+            // Pass filteredVariants and searchTerm to GenerateVariantsView
+            <GenerateVariantsView 
+              isLoading={isLoading}  
+              allCombinationsUsed={allCombinationsUsed}
+              productAttributes={productAttributes}
+              filteredVariants={searchTerm ? filteredVariants.map(mapToGeneratedVariant) : undefined}
+              searchTerm={searchTerm || ""}
+            /> 
           )}
 
           {viewMode === 'bulk' && (
-              <BulkUpdateView 
-                allCombinationsUsed={allCombinationsUsed} 
-                variants={variants}
-                setVariants={setVariants}
-                // selectedVariantIndex, setSelectedVariantIndex, filteredVariants, and all individual edit form props (editControl, etc.)
-                // are managed internally by BulkUpdateView or not applicable to it when passed from VariantManager.
-                showSnackbar={showSnackbar}
-              />
-            )}
-            {/* Manual Variant View - kept for reference or if switching is needed */}
+            <BulkUpdateView 
+              allCombinationsUsed={allCombinationsUsed} 
+              variants={variants}
+              setVariants={setVariants}
+              // Pass filtered variants and search term
+              filteredVariants={searchTerm ? filteredVariants.map(mapToEditableVariantData) : undefined}
+              searchTerm={searchTerm || ""}
+              showSnackbar={showSnackbar}
+            />
+          )}
+          
+          {/* Manual Variant View - kept for reference or if switching is needed */}
           {/* {viewMode === 'manual' && (
             <ManualVariantView
               // Add key prop based on selected variant ID
