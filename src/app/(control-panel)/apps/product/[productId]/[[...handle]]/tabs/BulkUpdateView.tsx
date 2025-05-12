@@ -1015,11 +1015,11 @@ const BulkUpdateView: React.FC<BulkUpdateViewProps> = ({
             }));
             setVariants(mappedData as EditableVariantData[]); // Update parent state
           } else {
-            showSnackbar(response.message || "Failed to load variants for bulk update", "error");
+            // showSnackbar(response.message || "Failed to load variants for bulk update", "error");
             setVariants([]); // Clear variants on failure
           }
         } catch (e: any) {
-          showSnackbar(e.message || "Error loading variants", "error");
+          // showSnackbar(e.message || "Error loading variants", "error");
           setVariants([]); // Clear variants on error
         } finally {
           setIsLoadingVariants(false);
