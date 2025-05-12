@@ -21,9 +21,10 @@ import VariantDetailsForm, { VariantFormData } from '../components/VariantDetail
 interface GenerateVariantsViewProps {
   isLoading: boolean;
   onSuccess?: () => void;
-    allCombinationsUsed: boolean;
-    productAttributes:any[];
-
+  allCombinationsUsed: boolean;
+  productAttributes:any[];
+  filteredVariants?: any[];
+  searchTerm?: string;
 }
 
 interface VariantImage {
@@ -280,7 +281,7 @@ const variantSchema = z.object({
 
 // type VariantFormData = z.infer<typeof variantSchema>; // Removed local type definition
 
-const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: initialLoading, onSuccess , allCombinationsUsed, productAttributes}) => {
+const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: initialLoading, onSuccess, allCombinationsUsed, productAttributes, filteredVariants: propFilteredVariants, searchTerm }) => {
   const [isLoading, setIsLoading] = useState(initialLoading);
   const [generatedVariants, setGeneratedVariants] = useState<GeneratedVariant[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -915,7 +916,8 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
       if (dirtyFields.width) apiPayload.width = transformOptionalNumber(data.width);
       if (dirtyFields.height) apiPayload.height = transformOptionalNumber(data.height);
       if (dirtyFields.barcode) apiPayload.barcode = data.barcode || null;
-      // --- ADDED: Include status and stock_status if dirty --- 
+      if (dirtyFields.description) apiPayload.description = data.description || null;
+      // --- ADDED: Include status and stock_status if dirty ---
       if (dirtyFields.status) {
         apiPayload.status = data.status; // Assuming API expects 'active' | 'inactive'
       }
@@ -1146,6 +1148,9 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
   };
   // --- End Delete Handlers ---
 
+  // Use propFilteredVariants when they exist and there's a search term
+  const variantsToShow = searchTerm && propFilteredVariants ? propFilteredVariants : generatedVariants;
+
   // --- Loading States ---
   // Initial loading or fetching variants
   if (isLoading) {
@@ -1174,30 +1179,31 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
       {/* <div className="mb-4 flex justify-end"> ... </div> */}
 
       {/* Update conditional rendering for empty state */}
-      {generatedVariants.length === 0 && !isLoading && !isGenerating && (
+      {variantsToShow.length === 0 && !isLoading && !isGenerating && (
          <div className="p-4 border rounded bg-gray-50 text-center text-gray-600">
-           {allCombinationsUsed 
-             ? "No variants found. All possible combinations seem to be generated."
-             : "No variants found. New combinations might be available."}
-             {/* Optionally add: " Generating variants might create them." if !allCombinationsUsed */} 
+           {searchTerm 
+             ? `No variants found matching "${searchTerm}". Try a different search term.`
+             : allCombinationsUsed 
+               ? "No variants found. All possible combinations seem to be generated."
+               : "No variants found. New combinations might be available."}
          </div>
       )}
 
       {/* Keep variant list and form rendering */}
-      {generatedVariants.length > 0 && (
+      {variantsToShow.length > 0 && (
         <>
             <h3 className="text-lg font-semibold mb-4">Created Variants</h3>
             <div className="flex gap-6">
               {/* Left side - Variant cards */}
               <div className="w-1/2">
-                {generatedVariants.map((variant) => (
+                {variantsToShow.map((variant) => (
                   <VariantDisplayCard
                     key={variant.id}
                     variant={mapVariantForDisplayCard(variant)}
                     isSelected={selectedVariant?.id === variant.id}
                     onClick={() => setSelectedVariant(variant)}
-                    onDelete={handleDeleteClick} // Assuming handleDeleteClick is already defined and takes variant.id
-                    isActionDisabled={isSubmitting} // or another relevant state like isDeleting
+                    onDelete={handleDeleteClick}
+                    isActionDisabled={isSubmitting}
                   />
                 ))}
               </div>
@@ -1206,19 +1212,18 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
               {selectedVariant && (
                 <div className="w-1/2" key={selectedVariant.id}> {/* Ensure key is on a stable element if selectedVariant itself is the key source */}
                   <VariantDetailsForm
-                    control={control} // From useForm for this view
-                    handleSubmit={handleSubmit} // From useForm for this view
-                    onSubmit={onSubmit} // This is the existing onSubmit function for variant updates
-                    selectedVariant={mapVariantForDetailsForm(selectedVariant)} // Mapped selected variant
-                    isSaving={isSubmitting} // Or a more specific isUpdatingVariant state if you have one
+                    control={control}
+                    handleSubmit={handleSubmit}
+                    onSubmit={onSubmit}
+                    selectedVariant={mapVariantForDetailsForm(selectedVariant)}
+                    isSaving={isSubmitting}
                     isSaveDisabled={isSubmitting || !calculateIsActuallyDirty() || !isValid}
-                    // Image handling props - these need to be passed from GenerateVariantsView
-                    imageGetRootProps={getRootProps} // from useDropzone
-                    imageGetInputProps={getInputProps} // from useDropzone
-                    isImageDragActive={isDragActive} // from useDropzone
-                    isImageUploading={imageUploading} // state for image upload spinner
-                    onSetPrimaryImage={handleSetPrimaryImage} // existing function
-                    onDeleteImage={handleDeleteImage} // existing function
+                    imageGetRootProps={getRootProps}
+                    imageGetInputProps={getInputProps}
+                    isImageDragActive={isDragActive}
+                    isImageUploading={imageUploading}
+                    onSetPrimaryImage={handleSetPrimaryImage}
+                    onDeleteImage={handleDeleteImage}
                   />
                 </div>
               )}
