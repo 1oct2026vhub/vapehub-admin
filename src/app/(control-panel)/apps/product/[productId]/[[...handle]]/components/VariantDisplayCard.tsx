@@ -85,13 +85,13 @@ const VariantDisplayCard: React.FC<VariantDisplayCardProps> = ({
           </div>
           <div className="flex items-center pt-3 justify-between">
             <div className="flex items-center flex-wrap gap-2">
-              <div className="flex items-center space-x-1 border border-[#005B2F] rounded-md bg-green-50 px-2.5 py-1">
+              <div className="flex items-center space-x-1 border border-[#005B2F] rounded-md bg-green-50 px-2.5 py-1 cursor-default">
                 <span className="text-[#14854E] text-sm font-medium">Stock:</span>
                 <div className="bg-[#14854E] px-1.5 py-0.5 rounded-sm text-white text-sm font-semibold">
                   {variant.stock}
                 </div>
               </div>
-              <div className="flex items-center gap-1 border border-[#005B2F] rounded-md bg-green-50 px-2.5 py-1">
+              <div className="flex items-center gap-1 border border-[#005B2F] rounded-md bg-green-50 px-2.5 py-1 cursor-default">
                 <span className="text-[#14854E] text-sm font-medium">Price:</span>
                 <div className="bg-[#14854E] px-1.5 py-0.5 rounded-sm text-white text-sm font-semibold">
                   ${Number(variant.price).toFixed(2)}
