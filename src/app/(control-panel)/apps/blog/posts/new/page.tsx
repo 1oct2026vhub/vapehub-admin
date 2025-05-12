@@ -116,6 +116,10 @@ export default function CreateBlogPost() {
   const [tagSearch, setTagSearch] = useState("");
   const [imageError, setImageError] = useState<string | null>(null);
 
+  useEffect(() => {
+    document.title = "Create New Post | VapeHub";
+  }, []);
+
   const {
     control,
     handleSubmit,

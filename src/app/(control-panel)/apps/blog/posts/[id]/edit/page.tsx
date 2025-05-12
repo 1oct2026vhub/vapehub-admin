@@ -121,6 +121,10 @@ export default function EditBlogPost() {
   const [post, setPost] = useState<BlogPost | null>(null);
   const [imageError, setImageError] = useState<string | null>(null);
 
+useEffect(() => {
+    document.title = "Edit Post Category | VapeHub";
+  }, []);
+
   const {
     control,
     handleSubmit,

@@ -41,6 +41,9 @@ export default function CategoryDetailPage() {
   const { showSnackbar } = useSnackbar();
   const [category, setCategory] = useState<ExtendedBlogCategory | null>(null);
   const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    document.title = "Blog Category Details | VapeHub";
+  }, []);
 
   useEffect(() => {
     const fetchCategory = async () => {
