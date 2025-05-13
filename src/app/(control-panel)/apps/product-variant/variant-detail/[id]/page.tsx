@@ -1,9 +1,13 @@
 "use client";
 import { useSearchParams } from "next/navigation";
+import { useEffect } from "react";
 import VariantDetailTable from "../VariantDetailTable";
 
 const VariantDetailPage = () => {
   const searchParams = useSearchParams();
+  useEffect(() => {
+    document.title = "Product Variant Details | VapeHub";
+  }, []);
   const categoryData = searchParams ? searchParams.get("userData") : null;
 
   const category = categoryData

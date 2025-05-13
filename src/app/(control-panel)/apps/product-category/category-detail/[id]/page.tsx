@@ -1,5 +1,6 @@
 "use client";
 import { useSearchParams } from "next/navigation";
+import { useEffect } from "react";
 // import { Metadata, ResolvingMetadata } from 'next';
 import CategoryDetailTable from "../CategoryDetailTable";
 
@@ -19,6 +20,9 @@ import CategoryDetailTable from "../CategoryDetailTable";
 
 const categoryDetailPage = () => {
   const searchParams = useSearchParams();
+  useEffect(() => {
+    document.title = "Product Category Details | VapeHub";
+  }, []);
   const categoryData = searchParams ? searchParams.get("userData") : null;
 
   const category = categoryData

@@ -2,7 +2,9 @@
 'use client'
 import { useSearchParams, useParams } from "next/navigation";
 import BrandDetailDisplay from "../BrandDetailTable";
-// import { Metadata, ResolvingMetadata } from 'next';
+import { useEffect } from "react";
+
+
 
 
 type Props = {
@@ -22,6 +24,9 @@ type Props = {
 const BrandDetailPage = () => {
   const searchParams = useSearchParams();
   const params = useParams();
+  useEffect(() => {
+    document.title = "Product Brand Details | VapeHub";
+  }, []);
 
   const userData = searchParams ? searchParams.get("userData") : null;
 

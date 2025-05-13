@@ -9,7 +9,7 @@ import {
   Paper,
   Typography,
   Breadcrumbs,
-  Link,
+  Link as MuiLink,
   Button,
   Autocomplete,
   TextField,
@@ -18,7 +18,10 @@ import {
   InputLabel,
   Select,
   MenuItem,
+  IconButton,
+  Tooltip,
 } from "@mui/material";
+import AddIcon from '@mui/icons-material/Add';
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -41,7 +44,8 @@ import {
 } from "@/services/apiBlog";
 import FuseLoading from "@fuse/core/FuseLoading";
 import debounce from "lodash/debounce";
-
+import AddCategoryModal from "@/components/Shared/AddCategoryModal";
+import { Button as MuiButton, Box as MuiBox } from "@mui/material";
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB in bytes
 const MIN_IMAGE_WIDTH = 1091;
 const MIN_IMAGE_HEIGHT = 320;
@@ -120,8 +124,9 @@ export default function EditBlogPost() {
   const [tagSearch, setTagSearch] = useState("");
   const [post, setPost] = useState<BlogPost | null>(null);
   const [imageError, setImageError] = useState<string | null>(null);
+  const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
 
-useEffect(() => {
+  useEffect(() => {
     document.title = "Edit Post Category | VapeHub";
   }, []);
 
@@ -131,27 +136,30 @@ useEffect(() => {
     setValue,
     watch,
     reset,
+    getValues,
     formState: { isValid, errors },
   } = useForm<PostFormType>({
     mode: "all",
     resolver: zodResolver(postSchema),
+    defaultValues: {
+      title: "",
+      content: "",
+      slug: "",
+      status: "draft",
+      published_at: null,
+      categories: [],
+      tags: [],
+      is_active: true,
+    }
   });
 
-  // Watch the status field
   const currentStatus = watch("status");
 
-  // Fetch categories with debounced search
   const fetchCategories = debounce(async (searchTerm: string) => {
     try {
-      const response = await getBlogCategories({
-        search: searchTerm,
-        limit: 50,
-      });
+      const response = await getBlogCategories({ search: searchTerm, limit: 50 });
       if (response?.data?.categories) {
-        // Filter to only show active categories
-        const activeCategories = response.data.categories.filter(
-          category => category.status === "active"
-        );
+        const activeCategories = response.data.categories.filter(cat => cat.status === "active");
         setCategories(activeCategories);
       }
     } catch (error) {
@@ -159,7 +167,6 @@ useEffect(() => {
     }
   }, 300);
 
-  // Fetch tags with debounced search
   const fetchTags = debounce(async (searchTerm: string) => {
     try {
       const response = await getBlogTags({
@@ -174,29 +181,24 @@ useEffect(() => {
     }
   }, 300);
 
-  // Handle category search
   useEffect(() => {
     fetchCategories(categorySearch);
   }, [categorySearch]);
 
-  // Handle tag search
   useEffect(() => {
     fetchTags(tagSearch);
   }, [tagSearch]);
 
-  // Initial load of categories and tags
   useEffect(() => {
     fetchCategories("");
     fetchTags("");
   }, []);
 
-  // Fetch post details
   useEffect(() => {
     const fetchPost = async () => {
       try {
         setLoading(true);
         const response = await getBlogPost(Number(params.id));
-
         if (response?.data) {
           setPost(response.data);
           reset({
@@ -209,6 +211,12 @@ useEffect(() => {
             tags: response.data.tags || [],
             is_active: response.data.is_active,
           });
+          const initialCategories = response.data.categories || [];
+          setCategories(prev => {
+            const existingIds = new Set(prev.map(c => c.id));
+            const uniqueNew = initialCategories.filter(c => !existingIds.has(c.id));
+            return [...prev, ...uniqueNew].sort((a, b) => a.name.localeCompare(b.name));
+          });
         }
       } catch (error) {
         console.error("Failed to fetch post:", error);
@@ -217,18 +225,13 @@ useEffect(() => {
         setLoading(false);
       }
     };
+    if (params.id) fetchPost();
+  }, [params.id, reset, showSnackbar]);
 
-    if (params.id) {
-      fetchPost();
-    }
-  }, [params.id]);
-
-  // Auto-generate slug when title changes
   const handleTitleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setValue("title", event.target.value);
   };
 
-  // Validate image dimensions
   const validateImageDimensions = (file: File): Promise<boolean> => {
     return new Promise((resolve) => {
       if (!file) {
@@ -263,7 +266,6 @@ useEffect(() => {
     });
   };
 
-  // Handle file change with validation
   const handleFileChange = async (file: File | null) => {
     setSelectedFile(file);
     setValue("image", file, { shouldValidate: true });
@@ -275,10 +277,13 @@ useEffect(() => {
     }
   };
 
+  const handleCategoryCreated = (newCategory: BlogCategory) => {
+    setCategories(prev => [...prev, newCategory].sort((a, b) => a.name.localeCompare(b.name)));
+  };
+
   const onSubmit = async (data: PostFormType) => {
     if (!post?.id) return;
 
-    // Validate image dimensions before submitting
     if (selectedFile && !(await validateImageDimensions(selectedFile))) {
       return;
     }
@@ -297,11 +302,9 @@ useEffect(() => {
         formData.append("published_at", data.published_at);
       }
 
-      // Convert category IDs to comma-separated string
       const categoryIds = data.categories.map(cat => cat.id).join(',');
       formData.append("categories", categoryIds);
       
-      // Convert tag IDs to comma-separated string
       const tagIds = data.tags.map(tag => tag.id).join(',');
       formData.append("tags", tagIds);
 
@@ -458,37 +461,46 @@ useEffect(() => {
                   )}
 
                   <Grid item xs={12}>
-                    <Controller
-                      name="categories"
-                      control={control}
-                      render={({ field: { value, onChange } }) => (
-                        <Autocomplete
-                          multiple
-                          options={categories}
-                          getOptionLabel={(option) => option.name}
-                          value={value}
-                          onChange={(_, newValue) => onChange(newValue)}
-                          onInputChange={(_, newInputValue) => setCategorySearch(newInputValue)}
-                          renderInput={(params) => (
-                            <TextField
-                              {...params}
-                              label="Categories"
-                              variant="outlined"
-                              sx={commonFieldStyles}
-                            />
-                          )}
-                          renderTags={(value, getTagProps) =>
-                            value.map((option, index) => (
-                              <Chip
-                                label={option.name}
-                                {...getTagProps({ index })}
-                                key={option.id}
+                      <Controller
+                        name="categories"
+                        control={control}
+                        render={({ field: { value, onChange } }) => (
+                          <Autocomplete
+                            multiple
+                            options={categories}
+                            getOptionLabel={(option) => option.name}
+                            isOptionEqualToValue={(option, val) => option.id === val.id}
+                            value={value}
+                            onChange={(_, newValue) => onChange(newValue)}
+                            onInputChange={(_, newInputValue) => setCategorySearch(newInputValue)}
+                            renderInput={(params) => (
+                              <TextField
+                                {...params}
+                                label="Categories"
+                                variant="outlined"
+                                sx={{...commonFieldStyles, flexGrow: 1}}
                               />
-                            ))
-                          }
-                        />
-                      )}
-                    />
+                            )}
+                            renderTags={(value, getTagProps) =>
+                              value.map((option, index) => (
+                                <Chip
+                                  label={option.name}
+                                  {...getTagProps({ index })}
+                                  key={option.id}
+                                />
+                              ))
+                            }
+                          />
+                        )}
+                      />
+                      <MuiButton
+              variant="text" 
+              size="small" 
+            onClick={() => setIsCategoryModalOpen(true)}
+              sx={{ alignSelf: 'flex-start', mt: 2, textTransform: 'none', color: '#247c5c' }}
+            >
+              + Add New Category
+            </MuiButton>
                   </Grid>
 
                   <Grid item xs={12}>
@@ -542,6 +554,12 @@ useEffect(() => {
           </Box>
         </Box>
       </motion.div>
+      
+      <AddCategoryModal 
+        open={isCategoryModalOpen}
+        onClose={() => setIsCategoryModalOpen(false)}
+        onCategoryCreated={handleCategoryCreated}
+      />
     </Container>
   );
 } 
