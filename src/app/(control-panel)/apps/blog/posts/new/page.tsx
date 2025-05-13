@@ -9,7 +9,7 @@ import {
   Paper,
   Typography,
   Breadcrumbs,
-  Link,
+  Link as MuiLink,
   Button,
   Autocomplete,
   TextField,
@@ -18,6 +18,8 @@ import {
   InputLabel,
   Select,
   MenuItem,
+  IconButton,
+  Tooltip,
 } from "@mui/material";
 import { SxProps, Theme } from "@mui/material/styles";
 import { useForm, Controller } from "react-hook-form";
@@ -38,7 +40,11 @@ import {
   BlogCategory, 
   BlogTag 
 } from "@/services/apiBlog";
+import { Button as MuiButton, Box as MuiBox } from "@mui/material";
+
+import AddCategoryModal from "@/components/Shared/AddCategoryModal";
 import debounce from "lodash/debounce";
+import AddIcon from '@mui/icons-material/Add';
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB in bytes
 const MIN_IMAGE_WIDTH = 1091;
@@ -115,6 +121,7 @@ export default function CreateBlogPost() {
   const [categorySearch, setCategorySearch] = useState("");
   const [tagSearch, setTagSearch] = useState("");
   const [imageError, setImageError] = useState<string | null>(null);
+  const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
 
   useEffect(() => {
     document.title = "Create New Post | VapeHub";
@@ -125,6 +132,7 @@ export default function CreateBlogPost() {
     handleSubmit,
     setValue,
     watch,
+    getValues,
     formState: { isValid, errors },
   } = useForm<PostFormType>({
     mode: "all",
@@ -141,10 +149,8 @@ export default function CreateBlogPost() {
     resolver: zodResolver(postSchema),
   });
 
-  // Watch the status field
   const currentStatus = watch("status");
 
-  // Fetch categories with debounced search
   const fetchCategories = debounce(async (searchTerm: string) => {
     try {
       const response = await getBlogCategories({
@@ -152,7 +158,6 @@ export default function CreateBlogPost() {
         limit: 50,
       });
       if (response?.data?.categories) {
-        // Filter to only show active categories
         const activeCategories = response.data.categories.filter(
           category => category.status === "active"
         );
@@ -163,7 +168,6 @@ export default function CreateBlogPost() {
     }
   }, 300);
 
-  // Fetch tags with debounced search
   const fetchTags = debounce(async (searchTerm: string) => {
     try {
       const response = await getBlogTags({
@@ -178,28 +182,23 @@ export default function CreateBlogPost() {
     }
   }, 300);
 
-  // Handle category search
   useEffect(() => {
     fetchCategories(categorySearch);
   }, [categorySearch]);
 
-  // Handle tag search
   useEffect(() => {
     fetchTags(tagSearch);
   }, [tagSearch]);
 
-  // Initial load of categories and tags
   useEffect(() => {
     fetchCategories("");
     fetchTags("");
   }, []);
 
-  // Remove auto-generate slug functionality
   const handleTitleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setValue("title", event.target.value);
   };
 
-  // Validate image dimensions
   const validateImageDimensions = (file: File): Promise<boolean> => {
     return new Promise((resolve) => {
       if (!file) {
@@ -234,7 +233,6 @@ export default function CreateBlogPost() {
     });
   };
   
-  // Handle file change with validation
   const handleFileChange = async (file: File | null) => {
     setSelectedFile(file);
     setValue("image", file, { shouldValidate: true });
@@ -246,8 +244,14 @@ export default function CreateBlogPost() {
     }
   };
 
+  const handleCategoryCreated = (newCategory: BlogCategory) => {
+    setCategories(prev => [...prev, newCategory].sort((a, b) => a.name.localeCompare(b.name)));
+    
+    // const currentSelectedCategories = getValues("categories") || [];
+    // setValue("categories", [...currentSelectedCategories, newCategory], { shouldValidate: true });
+  };
+
   const onSubmit = async (data: PostFormType) => {
-    // Validate image dimensions before submitting
     if (selectedFile && !(await validateImageDimensions(selectedFile))) {
       return;
     }
@@ -266,11 +270,9 @@ export default function CreateBlogPost() {
         formData.append("published_at", data.published_at);
       }
 
-      // Convert category IDs to comma-separated string
       const categoryIds = data.categories.map(cat => cat.id).join(',');
       formData.append("categories", categoryIds);
       
-      // Convert tag IDs to comma-separated string
       const tagIds = data.tags.map(tag => tag.id).join(',');
       formData.append("tags", tagIds);
 
@@ -371,6 +373,50 @@ export default function CreateBlogPost() {
                     />
                   </Grid>
 
+                  <Grid item xs={12}>
+                       <Controller
+                      name="categories"
+                      control={control}
+                      render={({ field: { value, onChange } }) => (
+                        <Autocomplete
+                          multiple
+                          options={categories}
+                          getOptionLabel={(option) => option.name}
+                          value={value}
+                          onChange={(_, newValue) => onChange(newValue)}
+                          onInputChange={(_, newInputValue) => setCategorySearch(newInputValue)}
+                          renderInput={(params) => (
+                            <TextField
+                              {...params}
+                              label="Categories"
+                              variant="outlined"
+                              sx={commonFieldStyles}
+                            />
+                          )}
+                          renderTags={(value, getTagProps) =>
+                            value.map((option, index) => (
+                              <Chip
+                                label={option.name}
+                                {...getTagProps({ index })}
+                                key={option.id}
+                              />
+                            ))
+                          }
+                        />
+                      )}
+                    />
+                      
+                      
+                      <MuiButton
+              variant="text" 
+              size="small" 
+            onClick={() => setIsCategoryModalOpen(true)}
+              sx={{ alignSelf: 'flex-start', mt: 2, textTransform: 'none', color: '#247c5c' }}
+            >
+              + Add New Category
+            </MuiButton>
+                  </Grid>
+
                   <Grid item xs={12} md={currentStatus === "published" ? 6 : 12}>
                     <FormControl fullWidth>
                       <InputLabel id="status-label" sx={{ color: "#2E9970" }}>Status</InputLabel>
@@ -413,40 +459,6 @@ export default function CreateBlogPost() {
 
                   <Grid item xs={12}>
                     <Controller
-                      name="categories"
-                      control={control}
-                      render={({ field: { value, onChange } }) => (
-                        <Autocomplete
-                          multiple
-                          options={categories}
-                          getOptionLabel={(option) => option.name}
-                          value={value}
-                          onChange={(_, newValue) => onChange(newValue)}
-                          onInputChange={(_, newInputValue) => setCategorySearch(newInputValue)}
-                          renderInput={(params) => (
-                            <TextField
-                              {...params}
-                              label="Categories"
-                              variant="outlined"
-                              sx={commonFieldStyles}
-                            />
-                          )}
-                          renderTags={(value, getTagProps) =>
-                            value.map((option, index) => (
-                              <Chip
-                                label={option.name}
-                                {...getTagProps({ index })}
-                                key={option.id}
-                              />
-                            ))
-                          }
-                        />
-                      )}
-                    />
-                  </Grid>
-
-                  <Grid item xs={12}>
-                    <Controller
                       name="tags"
                       control={control}
                       render={({ field: { value, onChange } }) => (
@@ -481,7 +493,9 @@ export default function CreateBlogPost() {
 
                   <Grid item xs={12}>
                     <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 2, mt: 2 }}>
-                      <Button onClick={() => router.back()}>Cancel</Button>
+                      <Button variant="outlined" onClick={() => router.back()}>
+                        Cancel
+                      </Button>
                       <AppButton
                         label="Create Post"
                         type="submit"
@@ -496,6 +510,13 @@ export default function CreateBlogPost() {
           </Box>
         </Box>
       </motion.div>
+      
+      <AddCategoryModal 
+        open={isCategoryModalOpen}
+        onClose={() => setIsCategoryModalOpen(false)}
+        onCategoryCreated={handleCategoryCreated}
+      />
+
     </Container>
   );
 } 
