@@ -338,14 +338,14 @@ const OrderDetailApp = () => {
                             >
                               {item.product.name}
                             </Typography>
-                            {item.variant?.slug && (
+                            {/* {item.variant?.slug && (
                               <Typography
                                 variant="body2"
                                 color="text.secondary"
                               >
                                 Variant: {item.variant.slug}
                               </Typography>
-                            )}
+                            )} */}
                           </div>
                         </div>
                       </TableCell>
