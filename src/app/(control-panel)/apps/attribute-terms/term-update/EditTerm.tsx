@@ -4,7 +4,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useParams, useRouter } from "next/navigation";
-import { Alert, Typography, CircularProgress } from "@mui/material";
+import { Alert, Typography, CircularProgress, TextField } from "@mui/material";
 import AppButton from "@/components/Shared/AppButton";
 import FormInputField from "@/components/Shared/FormInputField";
 import { usePost, useFetch } from "@/hooks/useFetch";
@@ -42,11 +42,11 @@ export type FormType = z.infer<typeof schema>;
 
 function EditTerm() {
   const params = useParams();
-  // Get the ID from URL params
   const id = params?.id;
   const router = useRouter();
   const { showSnackbar } = useSnackbar();
   const [isLoading, setIsLoading] = useState(false);
+  const [attributeName, setAttributeName] = useState<string>("");
 
   console.log("Term ID from params:", id);
 
@@ -80,6 +80,7 @@ function EditTerm() {
         slug: term?.slug,
         description: term.description || "",
       });
+      setAttributeName(term?.attribute?.name || "N/A");
     }
   }, [term, reset]);
 
@@ -166,6 +167,31 @@ function EditTerm() {
             {errors?.root?.message}
           </Alert>
         )}
+
+        <TextField
+          label="Attribute"
+          value={attributeName}
+          disabled
+          fullWidth
+          variant="outlined"
+          sx={{
+             mb: 4,
+             "& .MuiInputBase-input.Mui-disabled": {
+               WebkitTextFillColor: "#000000",
+               color: "#000000",
+               // backgroundColor: "#f0f0f0", // Keep default background
+             },
+             "& .MuiInputLabel-root": {
+               color: "#2E9970",
+             },
+             "& .MuiOutlinedInput-root.Mui-disabled": { // Target disabled root
+                borderRadius: "0", // Set border radius to match active fields
+                "& .MuiOutlinedInput-notchedOutline": {
+                   borderColor: "#2E9970", // Set border color to match active fields
+                }
+             }
+           }}
+        />
 
         <FormInputField
           name="name"
