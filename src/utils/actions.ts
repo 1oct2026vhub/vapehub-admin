@@ -169,7 +169,7 @@ export const formatCustomerNameSafely = (customerData: any): string => {
 
     // Fallback for other object structures: log a warning and return a placeholder
     console.warn("Unformattable customer data object:", customerData);
-    return "Invalid Customer Data"; 
+    return "N/A"; 
   }
 
   // For other types (e.g., number, boolean), convert to string or handle as an error/placeholder
