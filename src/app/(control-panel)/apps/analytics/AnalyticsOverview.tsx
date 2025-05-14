@@ -386,23 +386,7 @@ function AnalyticsOverview() {
 					Realtime overview
 					<Icon className="text-green-500 ml-2 align-middle">check_circle</Icon>
 				</Typography>
-				<div className="flex items-center space-x-1"> {/* Reduced space */}
-					<Tooltip title="View user snapshot">
-						<IconButton size="small" className="border rounded"> {/* Use IconButton */}
-							<Icon>account_box</Icon> {/* More specific icon */}
-						</IconButton>
-					</Tooltip>
-					<Tooltip title="Compare">
-						<IconButton size="small" className="border rounded">
-							<Icon>compare_arrows</Icon> {/* Compare icon */}
-						</IconButton>
-					</Tooltip>
-					<Tooltip title="Share">
-						<IconButton size="small" className="border rounded">
-							<Icon>share</Icon>
-						</IconButton>
-					</Tooltip>
-				</div>
+				
 			</div>
 
 			{/* OAuth Status and Login Button */}
@@ -521,45 +505,7 @@ function AnalyticsOverview() {
 				</Paper>
 			)}
 
-			{/* Daily Performance Stats Card */}
-			{analyticsRealtimeData.dailyPerformanceStats && (
-				<Paper elevation={2} className="p-4 sm:p-6 mb-6 mt-6">
-					<Typography variant="h6" component="h2" className="font-semibold mb-3">
-						Daily Performance (Last 7 Days up to Yesterday)
-					</Typography>
-					<div className="overflow-x-auto">
-						<table className="min-w-full text-sm">
-							<thead className="bg-gray-100">
-								<tr>
-									<th className="p-2 text-left font-medium text-gray-600 uppercase">Date</th>
-									<th className="p-2 text-right font-medium text-gray-600 uppercase">Active Users</th>
-									<th className="p-2 text-right font-medium text-gray-600 uppercase">New Users</th>
-									<th className="p-2 text-right font-medium text-gray-600 uppercase">Total Revenue</th>
-								</tr>
-							</thead>
-							<tbody>
-								{(analyticsRealtimeData.dailyPerformanceStats.rows || []).map((row, index) => {
-									const dateValue = row.dimensionValues[0]?.value ? row.dimensionValues[0].value : 'N/A';
-									const activeUsers = row.metricValues[0]?.value || '0';
-									const newUsers = row.metricValues[1]?.value || '0';
-									const totalRevenue = parseFloat(row.metricValues[2]?.value || "0").toFixed(2); // Assuming currency
-									return (
-										<tr key={index} className="border-b border-gray-200 last:border-b-0">
-											<td className="p-2 whitespace-nowrap">{dateValue}</td>
-											<td className="p-2 text-right whitespace-nowrap">{activeUsers}</td>
-											<td className="p-2 text-right whitespace-nowrap">{newUsers}</td>
-											<td className="p-2 text-right whitespace-nowrap">${totalRevenue}</td> {/* Assuming USD */}
-										</tr>
-									);
-								})}
-							</tbody>
-						</table>
-					</div>
-					{(!analyticsRealtimeData.dailyPerformanceStats.rows || analyticsRealtimeData.dailyPerformanceStats.rows.length === 0) && !analyticsLoading && (
-						<Typography className="text-gray-500 mt-3">No daily performance data available.</Typography>
-					)}
-				</Paper>
-			)}
+			
 
 			{/* Debug Section: Raw API Data Display */}
 			{/* {accessToken && !analyticsLoading && Object.keys(analyticsRealtimeData).length > 0 && (
