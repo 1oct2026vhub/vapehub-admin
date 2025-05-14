@@ -108,7 +108,7 @@ const VariantDetailsForm: React.FC<VariantDetailsFormProps> = ({
           control={control}
           render={({ field, fieldState: { error } }) => (
             <FormField label="Stock Status" required error={error?.message}>
-              <Select {...field} className="w-full border border-gray-300 rounded-lg p-0 focus:outline-none focus:ring-1 focus:ring-green-500 bg-white h-10 appearance-none text-sm pl-3" displayEmpty>
+              <Select {...field} className="w-full rounded-lg p-0 focus:outline-none focus:ring-1 focus:ring-green-500 bg-white h-10 appearance-none text-sm pl-3" displayEmpty>
                 <MenuItem value="In Stock">In Stock</MenuItem>
                 <MenuItem value="Out of Stock">Out of Stock</MenuItem>
                 <MenuItem value="Back Order">Back Order</MenuItem>
@@ -121,7 +121,7 @@ const VariantDetailsForm: React.FC<VariantDetailsFormProps> = ({
           control={control}
           render={({ field, fieldState: { error } }) => (
             <FormField label="Status" required error={error?.message}>
-              <Select {...field} className="w-full border border-gray-300 rounded-lg p-0 focus:outline-none focus:ring-1 focus:ring-green-500 bg-white h-10 appearance-none text-sm pl-3" displayEmpty>
+              <Select {...field} className="w-full rounded-lg p-0 focus:outline-none focus:ring-1 focus:ring-green-500 bg-white h-10 appearance-none text-sm pl-3" displayEmpty>
                 <MenuItem value="active">Active</MenuItem>
                 <MenuItem value="inactive">Inactive</MenuItem>
               </Select>
