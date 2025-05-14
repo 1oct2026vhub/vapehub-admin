@@ -418,7 +418,7 @@ const OrderDetailApp = () => {
                       )}
                     </TableCell> */}
                     <TableCell align="right" className="font-semibold">
-                      {formatPounds((order as any)?.sub_total || 0)} {/* Changed to sub_total and cast to any as a precaution */}
+                      {formatPounds((order as any)?.total || 0)} {/* Changed to sub_total and cast to any as a precaution */}
                     </TableCell>
                   </TableRow>
                 </TableBody>
