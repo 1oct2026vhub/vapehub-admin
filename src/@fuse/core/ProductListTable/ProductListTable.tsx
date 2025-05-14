@@ -913,6 +913,7 @@ const ProductListTable = ({
               </ListItemIcon>
               View Details
             </MenuItem>,
+              !row.original.deletedAt &&
             <MenuItem
               key="edit"
               onClick={() => {
@@ -925,6 +926,7 @@ const ProductListTable = ({
               </ListItemIcon>
               Edit
             </MenuItem>,
+              !row.original.deletedAt &&
             <MenuItem
               key="status"
               sx={{ 
@@ -933,6 +935,7 @@ const ProductListTable = ({
                 }
               }}
             >
+              
               <FormControl fullWidth size="small">
                 <Select
                   value={row.original.status || "draft"}

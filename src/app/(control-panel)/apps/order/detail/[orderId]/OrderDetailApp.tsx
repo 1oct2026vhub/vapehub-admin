@@ -310,26 +310,31 @@ const OrderDetailApp = () => {
                       <TableCell>
                         <div className="flex items-center gap-3">
                           <div className="w-16 h-16 bg-gray-100 rounded-md flex items-center justify-center overflow-hidden">
-                            {item.product?.ProductImages &&
-                            item.product.ProductImages.length > 0 ? (
-                              <img
-                                src={
-                                  (item.product.ProductImages[0] as any)
-                                    .image_url ||
-                                  item.product.ProductImages[0].url
-                                }
-                                alt={item.product.name}
-                                className="w-full h-full object-contain"
-                                onError={(e) => {
-                                  (e.target as HTMLImageElement).src =
-                                    "/placeholder-image.png";
-                                }}
-                              />
-                            ) : (
-                              <span className="text-xs text-gray-500">
-                                No img
-                              </span>
-                            )}
+                            {(() => {
+                              const variantImage = item.variant?.variantImages?.[0]?.image_url;
+                              const productImage = item.product?.ProductImages?.[0]?.image_url;
+                              const imageUrlToShow = variantImage || productImage;
+
+                              if (imageUrlToShow) {
+                                return (
+                                  <img
+                                    src={imageUrlToShow}
+                                    alt={item.product.name}
+                                    className="w-full h-full object-contain"
+                                    onError={(e) => {
+                                      (e.target as HTMLImageElement).src =
+                                        "/placeholder-image.png";
+                                    }}
+                                  />
+                                );
+                              } else {
+                                return (
+                                  <span className="text-xs text-gray-500">
+                                    No img
+                                  </span>
+                                );
+                              }
+                            })()}
                           </div>
                           <div>
                             <Typography
@@ -409,11 +414,7 @@ const OrderDetailApp = () => {
                     </TableCell>
                     <TableCell align="right" className="font-semibold">
                       {formatPounds(
-                        order?.orderItems?.reduce(
-                          (sum, item) =>
-                            sum + Number(item.unit_price) * item.quantity,
-                          0
-                        ) || 0
+                        order?.total || 0
                       )}
                     </TableCell>
                     <TableCell align="right" className="font-semibold">
@@ -485,14 +486,17 @@ const OrderDetailApp = () => {
               <div className="flex justify-between">
                 <Typography variant="body2">Subtotal</Typography>
                 <Typography variant="body2">
-                  {formatPounds(order?.total || 0)}
+                  {formatPounds(order?.sub_total || 0)}
                 </Typography>
               </div>
               {order?.discount_price && (
                 <div className="flex justify-between">
-                  <Typography variant="body2">Discount (10%)</Typography>
+                  <Typography variant="body2">Discount</Typography>
                   <Typography variant="body2" color="error">
-                    -{formatPounds(order.discount_price)}
+                    {/* Conditional discount display */}
+                    {order.discount_type === 'percentage'
+                      ? `-${order.discount_price}%` // Assumes discount_price holds the percentage rate
+                      : `-${formatPounds(order.discount_price || 0)}`}
                   </Typography>
                 </div>
               )}
@@ -511,6 +515,49 @@ const OrderDetailApp = () => {
               </div>
             </div>
           </Paper>
+
+          {/* Coupon Details Section */}
+          {order?.coupon_id && order?.coupon && (
+            <Paper className="p-4 mt-3 bg-white mb-4">
+              <Typography variant="h6" className="font-medium mb-3">
+                Coupon Applied
+              </Typography>
+              <div className="space-y-1">
+                <div>
+                  <Typography variant="body2" component="span" className="font-medium">
+                    Code:{" "}
+                  </Typography>
+                  <Typography variant="body2" component="span">
+                    {order.coupon.code}
+                  </Typography>
+                </div>
+                {order.coupon.description && (
+                  <div>
+                    <Typography variant="body2" component="span" className="font-medium">
+                      Description:{" "}
+                    </Typography>
+                    <Typography variant="body2" component="span">
+                      {order.coupon.description}
+                    </Typography>
+                  </div>
+                )}
+                <div>
+                  <Typography variant="body2" component="span" className="font-medium">
+                    Discount Value:{" "}
+                  </Typography>
+                  <Typography variant="body2" component="span">
+                    {/* Conditional discount value display for coupon */}
+                    {order.coupon.discount_type === 'percentage'
+                      ? `${order.coupon.discount_value}%`
+                      : order.coupon.discount_type === 'fixed_amount'
+                      ? formatPounds(parseFloat(order.coupon.discount_value || "0")) // Assuming discount_value is string, parse to float
+                      : order.coupon.discount_value} {/* Fallback for other types if any */}
+                  </Typography>
+                </div>
+                {/* The actual discount value and type are displayed in the payment summary */}
+              </div>
+            </Paper>
+          )}
 
           {/* Customer Details */}
           <Paper className="p-0 mb-3 overflow-hidden bg-white">
