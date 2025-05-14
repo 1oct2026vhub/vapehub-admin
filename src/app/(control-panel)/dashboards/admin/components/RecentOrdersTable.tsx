@@ -147,7 +147,7 @@ const RecentOrdersTable = ({ orders }: RecentOrdersTableProps) => {
         mt={2}
         sx={{ borderTop: "1px solid #e0e0e0", pt: 2 }}
       >
-        <NextLink href="/apps/order/list" passHref>
+        {/* <NextLink href="/apps/order/list" passHref> */}
           <Link
             sx={{
               display: "flex",
@@ -159,11 +159,12 @@ const RecentOrdersTable = ({ orders }: RecentOrdersTableProps) => {
                 textDecoration: "underline",
               },
             }}
+            href="/apps/order/list"
           >
             View all orders
             <ArrowForwardIcon fontSize="small" sx={{ ml: 0.5 }} />
           </Link>
-        </NextLink>
+        {/* </NextLink> */}
       </Box>
     </Box>
   );
