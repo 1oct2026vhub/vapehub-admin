@@ -778,6 +778,50 @@ const TransactionDetailApp = () => {
               </div>
             </div>
           </Paper>
+
+          {/* Coupon Details Section - ADDED */}
+          {transaction.order?.coupon_id && (transaction.order as any)?.coupon && (
+            (() => {
+              const coupon = (transaction.order as any).coupon;
+              return (
+                <Paper className="p-4 mt-3 bg-white mb-4">
+                  <Typography variant="h6" className="font-medium mb-3">
+                    Coupon Applied
+                  </Typography>
+                  <div className="space-y-1">
+                    <div>
+                      <Typography variant="body2" component="span" className="font-medium">
+                        Code:{" "}
+                      </Typography>
+                      <Typography variant="body2" component="span">
+                        {coupon.code}
+                      </Typography>
+                    </div>
+                    {coupon.description && (
+                      <div>
+                        <Typography variant="body2" component="span" className="font-medium">
+                          Description:{" "}
+                        </Typography>
+                        <Typography variant="body2" component="span">
+                          {coupon.description}
+                        </Typography>
+                      </div>
+                    )}
+                    <div>
+                      <Typography variant="body2" component="span" className="font-medium">
+                        Discount Value:{" "}
+                      </Typography>
+                      <Typography variant="body2" component="span">
+                        {coupon.discount_type === 'percentage'
+                          ? `${coupon.discount_value}%`
+                          : formatCurrency(parseFloat(coupon.discount_value || "0"))}
+                      </Typography>
+                    </div>
+                  </div>
+                </Paper>
+              );
+            })()
+          )}
         </Grid>
       </Grid>
 
