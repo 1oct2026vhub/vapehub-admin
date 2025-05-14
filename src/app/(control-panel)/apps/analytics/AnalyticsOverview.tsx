@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { Paper, Typography, Grid, Divider, Icon, IconButton, Tooltip, Button } from '@mui/material'; // Added Button
 import axios from 'axios';
 // import { getAuthToken } from '@/utils/auth'; // This will be replaced by OAuth flow
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from 'recharts';
+// import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from 'recharts';
 
 const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || 'YOUR_CLIENT_ID_HERE'; // Corrected to use NEXT_PUBLIC_ prefix and check against placeholder
 const GOOGLE_REDIRECT_URI = process.env.NEXT_PUBLIC_REDIRECT_URL || 'YOUR_REDIRECT_URI_HERE';
