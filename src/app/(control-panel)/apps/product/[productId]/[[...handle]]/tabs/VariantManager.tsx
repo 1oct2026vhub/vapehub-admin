@@ -66,6 +66,11 @@ import ManualVariantView from './ManualVariantView';
 import GenerateVariantsView from './GenerateVariantsView';
 import BulkUpdateView from './BulkUpdateView';
 
+// --- START: Imports for Initial View --- 
+import VariantDisplayCard from '../components/VariantDisplayCard';
+import VariantDetailsForm, { VariantFormData as DetailsFormDataType } from '../components/VariantDetailsForm'; 
+// --- END: Imports for Initial View ---
+
 // Create a styled version of TextField with the app's styling
 const StyledTextField = styled(TextField)(({ theme }) => ({
   "& .MuiOutlinedInput-root": {
@@ -660,6 +665,67 @@ interface VariantManagerProps {
   isActive: boolean;
 }
 
+// --- START: Add basic helper functions --- 
+const mapVariantForDisplayCard = (variant: Variant) => {
+  let mappedAttrs: Array<{ id: number | string; attribute_name: string; term_name: string }> = [];
+
+  // Prioritize detailed variantAttributes if available and non-empty
+  if (variant.variantAttributes && variant.variantAttributes.length > 0) {
+    console.log('[VariantManager] mapVariantForDisplayCard - Using detailed variant.variantAttributes for Variant ID ' + variant.id + ':', JSON.stringify(variant.variantAttributes, null, 2));
+    mappedAttrs = variant.variantAttributes.map((attr, index) => {
+      const attributeName = attr.attribute?.name;
+      const termName = attr.term?.name;
+      return {
+        id: attr.term?.id || attr.term_id || `attr-${index}`, // Ensure unique key
+        attribute_name: attributeName || 'Attribute N/A (from detailed)',
+        term_name: termName || 'Term N/A (from detailed)',
+      };
+    });
+  }
+  // Fallback to simple variant.attributes (Record<string, string>) if detailed one is empty
+  else if (variant.attributes && Object.keys(variant.attributes).length > 0) {
+    console.log('[VariantManager] mapVariantForDisplayCard - Falling back to simple variant.attributes for Variant ID ' + variant.id + ':', JSON.stringify(variant.attributes, null, 2));
+    mappedAttrs = Object.entries(variant.attributes).map(([key, value], index) => ({
+      id: `simple-attr-${variant.id}-${index}`, // Generate a unique key incorporating variant ID
+      attribute_name: key,
+      term_name: value,
+    }));
+  } else {
+    console.log(`[VariantManager] mapVariantForDisplayCard - No attributes found to display for Variant ID ${variant.id}`);
+  }
+
+  // console.log(`[VariantManager] mapVariantForDisplayCard - Final mappedAttrs for VariantID ${variant.id}:`, JSON.stringify(mappedAttrs, null, 2));
+
+  // Create formatted attributes for display in card (this is a secondary structure, not primary for display logic in card itself)
+  const attributesFormatted = mappedAttrs.reduce((acc, attr) => {
+    acc[attr.attribute_name] = attr.term_name;
+    return acc;
+  }, {} as Record<string, string>);
+
+  return {
+    id: variant.id,
+    slug: variant.slug,
+    price: variant.price,
+    stock: variant.stock,
+    status: variant.status,
+    variantImages: variant.variantImages || [],
+    variantAttributes: mappedAttrs,
+    // Add a simple key-value formatted attributes object for display in cards
+    attributesFormatted: attributesFormatted
+  };
+};
+
+const mapVariantForDetailsForm = (variant: Variant | null) => {
+  if (!variant) return null;
+  return {
+    id: variant.id,
+    slug: variant.slug,
+    variantImages: variant.variantImages || [],
+    // Add other fields needed by VariantDetailsForm if any, e.g., attributes for display
+  };
+};
+// --- END: Add basic helper functions ---
+
 const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add isActive prop
   const { showSnackbar } = useSnackbar();
   const searchParams = useSearchParams();
@@ -681,6 +747,14 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
   // --- Add state to track if variants have been generated ---
   const [hasGeneratedVariants, setHasGeneratedVariants] = useState<boolean>(false);
   
+  // --- START: Add ref for original data (needed for DetailsForm later) ---
+  const originalSelectedVariantRef = useRef<Variant | null>(null);
+  // --- END: Add ref ---
+
+  // --- START: Add ref for form variant ID ---
+  const formVariantIdRef = useRef<number | null>(null);
+  // --- END: Add ref for form variant ID ---
+
   // --- Add Ref and Effect for Resetting View Mode --- 
   const prevIsActive = useRef<boolean>(isActive);
 
@@ -736,6 +810,7 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
     watch: watchEdit,
     formState: editFormState, // Contains errors, isValid, isDirty
     trigger: triggerEdit,
+    getValues, // Ensure getValues is destructured here
   } = useForm<VariantFormData>({
     resolver: zodResolver(variantSchema),
     mode: "all",
@@ -869,120 +944,135 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
         return;
     }
  
-     setImageUploading(true);
-     
-     // Store temp IDs to track them later
-     const tempIds: number[] = [];
-     
-     // Create preview URLs temporarily while uploading
-     const previewImages = validFiles.map((file, idx) => {
-       const tempId = -1 * (Date.now() + idx); // Temporary ID as negative number
-       tempIds.push(tempId);
-       return {
-         id: tempId,
-         image_url: URL.createObjectURL(file),
-         is_primary: false
-       };
-     });
-     
-     // Make a DEEP COPY of the variants to avoid state mutation issues
-     const updatedVariants = variants.map(variant => ({...variant}));
-     
-     // Make a deep copy of selected variant's images array or initialize it
-     const currentImages = updatedVariants[selectedVariantIndex].variantImages ? 
-       [...updatedVariants[selectedVariantIndex].variantImages] : 
-       [];
-     
-     // Add preview images to the variant
-     updatedVariants[selectedVariantIndex] = {
-       ...updatedVariants[selectedVariantIndex],
-       variantImages: [...currentImages, ...previewImages],
-       pendingImages: [
-         ...(updatedVariants[selectedVariantIndex].pendingImages || []),
-         ...validFiles
-       ]
-     };
-     
-     // Update state with preview images
-     setVariants(updatedVariants);
-     
-     // Get the product ID and variant ID for the API call
-     const productId = searchParams ? searchParams.get('productId') : null;
-     const variantId = selectedVariant.id;
-     
-     if (!productId || !variantId) {
-       // Clean up the blob URLs to prevent memory leaks
-       previewImages.forEach(img => {
-         if (typeof img.image_url === 'string' && img.image_url.startsWith('blob:')) {
-           URL.revokeObjectURL(img.image_url);
-         }
-       });
-       
-       setImageUploading(false);
-       showSnackbar("Missing product or variant ID", "error");
-       return;
-     }
-     
-     // Create FormData for API upload
-     const formData = new FormData();
-     validFiles.forEach((file) => {
-       formData.append("files", file);
-     });
-     
-     // Call the upload API
-     uploadVariantImages(String(productId), String(variantId), formData)
-       .then((response) => {
-         // Process the response to get uploaded images
-         let newImages: any[] = [];
-         
-         // Handle different possible response structures
-         if (Array.isArray(response)) {
-           newImages = response;
-         } else if (response && typeof response === "object") {
-           // Try different possible response structures
-           if (response.data?.variant?.variantImages) {
-             newImages = response.data.variant.variantImages;
-           } else if (response.variant?.variantImages) {
-             newImages = response.variant.variantImages;
-           } else if (response.data?.variantImages) {
-             newImages = response.data.variantImages;
-           } else if (response.data && Array.isArray(response.data)) {
-             newImages = response.data;
-           }
-         }
-         
-         // Ensure all images have the expected properties
-         const processedImages: VariantImage[] = newImages.map((img: any) => ({
-           id: Number(img.id || img.image_id),
-           image_url: img.image_url || img.url || img.image_url,
-           is_primary: !!img.is_primary
-         }));
-         
-         if (processedImages.length === 0) {
-           console.warn("Could not extract images from response:", response);
-           showSnackbar("Images uploaded but response format was unexpected", "warning");
-           
-           // Clean up the temporary preview images on error
-           removeTemporaryImages(tempIds);
-           // Also reset uploading state
-           setImageUploading(false); 
-           return;
-         }
-         
-         // Create a fresh copy of variants to avoid stale state issues
-         // Need to use functional update to guarantee latest state
-         setVariants(currentVariants => {
+    setImageUploading(true);
+    
+    // Store temp IDs to track them later
+    const tempIds: number[] = [];
+    
+    // Get current form values to preserve them
+    const currentFormValues = getValues();
+
+    // Create preview URLs temporarily while uploading
+    const previewImages = validFiles.map((file, idx) => {
+      const tempId = -1 * (Date.now() + idx); // Temporary ID as negative number
+      tempIds.push(tempId);
+      return {
+        id: tempId,
+        image_url: URL.createObjectURL(file),
+        is_primary: false
+      };
+    });
+    
+    // Make a DEEP COPY of the variants to avoid state mutation issues
+    const updatedVariants = variants.map(variant => ({...variant}));
+    
+    // Get the variant at the selected index
+    const currentVariant = updatedVariants[selectedVariantIndex];
+    
+    // Merge current form values with variant data to preserve unsaved changes
+    const variantWithFormValues = mergeFormValuesWithVariantData(currentVariant, currentFormValues);
+    
+    // Make a deep copy of selected variant's images array or initialize it
+    const currentImages = variantWithFormValues.variantImages ? 
+      [...variantWithFormValues.variantImages] : 
+      [];
+    
+    // Add preview images to the variant
+    updatedVariants[selectedVariantIndex] = {
+      ...variantWithFormValues,
+      variantImages: [...currentImages, ...previewImages],
+      pendingImages: [
+        ...(variantWithFormValues.pendingImages || []),
+        ...validFiles
+      ]
+    };
+    
+    // Update state with preview images
+    setVariants(updatedVariants);
+    
+    // Get the product ID and variant ID for the API call
+    const productId = searchParams ? searchParams.get('productId') : null;
+    const variantId = selectedVariant.id;
+    
+    if (!productId || !variantId) {
+      // Clean up the blob URLs to prevent memory leaks
+      previewImages.forEach(img => {
+        if (typeof img.image_url === 'string' && img.image_url.startsWith('blob:')) {
+          URL.revokeObjectURL(img.image_url);
+        }
+      });
+      
+      setImageUploading(false);
+      showSnackbar("Missing product or variant ID", "error");
+      return;
+    }
+    
+    // Create FormData for API upload
+    const formData = new FormData();
+    validFiles.forEach((file) => {
+      formData.append("files", file);
+    });
+    
+    // Call the upload API
+    uploadVariantImages(String(productId), String(variantId), formData)
+      .then((response) => {
+        // Process the response to get uploaded images
+        let newImages: any[] = [];
+        
+        // Handle different possible response structures
+        if (Array.isArray(response)) {
+          newImages = response;
+        } else if (response && typeof response === "object") {
+          // Try different possible response structures
+          if (response.data?.variant?.variantImages) {
+            newImages = response.data.variant.variantImages;
+          } else if (response.variant?.variantImages) {
+            newImages = response.variant.variantImages;
+          } else if (response.data?.variantImages) {
+            newImages = response.data.variantImages;
+          } else if (response.data && Array.isArray(response.data)) {
+            newImages = response.data;
+          }
+        }
+        
+        // Ensure all images have the expected properties
+        const processedImages: VariantImage[] = newImages.map((img: any) => ({
+          id: Number(img.id || img.image_id),
+          image_url: img.image_url || img.url || img.image_url,
+          is_primary: !!img.is_primary
+        }));
+        
+        if (processedImages.length === 0) {
+          console.warn("Could not extract images from response:", response);
+          showSnackbar("Images uploaded but response format was unexpected", "warning");
+          
+          // Clean up the temporary preview images on error
+          removeTemporaryImages(tempIds);
+          // Also reset uploading state
+          setImageUploading(false); 
+          return;
+        }
+        
+        // Create a fresh copy of variants to avoid stale state issues
+        // Need to use functional update to guarantee latest state
+        setVariants(currentVariants => {
+            // Get latest form values again to ensure we have the most up-to-date data
+            const latestFormValues = getValues();
+
             const latestVariants = [...currentVariants];
             // Check if the index is still valid
             if (selectedVariantIndex >= latestVariants.length) {
                 console.warn("Selected variant index out of bounds after upload.");
                 return currentVariants; // Return original state if index is invalid
             }
+            
+            // Get the current variant and merge with latest form values
             const currentVariant = latestVariants[selectedVariantIndex];
+            const variantWithLatestFormValues = mergeFormValuesWithVariantData(currentVariant, latestFormValues);
             
             // Remove any temporary preview images (negative IDs that we tracked)
-            const permanentImages = currentVariant.variantImages?.filter(
-            img => !tempIds.includes(Number(img.id))
+            const permanentImages = variantWithLatestFormValues.variantImages?.filter(
+              img => !tempIds.includes(Number(img.id))
             ) || [];
             
             // Create a set of existing image IDs to prevent duplicates
@@ -996,22 +1086,22 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
             
             const processedPermanentImages = permanentImages.map(img => ({...img}));
             const processedUniqueNewImages = uniqueNewImages.map(img => {
-            // If this image is primary but we already have a primary, make it non-primary
-            if (img.is_primary && foundPrimary) {
-                return {...img, is_primary: false};
-            }
-            // If this image is primary, update our flag
-            if (img.is_primary) {
-                foundPrimary = true;
-            }
-            return img;
+              // If this image is primary but we already have a primary, make it non-primary
+              if (img.is_primary && foundPrimary) {
+                  return {...img, is_primary: false};
+              }
+              // If this image is primary, update our flag
+              if (img.is_primary) {
+                  foundPrimary = true;
+              }
+              return img;
             });
             
-            // Update the variant with the deduplicated images
+            // Update the variant with the deduplicated images while preserving form values
             latestVariants[selectedVariantIndex] = {
-            ...currentVariant,
-            variantImages: [...processedPermanentImages, ...processedUniqueNewImages],
-            pendingImages: [] // Clear pending files for this variant
+              ...variantWithLatestFormValues,
+              variantImages: [...processedPermanentImages, ...processedUniqueNewImages],
+              pendingImages: [] // Clear pending files for this variant
             };
 
             // Clean up blob URLs for previews just added
@@ -1021,19 +1111,19 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
                 }
             });
             return latestVariants;
-         });
-         
-         setImageUploading(false);
-         showSnackbar("Images uploaded successfully", "success");
-       })
-       .catch((error) => {
-         console.error("Error uploading images:", error);
-         
-         // Remove the temporary preview images on error
-         removeTemporaryImages(tempIds);
-         
-         setImageUploading(false);
-          // Check for error structure properly
+        });
+        
+        setImageUploading(false);
+        showSnackbar("Images uploaded successfully", "success");
+      })
+      .catch((error) => {
+        console.error("Error uploading images:", error);
+        
+        // Remove the temporary preview images on error
+        removeTemporaryImages(tempIds);
+        
+        setImageUploading(false);
+         // Check for error structure properly
       if (error?.errors && error?.errors.length > 0) {
         showSnackbar(error.errors[0]?.msg, "error");
       } else if (
@@ -1048,13 +1138,13 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
         const errorMessage = "An unexpected error occurred";
         showSnackbar(errorMessage, "error");
       }
-       })
-       .finally(() => {
-          // --- Reset specific loading state for edit form --- 
-          setIsEditUploading(false);
-          // --- End reset specific loading state --- 
-          setImageUploading(false); // Reset global too, just in case
-       });
+      })
+      .finally(() => {
+         // --- Reset specific loading state for edit form --- 
+         setIsEditUploading(false);
+         // --- End reset specific loading state --- 
+         setImageUploading(false); // Reset global too, just in case
+      });
   };
   
   // --- Dropzone Hooks ---
@@ -1195,7 +1285,7 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
             price: String(apiVariant.price), // Store as string
             stock: Number(apiVariant.stock),   // Store as number
             status: apiVariant.status, // Store API string (e.g., "active")
-            stock_status: apiVariant.stock_status, // Ensure this is stock_status and it exists on apiVariant
+            stock_status: apiVariant.stock_status, 
             discount_price: apiVariant.discount_price !== null && apiVariant.discount_price !== undefined ? String(apiVariant.discount_price) : null,
             purchase_price: apiVariant.purchase_price !== null && apiVariant.purchase_price !== undefined ? String(apiVariant.purchase_price) : null,
             low_stock_threshold: apiVariant.low_stock_threshold !== null && apiVariant.low_stock_threshold !== undefined ? Number(apiVariant.low_stock_threshold) : null,
@@ -1210,8 +1300,8 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
               acc[key] = String(val); // Ensure value is string
               return acc;
             }, {} as Record<string, string>) : {},
-            variantAttributes: apiVariant.variantAttributes || [],
-            variantImages: apiVariant.variantImages?.map((img: any) => ({ // Already renamed
+            variantAttributes: apiVariant.variantAttributes || [], // REVERTED: Direct assignment, assuming API provides full structure
+            variantImages: apiVariant.variantImages?.map((img: any) => ({ 
                   id: Number(img.id),
                   image_url: img.image_url,
                   is_primary: img.is_primary
@@ -1293,6 +1383,8 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
       console.error('Error fetching product attributes:', error);
       // showSnackbar('Failed to load product attributes', 'error');
       setIsLoading(false);
+    } finally {
+      setIsLoading(false); // Ensure loading state is reset
     }
   };
 
@@ -1420,7 +1512,6 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
     try {
       const response = await getProduct(productId);
       
-      // First load variants from API response if available
       if (response?.data?.variants && response.data.variants.length > 0) {
         const apiVariants = response.data.variants.map((apiVariant: any) => {
           // Convert API variant attributes to the format we use in our component
@@ -1463,19 +1554,24 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
           };
         });
         
-        // Set loaded variants
         setVariants(apiVariants);
         if (apiVariants.length > 0) {
           setSelectedVariantIndex(0);
-          setHasGeneratedVariants(true); // Set flag when variants are loaded
+          setHasGeneratedVariants(true); 
         }
+      } else {
+        // If no variants are returned, clear the local state
+        setVariants([]);
+        setSelectedVariantIndex(0);
+        // setHasGeneratedVariants(false); // Optional: consider if this should be reset
       }
-      
-      setIsLoading(false);
+      // setIsLoading(false); // Moved to finally
     } catch (error) {
       console.error('Error fetching variants:', error);
       // showSnackbar('Failed to load variants', 'error');
-      setIsLoading(false);
+      // setIsLoading(false); // Moved to finally
+    } finally {
+      setIsLoading(false); // Ensure loading state is reset
     }
   };
 
@@ -1522,23 +1618,30 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
   // Modify useEffect to handle initial load
   useEffect(() => {
     if (formData?.productId) {
-      // If we're in manual mode, fetch both variants and attributes
-      if (viewMode === 'manual') {
+      // Always fetch attributes as they might be needed by various views or for context
+      fetchProductAttributes(formData.productId);
+
+      // Fetch variants if in 'initial' or 'manual' mode, 
+      // or if variants haven't been loaded yet (e.g., first load before viewMode is set by user action)
+      if (viewMode === 'initial' || viewMode === 'manual' || variants.length === 0) {
+        console.log(`[Effect: productId/viewMode] Fetching variants for viewMode: ${viewMode}`);
         fetchVariants(formData.productId);
-        fetchProductAttributes(formData.productId);
       }
-      // If we're not in manual mode, only fetch attributes
-      else {
-        fetchProductAttributes(formData.productId);
-      }
+    } else {
+      console.log(`[Effect: productId/viewMode] Skipped fetch (no Product ID).`);
+      // Optionally clear variants if product ID is removed
+      // setVariants([]);
+      // setSelectedVariantIndex(0);
     }
-  }, [formData?.productId, viewMode]);
+  }, [formData?.productId, viewMode]); // Dependencies
 
   // --- Add New Function: handleCreateVariantImageUpload ---
   const handleCreateVariantImageUpload = async (productId: string, variantId: string, files: File[]): Promise<VariantImage[]> => {
+    let uploadedVariantImages: VariantImage[] = []; // Declare return variable at the start
+
     if (files.length === 0 || !productId || !variantId) {
       console.log("Skipping image upload: No files or missing IDs.");
-      return []; // No images to upload or missing IDs
+      return uploadedVariantImages; // Return empty array if no files or IDs
     }
 
     setImageUploading(true); // Set uploading state
@@ -1549,25 +1652,24 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
       const uploadResponse = await uploadVariantImages(productId, variantId, imageFormData);
       console.log("Image upload response for new variant:", uploadResponse);
       
-      // --- Start Edit: Process response and update variant state ---
-      let newImages: any[] = [];
+      let newImagesFromAPI: any[] = []; // Changed from newImages to newImagesFromAPI to avoid conflict if VariantImage[] is also named newImages
       // Handle different possible response structures (similar to handleImageUpload)
       if (Array.isArray(uploadResponse)) {
-        newImages = uploadResponse;
+        newImagesFromAPI = uploadResponse;
       } else if (uploadResponse && typeof uploadResponse === "object") {
         if (uploadResponse.data?.variant?.variantImages) {
-          newImages = uploadResponse.data.variant.variantImages;
+          newImagesFromAPI = uploadResponse.data.variant.variantImages;
         } else if (uploadResponse.variant?.variantImages) {
-          newImages = uploadResponse.variant.variantImages;
+          newImagesFromAPI = uploadResponse.variant.variantImages;
         } else if (uploadResponse.data?.variantImages) {
-          newImages = uploadResponse.data.variantImages;
+          newImagesFromAPI = uploadResponse.data.variantImages;
         } else if (uploadResponse.data && Array.isArray(uploadResponse.data)) {
-          newImages = uploadResponse.data;
+          newImagesFromAPI = uploadResponse.data;
         }
       }
 
       // Ensure all images have the expected properties
-      const processedImages: VariantImage[] = newImages.map((img: any) => ({
+      const processedImages: VariantImage[] = newImagesFromAPI.map((img: any) => ({
         id: Number(img.id || img.image_id),
         image_url: img.image_url || img.url || img.image_url,
         is_primary: !!img.is_primary
@@ -1597,16 +1699,18 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
           return updatedVariants;
         });
         console.log(`Added ${processedImages.length} images to variant ${variantId}`);
+        uploadedVariantImages = processedImages; // Assign to the variable that will be returned
       } else {
         console.warn("Could not extract uploaded images from response:", uploadResponse);
         showSnackbar("Variant created, but image response was unclear.", "warning");
+        // uploadedVariantImages remains []
       }
       // --- End Edit: Process response and update variant state ---
 
     } catch (uploadError) {
       console.error("Error uploading images for new variant:", uploadError);
       showSnackbar("Variant created, but failed to upload images", "error");
-      return []; // Return empty array on upload error
+      // uploadedVariantImages remains [] in case of error, will be returned after finally
     } finally {
       setImageUploading(false); // Reset uploading state regardless of outcome
       // Clear pending images only after successful or failed upload attempt
@@ -1614,8 +1718,7 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
       pendingCreateImagePreviews.forEach(URL.revokeObjectURL); // Clean up blob URLs
       setPendingCreateImagePreviews([]);
     }
-    // Add a default return for edge cases where try/catch might be skipped (though unlikely here)
-    return []; // Ensure a value is always returned
+    return uploadedVariantImages; // Ensure a value (potentially empty array) is always returned
   };
   // --- End Function ---
 
@@ -2209,7 +2312,16 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
     
     // First update UI for immediate feedback
     const updatedVariants = [...variants];
-    const currentImages = updatedVariants[selectedVariantIndex].variantImages || [];
+    
+    // Get current form values to preserve them
+    const currentFormValues = getValues();
+    
+    const currentVariant = updatedVariants[selectedVariantIndex];
+    
+    // Merge form values with current variant data to preserve unsaved changes
+    const variantWithFormValues = mergeFormValuesWithVariantData(currentVariant, currentFormValues);
+    
+    const currentImages = variantWithFormValues.variantImages || [];
     
     // Store original state for error recovery
     const originalVariants = [...variants];
@@ -2221,7 +2333,7 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
     }));
     
     updatedVariants[selectedVariantIndex] = {
-      ...updatedVariants[selectedVariantIndex],
+      ...variantWithFormValues,
       variantImages: updatedImages
     };
     
@@ -2234,21 +2346,21 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
       })
       .catch(error => {
         console.error("Error setting primary image:", error);
-  // Check for error structure properly
-      if (error?.errors && error?.errors.length > 0) {
-        showSnackbar(error.errors[0]?.msg, "error");
-      } else if (
-        error?.error &&
-        Array.isArray(error?.error) &&
-        error.error.length > 0
-      ) {
-        showSnackbar(error.error[0]?.message, "error");
-      } else if (error?.message) {
-        showSnackbar(error.message, "error");
-      } else {
-        const errorMessage = "An unexpected error occurred";
-        showSnackbar(errorMessage, "error");
-      }        
+        // Check for error structure properly
+        if (error?.errors && error?.errors.length > 0) {
+          showSnackbar(error.errors[0]?.msg, "error");
+        } else if (
+          error?.error &&
+          Array.isArray(error?.error) &&
+          error.error.length > 0
+        ) {
+          showSnackbar(error.error[0]?.message, "error");
+        } else if (error?.message) {
+          showSnackbar(error.message, "error");
+        } else {
+          const errorMessage = "An unexpected error occurred";
+          showSnackbar(errorMessage, "error");
+        }        
         // Restore original state if API call fails
         setVariants(originalVariants);
       });
@@ -2262,7 +2374,18 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
     if (imageId < 0) {
       // Just remove from local state without API call
       const updatedVariants = [...variants];
-      const currentImages = updatedVariants[selectedVariantIndex].variantImages || [];
+      
+      // Get current form values to preserve them
+      const currentFormValues = getValues();
+      
+      // Get the current variant
+      const currentVariant = updatedVariants[selectedVariantIndex];
+      
+      // Merge form values with variant data to preserve unsaved changes
+      const variantWithFormValues = mergeFormValuesWithVariantData(currentVariant, currentFormValues);
+      
+      // Get the current images
+      const currentImages = variantWithFormValues.variantImages || [];
       
       // Find the temporary image to remove its preview URL
       const imageToRemove = currentImages.find(img => img.id === imageId);
@@ -2270,11 +2393,11 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
         URL.revokeObjectURL(imageToRemove.image_url);
       }
       
-      // Remove the image from local state
+      // Remove the image from local state while preserving form values
       updatedVariants[selectedVariantIndex] = {
-        ...updatedVariants[selectedVariantIndex],
+        ...variantWithFormValues,
         variantImages: currentImages.filter(img => img.id !== imageId),
-        pendingImages: (updatedVariants[selectedVariantIndex].pendingImages || [])
+        pendingImages: (variantWithFormValues.pendingImages || [])
           .filter((_, idx) => idx !== currentImages.findIndex(img => img.id === imageId))
       };
       
@@ -2290,26 +2413,33 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
       return;
     }
     
-    // --- Start Edit: Add logic for auto-setting new primary --- 
     // Keep a copy of the original state for error recovery
     const originalVariants = JSON.parse(JSON.stringify(variants)); // Deep copy
+    
+    // Get current form values to preserve them
+    const currentFormValues = getValues();
+    
     const currentVariantIndex = variants.findIndex(v => v.id === selectedVariant.id);
     if (currentVariantIndex === -1) return; 
 
-    const currentImages = variants[currentVariantIndex].variantImages || [];
+    // Get the current variant
+    const currentVariant = variants[currentVariantIndex];
+    
+    // Merge form values with variant data to preserve unsaved changes
+    const variantWithFormValues = mergeFormValuesWithVariantData(currentVariant, currentFormValues);
+
+    const currentImages = variantWithFormValues.variantImages || [];
     const imageToDelete = currentImages.find(img => img.id === imageId);
     const wasPrimary = imageToDelete?.is_primary || false; // Check if it was primary BEFORE optimistic update
-    // --- End Edit --- 
     
     // First update the UI to give immediate feedback (Optimistic Update)
     const updatedVariants = [...variants];
-    // --- Start Edit: Use correct index for optimistic update --- 
-    const updatedImages = updatedVariants[currentVariantIndex].variantImages || [];
+    
+    // Update variant with preserved form values and filtered images
     updatedVariants[currentVariantIndex] = {
-      ...updatedVariants[currentVariantIndex],
-      variantImages: updatedImages.filter(img => img.id !== imageId)
+      ...variantWithFormValues,
+      variantImages: currentImages.filter(img => img.id !== imageId)
     };
-    // --- End Edit --- 
     
     setVariants(updatedVariants);
     
@@ -2318,46 +2448,54 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
       .then(() => {
         showSnackbar("Image deleted successfully", "success");
         
-        // --- Start Edit: Auto-set new primary logic --- 
+        // Auto-set new primary logic
         if (wasPrimary) {
           // Use functional update to get the absolute latest state
           setVariants(currentState => {
-              const variantIdx = currentState.findIndex(v => v.id === variantId);
-              if (variantIdx === -1) return currentState; // Should not happen
+            // Get latest form values
+            const latestFormValues = getValues();
+            
+            const variantIdx = currentState.findIndex(v => v.id === variantId);
+            if (variantIdx === -1) return currentState; // Should not happen
 
-              const remainingImages = currentState[variantIdx].variantImages || [];
-              if (remainingImages.length > 0) {
-                  const newPrimaryImageId = remainingImages[0].id;
-                  // Check if the new candidate is valid and not already primary (it shouldn't be)
-                  if (newPrimaryImageId && !remainingImages[0].is_primary) { 
-                      console.log(`Auto-setting image ${newPrimaryImageId} as new primary for variant ${variantId}`);
-                      // Use setTimeout to ensure this runs after the current state update/render cycle
-                      setTimeout(() => handleSetPrimaryImage(newPrimaryImageId), 0); 
-                  }
+            // Get the current variant
+            const currentVariant = currentState[variantIdx];
+            
+            // Merge latest form values with variant data
+            const variantWithLatestFormValues = mergeFormValuesWithVariantData(currentVariant, latestFormValues);
+            
+            const remainingImages = variantWithLatestFormValues.variantImages || [];
+            if (remainingImages.length > 0) {
+              const newPrimaryImageId = remainingImages[0].id;
+              // Check if the new candidate is valid and not already primary (it shouldn't be)
+              if (newPrimaryImageId && !remainingImages[0].is_primary) { 
+                console.log(`Auto-setting image ${newPrimaryImageId} as new primary for variant ${variantId}`);
+                // Use setTimeout to ensure this runs after the current state update/render cycle
+                setTimeout(() => handleSetPrimaryImage(newPrimaryImageId), 0); 
               }
-              // Return the state as is; handleSetPrimaryImage will trigger its own update
-              return currentState; 
+            }
+            // Return the state as is; handleSetPrimaryImage will trigger its own update
+            return currentState; 
           });
         }
-        // --- End Edit --- 
       })
       .catch(error => {
         console.error("Error deleting image:", error);
-  // Check for error structure properly
-      if (error?.errors && error?.errors.length > 0) {
-        showSnackbar(error.errors[0]?.msg, "error");
-      } else if (
-        error?.error &&
-        Array.isArray(error?.error) &&
-        error.error.length > 0
-      ) {
-        showSnackbar(error.error[0]?.message, "error");
-      } else if (error?.message) {
-        showSnackbar(error.message, "error");
-      } else {
-        const errorMessage = "An unexpected error occurred";
-        showSnackbar(errorMessage, "error");
-      }        
+        // Check for error structure properly
+        if (error?.errors && error?.errors.length > 0) {
+          showSnackbar(error.errors[0]?.msg, "error");
+        } else if (
+          error?.error &&
+          Array.isArray(error?.error) &&
+          error.error.length > 0
+        ) {
+          showSnackbar(error.error[0]?.message, "error");
+        } else if (error?.message) {
+          showSnackbar(error.message, "error");
+        } else {
+          const errorMessage = "An unexpected error occurred";
+          showSnackbar(errorMessage, "error");
+        }        
         // Restore the image in the UI if the API call fails
         setVariants(originalVariants);
       });
@@ -2552,49 +2690,35 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
 
   // --- Add function to handle confirmed variant deletion --- 
   const handleConfirmDeleteVariant = async () => {
-    if (!variantToDeleteId) return; // Ensure variantToDeleteId is accessible
+    if (!variantToDeleteId) return; 
 
-    // Check if it's a temporary ID (doesn't exist on backend yet)
-    if (variantToDeleteId.startsWith('#TEMP')) {
-      // Ensure selectedVariant is accessible if used here for comparison
-      const currentSelectedId = selectedVariant?.id;
-      const deletedIndex = variants.findIndex(v => v.id === Number(variantToDeleteId)); // Compare numbers
-      setVariants(prevVariants => prevVariants.filter(v => v.id !== Number(variantToDeleteId))); // Compare numbers
-      showSnackbar("Unsaved variant removed", "success");
-      setIsDeleteDialogOpen(false); 
-      setVariantToDeleteId(null); 
-      if(currentSelectedId === Number(variantToDeleteId)) { // Compare numbers
-        setSelectedVariantIndex(Math.max(0, deletedIndex - 1)); 
-      }
-      return;
-    }
+    // Removed: Temporary ID check, assuming all variant IDs are numeric from backend.
 
-    setIsSubmitting(true); // Ensure setIsSubmitting is accessible
+    setIsSubmitting(true); 
     try {
+      // Corrected API call: Pass only the variant ID, converted to a number.
       await deleteProductVariant(Number(variantToDeleteId)); 
 
-      const deletedIndex = variants.findIndex(v => v.id === Number(variantToDeleteId)); // Compare numbers
+      const deletedIndex = variants.findIndex(v => String(v.id) === variantToDeleteId); 
       
-      const newVariants = variants.filter(v => v.id !== Number(variantToDeleteId)); // Compare numbers
-      setVariants(newVariants); // Ensure setVariants is accessible
+      const newVariants = variants.filter(v => String(v.id) !== variantToDeleteId); 
+      setVariants(newVariants); 
       
-      // Check if all variants have been removed
       if (newVariants.length === 0) {
-        setHasGeneratedVariants(false); // Reset the flag if all variants are removed
+        setHasGeneratedVariants(false); 
       }
       
       showSnackbar("Variant deleted successfully", "success");
       
       if (newVariants.length === 0) {
-        setSelectedVariantIndex(0);
-        // resetEditForm(); // <-- Use resetEditForm (clear edit form if no variants left)
-      } else if (deletedIndex >= 0) {
+        setSelectedVariantIndex(0); 
+      } else if (deletedIndex >= 0) { 
         setSelectedVariantIndex(Math.max(0, deletedIndex - 1));
       }
 
     } catch (error) {
       console.error("Error deleting variant:", error);
-  // Check for error structure properly
+      // Error handling as before
       if (error?.errors && error?.errors.length > 0) {
         showSnackbar(error.errors[0]?.msg, "error");
       } else if (
@@ -2608,7 +2732,8 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
       } else {
         const errorMessage = "An unexpected error occurred";
         showSnackbar(errorMessage, "error");
-      }    } finally {
+      }
+    } finally {
       setIsDeleteDialogOpen(false);
       setVariantToDeleteId(null);
       setIsSubmitting(false);
@@ -2744,55 +2869,108 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
     }
   }, [productAttributes, viewMode, attributeTerms, variants]);
 
-  // Add back the useEffect for resetting edit form
+  // useEffect for resetting edit form (this is the one we are targeting)
   useEffect(() => {
     console.log(`[useEffect resetEditForm] Running for index: ${selectedVariantIndex}`);
-    // Explicitly check if variants exist and index is valid before resetting
-    if (variants.length > 0 && selectedVariantIndex >= 0 && selectedVariantIndex < variants.length) {
-      const currentSelectedVariant = variants[selectedVariantIndex];
-      // Log the variant data being used
-      console.log('[useEffect resetEditForm] currentSelectedVariant:', JSON.stringify(currentSelectedVariant, null, 2)); 
-      
-      const resetData = {
-        slug: currentSelectedVariant.slug ?? '',
-        price: currentSelectedVariant.price ? Number(currentSelectedVariant.price) : null,
-        stock: currentSelectedVariant.stock ?? 0, // stock is already number in Variant interface
-        status: (currentSelectedVariant.status?.toLowerCase() === 'active' ? 'active' : 'inactive') as 'active' | 'inactive',
-        stockStatus: getDisplayStockStatusManager(currentSelectedVariant.stock_status, currentSelectedVariant.stock), // Use the new local helper
-        depositPrice: currentSelectedVariant.discount_price ? Number(currentSelectedVariant.discount_price) : null,
-        purchasePrice: currentSelectedVariant.purchase_price ? Number(currentSelectedVariant.purchase_price) : null,
-        lowStockThreshold: currentSelectedVariant.low_stock_threshold ?? null, // low_stock_threshold is already number | null in Variant interface
-        weight: currentSelectedVariant.weight ? Number(currentSelectedVariant.weight) : null,
-        length: currentSelectedVariant.length ? Number(currentSelectedVariant.length) : null,
-        width: currentSelectedVariant.width ? Number(currentSelectedVariant.width) : null,
-        height: currentSelectedVariant.height ? Number(currentSelectedVariant.height) : null,
-        barcode: currentSelectedVariant.barcode ?? '',
-        description: currentSelectedVariant.description ?? '',
-      };
-      // Log the data being sent to reset
-      console.log('[useEffect resetEditForm] Resetting form with data:', JSON.stringify(resetData, null, 2));
-      resetEditForm(resetData);
+    const currentSelectedVariant =
+      variants && variants.length > 0 && selectedVariantIndex >= 0 && selectedVariantIndex < variants.length
+        ? variants[selectedVariantIndex]
+        : null;
+
+    if (currentSelectedVariant) {
+      if (formVariantIdRef.current !== currentSelectedVariant.id) {
+        console.log(`[useEffect resetEditForm] Variant ID changed from ${formVariantIdRef.current} to ${currentSelectedVariant.id}. Resetting form.`);
+        const resetData = {
+          slug: currentSelectedVariant.slug ?? '',
+          price: currentSelectedVariant.price ? Number(currentSelectedVariant.price) : null,
+          stock: currentSelectedVariant.stock ?? 0,
+          status: (currentSelectedVariant.status?.toLowerCase() === 'active' ? 'active' : 'inactive') as 'active' | 'inactive',
+          stockStatus: getDisplayStockStatusManager(currentSelectedVariant.stock_status, currentSelectedVariant.stock),
+          depositPrice: currentSelectedVariant.discount_price ? Number(currentSelectedVariant.discount_price) : null,
+          purchasePrice: currentSelectedVariant.purchase_price ? Number(currentSelectedVariant.purchase_price) : null,
+          lowStockThreshold: currentSelectedVariant.low_stock_threshold ?? null,
+          weight: currentSelectedVariant.weight ? Number(currentSelectedVariant.weight) : null,
+          length: currentSelectedVariant.length ? Number(currentSelectedVariant.length) : null,
+          width: currentSelectedVariant.width ? Number(currentSelectedVariant.width) : null,
+          height: currentSelectedVariant.height ? Number(currentSelectedVariant.height) : null,
+          barcode: currentSelectedVariant.barcode ?? '',
+          description: currentSelectedVariant.description ?? '',
+        };
+        console.log('[useEffect resetEditForm] Resetting form with data:', JSON.stringify(resetData, null, 2));
+        resetEditForm(resetData);
+        originalSelectedVariantRef.current = JSON.parse(JSON.stringify(currentSelectedVariant));
+        formVariantIdRef.current = currentSelectedVariant.id;
+      } else {
+        console.log(`[useEffect resetEditForm] Variant ID ${currentSelectedVariant.id} is the same. Preserving form input, only updating originalSelectedVariantRef.`);
+        originalSelectedVariantRef.current = JSON.parse(JSON.stringify(currentSelectedVariant));
+      }
     } else {
       console.log('[useEffect resetEditForm] No valid variant selected, resetting to defaults.');
-      // Reset EDIT form to simple null/defaults 
       resetEditForm({ 
-        slug: "", 
-        price: null, 
-        stock: null, 
-        status: "active",
-        depositPrice: null, 
-        purchasePrice: null,
-        stockStatus: "In Stock", 
-        lowStockThreshold: null, 
-        weight: null, 
-        length: null, 
-        width: null, 
-        height: null, 
-        barcode: null, 
-        description: null
+        slug: "", price: null, stock: null, status: "active",
+        depositPrice: null, purchasePrice: null, stockStatus: "In Stock", 
+        lowStockThreshold: null, weight: null, length: null, width: null, height: null, 
+        barcode: null, description: null
       });
+      originalSelectedVariantRef.current = null;
+      formVariantIdRef.current = null;
     }
-  }, [variants, selectedVariantIndex, resetEditForm, variants[selectedVariantIndex]]);
+  }, [variants, selectedVariantIndex, resetEditForm]); // Add viewMode dependency
+  // --- END: Add basic useEffect for edit form reset ---
+
+  // --- START: Add basic dirty check (will be expanded later) ---
+  const calculateIsActuallyDirty = () => {
+      if (viewMode !== 'initial' || !originalSelectedVariantRef.current || !selectedVariant) {
+        return editFormState.isDirty; // Fallback for other views or if refs not set
+      }
+      const formValues = getValues(); // Correctly using getValues from the edit form's useForm
+      // Basic comparison: compare stringified versions
+      // More robust: compare field by field, handling type differences
+      const originalForCompare = mapVariantForDetailsForm(originalSelectedVariantRef.current); // Map to form structure if needed
+      // This is a simplified comparison. For production, a deep comparison of relevant fields is better.
+      // console.log("Comparing:", JSON.stringify(formValues), JSON.stringify(originalSelectedVariantRef.current));
+      return JSON.stringify(formValues) !== JSON.stringify(originalSelectedVariantRef.current); // Placeholder, needs better comparison
+  };
+  // --- END: Add basic dirty check ---
+
+  const variantsToShow = searchTerm ? filteredVariants : variants;
+  const isActuallyDirty = calculateIsActuallyDirty();
+
+  // Helper function to merge unsaved form data with existing variant data
+  const mergeFormValuesWithVariantData = (
+    variant: Variant,
+    formValues: any
+  ): Variant => {
+    return {
+      ...variant,
+      slug: formValues.slug || variant.slug,
+      price: formValues.price !== null ? String(formValues.price) : variant.price,
+      stock: formValues.stock !== null ? Number(formValues.stock) : variant.stock,
+      status: formValues.status === 'active' ? 'Active' : 'Inactive',
+      stock_status: formValues.stockStatus === 'In Stock' ? 'in_stock' : 
+                    formValues.stockStatus === 'Out of Stock' ? 'out_of_stock' : 'back_order',
+      discount_price: formValues.depositPrice !== null && formValues.depositPrice !== undefined ? 
+                      String(formValues.depositPrice) : variant.discount_price,
+      purchase_price: formValues.purchasePrice !== null && formValues.purchasePrice !== undefined ? 
+                      String(formValues.purchasePrice) : variant.purchase_price,
+      low_stock_threshold: formValues.lowStockThreshold !== null ? 
+                           formValues.lowStockThreshold : variant.low_stock_threshold,
+      weight: formValues.weight !== null && formValues.weight !== undefined ? 
+              String(formValues.weight) : variant.weight,
+      length: formValues.length !== null && formValues.length !== undefined ? 
+              String(formValues.length) : variant.length,
+      width: formValues.width !== null && formValues.width !== undefined ? 
+              String(formValues.width) : variant.width,
+      height: formValues.height !== null && formValues.height !== undefined ? 
+              String(formValues.height) : variant.height,
+      barcode: formValues.barcode || variant.barcode,
+      description: formValues.description || variant.description,
+      // Keep existing attributes and variantAttributes
+      attributes: variant.attributes,
+      variantAttributes: variant.variantAttributes,
+      // Images will be updated separately
+    };
+  };
 
   // --- Add Function to handle Remove All Variants --- 
   const handleConfirmRemoveAll = async () => { // Make function async
@@ -2809,11 +2987,6 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
 
     // Process deletions sequentially to avoid overwhelming the backend
     for (const variant of variantsToDelete) {
-      // The check for string-based temporary IDs (e.g., variant.id.startsWith('#TEMP'))
-      // has been removed because variant.id is now always a number.
-      // If a mechanism to skip API deletion for certain (e.g., unsaved) variants is needed,
-      // it should be based on a different property or convention (e.g., negative ID, a flag).
-      
       try {
         console.log(`[RemoveAll] Attempting to delete variant ID: ${variant.id}`);
         await deleteProductVariant(Number(variant.id));
@@ -2822,8 +2995,6 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
       } catch (error) {
         console.error(`[RemoveAll] Failed to delete variant ID: ${variant.id}`, error);
         errorCount++;
-        // Optionally show individual error snackbars or collect errors
-        // showSnackbar(`Failed to delete variant ${variant.id}`, "error");
       }
     }
 
@@ -2833,13 +3004,12 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
     setVariants([]);
     setSelectedVariantIndex(0); // Reset selection
     resetEditForm(); // Reset the edit form
-    // Consider resetting create form as well if needed: resetCreateForm();
     setPendingCombination(null); // Clear pending combination
     setHasGeneratedVariants(false); // Reset the flag when all variants are removed
     
     // Refetch combinations/attributes if needed to update counts
     if (formData?.productId) {
-       fetchProductAttributes(formData.productId); 
+      fetchProductAttributes(formData.productId); 
     }
 
     // Show summary snackbar
@@ -2851,7 +3021,7 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
 
     setIsSubmitting(false); // Stop loading indicator
   };
-  
+
   // Add mapping functions for different variant types
   const mapToManualVariantData = (variant: Variant): any => {
     // Transform Variant to ManualVariantData
@@ -2872,79 +3042,18 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
       low_stock_threshold: variant.low_stock_threshold,
       stock_status: variant.stock_status,
       status: variant.status,
-      // Map variantImages - add required variant_id field
-      variantImages: variant.variantImages?.map(img => ({
-        id: img.id,
-        variant_id: variant.id, // Add required variant_id
-        image_url: img.image_url,
-        is_primary: img.is_primary
-      })),
-      // Map the variantAttributes structure - generate a unique ID for each
-      variantAttributes: variant.variantAttributes?.map((attr, index) => ({
-        id: variant.id * 1000 + index, // Generate a deterministic ID based on variant ID and index
-        variant_id: variant.id,
-        attribute_id: attr.attribute_id,
-        term_id: attr.term_id,
-        is_visible: true, // Default value
-        used_in_variation: true, // Default value
-        term: {
-          id: attr.term?.id || attr.term_id,
-          name: attr.term?.name || "",
-          slug: attr.term?.name?.toLowerCase().replace(/\s+/g, '-') || ""
-        },
-        attribute: {
-          id: attr.attribute?.id || attr.attribute_id,
-          name: attr.attribute?.name || "",
-          type: "select" // Default value
-        }
-      }))
+      variantImages: variant.variantImages,
+      variantAttributes: variant.variantAttributes
     };
   };
 
   const mapToGeneratedVariant = (variant: Variant): any => {
-    // For GenerateVariantsView, transform Variant to GeneratedVariant
-    return {
-      id: variant.id,
-      product_id: variant.product_id,
-      slug: variant.slug,
-      price: String(variant.price),
-      discount_price: variant.discount_price,
-      purchase_price: variant.purchase_price,
-      weight: variant.weight,
-      length: variant.length,
-      width: variant.width,
-      height: variant.height,
-      description: variant.description,
-      barcode: variant.barcode,
-      stock: variant.stock,
-      low_stock_threshold: variant.low_stock_threshold,
-      stock_status: variant.stock_status,
-      status: variant.status,
-      variantImages: variant.variantImages,
-      // Update variantAttributes for compatibility
-      variantAttributes: variant.variantAttributes.map((attr, index) => ({
-        id: variant.id * 1000 + index, // Generate a deterministic ID
-        variant_id: variant.id,
-        attribute_id: attr.attribute_id,
-        term_id: attr.term_id,
-        is_visible: true,
-        used_in_variation: true,
-        term: {
-          id: attr.term?.id || attr.term_id,
-          name: attr.term?.name || "",
-          slug: attr.term?.name?.toLowerCase().replace(/\s+/g, '-') || ""
-        },
-        attribute: {
-          id: attr.attribute?.id || attr.attribute_id,
-          name: attr.attribute?.name || "",
-          type: "select"
-        }
-      }))
-    };
+    // For GenerateVariantsView, similar structure as ManualVariantData
+    return mapToManualVariantData(variant); // Reuse mapping if structures are the same
   };
 
   const mapToEditableVariantData = (variant: Variant): any => {
-    // For BulkUpdateView, transform Variant to EditableVariantData
+    // For BulkUpdateView, similar structure but might need specific fields
     return {
       id: variant.id,
       product_id: variant.product_id,
@@ -2962,22 +3071,8 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
       low_stock_threshold: variant.low_stock_threshold,
       stock_status: variant.stock_status,
       status: variant.status,
-      // No need to transform variantImages
       variantImages: variant.variantImages,
-      // Update attribute mapping to ensure all required fields
-      variantAttributes: variant.variantAttributes.map((attr, index) => ({
-        id: variant.id * 1000 + index, // Generate a deterministic ID
-        attribute_id: attr.attribute_id,
-        term_id: attr.term_id,
-        attribute: {
-          id: attr.attribute?.id || attr.attribute_id,
-          name: attr.attribute?.name || "",
-        },
-        term: {
-          id: attr.term?.id || attr.term_id,
-          name: attr.term?.name || "",
-        }
-      }))
+      variantAttributes: variant.variantAttributes
     };
   };
 
@@ -3024,8 +3119,8 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
           </button>
         </div>
 
-        {/* Search Bar and Remove All Button */}
-        {(variants.length > 0 && (viewMode !== 'initial')) && (
+        {/* Search Bar and Remove All Button - Condition updated to show if variants exist, regardless of viewMode */}
+        {(variants.length > 0) && (
           <div className="flex items-center gap-2">
             <div className="flex items-center w-[250px] relative border rounded-full">
               <input 
@@ -3279,6 +3374,75 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* --- START: Initial View (Card/Form) --- */}
+      {!isLoading && viewMode === 'initial' && (
+        <>
+          {variantsToShow.length === 0 ? (
+            <Paper elevation={1} sx={{ p: 3, textAlign: 'center' }}>
+              <Typography variant="body1" color="text.secondary">
+                No variants found for this product.
+                {/* TODO: Add button to switch view if needed */}
+              </Typography>
+            </Paper>
+          ) : (
+            <Grid container spacing={3}>
+              <Grid item xs={12} md={5}> {/* Left Column: Cards */}
+                <Box sx={{ maxHeight: 'calc(100vh - 200px)', overflowY: 'auto', pr: 1, display: 'flex', flexDirection: 'column', gap: 2 }}> 
+                  {variantsToShow.map((variant, index) => (
+                    <VariantDisplayCard
+                      key={variant.id || `variant-card-${index}`} // Ensure unique key
+                      variant={mapVariantForDisplayCard(variant)} // Use basic mapping
+                      isSelected={selectedVariant?.id === variant.id}
+                      onClick={() => {
+                          const foundIndex = variants.findIndex(v => v.id === variant.id);
+                          if(foundIndex !== -1) {
+                             setSelectedVariantIndex(foundIndex);
+                          } else {
+                              console.warn(`Variant with ID ${variant.id} not found in original variants list.`);
+                          }
+                      }}
+                      onDelete={() => {
+                        setVariantToDeleteId(String(variant.id)); // Ensure string for dialog
+                        setIsDeleteDialogOpen(true);
+                      }}
+                      isActionDisabled={isSubmitting || isUpdating} // Basic disable logic
+                    />
+                  ))}
+                </Box>
+              </Grid>
+              <Grid item xs={12} md={7}> {/* Right Column: Form */}
+                {selectedVariant ? (
+                    <> {/* Ensure key if selectedVariant can be null briefly */}
+                      {/* Use VariantDetailsForm - Ensure props match */}
+                      <VariantDetailsForm
+                        control={editControl as any} // Cast control for now
+                        handleSubmit={handleEditSubmit} // Main RHF submit handler
+                        onSubmit={handleUpdateVariant} // Your actual update function
+                        selectedVariant={mapVariantForDetailsForm(selectedVariant)} // Basic mapping
+                        isSaving={isSubmitting || isUpdating} // Combine submitting states
+                        isSaveDisabled={isSubmitting || isUpdating || !isActuallyDirty || !editFormState.isValid} 
+                        imageGetRootProps={editGetRootProps} 
+                        imageGetInputProps={editGetInputProps}
+                        isImageDragActive={editIsDragActive}
+                        isImageUploading={imageUploading || isEditImageUploading || isEditUploading} 
+                        onSetPrimaryImage={handleSetPrimaryImage}
+                        onDeleteImage={handleDeleteImage}
+                      />
+                    </>
+                 ) : (
+                   <Paper elevation={1} sx={{ p: 3, display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', minHeight: '300px' }}>
+                     <Typography variant="h6" color="text.secondary">
+                       Select a variant to view or edit its details.
+                     </Typography>
+                   </Paper>
+                 )}
+              </Grid>
+            </Grid>
+          )}
+        </>
+      )}
+      {/* --- END: Initial View --- */}
     </div>
   );
 };

@@ -298,8 +298,6 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
   const [hasGeneratedThisLoad, setHasGeneratedThisLoad] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [variantToDeleteId, setVariantToDeleteId] = useState<number | null>(null);
-  // Add state to track if dialog was manually closed
-  const [dialogManuallyClosed, setDialogManuallyClosed] = useState(false);
 
   const originalSelectedVariantRef = useRef<GeneratedVariant | null>(null);
   const prevSelectedVariantIdRef = useRef<number | null>(null);
@@ -738,7 +736,6 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
     setHasGeneratedThisLoad(false); // Reset generation flag
     setIsConfirmationDialogOpen(false); // Ensure dialog is closed initially
     setFetchErrorOccurred(false);
-    setDialogManuallyClosed(false); // Reset the manually closed flag when productId changes
 
     // Use the derived productId variable
     if (productId) {
@@ -762,68 +759,65 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
 
   // --- ADDED: useEffect to control dialog visibility --- 
   useEffect(() => {    
-    // Only open dialog if combinations are available, not generated this load, no variants exist yet, and dialog wasn't manually closed
-    if (!allCombinationsUsed && !hasGeneratedThisLoad && productAttributes.length > 0 && generatedVariants.length === 0 && !dialogManuallyClosed) {
+    // Open dialog if EITHER fetch failed OR (combinations available AND not generated this load)
+    if (!allCombinationsUsed && !hasGeneratedThisLoad && productAttributes.length > 0 ) {
        setIsConfirmationDialogOpen(true);
     } else {
         console.log(`[DialogEffect] Conditions NOT met. Dialog remains closed.`);
         // Ensure dialog is closed if conditions aren't met (e.g., after generation)
         setIsConfirmationDialogOpen(false); 
     }
-  }, [allCombinationsUsed, hasGeneratedThisLoad, generatedVariants.length, productAttributes, dialogManuallyClosed]); // Add dialogManuallyClosed to dependencies
+  }, [ allCombinationsUsed, hasGeneratedThisLoad, generatedVariants.length,productAttributes]); // Add fetchErrorOccurred and generatedVariants.length
 
   // Update useEffect to handle form reset with selected variant
   useEffect(() => {
-    console.log(`[useEffect resetEditForm] Running for variant ID: ${selectedVariant?.id}, Prev ID: ${prevSelectedVariantIdRef.current}`);
-    // Explicitly check if variants exist and index is valid before resetting
+    console.log(`[useEffect resetEditForm GVW] Running for variant ID: ${selectedVariant?.id}, Prev ID: ${prevSelectedVariantIdRef.current}`);
     if (selectedVariant) {
-      // Log the variant data being used
-      console.log('[useEffect resetEditForm] currentSelectedVariant:', JSON.stringify(selectedVariant, null, 2));
-
-      const resetValues = {
-        slug: getFieldValue(selectedVariant.slug),
-        price: getNumericValue(selectedVariant.price), // Required, should not be null from valid state
-        stock: getNumericValue(selectedVariant.stock), // Required, should not be null from valid state
-        status: (selectedVariant.status?.toLowerCase() === 'active' ? 'active' : 'inactive') as 'active' | 'inactive',
-        // --- MODIFIED: Pass null for optional fields if value is null --- 
-        depositPrice: getNumericValue(selectedVariant.discount_price), // Use helper which returns null
-        purchasePrice: getNumericValue(selectedVariant.purchase_price), // Use helper which returns null
-        lowStockThreshold: getNumericValue(selectedVariant.low_stock_threshold), // Use helper which returns null
-        stockStatus: getValidStockStatus(selectedVariant.stock_status),
-        weight: getNumericValue(selectedVariant.weight), // Use helper which returns null
-        length: getNumericValue(selectedVariant.length), // Use helper which returns null
-        width: getNumericValue(selectedVariant.width), // Use helper which returns null
-        height: getNumericValue(selectedVariant.height), // Use helper which returns null
-        barcode: getFieldValue(selectedVariant.barcode),
-        description: getFieldValue(selectedVariant.description)
-      };
-      console.log('[useEffect resetEditForm] Values passed to resetForm:', JSON.stringify(resetValues, null, 2));
-      resetForm(resetValues); 
-
       if (prevSelectedVariantIdRef.current !== selectedVariant.id) {
-        console.log('[useEffect resetEditForm] Variant ID changed. Storing original state.');
-        originalSelectedVariantRef.current = JSON.parse(JSON.stringify(selectedVariant)); // Deep copy for comparison
+        console.log(`[useEffect resetEditForm GVW] Variant ID changed from ${prevSelectedVariantIdRef.current} to ${selectedVariant.id}. Resetting form.`);
+        const resetValues = {
+          slug: getFieldValue(selectedVariant.slug),
+          price: getNumericValue(selectedVariant.price),
+          stock: getNumericValue(selectedVariant.stock),
+          status: (selectedVariant.status?.toLowerCase() === 'active' ? 'active' : 'inactive') as 'active' | 'inactive',
+          depositPrice: getNumericValue(selectedVariant.discount_price),
+          purchasePrice: getNumericValue(selectedVariant.purchase_price),
+          lowStockThreshold: getNumericValue(selectedVariant.low_stock_threshold),
+          stockStatus: getValidStockStatus(selectedVariant.stock_status),
+          weight: getNumericValue(selectedVariant.weight),
+          length: getNumericValue(selectedVariant.length),
+          width: getNumericValue(selectedVariant.width),
+          height: getNumericValue(selectedVariant.height),
+          barcode: getFieldValue(selectedVariant.barcode),
+          description: getFieldValue(selectedVariant.description)
+        };
+        console.log('[useEffect resetEditForm GVW] Resetting form with data:', JSON.stringify(resetValues, null, 2));
+        resetForm(resetValues);
+        originalSelectedVariantRef.current = JSON.parse(JSON.stringify(selectedVariant));
+      } else {
+        console.log(`[useEffect resetEditForm GVW] Variant ID ${selectedVariant.id} is the same. Preserving form input, only updating originalSelectedVariantRef.`);
+        // IMPORTANT: Update originalSelectedVariantRef to the latest selectedVariant state
+        // This ensures that if an image was uploaded, the "original" for dirty checking now includes that new image.
+        originalSelectedVariantRef.current = JSON.parse(JSON.stringify(selectedVariant));
       }
       prevSelectedVariantIdRef.current = selectedVariant.id;
-
     } else {
-      console.log('[useEffect resetEditForm] No variant selected, resetting to defaults.');
-      // Reset all fields to empty strings or null for potentially required fields
+      console.log('[useEffect resetEditForm GVW] No variant selected, resetting to defaults.');
       resetForm({
         slug: '',
-        price: null, // Use null for potentially required number fields initially
-        stock: null, // Use null for potentially required number fields initially
+        price: null,
+        stock: null,
         status: 'active',
-        depositPrice: null, // Use null for optional numbers
-        purchasePrice: null, // Use null for optional numbers
-        lowStockThreshold: null, // Use null for optional numbers
+        depositPrice: null,
+        purchasePrice: null,
+        lowStockThreshold: null,
         stockStatus: 'In Stock',
-        weight: null, // Use null for optional numbers
-        length: null, // Use null for optional numbers
-        width: null, // Use null for optional numbers
-        height: null, // Use null for optional numbers
-        barcode: '', // Use empty string for optional strings
-        description: '' // Use empty string for optional strings
+        weight: null,
+        length: null,
+        width: null,
+        height: null,
+        barcode: '',
+        description: ''
       });
       originalSelectedVariantRef.current = null;
       prevSelectedVariantIdRef.current = null;
@@ -919,8 +913,7 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
       if (dirtyFields.width) apiPayload.width = transformOptionalNumber(data.width);
       if (dirtyFields.height) apiPayload.height = transformOptionalNumber(data.height);
       if (dirtyFields.barcode) apiPayload.barcode = data.barcode || null;
-      if (dirtyFields.description) apiPayload.description = data.description || null;
-      // --- ADDED: Include status and stock_status if dirty ---
+      // --- ADDED: Include status and stock_status if dirty --- 
       if (dirtyFields.status) {
         apiPayload.status = data.status; // Assuming API expects 'active' | 'inactive'
       }
@@ -1039,7 +1032,6 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
       if (response.success) {
         showSnackbar('Variants generated successfully', 'success');
         setHasGeneratedThisLoad(true); // <-- Set flag BEFORE fetching
-        setDialogManuallyClosed(false); // Reset the manually closed flag after successful generation
         await fetchVariants(productId, true); // Fetch the updated list directly in this component
         if (onSuccess) { // Still call parent callback if provided
            onSuccess(); 
@@ -1076,7 +1068,6 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
   const handleCancelGenerate = () => {
     console.log("[Dialog] Cancelled Generation");
     setIsConfirmationDialogOpen(false); // Close dialog
-    setDialogManuallyClosed(true); // Mark that the dialog was manually closed
     // Optionally refetch variants if needed, but fetchVariants on load might suffice
     // const productId = searchParams.get('productId');
     // if (productId) fetchVariants(productId); 
