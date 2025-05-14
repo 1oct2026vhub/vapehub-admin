@@ -184,9 +184,9 @@ axiosApi.interceptors.request.use(
 // Response Interceptor - Handle Expired Tokens & Errors
 axiosApi.interceptors.response.use(
   (response) => {
-    console.log(`Response: ${response.status} ${response.config.method?.toUpperCase()} ${response.config.url}`, {
-      data: response.data,
-    });
+    // console.log(`Response: ${response.status} ${response.config.method?.toUpperCase()} ${response.config.url}`, {
+    //   data: response.data,
+    // });
     return response;
   },
   (error) => {

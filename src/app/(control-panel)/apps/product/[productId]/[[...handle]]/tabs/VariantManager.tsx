@@ -911,29 +911,32 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
   };
 
   // Handle file upload for variant images
-  const handleImageUpload = (files: File[]) => {
+  const handleImageUpload = async (files: File[]) => {
     // This function now ONLY handles uploads for EXISTING variants via editDropzone
     console.log("Handling image upload for EXISTING variant:", selectedVariant?.id);
     if (files.length === 0 || !selectedVariant) {
       console.warn("handleImageUpload called without files or selectedVariant");
       return; 
     } 
-    // Basic validation for uploaded files
-    const validFiles = files.filter(file => {
-        if (file.size > 5 * 1024 * 1024) { 
-            showSnackbar(`File ${file.name} exceeds 5MB limit.`, "error");
-            return false; 
-        }
-        if (!['image/png', 'image/jpg', 'image/jpeg', 'image/webp'].includes(file.type)) {
-            showSnackbar(`File ${file.name} has an invalid type. Only PNG, JPG, JPEG, WEBP allowed.`, "error");
-            return false; 
-        }
-        return true;
-      });
-
+    
+    // Import helper validation functions from VariantDetailsForm component
+    const { validateImageDimensions, validateFile } = await import('../components/VariantDetailsForm');
+    
+    // Create array to hold files with validation results
+    const filesWithValidation: { file: File; validationError?: string }[] = [];
+    
+    // Validate each file before proceeding
+    for (const file of files) {
+      const validationError = await validateFile(file);
+      filesWithValidation.push({ file, validationError });
+    }
+    
+    // Filter out valid files for upload
+    const validFiles = filesWithValidation.filter(f => !f.validationError).map(f => f.file);
+    
     if (validFiles.length === 0) {
-        showSnackbar("No valid files to upload.", "warning");
-        return;
+      showSnackbar("Image upload failed, please check the image dimensions and file type.", "warning");
+      return;
     }
  
     setImageUploading(true);
@@ -945,13 +948,14 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
     const currentFormValues = getValues();
 
     // Create preview URLs temporarily while uploading
-    const previewImages = validFiles.map((file, idx) => {
+    const previewImages = filesWithValidation.map((fileInfo, idx) => {
       const tempId = -1 * (Date.now() + idx); // Temporary ID as negative number
       tempIds.push(tempId);
       return {
         id: tempId,
-        image_url: URL.createObjectURL(file),
-        is_primary: false
+        image_url: URL.createObjectURL(fileInfo.file),
+        is_primary: false,
+        validationError: fileInfo.validationError // Include validation error if any
       };
     });
     
@@ -999,7 +1003,13 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
       return;
     }
     
-    // Create FormData for API upload
+    // Don't proceed with uploading files that have validation errors
+    if (validFiles.length === 0) {
+      setImageUploading(false);
+      return; // Keep the UI showing validation errors but don't attempt API call
+    }
+    
+    // Create FormData for API upload (only valid files)
     const formData = new FormData();
     validFiles.forEach((file) => {
       formData.append("files", file);
@@ -1038,8 +1048,10 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
           console.warn("Could not extract images from response:", response);
           showSnackbar("Images uploaded but response format was unexpected", "warning");
           
-          // Clean up the temporary preview images on error
-          removeTemporaryImages(tempIds);
+          // Only remove temporary images that don't have validation errors
+          const validTempIds = tempIds.filter((_, idx) => !filesWithValidation[idx].validationError);
+          removeTemporaryImages(validTempIds);
+          
           // Also reset uploading state
           setImageUploading(false); 
           return;
@@ -1173,44 +1185,39 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
       }
       const productId = searchParams ? searchParams.get('productId') : null;
       if (!productId) {
-        // showSnackbar("Product ID not found", "error");
         return;
       }
 
-      const validFiles = acceptedFiles.filter(file => file.size <= 5 * 1024 * 1024); // Max 5MB
-      if (validFiles.length !== acceptedFiles.length) {
-        showSnackbar("Some files exceed the 5MB size limit.", "warning");
-      }
-      if (validFiles.length === 0) return;
+      if (acceptedFiles.length === 0) return;
 
       setImageUploading(true); // Start upload indicator specifically for edit
       try {
-        console.log(`Uploading ${validFiles.length} images for existing variant ${selectedVariant.id}...`);
+        console.log(`Uploading ${acceptedFiles.length} images for existing variant ${selectedVariant.id}...`);
         // Use handleImageUpload as it contains the API call and state update logic
-        await handleImageUpload(validFiles); 
+        await handleImageUpload(acceptedFiles); 
 
       } catch (error) {
         console.error("Error uploading images for variant:", error);
         // Check for error structure properly
-      if (error?.errors && error?.errors.length > 0) {
-        showSnackbar(error.errors[0]?.msg, "error");
-      } else if (
-        error?.error &&
-        Array.isArray(error?.error) &&
-        error.error.length > 0
-      ) {
-        showSnackbar(error.error[0]?.message, "error");
-      } else if (error?.message) {
-        showSnackbar(error.message, "error");
-      } else {
-        const errorMessage = "An unexpected error occurred";
-        showSnackbar(errorMessage, "error");
-      }
+        if (error?.errors && error?.errors.length > 0) {
+          showSnackbar(error.errors[0]?.msg, "error");
+        } else if (
+          error?.error &&
+          Array.isArray(error?.error) &&
+          error.error.length > 0
+        ) {
+          showSnackbar(error.error[0]?.message, "error");
+        } else if (error?.message) {
+          showSnackbar(error.message, "error");
+        } else {
+          const errorMessage = "An unexpected error occurred";
+          showSnackbar(errorMessage, "error");
+        }
       } finally {
         setImageUploading(false); // Ensure this resets even if handleImageUpload fails internally
       }
     },
-    accept: { 'image/*': ['.jpeg', '.jpg', '.png', '.gif', '.webp'] },
+    accept: { 'image/*': ['.jpeg', '.jpg', '.png', '.webp'] },
     multiple: true,
     disabled: isSubmitting || imageUploading || !selectedVariant, // ID is number, startsWith removed
   });
@@ -1636,9 +1643,29 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
       return uploadedVariantImages; // Return empty array if no files or IDs
     }
 
+    // Import helper validation functions
+    const { validateFile } = await import('../components/VariantDetailsForm');
+    
+    // Create array to hold files with validation results
+    const filesWithValidation: { file: File; validationError?: string }[] = [];
+    
+    // Validate each file before proceeding
+    for (const file of files) {
+      const validationError = await validateFile(file);
+      filesWithValidation.push({ file, validationError });
+    }
+    
+    // Filter out valid files for upload
+    const validFiles = filesWithValidation.filter(f => !f.validationError).map(f => f.file);
+    
+    if (validFiles.length === 0) {
+      console.log("No valid files to upload after validation");
+      return uploadedVariantImages; // Return empty array if no valid files
+    }
+
     setImageUploading(true); // Set uploading state
     const imageFormData = new FormData();
-    files.forEach(file => imageFormData.append('files', file));
+    validFiles.forEach(file => imageFormData.append('files', file));
 
     try {
       const uploadResponse = await uploadVariantImages(productId, variantId, imageFormData);
