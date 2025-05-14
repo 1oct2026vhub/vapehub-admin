@@ -1440,7 +1440,7 @@ const BulkUpdateView: React.FC<BulkUpdateViewProps> = ({
       </Paper>
       {variantsToShow.length > 0 && (
         <div className="mt-8">
-          <h3 className="text-lg font-semibold mb-4">Manage Individual Variants</h3>
+          {/* <h3 className="text-lg font-semibold mb-4">Manage Individual Variants</h3> */}
           <div className="flex flex-col md:flex-row gap-6">
             <div className="w-full md:w-1/2 max-h-[600px] overflow-y-auto pr-2">
               {variantsToShow.map((variant, index) => {

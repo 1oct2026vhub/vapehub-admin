@@ -3319,9 +3319,7 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
               // --- End add ---
             />
           )} */}
-          
-          {/* --- REMOVED INLINE JSX FOR VIEWS --- */}
-        </>
+          </>
       )}
       {/* --- Confirmation Dialog --- */}
       <Dialog
@@ -3386,9 +3384,8 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
               </Typography>
             </Paper>
           ) : (
-            <Grid container spacing={3}>
-              <Grid item xs={12} md={5}> {/* Left Column: Cards */}
-                <Box sx={{ maxHeight: 'calc(100vh - 200px)', overflowY: 'auto', pr: 1, display: 'flex', flexDirection: 'column', gap: 2 }}> 
+              <div className="flex flex-col md:flex-row gap-6">
+              <div className="w-full md:w-1/2 max-h-[600px] overflow-y-auto pr-2">
                   {variantsToShow.map((variant, index) => (
                     <VariantDisplayCard
                       key={variant.id || `variant-card-${index}`} // Ensure unique key
@@ -3408,13 +3405,12 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
                       }}
                       isActionDisabled={isSubmitting || isUpdating} // Basic disable logic
                     />
+                  
                   ))}
-                </Box>
-              </Grid>
-              <Grid item xs={12} md={7}> {/* Right Column: Form */}
+            </div>
                 {selectedVariant ? (
-                    <> {/* Ensure key if selectedVariant can be null briefly */}
-                      {/* Use VariantDetailsForm - Ensure props match */}
+                    <> 
+                    <div className="w-full md:w-1/2">
                       <VariantDetailsForm
                         control={editControl as any} // Cast control for now
                         handleSubmit={handleEditSubmit} // Main RHF submit handler
@@ -3429,6 +3425,7 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
                         onSetPrimaryImage={handleSetPrimaryImage}
                         onDeleteImage={handleDeleteImage}
                       />
+                      </div>
                     </>
                  ) : (
                    <Paper elevation={1} sx={{ p: 3, display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', minHeight: '300px' }}>
@@ -3437,12 +3434,11 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
                      </Typography>
                    </Paper>
                  )}
-              </Grid>
-            </Grid>
+            
+            </div>
           )}
         </>
       )}
-      {/* --- END: Initial View --- */}
     </div>
   );
 };

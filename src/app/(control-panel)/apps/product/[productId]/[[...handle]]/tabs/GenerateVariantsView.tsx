@@ -1191,7 +1191,7 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
             <h3 className="text-lg font-semibold mb-4">Created Variants</h3>
             <div className="flex gap-6">
               {/* Left side - Variant cards */}
-              <div className="w-1/2">
+            <div className="w-full md:w-1/2 max-h-[600px] overflow-y-auto pr-2">
                 {variantsToShow.map((variant) => (
                   <VariantDisplayCard
                     key={variant.id}
