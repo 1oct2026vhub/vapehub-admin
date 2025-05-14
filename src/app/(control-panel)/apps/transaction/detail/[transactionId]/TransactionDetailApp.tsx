@@ -460,14 +460,27 @@ const TransactionDetailApp = () => {
                                 >
                                   {item.product.name}
                                 </Typography>
-                                {item.variant?.slug && (
+                                {item.variant && (item.variant as any).variantAttributes && ((item.variant as any).variantAttributes as any[]).length > 0 ? (
+                                  <Box sx={{ mt: 0.5 }}>
+                                    {((item.variant as any).variantAttributes as any[]).map((attr: any, index: number) => (
+                                      <Typography
+                                        key={index}
+                                        variant="caption"
+                                        color="text.secondary"
+                                        sx={{ display: 'block', textTransform: 'capitalize' }}
+                                      >
+                                        {attr.attribute.name}: {attr.term.name}
+                                      </Typography>
+                                    ))}
+                                  </Box>
+                                ) : item.variant?.slug ? ( // Fallback to slug if no attributes
                                   <Typography
                                     variant="body2"
                                     color="text.secondary"
                                   >
                                     Variant: {item.variant.slug}
                                   </Typography>
-                                )}
+                                ) : null}
                               </div>
                             </TableCell>
                             <TableCell align="center" className="font-medium">

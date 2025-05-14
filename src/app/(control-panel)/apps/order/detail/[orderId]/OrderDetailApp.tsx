@@ -338,14 +338,28 @@ const OrderDetailApp = () => {
                             >
                               {item.product.name}
                             </Typography>
-                            {/* {item.variant?.slug && (
+                            {/* Display Variant Attributes if they exist */}
+                            {(item.variant as any)?.variantAttributes && ((item.variant as any).variantAttributes as any[]).length > 0 ? (
+                              <Box sx={{ mt: 0.5 }}>
+                                {((item.variant as any).variantAttributes as any[]).map((attr: any, index: number) => (
+                                  <Typography
+                                    key={index}
+                                    variant="caption"
+                                    color="text.secondary"
+                                    sx={{ display: 'block', textTransform: 'capitalize' }}
+                                  >
+                                    {attr.attribute.name}: {attr.term.name}
+                                  </Typography>
+                                ))}
+                              </Box>
+                            ) : (item.variant as any)?.slug ? ( // Fallback to slug if no attributes
                               <Typography
                                 variant="body2"
                                 color="text.secondary"
                               >
-                                Variant: {item.variant.slug}
+                                Variant: {(item.variant as any).slug}
                               </Typography>
-                            )} */}
+                            ) : null}
                           </div>
                         </div>
                       </TableCell>

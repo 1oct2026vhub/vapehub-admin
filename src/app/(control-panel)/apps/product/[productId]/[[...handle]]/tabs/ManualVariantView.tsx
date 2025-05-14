@@ -1151,7 +1151,7 @@ const ManualVariantView: React.FC<ManualVariantViewProps> = ({
         <>
           <div className="flex flex-col md:flex-row gap-6">
             {/* Left side - Variant cards */}
-            <div className="w-full md:w-1/2">
+            <div className="w-full md:w-1/2 max-h-[600px] overflow-y-auto pr-2">
               {variantsToShow.map((variant) => (
                 <VariantDisplayCard
                   key={variant.id}
