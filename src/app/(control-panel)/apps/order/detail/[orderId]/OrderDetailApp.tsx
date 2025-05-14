@@ -484,7 +484,7 @@ const OrderDetailApp = () => {
 
             <div className="space-y-3">
               <div className="flex justify-between">
-                <Typography variant="body2">Subtotal</Typography>
+                <Typography variant="body2">Sub Total</Typography>
                 <Typography variant="body2">
                   {formatPounds(order?.sub_total || 0)}
                 </Typography>
