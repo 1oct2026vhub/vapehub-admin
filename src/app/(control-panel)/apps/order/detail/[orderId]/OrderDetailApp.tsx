@@ -401,7 +401,6 @@ const OrderDetailApp = () => {
                   <TableRow
                     sx={{
                       backgroundColor: "#f0f7f4",
-                      fontWeight: "bold",
                       "& td": {
                         borderTop: "2px solid #c9e7dc",
                         fontWeight: 600,
@@ -409,16 +408,17 @@ const OrderDetailApp = () => {
                       },
                     }}
                   >
-                    <TableCell colSpan={3} className="text-right font-semibold">
-                      Sub Total:
-                    </TableCell>
+                    <TableCell colSpan={3} /> {/* Empty spacer for Item, Status, Quantity */}
                     <TableCell align="right" className="font-semibold">
+                      Total:
+                    </TableCell>
+                    {/* <TableCell align="right" className="font-semibold">
                       {formatPounds(
                         order?.total || 0
                       )}
-                    </TableCell>
+                    </TableCell> */}
                     <TableCell align="right" className="font-semibold">
-                      {formatPounds(order?.total || 0)}
+                      {formatPounds((order as any)?.sub_total || 0)} {/* Changed to sub_total and cast to any as a precaution */}
                     </TableCell>
                   </TableRow>
                 </TableBody>
