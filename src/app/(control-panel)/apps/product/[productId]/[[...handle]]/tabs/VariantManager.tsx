@@ -718,8 +718,6 @@ const mapVariantForDetailsForm = (variant: Variant | null) => {
     // Add other fields needed by VariantDetailsForm if any, e.g., attributes for display
   };
 };
-// --- END: Add basic helper functions ---
-
 const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add isActive prop
   const { showSnackbar } = useSnackbar();
   const searchParams = useSearchParams();
