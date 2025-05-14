@@ -407,6 +407,12 @@ const TransactionDetailApp = () => {
                     <Table>
                       <TableHead className="bg-[#f0f7f4]">
                         <TableRow>
+                          <TableCell 
+                            className="font-semibold text-gray-700"
+                            sx={{ borderBottom: "2px solid #c9e7dc", py: 2, width: '80px' }}
+                          >
+                            Image
+                          </TableCell>
                           <TableCell
                             className="font-semibold text-gray-700"
                             sx={{ borderBottom: "2px solid #c9e7dc", py: 2 }}
@@ -452,6 +458,20 @@ const TransactionDetailApp = () => {
                               },
                             }}
                           >
+                            <TableCell sx={{ py: 1 }}>
+                              <Box sx={{ width: 60, height: 60, bgcolor: 'grey.100', borderRadius: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                {(item.variant as any)?.variantImages?.[0]?.image_url ? (
+                                  <img 
+                                    src={(item.variant as any).variantImages[0].image_url}
+                                    alt={item.product.name}
+                                    style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                                    onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder-image.png'; }}
+                                  />
+                                ) : (
+                                  <Typography variant="caption" color="text.secondary">No Img</Typography>
+                                )}
+                              </Box>
+                            </TableCell>
                             <TableCell>
                               <div>
                                 <Typography
@@ -473,7 +493,7 @@ const TransactionDetailApp = () => {
                                       </Typography>
                                     ))}
                                   </Box>
-                                ) : item.variant?.slug ? ( // Fallback to slug if no attributes
+                                ) : item.variant?.slug ? (
                                   <Typography
                                     variant="body2"
                                     color="text.secondary"
@@ -502,7 +522,6 @@ const TransactionDetailApp = () => {
                         <TableRow
                           sx={{
                             backgroundColor: "#f0f7f4",
-                            fontWeight: "bold",
                             "& td": {
                               borderTop: "2px solid #c9e7dc",
                               fontWeight: 600,
@@ -510,16 +529,10 @@ const TransactionDetailApp = () => {
                             },
                           }}
                         >
-                          <TableCell
-                            colSpan={2}
-                            className="text-right font-semibold"
-                          >
+                          <TableCell colSpan={3} />
+                          <TableCell align="right" className="font-semibold">
                             Total:
                           </TableCell>
-                          <TableCell
-                            align="right"
-                            className="font-semibold"
-                          ></TableCell>
                           <TableCell align="right" className="font-semibold">
                             {formatPounds(transaction.order.total)}
                           </TableCell>
@@ -726,9 +739,9 @@ const TransactionDetailApp = () => {
             </Typography>
             <div className="space-y-3">
               <div className="flex justify-between">
-                <Typography variant="body2">Transaction Amount</Typography>
+                <Typography variant="body2">Sub Total</Typography>
                 <Typography variant="body2">
-                  {formatCurrency(transaction.amount)}
+                  {formatCurrency((transaction.order as any).sub_total)}
                 </Typography>
               </div>
               {transaction.order && (
@@ -738,8 +751,9 @@ const TransactionDetailApp = () => {
                       <div className="flex justify-between">
                         <Typography variant="body2">Discount</Typography>
                         <Typography variant="body2" color="error">
-                          -
-                          {formatCurrency(transaction.order.discount_price)}
+                          {(transaction.order as any).discount_type === 'percentage'
+                            ? `- ${(transaction.order as any).discount_price}%`
+                            : `- ${formatCurrency((transaction.order as any).discount_price || 0)}`}
                         </Typography>
                       </div>
                     )}
