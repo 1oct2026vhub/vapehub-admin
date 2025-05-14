@@ -3319,9 +3319,7 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
               // --- End add ---
             />
           )} */}
-          
-          {/* --- REMOVED INLINE JSX FOR VIEWS --- */}
-        </>
+          </>
       )}
       {/* --- Confirmation Dialog --- */}
       <Dialog
