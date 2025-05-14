@@ -2,12 +2,15 @@ import React, { useEffect, useState, useRef } from 'react';
 import { Paper, Typography, Grid, Divider, Icon, IconButton, Tooltip, Button } from '@mui/material'; // Added Button
 import axios from 'axios';
 // import { getAuthToken } from '@/utils/auth'; // This will be replaced by OAuth flow
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from 'recharts';
 
 const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || 'YOUR_CLIENT_ID_HERE'; // Corrected to use NEXT_PUBLIC_ prefix and check against placeholder
 const GOOGLE_REDIRECT_URI = process.env.NEXT_PUBLIC_REDIRECT_URL || 'YOUR_REDIRECT_URI_HERE';
 const GOOGLE_AUTH_SCOPE = 'https://www.googleapis.com/auth/analytics.readonly';
 
-// Types for API response data (simplified)
+// --- START TYPE DEFINITIONS ---
+
+// Type for RealtimeReport API response data
 type RealtimeReportRow = {
 	dimensionValues: { value: string }[];
 	metricValues: { value: string }[];
@@ -18,22 +21,42 @@ type RealtimeReportData = {
 	rowCount: number;
 	dimensionHeaders?: { name: string }[];
 	metricHeaders?: { name: string; type: string }[];
-	// Add other relevant fields if needed later
 } | null;
 
+// Interface for historical RunReport API response data rows
+interface ReportRow {
+	dimensionValues: { value: string }[];
+	metricValues: { value: string }[];
+}
+
+// Interface for historical RunReport API response data structure
+interface ReportData {
+	rows?: ReportRow[]; // Optional: data might not be present
+	dimensionHeaders?: { name: string }[]; // Optional
+	metricHeaders?: { name: string; type: string }[]; // Optional
+	rowCount?: number; // Optional
+	totals?: ReportRow[]; // Optional
+}
+
+// Main state structure for all analytics data
 interface AnalyticsDataState {
-	activeUsers?: RealtimeReportData;
+	activeUsers?: RealtimeReportData; // This can be RealtimeReportData object or null
 	usersBySource?: RealtimeReportData;
 	viewsByPage?: RealtimeReportData;
 	eventCounts?: RealtimeReportData;
-	usersByAudience?: RealtimeReportData; // Added for "Active users by Audience"
-	// Add states for other data points like keyEvents, usersByUserProperty later if needed
+	usersByAudience?: RealtimeReportData;
+	activeUsersPerMinute?: RealtimeReportData;
+	customMinuteRangeUsers?: RealtimeReportData; // For active users in custom minute ranges
+	dailyPerformanceStats?: ReportData | null; // For daily active users, new users, and total revenue
+	firstUserSourceStats?: ReportData | null; // Renaming this from firstOpenByDateStats
 }
+
+// --- END TYPE DEFINITIONS ---
 
 function AnalyticsOverview() {
 	// Dummy data structure for the bottom cards
 	const summaryCards = [
-		{ title: 'Active users by First user source*', col1: 'First User Source', col2: 'Active Users', dataKey: 'usersBySource' },
+		{ title: 'Active users by First user source*', col1: 'FIRST USER SOURCE', col2: 'ACTIVE USERS', dataKey: 'firstUserSourceStats' },
 		{ title: 'Active users* by Audience', col1: 'Audience', col2: 'Active Users', dataKey: 'usersByAudience' },
 		{ title: 'Views by Page title and screen name', col1: 'Page Title and Screen...', col2: 'Views', dataKey: 'viewsByPage' },
 		{ title: 'Event count by Event name', col1: 'Event Name', col2: 'Event Count', dataKey: 'eventCounts' },
@@ -211,7 +234,7 @@ function AnalyticsOverview() {
 					]
 				}, { headers: requestHeaders }),
 				usersBySource: axios.post(googleApiUrl, {
-					dimensions: [{ name: "firstUserSource" }], // Assuming 'firstUserSource' is the realtime dimension
+					dimensions: [{ name: "source" }], // Changed from firstUserSource to source
 					metrics: [{ name: "activeUsers" }],
 					limit: 5 // Limit results for card display
 				}, { headers: requestHeaders }),
@@ -230,6 +253,37 @@ function AnalyticsOverview() {
 					metrics: [{ name: "eventCount" }],
 					 limit: 5 
 				}, { headers: requestHeaders }),
+				activeUsersPerMinute: axios.post(googleApiUrl, {
+					dimensions: [{ name: "minute" }],
+					metrics: [{ name: "activeUsers" }],
+					// Optional: Order by minute to ensure data is chronological if needed for display
+					// orderBys: [{ "dimension": { "dimensionName": "minute" }, "desc": false }],
+					limit: 30 // Get up to the last 30 minutes of data
+				}, { headers: requestHeaders }),
+				customMinuteRangeUsers: axios.post(googleApiUrl, {
+					metrics: [{ name: "activeUsers" }],
+					minuteRanges: [
+						{ name: "0-4 minutes ago", startMinutesAgo: 4 },
+						{ name: "25-29 minutes ago", startMinutesAgo: 29, endMinutesAgo: 25 }
+					]
+				}, { headers: requestHeaders }),
+				dailyPerformanceStats: axios.post(`https://analyticsdata.googleapis.com/v1beta/properties/${propertyId}:runReport`, {
+					dateRanges: [{ startDate: "7daysAgo", endDate: "yesterday" }],
+					dimensions: [{ name: "date" }],
+					metrics: [
+						{ name: "activeUsers" },
+						{ name: "newUsers" },
+						{ name: "totalRevenue" }
+					],
+					orderBys: [{ dimension: { dimensionName: "date" }, desc: false }] // Optional: ensure data is chronological
+				}, { headers: requestHeaders }),
+				firstUserSourceStats: axios.post(`https://analyticsdata.googleapis.com/v1beta/properties/${propertyId}:runReport`, {
+					dateRanges: [{ startDate: "7daysAgo", endDate: "yesterday" }],
+					dimensions: [{ name: "firstUserSource" }],
+					metrics: [{ name: "activeUsers" }],
+					orderBys: [{ metric: { metricName: "activeUsers" }, desc: true }],
+					limit: 5
+				}, { headers: requestHeaders })
 				// Add requests for activeUsersPerMinute, keyEvents, usersByUserProperty here if needed
 			};
 
@@ -325,11 +379,11 @@ function AnalyticsOverview() {
 	};
 
 	return (
-		<div className="w-full p-4 sm:p-6 lg:p-8"> {/* Added lg:p-8 for more padding on large screens */}
-			{/* Header */}
+		<div className="w-full p-4 sm:p-6 lg:p-8">
+			{/* Header for Realtime Overview */}
 			<div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
 				<Typography variant="h5" component="h1" className="font-semibold mb-2 sm:mb-0">
-					Realtime overview {/* Added check icon - assuming it indicates status */}
+					Realtime overview
 					<Icon className="text-green-500 ml-2 align-middle">check_circle</Icon>
 				</Typography>
 				<div className="flex items-center space-x-1"> {/* Reduced space */}
@@ -425,30 +479,87 @@ function AnalyticsOverview() {
 						</Typography>
 					</Grid>
 				</Grid>
-				{/* <Divider className="my-4" />
-				<div>
-					<Typography variant="subtitle2" className="text-gray-700 font-medium mb-2"> 
-						Active users per minute
+				{/* <Divider className="my-4" /> */}
+				{/* <div>
+					<Typography variant="subtitle2" className="text-gray-700 font-medium mb-2">
+						Active users per minute (Last 30 mins)
 					</Typography>
-					<div className="h-48 bg-gray-50 border rounded flex items-center justify-center text-gray-500 mb-2 relative"> 
-						Graph Placeholder (Needs implementation)
-						<div className="absolute left-[-30px] top-0 bottom-0 flex flex-col justify-between text-xs text-gray-500 py-1">
-							<span>1</span>
-							<span>0.5</span>
-							<span>0</span>
+					{analyticsRealtimeData.activeUsersPerMinute && analyticsRealtimeData.activeUsersPerMinute.rows && analyticsRealtimeData.activeUsersPerMinute.rows.length > 0 ? (
+						<div className="h-48 bg-gray-50 border rounded p-2 overflow-y-auto text-sm">
+							{analyticsRealtimeData.activeUsersPerMinute.rows.map((row, index) => (
+								<div key={index} className="flex justify-between">
+									<span>Minute {row.dimensionValues[0]?.value || 'N/A'}:</span>
+									<span>{row.metricValues[0]?.value || '0'} users</span>
+								</div>
+							))}
 						</div>
-					</div>
-					<div className="flex justify-between text-xs text-gray-500 mt-1 px-2">
-						<span>-30 min</span>
-						<span>-25 min</span>
-						<span>-20 min</span>
-						<span>-15 min</span>
-						<span>-10 min</span>
-						<span>-5 min</span>
-						<span>-1 min</span>
-					</div>
+					) : (
+						<div className="h-48 bg-gray-50 border rounded flex items-center justify-center text-gray-500">
+							{analyticsLoading ? 'Loading data...' : 'No per-minute data available for the last 30 minutes.'}
+						</div>
+					)}
 				</div> */}
 			</Paper>
+
+			{/* Custom Minute Range Card */}
+			{analyticsRealtimeData.customMinuteRangeUsers && (
+				<Paper elevation={2} className="p-4 sm:p-6 mb-6 mt-6">
+					<Typography variant="h6" component="h2" className="font-semibold mb-3">
+						Active Users by Custom Time Segments
+					</Typography>
+					{(analyticsRealtimeData.customMinuteRangeUsers.rows || []).map((row, index) => (
+						<div key={index} className="mb-2">
+							<Typography variant="subtitle1">
+								{row.dimensionValues[0]?.value || 'Unknown Range'}:
+								<span className="font-bold ml-2">{row.metricValues[0]?.value || '0'} users</span>
+							</Typography>
+						</div>
+					))}
+					{(!analyticsRealtimeData.customMinuteRangeUsers.rows || analyticsRealtimeData.customMinuteRangeUsers.rows.length === 0) && !analyticsLoading && (
+						<Typography className="text-gray-500">No data available for custom time segments.</Typography>
+					)}
+				</Paper>
+			)}
+
+			{/* Daily Performance Stats Card */}
+			{analyticsRealtimeData.dailyPerformanceStats && (
+				<Paper elevation={2} className="p-4 sm:p-6 mb-6 mt-6">
+					<Typography variant="h6" component="h2" className="font-semibold mb-3">
+						Daily Performance (Last 7 Days up to Yesterday)
+					</Typography>
+					<div className="overflow-x-auto">
+						<table className="min-w-full text-sm">
+							<thead className="bg-gray-100">
+								<tr>
+									<th className="p-2 text-left font-medium text-gray-600 uppercase">Date</th>
+									<th className="p-2 text-right font-medium text-gray-600 uppercase">Active Users</th>
+									<th className="p-2 text-right font-medium text-gray-600 uppercase">New Users</th>
+									<th className="p-2 text-right font-medium text-gray-600 uppercase">Total Revenue</th>
+								</tr>
+							</thead>
+							<tbody>
+								{(analyticsRealtimeData.dailyPerformanceStats.rows || []).map((row, index) => {
+									const dateValue = row.dimensionValues[0]?.value ? row.dimensionValues[0].value : 'N/A';
+									const activeUsers = row.metricValues[0]?.value || '0';
+									const newUsers = row.metricValues[1]?.value || '0';
+									const totalRevenue = parseFloat(row.metricValues[2]?.value || "0").toFixed(2); // Assuming currency
+									return (
+										<tr key={index} className="border-b border-gray-200 last:border-b-0">
+											<td className="p-2 whitespace-nowrap">{dateValue}</td>
+											<td className="p-2 text-right whitespace-nowrap">{activeUsers}</td>
+											<td className="p-2 text-right whitespace-nowrap">{newUsers}</td>
+											<td className="p-2 text-right whitespace-nowrap">${totalRevenue}</td> {/* Assuming USD */}
+										</tr>
+									);
+								})}
+							</tbody>
+						</table>
+					</div>
+					{(!analyticsRealtimeData.dailyPerformanceStats.rows || analyticsRealtimeData.dailyPerformanceStats.rows.length === 0) && !analyticsLoading && (
+						<Typography className="text-gray-500 mt-3">No daily performance data available.</Typography>
+					)}
+				</Paper>
+			)}
 
 			{/* Debug Section: Raw API Data Display */}
 			{/* {accessToken && !analyticsLoading && Object.keys(analyticsRealtimeData).length > 0 && (
@@ -477,40 +588,108 @@ function AnalyticsOverview() {
 					const hasData = reportData && reportData.rows && reportData.rows.length > 0;
 					const rowsToDisplay = reportData?.rows || []; // Get rows or empty array
 
-					return (
-						<Grid item xs={12} sm={6} lg={3} key={card.dataKey}> 
-							<Paper elevation={2} className="p-4 h-full flex flex-col"> 
-								<Typography variant="subtitle1" className="font-semibold mb-3"> 
-									{card.title}
-								</Typography>
-								{/* Header row for columns */}    
-								<div className="flex justify-between items-center text-sm font-medium text-gray-600 mb-2 border-b pb-1"> 
-									<span className="uppercase">{card.col1}</span> 
-									<span className="uppercase">{card.col2}</span> 
-								</div>
-								
-								{/* Data rows or No data message */}    
-								<div className="flex-grow overflow-auto text-sm"> {/* Allow scrolling if content overflows */}
-									{hasData ? (
-										rowsToDisplay.map((row, rowIndex) => (
-											<div key={rowIndex} className="flex justify-between items-center py-1 border-b border-gray-100 last:border-b-0">
-												{/* Assuming first dimension is the primary label */}
-												<span className="truncate pr-2">{row.dimensionValues[0]?.value || 'N/A'}</span>
-												{/* Assuming first metric is the count/value */}
-												<span className="font-medium">{row.metricValues[0]?.value || '0'}</span>
+					if (card.dataKey === 'firstUserSourceStats') {
+						const report = analyticsRealtimeData.firstUserSourceStats;
+						const rows = report?.rows || [];
+						const hasReportData = rows.length > 0;
+						const totalActiveUsers = report?.totals?.[0]?.metricValues?.[0]?.value ? parseInt(report.totals[0].metricValues[0].value, 10) : 0;
+
+						return (
+							<Grid item xs={12} sm={6} lg={3} key={card.dataKey}>
+								<Paper elevation={2} className="p-4 h-full flex flex-col">
+									<Typography variant="subtitle1" className="font-semibold mb-1">
+										{card.title}
+									</Typography>
+
+									{analyticsLoading && !hasReportData && <Typography className="text-gray-500 my-4">Loading...</Typography>}
+
+									{hasReportData ? (
+										<>
+											<div className="mb-3">
+												<Typography variant="body2" component="p" className="text-gray-600">
+													#1 {rows[0].dimensionValues[0]?.value || '(not set)'}
+												</Typography>
+												<Typography variant="h4" component="p" className="font-bold">
+													{rows[0].metricValues[0]?.value || '0'}
+												</Typography>
+												{/* <Typography variant="caption" className="text-gray-600">
+													{totalActiveUsers > 0 && rows[0].metricValues[0]?.value ? 
+														((parseInt(rows[0].metricValues[0].value, 10) / totalActiveUsers) * 100).toFixed(0) + '%' 
+														: 'N/A'}
+												</Typography> */}
+											</div>			
+											<div className="flex justify-between items-center text-xs font-medium text-gray-500 mt-2 mb-1 border-b pb-1">
+												<span className="uppercase">{card.col1}</span>
+												<span className="uppercase">{card.col2}</span>
 											</div>
-										))
+											<div className="flex-grow overflow-auto text-sm" style={{ minHeight: '60px' }}>
+												{rows.map((row, rowIndex) => (
+													<div key={rowIndex} className="flex justify-between items-center py-1 border-b border-gray-100 last:border-b-0">
+														<span className="truncate pr-2">{row.dimensionValues[0]?.value || '(not set)' }</span>
+														<span className="font-medium">{row.metricValues[0]?.value || '0'}</span>
+													</div>
+												))}
+											</div>
+											<div className="text-xs text-gray-500 mt-2 text-right">
+												1 - {rows.length} of {report?.rowCount || rows.length}
+											</div>
+										</>
 									) : (
-										<div className="flex items-center justify-center min-h-[50px]">
+										<div className="flex items-center justify-center min-h-[150px]">
 											<Typography variant="body2" className="text-gray-500">
 												No data available
 											</Typography>
 										</div>
 									)}
-								</div>
-							</Paper>
-						</Grid>
-					);
+								</Paper>
+							</Grid>
+						);
+					} else {
+						return (
+							<Grid item xs={12} sm={6} lg={3} key={card.dataKey}> 
+								<Paper elevation={2} className="p-4 h-full flex flex-col"> 
+									<Typography variant="subtitle1" className="font-semibold mb-3"> 
+										{card.title}
+									</Typography>
+									{/* Header row for columns */}    
+									<div className="flex justify-between items-center text-sm font-medium text-gray-600 mb-2 border-b pb-1"> 
+										<span className="uppercase">{card.col1}</span> 
+										<span className="uppercase">{card.col2}</span> 
+									</div>
+									
+									{/* Data rows or No data message */}    
+									<div className="flex-grow overflow-auto text-sm"> {/* Allow scrolling if content overflows */}
+										{hasData ? (
+											rowsToDisplay.map((row, rowIndex) => {
+												let dimValue = row.dimensionValues[0]?.value || 'N/A';
+												const metricValue = row.metricValues[0]?.value || '0';
+
+												// Special handling for the firstUserSourceStats card (which was formerly firstOpenByDateStats)
+												// This dataKey now refers to 'Active users by First user source*'
+												// The dimension is firstUserSource, not date, so formatDateForChart is not needed here.
+												// if (card.dataKey === 'firstUserSourceStats' && row.dimensionValues[0]?.value) {
+												// 	dimValue = formatDateForChart(row.dimensionValues[0].value);
+												// }
+
+												return (
+													<div key={rowIndex} className="flex justify-between items-center py-1 border-b border-gray-100 last:border-b-0">
+														<span className="truncate pr-2">{dimValue}</span>
+														<span className="font-medium">{metricValue}</span>
+													</div>
+												);
+											})
+										) : (
+											<div className="flex items-center justify-center min-h-[50px]">
+												<Typography variant="body2" className="text-gray-500">
+													No data available
+												</Typography>
+											</div>
+										)}
+									</div>
+								</Paper>
+							</Grid>
+						);
+					}
 				})}
 			</Grid>
 		</div>

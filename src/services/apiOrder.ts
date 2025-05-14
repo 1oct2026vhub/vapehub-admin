@@ -73,14 +73,26 @@ export interface OrderItem {
     slug: string;
     ProductImages: Array<{
       id: number;
-      url: string;
+      image_url: string;
+      is_primary?: boolean;
     }>;
   };
   variant: {
     id: number;
-    barcode: string;
+    barcode: string | null;
     price: string;
     slug: string;
+    stock?: number;
+    variantImages?: Array<{
+      id: number;
+      image_url: string;
+      is_primary?: boolean;
+    }> | null;
+    variantAttributes?: Array<{
+      id?: number;
+      attribute: { id?: number; name: string };
+      term: { id?: number; attribute_id?: number; name:string };
+    }> | null;
   };
 }
 
@@ -112,37 +124,62 @@ export interface OrderLogItem {
   };
 }
 
+// Define User interface based on API response
+export interface User {
+  id: number;
+  first_name: string | null;
+  last_name: string | null;
+  email: string;
+  phone: string | null;
+  profile_pic_url: string | null;
+  gender?: string | null;
+  dob?: string | null;
+}
+
 // Interface for order details
 export interface Order {
   id: number;
   order_unique_id: string;
+  order_code?: string;
   user_id: number;
   coupon_id: number | null;
   total: string;
   discount_price: string | null;
+  sub_total?: string | null;
+  discount_type?: 'percentage' | 'fixed_amount' | 'referral' | string | null;
   shipping_cost?: string | null;
   status: OrderStatus;
-  shipping_address_id: number;
-  billing_address_id: number;
+  shipping_address_id: number | null;
+  billing_address_id: number | null;
+  order_shipping_address_id?: number;
+  order_billing_address_id?: number;
   shipping_method_id: number;
+  email?: string;
+  phone?: string;
+  referral_id?: string | null;
   createdAt: string;
   updatedAt: string;
   deletedAt: string | null;
-  user: {
-    id: number;
-    first_name: string | null;
-    last_name: string | null;
-    email: string;
-    phone: string | null;
-    profile_pic_url: string | null;
-  };
+  user: User;
   orderBillingAddress: Address;
   orderShippingAddress: Address;
   orderItems: OrderItem[];
-  notes: string | null;
-  payment_status?: PaymentStatus; // Added for backward compatibility
-  orderLogs?: OrderLogItem[]; // Add orderLogs property
-  statusTimeline?: StatusTimelineItem[]; // Add statusTimeline property
+  notes?: string | null;
+  payment_status?: PaymentStatus;
+  orderLogs?: OrderLogItem[];
+  statusTimeline?: StatusTimelineItem[];
+  coupon?: Coupon | null;
+}
+
+// Define Coupon interface based on API response
+export interface Coupon {
+  id: number;
+  code: string;
+  discount_type: 'percentage' | 'fixed_amount' | string;
+  discount_value: string;
+  description: string | null;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 // Interface for orders list response with pagination
