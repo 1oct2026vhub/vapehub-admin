@@ -669,48 +669,42 @@ interface VariantManagerProps {
 const mapVariantForDisplayCard = (variant: Variant) => {
   let mappedAttrs: Array<{ id: number | string; attribute_name: string; term_name: string }> = [];
 
-  // Prioritize detailed variantAttributes if available and non-empty
   if (variant.variantAttributes && variant.variantAttributes.length > 0) {
-    console.log('[VariantManager] mapVariantForDisplayCard - Using detailed variant.variantAttributes for Variant ID ' + variant.id + ':', JSON.stringify(variant.variantAttributes, null, 2));
     mappedAttrs = variant.variantAttributes.map((attr, index) => {
       const attributeName = attr.attribute?.name;
       const termName = attr.term?.name;
       return {
-        id: attr.term?.id || attr.term_id || `attr-${index}`, // Ensure unique key
+        id: attr.term?.id || attr.term_id || `attr-${index}`,
         attribute_name: attributeName || 'Attribute N/A (from detailed)',
         term_name: termName || 'Term N/A (from detailed)',
       };
     });
-  }
-  // Fallback to simple variant.attributes (Record<string, string>) if detailed one is empty
-  else if (variant.attributes && Object.keys(variant.attributes).length > 0) {
-    console.log('[VariantManager] mapVariantForDisplayCard - Falling back to simple variant.attributes for Variant ID ' + variant.id + ':', JSON.stringify(variant.attributes, null, 2));
+  } else if (variant.attributes && Object.keys(variant.attributes).length > 0) {
     mappedAttrs = Object.entries(variant.attributes).map(([key, value], index) => ({
-      id: `simple-attr-${variant.id}-${index}`, // Generate a unique key incorporating variant ID
+      id: `simple-attr-${variant.id}-${index}`,
       attribute_name: key,
-      term_name: value,
+      term_name: String(value), // Ensure term_name is a string
     }));
-  } else {
-    console.log(`[VariantManager] mapVariantForDisplayCard - No attributes found to display for Variant ID ${variant.id}`);
   }
 
-  // console.log(`[VariantManager] mapVariantForDisplayCard - Final mappedAttrs for VariantID ${variant.id}:`, JSON.stringify(mappedAttrs, null, 2));
-
-  // Create formatted attributes for display in card (this is a secondary structure, not primary for display logic in card itself)
   const attributesFormatted = mappedAttrs.reduce((acc, attr) => {
     acc[attr.attribute_name] = attr.term_name;
     return acc;
   }, {} as Record<string, string>);
 
+  // Normalize status for the display card to ensure it's lowercase 'active' or 'inactive'
+  const displayCardStatus = variant.status?.toString().toLowerCase() === 'active' ? 'active' : 'inactive';
+
+  console.log(`[VariantManager mapVariantForDisplayCard] Variant ID: ${variant.id}, Raw Status from state: "${variant.status}", Mapped Status for Card: "${displayCardStatus}"`);
+
   return {
     id: variant.id,
     slug: variant.slug,
-    price: variant.price,
-    stock: variant.stock,
-    status: variant.status,
+    price: String(variant.price), // Ensure price is a string for the card
+    stock: Number(variant.stock),   // Ensure stock is a number for the card
+    status: displayCardStatus,    // Pass the normalized lowercase status
     variantImages: variant.variantImages || [],
     variantAttributes: mappedAttrs,
-    // Add a simple key-value formatted attributes object for display in cards
     attributesFormatted: attributesFormatted
   };
 };
@@ -724,8 +718,6 @@ const mapVariantForDetailsForm = (variant: Variant | null) => {
     // Add other fields needed by VariantDetailsForm if any, e.g., attributes for display
   };
 };
-// --- END: Add basic helper functions ---
-
 const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add isActive prop
   const { showSnackbar } = useSnackbar();
   const searchParams = useSearchParams();
@@ -2524,6 +2516,9 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
           setIsSubmitting(false);
           return;
       }
+
+      // Log status before update for debugging
+      console.log(`[handleUpdateVariant] Updating variant ${variantId} status from "${originalVariant.status}" to "${data.status}"`);
       
       // Retrieve original attributes from selectedVariant state for API payload
       const attributePayload = Object.entries(originalVariant.attributes)
@@ -2636,12 +2631,19 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
       // --- EDIT: Update local state using simple types from FORM DATA --- 
       setVariants(prev => prev.map(v => { 
           if (v.id === variantId) {
+            // Ensure status is correctly formatted for API and UI
+            const apiStatus = data.status === 'active' ? 'active' : 'inactive';
+            const displayStatus = data.status === 'active' ? 'Active' : 'Inactive';
+            
+            console.log(`[handleUpdateVariant] Setting local state status: form=${data.status}, api=${apiStatus}, display=${displayStatus}`);
+            
             const updatedVariant: Variant = { 
               ...v, 
               slug: data.slug,
               price: String(transformOptionalNumber(data.price)), 
               stock: Number(transformOptionalNumber(data.stock)), 
-              status: (data.status === 'active' ? 'Active' : 'Inactive') as 'Active' | 'Inactive', 
+              // Ensure status is properly set in the correct format for display
+              status: displayStatus, 
               // --- Add stockStatus update here --- 
               stock_status: data.stockStatus === 'In Stock' ? 'in_stock' : data.stockStatus === 'Out of Stock' ? 'out_of_stock' : 'back_order', 
               // --- End Add --- 
@@ -2871,7 +2873,6 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
 
   // useEffect for resetting edit form (this is the one we are targeting)
   useEffect(() => {
-    console.log(`[useEffect resetEditForm] Running for index: ${selectedVariantIndex}`);
     const currentSelectedVariant =
       variants && variants.length > 0 && selectedVariantIndex >= 0 && selectedVariantIndex < variants.length
         ? variants[selectedVariantIndex]
@@ -2879,12 +2880,17 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
 
     if (currentSelectedVariant) {
       if (formVariantIdRef.current !== currentSelectedVariant.id) {
-        console.log(`[useEffect resetEditForm] Variant ID changed from ${formVariantIdRef.current} to ${currentSelectedVariant.id}. Resetting form.`);
+        // Safely convert the status from the variant object to lowercase 'active' or 'inactive' for the form.
+        const apiStatus = currentSelectedVariant.status?.toString().toLowerCase() || ''; // Ensure it's a string and lowercase, default to empty if null/undefined
+        const formStatus = apiStatus === 'active' ? 'active' : 'inactive'; // Map to form values
+
+        console.log(`[VariantManager resetEditForm] Variant ID: ${currentSelectedVariant.id}, Raw API Status: "${currentSelectedVariant.status}", Lowercase API Status: "${apiStatus}", Form Status: "${formStatus}"`);
+
         const resetData = {
           slug: currentSelectedVariant.slug ?? '',
           price: currentSelectedVariant.price ? Number(currentSelectedVariant.price) : null,
           stock: currentSelectedVariant.stock ?? 0,
-          status: (currentSelectedVariant.status?.toLowerCase() === 'active' ? 'active' : 'inactive') as 'active' | 'inactive',
+          status: formStatus as 'active' | 'inactive', // Use the derived lowercase formStatus
           stockStatus: getDisplayStockStatusManager(currentSelectedVariant.stock_status, currentSelectedVariant.stock),
           depositPrice: currentSelectedVariant.discount_price ? Number(currentSelectedVariant.discount_price) : null,
           purchasePrice: currentSelectedVariant.purchase_price ? Number(currentSelectedVariant.purchase_price) : null,
@@ -2896,18 +2902,15 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
           barcode: currentSelectedVariant.barcode ?? '',
           description: currentSelectedVariant.description ?? '',
         };
-        console.log('[useEffect resetEditForm] Resetting form with data:', JSON.stringify(resetData, null, 2));
         resetEditForm(resetData);
         originalSelectedVariantRef.current = JSON.parse(JSON.stringify(currentSelectedVariant));
         formVariantIdRef.current = currentSelectedVariant.id;
       } else {
-        console.log(`[useEffect resetEditForm] Variant ID ${currentSelectedVariant.id} is the same. Preserving form input, only updating originalSelectedVariantRef.`);
         originalSelectedVariantRef.current = JSON.parse(JSON.stringify(currentSelectedVariant));
       }
     } else {
-      console.log('[useEffect resetEditForm] No valid variant selected, resetting to defaults.');
       resetEditForm({ 
-        slug: "", price: null, stock: null, status: "active",
+        slug: "", price: null as any, stock: null as any, status: "active",
         depositPrice: null, purchasePrice: null, stockStatus: "In Stock", 
         lowStockThreshold: null, weight: null, length: null, width: null, height: null, 
         barcode: null, description: null
@@ -2915,8 +2918,7 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
       originalSelectedVariantRef.current = null;
       formVariantIdRef.current = null;
     }
-  }, [variants, selectedVariantIndex, resetEditForm]); // Add viewMode dependency
-  // --- END: Add basic useEffect for edit form reset ---
+  }, [variants, selectedVariantIndex, resetEditForm]);
 
   // --- START: Add basic dirty check (will be expanded later) ---
   const calculateIsActuallyDirty = () => {
