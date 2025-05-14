@@ -11,7 +11,7 @@ interface VariantImage {
 }
 
 interface VariantAttributeDisplay {
-  id: number;
+  id: number | string;
   attribute_name: string; // Combined from attribute.name
   term_name: string;      // Combined from term.name
 }
@@ -41,6 +41,9 @@ const VariantDisplayCard: React.FC<VariantDisplayCardProps> = ({
   onDelete,
   isActionDisabled,
 }) => {
+  // Add this log to inspect received variant data
+  console.log(`[VariantDisplayCard] Received variant data for ID ${variant.id}:`, JSON.stringify(variant, null, 2));
+
   const primaryImage = variant.variantImages?.find(img => img.is_primary)?.image_url || 
                        (variant.variantImages && variant.variantImages.length > 0 ? variant.variantImages[0].image_url : null);
 
@@ -70,19 +73,23 @@ const VariantDisplayCard: React.FC<VariantDisplayCardProps> = ({
           <div className="mb-2">
             <p className="text-sm font-semibold text-gray-700">ID: {variant.id}</p>
           </div>
-          <div className="space-y-2">
-            {variant.variantAttributes.map((attr) => (
-              <div key={attr.id}>
-                <p className="text-sm text-green-800 font-semibold mb-0.5">{attr.attribute_name}:</p>
-                <input
-                  type="text"
-                  readOnly
-                  value={attr.term_name}
-                  className="w-full text-sm border border-gray-300 px-3 py-1 rounded bg-gray-50 text-gray-800 focus:outline-none"
-                />
-              </div>
-            ))}
-          </div>
+
+          {/* Attributes section - Ensuring this is correctly placed and styled */}
+          {variant.variantAttributes && variant.variantAttributes.length > 0 && (
+            <div className="mb-3"> {/* Increased bottom margin for better separation */}
+              {variant.variantAttributes.map((attr) => (
+                <div key={attr.id} className="text-sm mb-2"> {/* Increased bottom margin for each attribute group */}
+                  <div>
+                    <span className="text-green-700 font-semibold">{attr.attribute_name}:</span>
+                  </div>
+                  <div className="bg-gray-100 border border-gray-300 rounded px-2 py-1 mt-1 text-gray-800 shadow-sm"> {/* Adjusted styling for the value box */}
+                    {attr.term_name}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          
           <div className="flex items-center pt-3 justify-between">
             <div className="flex items-center flex-wrap gap-2">
               <div className="flex items-center space-x-1 border border-[#005B2F] rounded-md bg-green-50 px-2.5 py-1 cursor-default">
