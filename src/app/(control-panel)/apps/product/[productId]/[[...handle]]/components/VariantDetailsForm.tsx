@@ -296,8 +296,7 @@ const VariantDetailsForm: React.FC<VariantDetailsFormProps> = ({
             className={`border rounded flex flex-col items-center justify-center py-8 bg-gray-50 
               ${isImageDragActive ? 'border-green-500 bg-green-50' : 'border-gray-300'}
               ${(isImageUploading || isSaving) ? 'opacity-70 cursor-wait' : 'cursor-pointer'} mb-3`}
-          >
-             
+          >       
             {(isImageUploading) ? (
               <FuseLoading className="mb-2" />
             ) : (
