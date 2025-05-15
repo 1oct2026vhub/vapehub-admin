@@ -23,6 +23,7 @@ const MIN_IMAGE_WIDTH = 280;
 const MIN_IMAGE_HEIGHT = 280;
 const ACCEPTED_FILE_TYPES = ["image/png", "image/jpg", "image/jpeg", "image/webp"];
 
+
 // --- Add validation helper function ---
 // Helper function to validate image dimensions
 export const validateImageDimensions = (file: File): Promise<{ valid: boolean; dimensions?: { width: number; height: number } }> => {

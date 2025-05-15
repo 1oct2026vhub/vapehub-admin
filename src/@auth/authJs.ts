@@ -70,6 +70,7 @@ const config = {
   pages: {
     signIn: "/sign-in",
   },
+  secret: process.env.AUTH_SECRET,
   providers,
   basePath: "/auth",
   trustHost: true,
