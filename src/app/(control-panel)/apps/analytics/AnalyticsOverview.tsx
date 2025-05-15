@@ -279,7 +279,8 @@ function AnalyticsOverview() {
 				}, { headers: requestHeaders }),
 				firstUserSourceStats: axios.post(`https://analyticsdata.googleapis.com/v1beta/properties/${propertyId}:runReport`, {
 					dateRanges: [{ startDate: "7daysAgo", endDate: "yesterday" }],
-					dimensions: [{ name: "firstUserSource" }],
+					// dimensions: [{ name: "firstUserSource" }],
+          dimensions: [{ name: "sessionSourceMedium" }],
 					metrics: [{ name: "activeUsers" }],
 					orderBys: [{ metric: { metricName: "activeUsers" }, desc: true }],
 					limit: 5

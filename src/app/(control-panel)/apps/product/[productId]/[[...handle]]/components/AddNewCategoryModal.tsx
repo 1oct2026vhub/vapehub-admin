@@ -148,7 +148,6 @@ function AddNewCategoryModal({
 
   const logoError = watch("logo") ? errors.logo?.message as string | undefined : undefined;
 
-
   useEffect(() => {
     if (open) {
       reset(defaultValues); // Reset form when modal opens
