@@ -37,6 +37,72 @@ type CreateVariantFormData = Record<string, any>; // For the top creation form
 // type Variant = Record<string, any> & { id: string; images?: any[]; attributes: Record<string, string>; }; // General type, if needed elsewhere
 type VariantAttributeField = { name: string; value: string }; // For attribute selection in create form
 
+// --- START: Image Validation Constants ---
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+const MIN_IMAGE_WIDTH = 280;
+const MIN_IMAGE_HEIGHT = 280;
+const ACCEPTED_FILE_TYPES = ["image/png", "image/jpg", "image/jpeg", "image/webp"];
+// --- END: Image Validation Constants ---
+
+// --- START: Image Validation Helper Functions ---
+// Helper function to validate image dimensions
+const validateImageDimensions = (file: File): Promise<{ valid: boolean; dimensions?: { width: number; height: number } }> => {
+  return new Promise((resolve) => {
+    if (!file || !(file instanceof File)) {
+      resolve({ valid: true }); // Let other validations catch it
+      return;
+    }
+
+    const img = document.createElement('img');
+    img.onload = () => {
+      URL.revokeObjectURL(img.src);
+      const widthValid = img.width >= MIN_IMAGE_WIDTH;
+      const heightValid = img.height >= MIN_IMAGE_HEIGHT;
+
+      if (widthValid && heightValid) {
+        resolve({ valid: true, dimensions: { width: img.width, height: img.height } });
+      } else {
+        resolve({ 
+          valid: false, 
+          dimensions: { 
+            width: img.width, 
+            height: img.height 
+          } 
+        });
+      }
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(img.src);
+      resolve({ valid: false }); 
+    };
+    img.src = URL.createObjectURL(file);
+  });
+};
+
+// Validate file size, type and dimensions
+const validateFile = async (file: File): Promise<string | null> => {
+  if (!file) return "File is required";
+  
+  if (!ACCEPTED_FILE_TYPES.includes(file.type.toLowerCase())) {
+    return "Only .jpg, .jpeg, .png, and .webp formats are supported";
+  }
+  
+  if (file.size > MAX_FILE_SIZE) {
+    return "File size must be less than 5MB";
+  }
+  
+  const dimensionResult = await validateImageDimensions(file);
+  if (!dimensionResult.valid) {
+    if (dimensionResult.dimensions) {
+        return `Image dimensions must be at least ${MIN_IMAGE_WIDTH}x${MIN_IMAGE_HEIGHT}px. Found: ${dimensionResult.dimensions.width}x${dimensionResult.dimensions.height}px.`;
+    }
+    return `Image dimensions must be at least ${MIN_IMAGE_WIDTH}x${MIN_IMAGE_HEIGHT}px. Could not verify dimensions.`;
+  }
+  
+  return null;
+};
+// --- END: Image Validation Helper Functions ---
+
 // --- START: Types and Schema for Manual Variant Editing (similar to GenerateVariantsView) ---
 interface ManualVariantImage {
   id: number;
@@ -550,21 +616,39 @@ const ManualVariantView: React.FC<ManualVariantViewProps> = ({
   // Dropzone for EDIT form images
   const { getRootProps: editGetRootProps, getInputProps: editGetInputProps, isDragActive: isEditDragActive } = useDropzone({
     onDrop: async (acceptedFiles) => {
-      if (!selectedManualVariant || !productId) return;
-      const validFiles = acceptedFiles.filter(file => {
-        if (file.size > 5 * 1024 * 1024) { 
-          showSnackbar(`File ${file.name} exceeds 5MB limit.`, "error"); return false;
-        }
-        if (!['image/png', 'image/jpg', 'image/jpeg', 'image/webp'].includes(file.type)) {
-          showSnackbar(`File ${file.name} has an invalid type.`, "error"); return false;
-        }
-        return true;
-      });
-      if (validFiles.length === 0) return;
+      if (!selectedManualVariant || !productId) {
+        showSnackbar("No variant selected or product ID missing for image upload.", "error");
+        return;
+      }
+      
+      if (acceptedFiles.length === 0) return;
 
       setIsManualImageUploading(true);
+
+      const validationResults = await Promise.all(
+        acceptedFiles.map(async (file) => {
+          const error = await validateFile(file); // Use the local validateFile function
+          return { file, error };
+        })
+      );
+
+      const filesToUpload = validationResults.filter(r => !r.error).map(r => r.file);
+      const invalidFilesInfo = validationResults.filter(r => r.error);
+
+      invalidFilesInfo.forEach(info => {
+        if (info.error) {
+          showSnackbar(`Error for ${info.file.name}: ${info.error}`, "error");
+        }
+      });
+
+      if (filesToUpload.length === 0) {
+        setIsManualImageUploading(false);
+        if (acceptedFiles.length > 0) showSnackbar("Image upload failed, please check the image dimensions and file type.", "warning");
+        return;
+      }
+
       const formData = new FormData();
-      validFiles.forEach(file => formData.append("files", file));
+      filesToUpload.forEach(file => formData.append("files", file));
 
       try {
         const response = await uploadManualVariantImagesAPI(productId, selectedManualVariant.id, formData);
@@ -576,10 +660,7 @@ const ManualVariantView: React.FC<ManualVariantViewProps> = ({
 
           setManualVariants(prev => prev.map(v => {
             if (v.id === selectedManualVariant.id) {
-              // 1. Merge existing variant data with unsaved form values
               const variantBaseWithFormEdits = mergeFormValuesWithVariantData(v, currentFormValues);
-
-              // 2. Update images on this merged data
               const updatedImages = [...(variantBaseWithFormEdits.variantImages || [])];
               newImages.forEach(newImg => {
                 if (!updatedImages.find(exImg => exImg.image_url === newImg.image_url)) updatedImages.push(newImg);
@@ -595,6 +676,8 @@ const ManualVariantView: React.FC<ManualVariantViewProps> = ({
 
           if (finalUpdatedSelectedVariant) {
             setSelectedManualVariant(finalUpdatedSelectedVariant);
+            // Update original ref to prevent unintended dirty state from image upload if form wasn't otherwise dirty
+            originalSelectedManualVariantRef.current = JSON.parse(JSON.stringify(finalUpdatedSelectedVariant)); 
           }
           showSnackbar("Images uploaded successfully", "success");
         } else {
