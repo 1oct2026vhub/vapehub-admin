@@ -27,6 +27,72 @@ import { useDropzone, DropzoneRootProps, DropzoneInputProps } from 'react-dropzo
 import VariantDisplayCard from '../components/VariantDisplayCard';
 import VariantDetailsForm, { VariantFormData } from '../components/VariantDetailsForm';
 
+// --- START: Image Validation Constants ---
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+const MIN_IMAGE_WIDTH = 280;
+const MIN_IMAGE_HEIGHT = 280;
+const ACCEPTED_FILE_TYPES = ["image/png", "image/jpg", "image/jpeg", "image/webp"];
+// --- END: Image Validation Constants ---
+
+// --- START: Image Validation Helper Functions ---
+// Helper function to validate image dimensions
+const validateImageDimensions = (file: File): Promise<{ valid: boolean; dimensions?: { width: number; height: number } }> => {
+  return new Promise((resolve) => {
+    if (!file || !(file instanceof File)) {
+      resolve({ valid: true }); // Let other validations catch it
+      return;
+    }
+
+    const img = document.createElement('img');
+    img.onload = () => {
+      URL.revokeObjectURL(img.src);
+      const widthValid = img.width >= MIN_IMAGE_WIDTH;
+      const heightValid = img.height >= MIN_IMAGE_HEIGHT;
+
+      if (widthValid && heightValid) {
+        resolve({ valid: true, dimensions: { width: img.width, height: img.height } });
+      } else {
+        resolve({ 
+          valid: false, 
+          dimensions: { 
+            width: img.width, 
+            height: img.height 
+          } 
+        });
+      }
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(img.src);
+      resolve({ valid: false }); 
+    };
+    img.src = URL.createObjectURL(file);
+  });
+};
+
+// Validate file size, type and dimensions
+const validateFile = async (file: File): Promise<string | null> => {
+  if (!file) return "File is required";
+  
+  if (!ACCEPTED_FILE_TYPES.includes(file.type.toLowerCase())) {
+    return "Only .jpg, .jpeg, .png, and .webp formats are supported";
+  }
+  
+  if (file.size > MAX_FILE_SIZE) {
+    return "File size must be less than 5MB";
+  }
+  
+  const dimensionResult = await validateImageDimensions(file);
+  if (!dimensionResult.valid) {
+    if (dimensionResult.dimensions) {
+        return `Image dimensions must be at least ${MIN_IMAGE_WIDTH}x${MIN_IMAGE_HEIGHT}px. Found: ${dimensionResult.dimensions.width}x${dimensionResult.dimensions.height}px.`;
+    }
+    return `Image dimensions must be at least ${MIN_IMAGE_WIDTH}x${MIN_IMAGE_HEIGHT}px. Could not verify dimensions.`;
+  }
+  
+  return null;
+};
+// --- END: Image Validation Helper Functions ---
+
 // --- START: Local Detailed Types for Variant Structure ---
 // Based on ManualVariantView and common needs for displaying/editing variant details
 interface LocalVariantImage {
@@ -467,55 +533,68 @@ const BulkUpdateView: React.FC<BulkUpdateViewProps> = ({
         return;
       }
 
-      const validFiles = acceptedFiles.filter(file => {
-        if (file.size > 5 * 1024 * 1024) { 
-          showSnackbar(`File ${file.name} exceeds 5MB limit.`, "error"); return false;
-        }
-        if (!['image/png', 'image/jpg', 'image/jpeg', 'image/webp'].includes(file.type.toLowerCase())) {
-          showSnackbar(`File ${file.name} has an invalid type. Allowed: PNG, JPG, JPEG, WEBP.`, "error"); return false;
-        }
-        return true;
-      });
-
-      if (validFiles.length === 0) {
-        if (acceptedFiles.length > 0) showSnackbar("No valid files to upload after filtering.", "warning");
-        return;
+      if (acceptedFiles.length === 0) {
+        return; // No files to process
       }
 
       setIsEditImageUploading(true);
+
+      // Validate each file
+      const validationResults = await Promise.all(
+        acceptedFiles.map(async (file) => {
+          const error = await validateFile(file); // Using the local validateFile
+          return { file, error };
+        })
+      );
+
+      const filesToUpload = validationResults.filter(r => !r.error).map(r => r.file);
+      const invalidFilesInfo = validationResults.filter(r => r.error);
+
+      invalidFilesInfo.forEach(info => {
+        if (info.error) {
+          showSnackbar(`Error for ${info.file.name}: ${info.error}`, "error");
+        }
+      });
+
+      if (filesToUpload.length === 0) {
+        setIsEditImageUploading(false);
+        if (acceptedFiles.length > 0) showSnackbar("Image upload failed, please check the image dimensions and file type.", "warning");
+        return;
+      }
+
       const formData = new FormData();
-      validFiles.forEach(file => formData.append("files", file));
+      filesToUpload.forEach(file => formData.append("files", file));
 
       try {
         const response = await uploadVariantImages(String(productId), String(currentSelectedVariant.id), formData);
         
         if (response.success) {
           let uploadedApiImages: LocalVariantImage[] = [];
+          // Standardized response checking, similar to GenerateVariantsView
           if (response.data?.variantImages && Array.isArray(response.data.variantImages)) {
             uploadedApiImages = response.data.variantImages.map((img: any) => ({ id: img.id, image_url: img.image_url, is_primary: img.is_primary }));
           } else if (response.data?.variant?.variantImages && Array.isArray(response.data.variant.variantImages)) {
             uploadedApiImages = response.data.variant.variantImages.map((img: any) => ({ id: img.id, image_url: img.image_url, is_primary: img.is_primary }));
+          } else if (Array.isArray(response.data)) { // Handle if response.data is directly the array of images
+            uploadedApiImages = response.data.map((img: any) => ({ id: img.id, image_url: img.image_url, is_primary: img.is_primary }));
           } else {
             showSnackbar("Images uploaded but response structure was unexpected.", "warning");
             setIsEditImageUploading(false);
             return;
           }
 
-          if (uploadedApiImages.length === 0) {
+          if (uploadedApiImages.length === 0 && filesToUpload.length > 0) { // Check if files were attempted but API returned no images
             showSnackbar("Upload successful, but no image data returned from API.", "warning");
             setIsEditImageUploading(false);
             return;
           }
           
-          const currentFormValues = getEditDetailValues(); // Get current form values
+          const currentFormValues = getEditDetailValues(); 
 
           setVariants(prevVariants =>
             prevVariants.map(variantInState => {
               if (variantInState.id === currentSelectedVariant.id) {
-                // 1. Merge variant from state with current (dirty) form values
                 const variantWithFormEdits = mergeFormValuesWithVariantData(variantInState, currentFormValues);
-
-                // 2. Now, update the images on this merged data
                 const existingImages = variantWithFormEdits.variantImages || [];
                 const updatedImages = [...existingImages];
                 
@@ -528,9 +607,9 @@ const BulkUpdateView: React.FC<BulkUpdateViewProps> = ({
                 const hasPrimary = updatedImages.some(img => img.is_primary);
                 if (!hasPrimary && updatedImages.length > 0) {
                   updatedImages[0].is_primary = true;
-                  // Optional: API call to persist new primary, if desired immediately
+                  // Optional: API call to persist new primary if needed immediately after upload
+                  // setVariantPrimaryImage(String(productId), String(currentSelectedVariant.id), String(updatedImages[0].id));
                 }
-                // 3. Return the fully updated object
                 return { ...variantWithFormEdits, variantImages: updatedImages };
               }
               return variantInState;
@@ -547,7 +626,7 @@ const BulkUpdateView: React.FC<BulkUpdateViewProps> = ({
         setIsEditImageUploading(false);
       }
     },
-    accept: { 'image/*': ['.jpeg', '.jpg', '.png', '.gif', '.webp'] },
+    accept: { 'image/*': ['.jpeg', '.jpg', '.png', '.gif', '.webp'] }, // Keep existing accept types
     multiple: true,
   });
 
@@ -688,14 +767,14 @@ const BulkUpdateView: React.FC<BulkUpdateViewProps> = ({
             attribute_id: attr.attribute_id,
             term_id: attr.term_id,
             attribute: {
-                id: attr.attribute.id,
-                name: attr.attribute.name,
-                type: attr.attribute.type,
+                id: attr.attribute?.id || attr.attribute_id, // Fallback if nested attr id is missing
+                name: attr.attribute?.name || 'N/A', // Ensure name exists
+                type: attr.attribute?.type || undefined,
             },
             term: {
-                id: attr.term.id,
-                name: attr.term.name,
-                slug: attr.term.slug,
+                id: attr.term?.id || attr.term_id, // Fallback if nested term id is missing
+                name: attr.term?.name || 'N/A', // Ensure name exists
+                slug: attr.term?.slug || undefined,
             }
           })) || selectedVariantForEdit.variantAttributes,
         };

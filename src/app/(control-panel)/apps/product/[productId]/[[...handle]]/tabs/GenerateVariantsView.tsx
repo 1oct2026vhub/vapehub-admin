@@ -12,11 +12,11 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import FormTextField from '@/components/Shared/FormTextField';
 import AppButton from '@/components/Shared/AppButton';
-import { useDropzone } from 'react-dropzone';
+import { useDropzone, DropzoneRootProps, DropzoneInputProps } from 'react-dropzone';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import { uploadVariantImages, setVariantPrimaryImage, deleteVariantImage } from '@/services/apiProduct';
 import VariantDisplayCard from '../components/VariantDisplayCard';
-import VariantDetailsForm, { VariantFormData } from '../components/VariantDetailsForm';
+import VariantDetailsForm, { VariantFormData as DetailsFormDataType } from '../components/VariantDetailsForm';
 
 interface GenerateVariantsViewProps {
   isLoading: boolean;
@@ -32,6 +32,7 @@ interface VariantImage {
   variant_id: number;
   image_url: string;
   is_primary: boolean;
+  isPreview?: boolean;
 }
 
 interface VariantAttribute {
@@ -279,7 +280,75 @@ const variantSchema = z.object({
     .nullable(),
 });
 
-// type VariantFormData = z.infer<typeof variantSchema>; // Removed local type definition
+type GenerateVariantFormData = z.infer<typeof variantSchema>; // Renamed type
+
+// --- START: Image Validation Constants ---
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+const MIN_IMAGE_WIDTH = 280;
+const MIN_IMAGE_HEIGHT = 280;
+// const MAX_IMAGE_WIDTH = 800; // Removed for min-only validation
+// const MAX_IMAGE_HEIGHT = 800; // Removed for min-only validation
+const ACCEPTED_FILE_TYPES = ["image/png", "image/jpg", "image/jpeg", "image/webp"];
+// --- END: Image Validation Constants ---
+
+// --- START: Image Validation Helper Functions ---
+// Helper function to validate image dimensions
+const validateImageDimensions = (file: File): Promise<{ valid: boolean; dimensions?: { width: number; height: number } }> => {
+  return new Promise((resolve) => {
+    if (!file || !(file instanceof File)) {
+      resolve({ valid: true }); // Let other validations catch it
+      return;
+    }
+
+    const img = document.createElement('img');
+    img.onload = () => {
+      URL.revokeObjectURL(img.src);
+      const widthValid = img.width >= MIN_IMAGE_WIDTH; // Check min width
+      const heightValid = img.height >= MIN_IMAGE_HEIGHT; // Check min height
+
+      if (widthValid && heightValid) { // Valid if both are met
+        resolve({ valid: true, dimensions: { width: img.width, height: img.height } });
+      } else {
+        resolve({
+          valid: false,
+          dimensions: {
+            width: img.width,
+            height: img.height
+          }
+        });
+      }
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(img.src);
+      resolve({ valid: false });
+    };
+    img.src = URL.createObjectURL(file);
+  });
+};
+
+// Validate file size, type and dimensions
+const validateFile = async (file: File): Promise<string | null> => {
+  if (!file) return "File is required";
+
+  if (!ACCEPTED_FILE_TYPES.includes(file.type.toLowerCase())) { // Added toLowerCase for robustness
+    return "Only .jpg, .jpeg, .png, and .webp formats are supported";
+  }
+
+  if (file.size > MAX_FILE_SIZE) {
+    return `File size must be less than ${MAX_FILE_SIZE / (1024 * 1024)}MB`;
+  }
+
+  const dimensionResult = await validateImageDimensions(file);
+  if (!dimensionResult.valid) {
+    if (dimensionResult.dimensions) {
+        return `Image dimensions must be at least ${MIN_IMAGE_WIDTH}x${MIN_IMAGE_HEIGHT}px. Found: ${dimensionResult.dimensions.width}x${dimensionResult.dimensions.height}px.`; // Updated message
+    }
+    return `Image dimensions must be at least ${MIN_IMAGE_WIDTH}x${MIN_IMAGE_HEIGHT}px. Could not verify dimensions.`; // Updated message
+  }
+
+  return null;
+};
+// --- END: Image Validation Helper Functions ---
 
 const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: initialLoading, onSuccess, allCombinationsUsed, productAttributes, filteredVariants: propFilteredVariants, searchTerm }) => {
   const [isLoading, setIsLoading] = useState(initialLoading);
@@ -307,12 +376,13 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
     control,
     handleSubmit,
     getValues,
+    setValue,
     reset: resetForm,
     formState: { errors, isDirty, isValid, dirtyFields },
-  } = useForm<VariantFormData>({
+  } = useForm<DetailsFormDataType>({
     resolver: zodResolver(variantSchema),
     mode: "all",
-    defaultValues: { 
+    defaultValues: {
       slug: "",
       price: 1,
       stock: 0,
@@ -369,148 +439,271 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
   // Add dropzone hook for image uploads
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop: async (acceptedFiles) => {
-      if (!selectedVariant) return;
-      
-      // Use the derived productId variable
-      if (!productId) {
-        showSnackbar("Product ID not found", "error");
+      if (!selectedVariant || !productId) {
+        showSnackbar("No variant selected or product ID missing to upload images.", "error");
         return;
       }
 
-      // Basic validation for uploaded files
-      const validFiles = acceptedFiles.filter(file => {
-        if (file.size > 5 * 1024 * 1024) { 
-          showSnackbar(`File ${file.name} exceeds 5MB limit.`, "error");
-          return false; 
-        }
-        if (!['image/png', 'image/jpg', 'image/jpeg', 'image/webp'].includes(file.type)) {
-          showSnackbar(`File ${file.name} has an invalid type. Only PNG, JPG, JPEG, WEBP allowed.`, "error");
-          return false; 
-        }
-        return true;
-      });
-
-      if (validFiles.length === 0) {
-        showSnackbar("No valid files to upload.", "warning");
-        return;
-      }
+      if (acceptedFiles.length === 0) return;
 
       setImageUploading(true);
 
-      try {
-        // Create FormData for upload
-        const formData = new FormData();
-        validFiles.forEach((file) => {
-          formData.append("files", file);
-        });
+      const validationResults = await Promise.all(
+        acceptedFiles.map(async (file) => {
+          const error = await validateFile(file); // Using the local validateFile function
+          return { file, error };
+        })
+      );
 
-        // Upload images
-        const uploadResponse = await uploadVariantImages(productId, String(selectedVariant.id), formData);
-        console.log("[onDrop] Upload API Response:", uploadResponse); // <-- Log response
+      const validFiles = validationResults.filter(r => !r.error).map(r => r.file);
+      const invalidFilesInfo = validationResults.filter(r => r.error);
 
-        // Process response - Standardize extraction
-        let newImages: VariantImage[] = []; // Explicit type
-        if (uploadResponse && Array.isArray(uploadResponse.data?.variantImages)) {
-          // Assuming response structure { success: true, data: { variantImages: [...] } }
-          newImages = uploadResponse.data.variantImages;
-        } else if (uploadResponse && Array.isArray(uploadResponse.data?.variant?.variantImages)) {
-           // Assuming response structure { success: true, data: { variant: { variantImages: [...] } } }
-           newImages = uploadResponse.data.variant.variantImages;
-        } else if (Array.isArray(uploadResponse)) {
-           // Direct array response (less likely based on other calls)
-           newImages = uploadResponse; 
+      invalidFilesInfo.forEach(info => {
+        if (info.error) {
+          showSnackbar(`Error for ${info.file.name}: ${info.error}`, "error");
         }
-        console.log("[onDrop] Extracted new images:", newImages); // <-- Log extracted images
+      });
 
-        // Update local state only if new images were processed
-        if (newImages.length > 0) {
+      if (validFiles.length === 0) {
+        setImageUploading(false);
+        if (acceptedFiles.length > 0) showSnackbar("Image upload failed, please check the image dimensions and file type.", "warning");
+        return;
+      }
 
-          // --- Logic to set first image as primary if none exists ---
-          let firstImageIdToSetPrimary: number | null = null;
-          const hasExistingPrimary = newImages.some(img => img.is_primary);
-          
-          if (!hasExistingPrimary && newImages[0]) {
-            console.log("[onDrop] No primary image found in response. Setting first image as primary.");
-            // Modify the first image in the array to be primary
-            newImages[0].is_primary = true;
-            firstImageIdToSetPrimary = newImages[0].id; // Remember ID for API call
-          }
-          // --- End Logic ---
+      // Store temporary IDs and a way to identify preview objects
+      const previewImageObjects: Array<VariantImage & { _tempId: number, isPreview?: boolean, _file?: File }> = [];
 
-          let updatedSelectedVariant : GeneratedVariant | null = null; // Variable to hold updated selected variant
+      // Log for debugging
+      console.log(`[onDrop] Creating previews for ${validFiles.length} valid files`);
 
-          setGeneratedVariants(prevVariants => 
-            prevVariants.map(variant => {
-              if (variant.id === selectedVariant.id) {
-                // <<< Step 1: Get current unsaved form values >>>
-                const currentFormValues = getValues();
-                console.log("[onDrop] Current form values:", currentFormValues);
+      // Create previews only for valid files
+      validFiles.forEach((file, idx) => {
+        // Use negative IDs for temporary previews to avoid conflicts with API-generated IDs
+        const tempId = -(Date.now() + idx); // Negative temporary ID to avoid conflicts with API IDs
+        previewImageObjects.push({
+          id: tempId, // This ID is temporary
+          _tempId: tempId, // Store it separately for reliable lookup later
+          image_url: URL.createObjectURL(file),
+          is_primary: false,
+          variant_id: selectedVariant.id,
+          isPreview: true, // Flag to identify this as a temporary client-side preview
+          _file: file // Keep file reference for FormData
+        });
+        console.log(`[onDrop] Created preview with temp ID: ${tempId} for file: ${file.name}`);
+      });
 
-                // Create the updated variant object - REPLACE images with potentially modified newImages list
-                const newlyUpdatedVariant = {
-                  ...variant,
-                  ...currentFormValues, // Overwrite with unsaved form values
-                  // <<< Step 3: Ensure correct types and map field names, using null for empty/invalid >>>
-                  price: String(getNumericValue(currentFormValues.price) ?? variant.price ?? 0), // Use helper, fallback to existing, then 0
-                  stock: getNumericValue(currentFormValues.stock) ?? variant.stock ?? 0, // Use helper, fallback to existing, then 0
-                  slug: String(currentFormValues.slug || variant.slug || ''),
-                  discount_price: String(getNumericValue(currentFormValues.depositPrice) ?? variant.discount_price ?? null), // Map form name, use null
-                  purchase_price: String(getNumericValue(currentFormValues.purchasePrice) ?? variant.purchase_price ?? null), // Use null
-                  low_stock_threshold: getNumericValue(currentFormValues.lowStockThreshold) ?? variant.low_stock_threshold ?? null, // Use null
-                  weight: String(getNumericValue(currentFormValues.weight) ?? variant.weight ?? null), // Use null
-                  length: String(getNumericValue(currentFormValues.length) ?? variant.length ?? null), // Use null
-                  width: String(getNumericValue(currentFormValues.width) ?? variant.width ?? null), // Use null
-                  height: String(getNumericValue(currentFormValues.height) ?? variant.height ?? null), // Keep null possible
-                  barcode: String(currentFormValues.barcode || variant.barcode || ''),
-                  description: String(currentFormValues.description || variant.description || ''),
-                  status: String(currentFormValues.status || variant.status || 'inactive'),
-                  stock_status: String(currentFormValues.stockStatus || variant.stock_status || 'Out of Stock'),
-                  // <<< Step 4: NOW overwrite the images with the new list >>>
-                  variantImages: newImages.map(img => ({ 
-                    id: img.id,
-                    image_url: img.image_url,
-                    is_primary: img.is_primary, // Will reflect the change above if applied
-                    variant_id: variant.id 
-                  }))
-                };
-                updatedSelectedVariant = newlyUpdatedVariant;
-                return newlyUpdatedVariant; // Return the new object
-              }
-              return variant;
-            })
-          );
+      // Update UI with previews
+      if (previewImageObjects.length > 0) {
+        setGeneratedVariants(prev =>
+          prev.map(v =>
+            v.id === selectedVariant.id
+              ? { ...v, variantImages: [...(v.variantImages || []), ...previewImageObjects] }
+              : v
+          )
+        );
+        if (selectedVariant && selectedVariant.id) {
+          setSelectedVariant(prevSelected => {
+            if (!prevSelected || prevSelected.id !== selectedVariant.id) return prevSelected;
+            return {
+              ...prevSelected,
+              variantImages: [...(prevSelected.variantImages || []), ...previewImageObjects]
+            };
+          });
+        }
+      }
 
-          // Update selectedVariant state AFTER generatedVariants state
-          if (updatedSelectedVariant) {
-            setSelectedVariant(updatedSelectedVariant);
-          }
-          
-          // --- If we set a default primary, call the API --- 
-          if (firstImageIdToSetPrimary !== null) {
-             console.log(`[onDrop] Calling API to persist default primary image ID: ${firstImageIdToSetPrimary}`);
-             // Use try/catch for safety, but don't block UI updates if it fails
-             try {
-                await setVariantPrimaryImage(productId, String(selectedVariant.id), String(firstImageIdToSetPrimary));
-                showSnackbar("First uploaded image set as primary", "success"); // Give specific feedback
-             } catch(primaryApiError) {
-                 console.error("[onDrop] Failed to persist default primary image via API:", primaryApiError);
-                 showSnackbar("Failed to save default primary image setting", "warning");
-             }
-          } else {
-              showSnackbar("Images uploaded successfully", "success"); // Original success message
-          }
-          // --- End API Call ---
+      const formData = new FormData();
+      previewImageObjects.forEach(p => {
+        if (p._file) formData.append('files', p._file);
+      });
 
+      try {
+        const response = await uploadVariantImages(productId, String(selectedVariant.id), formData);
+        console.log("[onDrop] Upload API Response:", response);
+
+        // --- Robustly map API response to VariantImage[] ---
+        let rawApiImages: any[] = [];
+        // (Extraction logic for rawApiImages as before)
+        if (response && Array.isArray(response.data?.variantImages)) {
+          rawApiImages = response.data.variantImages;
+        } else if (response && Array.isArray(response.data?.variant?.variantImages)) {
+          rawApiImages = response.data.variant.variantImages;
+        } else if (Array.isArray(response)) {
+          rawApiImages = response;
+        } else if (response && response.data && Array.isArray(response.data)) {
+            rawApiImages = response.data;
+        } else if (response && response.data && response.data.id && response.data.image_url) {
+            rawApiImages = [response.data];
         } else {
-           console.warn("[onDrop] No new images extracted from response.");
-           showSnackbar("Upload successful, but couldn't display new images immediately.", "warning");
+            console.warn("[onDrop] API response for uploaded images is not in an expected array format:", response);
+        }
+
+        console.log("[onDrop] Raw API images:", rawApiImages);
+
+        const newImagesFromApi: VariantImage[] = rawApiImages.map((rawImg: any) => {
+          const serverId = rawImg.id ?? rawImg.image_id ?? rawImg.pk ?? rawImg.ImageId ?? rawImg.imageId;
+          const imageUrl = rawImg.image_url ?? rawImg.url ?? rawImg.imageUrl;
+          const isPrimary = rawImg.is_primary ?? rawImg.is_main ?? false;
+          const variantId = rawImg.variant_id ?? selectedVariant.id;
+
+          if (serverId === undefined || imageUrl === undefined) {
+            console.warn("[onDrop] Skipping an image from API response due to missing id or image_url:", rawImg);
+            return null;
+          }
+          
+          console.log(`[onDrop] Mapped API image: ID=${serverId}, isPrimary=${isPrimary}, url=${imageUrl?.substring(0, 30)}...`);
+          
+          return {
+            id: Number(serverId),
+            variant_id: Number(variantId),
+            image_url: imageUrl,
+            is_primary: isPrimary,
+            // NO isPreview flag here, these are persisted images
+          };
+        }).filter(img => img !== null) as VariantImage[];
+        console.log("[onDrop] Mapped new images from API:", newImagesFromApi);
+        // --- End of robust mapping ---
+
+        if (newImagesFromApi.length === 0) {
+          console.warn("[onDrop] No new images mapped from API response.");
+          showSnackbar("Upload processed, but no valid image data returned from API.", "warning");
+          
+          // Clean up previews since we don't have server images to replace them
+          setGeneratedVariants(prev => 
+            prev.map(v => 
+              v.id === selectedVariant.id 
+                ? { ...v, variantImages: (v.variantImages || []).filter(img => !previewImageObjects.some(p => p._tempId === img.id && img.isPreview)) } 
+                : v
+            )
+          );
+          
+          if (selectedVariant && selectedVariant.id) {
+            setSelectedVariant(prevSelected => {
+              if (!prevSelected || prevSelected.id !== selectedVariant.id) return prevSelected;
+              return {
+                ...prevSelected,
+                variantImages: (prevSelected.variantImages || []).filter(img => !previewImageObjects.some(p => p._tempId === img.id && img.isPreview))
+              };
+            });
+          }
+          
+          setImageUploading(false);
+          previewImageObjects.forEach(p => {
+            if (p.image_url) URL.revokeObjectURL(p.image_url);
+          });
+          return;
+        }
+
+        console.log("[onDrop] Processing successful upload with", newImagesFromApi.length, "images from API");
+
+        const currentFormValues = getValues();
+
+        // Define a function to consistently update variants
+        const updateVariantWithNewImages = (variant: GeneratedVariant): GeneratedVariant => {
+          if (variant.id !== selectedVariant.id) return variant;
+          
+          // Remove temporary previews
+          const imagesWithoutTempPreviews = (variant.variantImages || []).filter(
+            img => !previewImageObjects.some(p => p._tempId === img.id && img.isPreview)
+          );
+          
+          // Add new server images, avoiding duplicates
+          const finalImages = [...imagesWithoutTempPreviews];
+          newImagesFromApi.forEach(apiImg => {
+            if (!finalImages.find(existingImg => existingImg.id === apiImg.id)) {
+              finalImages.push(apiImg);
+            }
+          });
+          
+          // Ensure proper primary image state
+          let hasPrimary = finalImages.some(img => img.is_primary);
+          if (!hasPrimary && finalImages.length > 0) {
+            finalImages[0].is_primary = true;
+          } else if (hasPrimary) {
+            // Ensure only one primary image
+            let primaryFound = false;
+            finalImages.forEach(img => {
+              if (img.is_primary) {
+                if (primaryFound) img.is_primary = false;
+                else primaryFound = true;
+              }
+            });
+          }
+          
+          // Return updated variant with form values
+          return {
+            ...variant,
+            ...currentFormValues,
+            price: String(getNumericValue(currentFormValues.price) ?? variant.price ?? 0),
+            stock: getNumericValue(currentFormValues.stock) ?? variant.stock ?? 0,
+            slug: String(currentFormValues.slug || variant.slug || ''),
+            discount_price: String(getNumericValue(currentFormValues.depositPrice) ?? variant.discount_price ?? null),
+            purchase_price: String(getNumericValue(currentFormValues.purchasePrice) ?? variant.purchase_price ?? null),
+            low_stock_threshold: getNumericValue(currentFormValues.lowStockThreshold) ?? variant.low_stock_threshold ?? null,
+            weight: String(getNumericValue(currentFormValues.weight) ?? variant.weight ?? null),
+            length: String(getNumericValue(currentFormValues.length) ?? variant.length ?? null),
+            width: String(getNumericValue(currentFormValues.width) ?? variant.width ?? null),
+            height: String(getNumericValue(currentFormValues.height) ?? variant.height ?? null),
+            barcode: String(currentFormValues.barcode || variant.barcode || ''),
+            description: String(currentFormValues.description || variant.description || ''),
+            status: String(currentFormValues.status || variant.status || 'inactive') as 'active' | 'inactive',
+            stock_status: String(currentFormValues.stockStatus || variant.stock_status || 'Out of Stock'),
+            variantImages: finalImages
+          };
+        };
+
+        // Update state using the consistent function
+        setGeneratedVariants(prev => prev.map(updateVariantWithNewImages));
+        setSelectedVariant(prevSelected => prevSelected ? updateVariantWithNewImages(prevSelected) : null);
+
+        // Update originalSelectedVariantRef for dirty state checking
+        if (selectedVariant) {
+          const updatedVariant = updateVariantWithNewImages(selectedVariant);
+          originalSelectedVariantRef.current = JSON.parse(JSON.stringify(updatedVariant));
+        }
+
+        // Handle first image as primary if needed
+        const firstApiImage = newImagesFromApi[0];
+        const originallyWasPrimary = rawApiImages.find((rawImg:any) => 
+          (rawImg.id ?? rawImg.image_id ?? rawImg.pk) === firstApiImage.id)?.is_primary;
+          
+        if (firstApiImage && firstApiImage.is_primary && !originallyWasPrimary) {
+          try {
+            await setVariantPrimaryImage(productId, String(selectedVariant.id), String(firstApiImage.id));
+            showSnackbar("Images uploaded and first new image set as primary.", "success");
+          } catch (primaryApiError) {
+            console.error("[onDrop] Failed to persist default primary image via API:", primaryApiError);
+            showSnackbar("Images uploaded, but failed to save default primary image setting.", "warning");
+          }
+        } else {
+          showSnackbar("Images uploaded successfully.", "success");
         }
 
       } catch (error) {
         console.error("Error uploading images:", error);
         showSnackbar("Failed to upload images", "error");
+        // If API call fails, remove temp previews
+        setGeneratedVariants(prev => 
+          prev.map(v => 
+            v.id === selectedVariant.id 
+              ? { ...v, variantImages: (v.variantImages || []).filter(img => !previewImageObjects.some(p => p._tempId === img.id && img.isPreview)) } 
+              : v
+          )
+        );
+        if (selectedVariant && selectedVariant.id) {
+            setSelectedVariant(prevSelected => {
+                if (!prevSelected || prevSelected.id !== selectedVariant.id) return prevSelected;
+                return {
+                    ...prevSelected,
+                    variantImages: (prevSelected.variantImages || []).filter(img => !previewImageObjects.some(p => p._tempId === img.id && img.isPreview))
+                };
+            });
+        }
       } finally {
         setImageUploading(false);
+        previewImageObjects.forEach(p => {
+          if (p.image_url) URL.revokeObjectURL(p.image_url);
+        });
       }
     },
     accept: { 'image/*': ['.jpeg', '.jpg', '.png', '.gif', '.webp'] },
@@ -595,94 +788,150 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
   const handleDeleteImage = async (imageId: number) => {
     if (!selectedVariant) return;
 
-    // Use the derived productId variable
     if (!productId) {
       showSnackbar("Product ID not found", "error");
       return;
     }
 
+    console.log(`[handleDeleteImage] Attempting to delete image ID: ${imageId}`, 
+      selectedVariant ? `from variant ID: ${selectedVariant.id}` : 'but no selectedVariant!');
+    
+    // Make sure selectedVariant.variantImages exists and is an array
+    if (!selectedVariant.variantImages || !Array.isArray(selectedVariant.variantImages) || selectedVariant.variantImages.length === 0) {
+      console.warn(`[handleDeleteImage] No variantImages found on selectedVariant or it's empty.`);
+      showSnackbar("No images found to delete", "error");
+      return;
+    }
+
+    // Debug log to check available images
+    console.log(`[handleDeleteImage] Available images:`, 
+      selectedVariant.variantImages.map(img => ({ id: img.id, isPrimary: img.is_primary, isPreview: img.isPreview })));
+
+    const currentFormValues = getValues();
+    const originalSelectedVariantState = selectedVariant ? JSON.parse(JSON.stringify(selectedVariant)) : null;
+    const originalGeneratedVariantsState = JSON.parse(JSON.stringify(generatedVariants));
+
+    // Find the image object to check its isPreview flag
+    const imageToRemove = selectedVariant.variantImages?.find(img => img.id === imageId);
+
+    if (!imageToRemove) {
+      console.warn(`[handleDeleteImage] Image with ID ${imageId} not found in selectedVariant.variantImages. This might be due to a stale UI or state inconsistency.`);
+      showSnackbar("Could not find the image to delete. It might have already been removed or the list updated.", "warning");
+      return;
+    }
+
+    if (imageToRemove?.isPreview) {
+      console.log(`[handleDeleteImage] Deleting client-side preview image ID: ${imageId}`);
+      let imageUrlToRevoke: string | undefined;
+
+      const updateVariantStateForLocalDelete = (variant: GeneratedVariant): GeneratedVariant => {
+        if (variant.id !== selectedVariant.id) return variant;
+        const updatedImages = (variant.variantImages || []).filter(img => {
+          if (img.id === imageId) {
+            imageUrlToRevoke = img.image_url; 
+            return false; 
+          }
+          return true;
+        });
+        return {
+          ...variant,
+          // (Merge with form values as before)
+          slug: String(currentFormValues.slug || variant.slug || ''),
+          price: String(getNumericValue(currentFormValues.price) ?? getNumericValue(variant.price) ?? 0),
+          stock: getNumericValue(currentFormValues.stock) ?? getNumericValue(variant.stock) ?? 0,
+          status: String(currentFormValues.status || variant.status || 'inactive') as 'active' | 'inactive',
+          discount_price: String(getNumericValue(currentFormValues.depositPrice) ?? getNumericValue(variant.discount_price) ?? 0),
+          purchase_price: String(getNumericValue(currentFormValues.purchasePrice) ?? getNumericValue(variant.purchase_price) ?? 0),
+          low_stock_threshold: getNumericValue(currentFormValues.lowStockThreshold) ?? getNumericValue(variant.low_stock_threshold) ?? null,
+          weight: String(getNumericValue(currentFormValues.weight) ?? getNumericValue(variant.weight) ?? 0),
+          length: String(getNumericValue(currentFormValues.length) ?? getNumericValue(variant.length) ?? 0),
+          width: String(getNumericValue(currentFormValues.width) ?? getNumericValue(variant.width) ?? 0),
+          height: (h => h === null ? null : String(h))(getNumericValue(currentFormValues.height) ?? getNumericValue(variant.height)),
+          barcode: String(currentFormValues.barcode || variant.barcode || ''),
+          description: String(currentFormValues.description || variant.description || ''),
+          stock_status: String(currentFormValues.stockStatus || variant.stock_status || 'Out of Stock'),
+          variantImages: updatedImages
+        };
+      };
+
+      setGeneratedVariants(prevVariants => prevVariants.map(updateVariantStateForLocalDelete));
+      setSelectedVariant(prevSelected => prevSelected ? updateVariantStateForLocalDelete(prevSelected) : null);
+
+      if (imageUrlToRevoke) {
+        URL.revokeObjectURL(imageUrlToRevoke);
+        console.log(`[handleDeleteImage] Revoked Object URL for temporary image: ${imageUrlToRevoke}`);
+      }
+      showSnackbar("Temporary image preview removed", "info");
+      return; 
+    }
+
+    // Proceed with API deletion for persisted images (those without isPreview or isPreview is false)
+    console.log(`[handleDeleteImage] Attempting to delete persisted image ID: ${imageId} via API.`);
     try {
       await deleteVariantImage(productId, String(selectedVariant.id), String(imageId));
       console.log(`[handleDeleteImage] Successfully called API to delete image ID: ${imageId}`);
 
-      let updatedSelectedVariantAfterDelete : GeneratedVariant | null = null;
-      let newPrimaryImageId: number | null = null; // <-- Store new primary ID if needed
+      let newPrimaryImageId: number | null = null; // Track if we need to set a new primary
 
-      // --- Get current form values to preserve edits ---
-      const currentFormValues = getValues();
-      // --- End get current form values ---
+      // More simplified and robust state update approach
+      const updateVariantWithDeletedImage = (variant: GeneratedVariant): GeneratedVariant => {
+        if (variant.id !== selectedVariant.id) return variant;
+        
+        // Check if deleted image was primary
+        const deletedImageWasPrimary = variant.variantImages.find(img => img.id === imageId)?.is_primary || false;
+        
+        // Filter out the deleted image
+        const updatedImages = variant.variantImages.filter(img => img.id !== imageId);
+        
+        // If primary was deleted and we have other images, set first as primary
+        if (deletedImageWasPrimary && updatedImages.length > 0) {
+          updatedImages[0].is_primary = true;
+          newPrimaryImageId = updatedImages[0].id;
+        }
+        
+        // Create updated variant with current form values and new image list
+        return {
+          ...variant,
+          slug: String(currentFormValues.slug || variant.slug || ''),
+          price: String(getNumericValue(currentFormValues.price) ?? variant.price ?? 0),
+          stock: getNumericValue(currentFormValues.stock) ?? variant.stock ?? 0,
+          status: String(currentFormValues.status || variant.status || 'inactive') as 'active' | 'inactive',
+          discount_price: String(getNumericValue(currentFormValues.depositPrice) ?? variant.discount_price ?? null),
+          purchase_price: String(getNumericValue(currentFormValues.purchasePrice) ?? variant.purchase_price ?? null),
+          low_stock_threshold: getNumericValue(currentFormValues.lowStockThreshold) ?? variant.low_stock_threshold ?? null,
+          weight: String(getNumericValue(currentFormValues.weight) ?? variant.weight ?? null),
+          length: String(getNumericValue(currentFormValues.length) ?? variant.length ?? null),
+          width: String(getNumericValue(currentFormValues.width) ?? variant.width ?? null),
+          height: String(getNumericValue(currentFormValues.height) ?? variant.height ?? null),
+          barcode: String(currentFormValues.barcode || variant.barcode || ''),
+          description: String(currentFormValues.description || variant.description || ''),
+          stock_status: String(currentFormValues.stockStatus || variant.stock_status || 'Out of Stock'),
+          variantImages: updatedImages
+        };
+      };
 
-      // Update local state - Ensure this triggers re-render
-      setGeneratedVariants(prevVariants => 
-        prevVariants.map(variant => {
-          if (variant.id === selectedVariant.id) {
-            const originalImages = Array.isArray(variant.variantImages) ? variant.variantImages : [];
-            const deletedImageWasPrimary = originalImages.find(img => img.id === imageId)?.is_primary;
-            
-            // Filter out the deleted image first
-            let updatedImages = originalImages.filter(img => img.id !== imageId);
-            console.log(`[handleDeleteImage] Images after filtering ID ${imageId}:`, updatedImages);
+      // Update both state arrays with the same function to ensure consistency
+      setGeneratedVariants(prevVariants => prevVariants.map(updateVariantWithDeletedImage));
+      setSelectedVariant(prevSelected => prevSelected ? updateVariantWithDeletedImage(prevSelected) : null);
 
-            // --- Auto-set new primary if needed ---
-            if (deletedImageWasPrimary && updatedImages.length > 0) {
-              console.log("[handleDeleteImage] Deleted image was primary. Setting first remaining image as primary.");
-              // Create a new array with the first image marked as primary
-              updatedImages = updatedImages.map((img, index) => ({
-                ...img,
-                is_primary: index === 0 // Set only the first one (index 0) to true
-              }));
-              newPrimaryImageId = updatedImages[0].id; // Store its ID for API call
-              console.log(`[handleDeleteImage] New primary image ID to set via API: ${newPrimaryImageId}`);
-            }
-            // --- End Auto-set ---
-
-            // Create the updated variant object, merging form values
-            const newlyUpdatedVariant: GeneratedVariant = {
-              ...variant, // Start with the existing variant from state
-              // Overwrite with potentially unsaved form values, applying correct typing/mapping
-              slug: String(currentFormValues.slug || variant.slug || ''),
-              price: String(getNumericValue(currentFormValues.price) ?? variant.price ?? 0),
-              stock: getNumericValue(currentFormValues.stock) ?? variant.stock ?? 0,
-              status: String(currentFormValues.status || variant.status || 'inactive') as 'active' | 'inactive',
-              discount_price: String(getNumericValue(currentFormValues.depositPrice) ?? variant.discount_price ?? null),
-              purchase_price: String(getNumericValue(currentFormValues.purchasePrice) ?? variant.purchase_price ?? null),
-              low_stock_threshold: getNumericValue(currentFormValues.lowStockThreshold) ?? variant.low_stock_threshold ?? null,
-              weight: String(getNumericValue(currentFormValues.weight) ?? variant.weight ?? null),
-              length: String(getNumericValue(currentFormValues.length) ?? variant.length ?? null),
-              width: String(getNumericValue(currentFormValues.width) ?? variant.width ?? null),
-              height: String(getNumericValue(currentFormValues.height) ?? variant.height ?? null),
-              barcode: String(currentFormValues.barcode || variant.barcode || ''),
-              description: String(currentFormValues.description || variant.description || ''),
-              stock_status: String(currentFormValues.stockStatus || variant.stock_status || 'Out of Stock'),
-              // NOW overwrite the images with the new list
-              variantImages: updatedImages // Use the potentially modified list
-            };
-            updatedSelectedVariantAfterDelete = newlyUpdatedVariant;
-            return newlyUpdatedVariant; // Return the new object
-          }
-          return variant;
-        })
-      );
-
-      // Update selectedVariant state AFTER generatedVariants state
-      if (updatedSelectedVariantAfterDelete) {
-         setSelectedVariant(updatedSelectedVariantAfterDelete);
-      }
-
-      // --- If a new primary was set, call the API to persist it --- 
+      // If we need to set a new primary image after deletion
       if (newPrimaryImageId !== null) {
-         console.log(`[handleDeleteImage] Calling API to persist new default primary image ID: ${newPrimaryImageId}`);
-         try {
-             await setVariantPrimaryImage(productId, String(selectedVariant.id), String(newPrimaryImageId));
-             showSnackbar("Image deleted and new primary set successfully", "success"); // Combined message
-         } catch (primaryApiError) {
-             console.error("[handleDeleteImage] Failed to persist new primary image via API:", primaryApiError);
-             showSnackbar("Image deleted, but failed to save new primary setting", "warning");
-         }
+        try {
+          await setVariantPrimaryImage(productId, String(selectedVariant.id), String(newPrimaryImageId));
+          showSnackbar("Image deleted and new primary set successfully", "success");
+        } catch (primaryError) {
+          console.error("[handleDeleteImage] Failed to persist new primary image via API:", primaryError);
+          showSnackbar("Image deleted, but failed to save new primary setting", "warning");
+        }
       } else {
-           showSnackbar("Image deleted successfully", "success"); // Original success message if primary wasn't changed
+        showSnackbar("Image deleted successfully", "success");
       }
-      // --- End API Call ---
+
+      // Update originalSelectedVariantRef for dirty state checking
+      if (selectedVariant) {
+        const updatedSelectedVariant = updateVariantWithDeletedImage(selectedVariant);
+        originalSelectedVariantRef.current = JSON.parse(JSON.stringify(updatedSelectedVariant));
+      }
 
     } catch (error) {
       console.error("[handleDeleteImage] Error deleting image:", error);
@@ -868,7 +1117,7 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
   };
 
   // Add onSubmit handler for variant updates
-  const onSubmit = async (data: VariantFormData) => {
+  const onSubmit = async (data: DetailsFormDataType) => {
     if (!selectedVariant) return;
 
     // Use the derived productId variable

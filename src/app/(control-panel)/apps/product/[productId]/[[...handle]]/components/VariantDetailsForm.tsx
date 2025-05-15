@@ -19,23 +19,29 @@ export interface VariantImage {
 }
 // Define constants for validation
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
-const MAX_IMAGE_WIDTH = 640;
-const MAX_IMAGE_HEIGHT = 800;
+const MIN_IMAGE_WIDTH = 280;
+const MIN_IMAGE_HEIGHT = 280;
 const ACCEPTED_FILE_TYPES = ["image/png", "image/jpg", "image/jpeg", "image/webp"];
+
 
 // --- Add validation helper function ---
 // Helper function to validate image dimensions
 export const validateImageDimensions = (file: File): Promise<{ valid: boolean; dimensions?: { width: number; height: number } }> => {
   return new Promise((resolve) => {
     if (!file || !(file instanceof File)) {
-      resolve({ valid: true });
+      resolve({ valid: true }); // Let other validations catch it or consider as an error.
       return;
     }
 
     const img = document.createElement('img');
     img.onload = () => {
       URL.revokeObjectURL(img.src);
-      if (img.width > MAX_IMAGE_WIDTH || img.height > MAX_IMAGE_HEIGHT) {
+      const widthValid = img.width >= MIN_IMAGE_WIDTH;
+      const heightValid = img.height >= MIN_IMAGE_HEIGHT;
+
+      if (widthValid && heightValid) {
+        resolve({ valid: true, dimensions: { width: img.width, height: img.height } });
+      } else {
         resolve({ 
           valid: false, 
           dimensions: { 
@@ -43,13 +49,12 @@ export const validateImageDimensions = (file: File): Promise<{ valid: boolean; d
             height: img.height 
           } 
         });
-      } else {
-        resolve({ valid: true });
       }
     };
     img.onerror = () => {
       URL.revokeObjectURL(img.src);
-      resolve({ valid: true }); // Assume valid on error to avoid blocking submission
+      // If image can't be loaded, dimensions can't be checked. Treat as invalid for dimension check.
+      resolve({ valid: false }); 
     };
     img.src = URL.createObjectURL(file);
   });
@@ -60,7 +65,7 @@ export const validateFile = async (file: File): Promise<string | null> => {
   if (!file) return "File is required";
   
   // Check file type
-  if (!ACCEPTED_FILE_TYPES.includes(file.type)) {
+  if (!ACCEPTED_FILE_TYPES.includes(file.type.toLowerCase())) {
     return "Only .jpg, .jpeg, .png, and .webp formats are supported";
   }
   
@@ -72,7 +77,10 @@ export const validateFile = async (file: File): Promise<string | null> => {
   // Check dimensions
   const dimensionResult = await validateImageDimensions(file);
   if (!dimensionResult.valid) {
-    return `Image dimensions must not exceed ${MAX_IMAGE_WIDTH}×${MAX_IMAGE_HEIGHT} pixels`;
+    if (dimensionResult.dimensions) {
+        return `Image dimensions must be at least ${MIN_IMAGE_WIDTH}x${MIN_IMAGE_HEIGHT}px. Found: ${dimensionResult.dimensions.width}x${dimensionResult.dimensions.height}px.`;
+    }
+    return `Image dimensions must be at least ${MIN_IMAGE_WIDTH}x${MIN_IMAGE_HEIGHT}px. Could not verify dimensions.`;
   }
   
   return null;
@@ -288,8 +296,7 @@ const VariantDetailsForm: React.FC<VariantDetailsFormProps> = ({
             className={`border rounded flex flex-col items-center justify-center py-8 bg-gray-50 
               ${isImageDragActive ? 'border-green-500 bg-green-50' : 'border-gray-300'}
               ${(isImageUploading || isSaving) ? 'opacity-70 cursor-wait' : 'cursor-pointer'} mb-3`}
-          >
-             
+          >       
             {(isImageUploading) ? (
               <FuseLoading className="mb-2" />
             ) : (
@@ -314,7 +321,7 @@ const VariantDetailsForm: React.FC<VariantDetailsFormProps> = ({
                 Click to upload or drag and drop
               </Typography>
               <Typography variant="body2" color="textSecondary">
-                Upload a product image ({MAX_IMAGE_WIDTH} × {MAX_IMAGE_HEIGHT} px, Max size: 5MB)
+                Upload a product image (Min {MIN_IMAGE_WIDTH}x{MIN_IMAGE_HEIGHT}px, Max size: 5MB)
               </Typography>
               <Typography variant="body2" color="textSecondary" className="mt-1">
                 Supported formats: PNG, JPG, JPEG, WebP
