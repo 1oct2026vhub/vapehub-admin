@@ -269,8 +269,6 @@ function BasicInfoTab() {
         try {
           setProductId(Number(finalProductId));
           const response = await getProduct(Number(finalProductId));
-          console.log("Product data received:", response?.data);
-
           if (response?.data) {
             const productData = response.data;
 
@@ -313,9 +311,7 @@ function BasicInfoTab() {
   const onSubmit = async (data: FormData) => {
     setIsLoading(true);
     try {
-      console.log("Starting product creation/update process...");
-      console.log("Form data to be submitted:", data);
-
+  
       // Validate required fields
       if (!data.name || !data.slug || !data.category_id || !data.brand_id) {
         throw new Error("Please fill in all required fields");
@@ -331,11 +327,9 @@ function BasicInfoTab() {
         is_new: Boolean(data.is_new),
       };
 
-      console.log("Formatted product data:", productData);
 
       // Check if we have a valid token
       const token = getAuthToken();
-      console.log("Auth token present:", !!token);
 
       if (!token) {
         throw new Error("Authentication required. Please login again.");
@@ -344,7 +338,6 @@ function BasicInfoTab() {
       let response;
       if (isEditMode) {
         // Update existing product
-        console.log("Updating existing product with ID:", productId);
         response = await updateProduct(Number(productId), productData);
         showSnackbar("Product updated successfully", "success");
 
@@ -356,7 +349,6 @@ function BasicInfoTab() {
         });
       } else {
         // Create new product
-        console.log("Creating new product");
         response = await createProduct(productData);
         showSnackbar("Product created successfully", "success");
 
@@ -374,13 +366,11 @@ function BasicInfoTab() {
         nextStep();
       }
 
-      console.log("API response:", response);
 
       if (!response?.data?.id) {
         throw new Error("Failed to save product: No ID returned");
       }
 
-      console.log("Product saved successfully with ID:", response.data.id);
     } catch (error: any) {
       if (error?.errors) {
         showSnackbar(error?.errors[0]?.msg, "error");
@@ -496,7 +486,6 @@ function BasicInfoTab() {
           e.key === "Enter" &&
           (e.target as HTMLElement).tagName !== "BUTTON"
         ) {
-          console.log("Preventing form submission from Enter key");
           e.preventDefault();
           return false;
         }
