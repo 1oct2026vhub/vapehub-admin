@@ -5,7 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useEffect, useState, useRef } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { Alert, Typography, Box, Button, CircularProgress } from "@mui/material";
+import { Alert, Typography, Box, Button, CircularProgress, Tabs, Tab } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
 import AppButton from "@/components/Shared/AppButton";
 import FormInputField from "@/components/Shared/FormInputField";
@@ -19,6 +19,7 @@ import {
 import { useSnackbar } from "@/contexts/SnackbarContext";
 import axiosInstance from "@/utils/axiosApi";
 import PageBreadcrumb from "@/components/PageBreadcrumb";
+import FaqAccordion from "../../faq/FaqAccordion";
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const ACCEPTED_FILE_TYPES = [
@@ -139,11 +140,13 @@ const EditCategoryForm = ({
   const router = useRouter();
   const params = useParams();
   const id = params?.id ? (Array.isArray(params.id) ? params.id[0] : params.id) : undefined;
+  const categoryId = params?.id ? (Array.isArray(params.id) ? parseInt(params.id[0], 10) : parseInt(params.id as string, 10)) : null;
   const { showSnackbar } = useSnackbar();
   const [isLoading, setIsLoading] = useState(false);
   const [isImageDeleting, setIsImageDeleting] = useState(false);
   const [hasImageError, setHasImageError] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [activeTab, setActiveTab] = useState<number>(0); // 0 for Details, 1 for FAQ
 
   const categoryRef = useRef<FormType>(initialCategory);
 
@@ -310,6 +313,10 @@ const EditCategoryForm = ({
     }
   };
 
+  const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
+    setActiveTab(newValue);
+  };
+
   return (
     <div className="md:px-64 p-4">
       <div>
@@ -322,72 +329,100 @@ const EditCategoryForm = ({
       {isLoading && <p>Loading category data...</p>}
 
       {!isLoading && (
-        <form
-          name="categoryForm"
-          noValidate
-          className="flex w-full flex-col justify-center"
-          onSubmit={handleSubmit(onSubmit)}
-        >
-          {errors?.root?.message && (
-            <Alert className="mb-8" severity="error">
-              {errors?.root?.message}
-            </Alert>
-          )}
-
-          <FormInputField
-            name="name"
-            control={control}
-            label="Category Name"
-            type="text"
-            required
-          />
-          <div className="text-xs text-gray-500 -mt-3 mb-4">
-            {nameLength} / 50 characters used{" "}
-            {nameRemaining < 0 ? "(exceeded maximum)" : ""}
-          </div>
-          <FormInputField
-            name="slug"
-            control={control}
-            label="Slug"
-            type="text"
-            required
-          />
-          <FormInputField
-            name="description"
-            control={control}
-            label="Description"
-            type="text"
-          />
-          <FormInputField
-            name="parent_id"
-            control={control}
-            label="Parent Category ID"
-            type="number"
-          />
-          
-          <Box sx={{ mt: 2, mb: 2 }}>
-            <FormFileUploadField
-              name="logo"
-              control={control}
-              label="Category Logo"
-              onFileChange={(file) => {
-                setSelectedFile(file);
-                setValue("logo", file, { shouldValidate: true });
-              }}
-              helperText={`Upload a category slider image (${MAX_IMAGE_WIDTH} × ${MAX_IMAGE_HEIGHT} px, Max size: 5MB). Supported formats: PNG, JPG, JPEG, WebP`}
-              defaultImage={categoryRef.current?.logo_url || undefined}
-            />
+        <>
+          <Box sx={{ borderBottom: 1, borderColor: 'divider', mt: 3, mb: 3 }}>
+            <Tabs value={activeTab} onChange={handleTabChange} aria-label="category edit tabs">
+              <Tab label="Category Details" id="category-details-tab" aria-controls="category-details-panel" />
+              <Tab label="FAQ" id="category-faq-tab" aria-controls="category-faq-panel" />
+            </Tabs>
           </Box>
-          <AppButton
-            label="Update"
-            loading={isLoading}
-            type="submit"
-            fullWidth
-            size="large"
-            disabled={!areRequiredFieldsFilled() || isMutating}
-            className="mt-4 w-full"
-          />
-        </form>
+          <form
+            name="categoryForm"
+            noValidate
+            className="flex w-full flex-col justify-center"
+            onSubmit={handleSubmit(onSubmit)}
+            hidden={activeTab !== 0} // Hide form if not on details tab
+          >
+            {errors?.root?.message && (
+              <Alert className="mb-8" severity="error">
+                {errors?.root?.message}
+              </Alert>
+            )}
+
+            <FormInputField
+              name="name"
+              control={control}
+              label="Category Name"
+              type="text"
+              required
+            />
+            <div className="text-xs text-gray-500 -mt-3 mb-4">
+              {nameLength} / 50 characters used{" "}
+              {nameRemaining < 0 ? "(exceeded maximum)" : ""}
+            </div>
+            <FormInputField
+              name="slug"
+              control={control}
+              label="Slug"
+              type="text"
+              required
+            />
+            <FormInputField
+              name="description"
+              control={control}
+              label="Description"
+              type="text"
+            />
+            <FormInputField
+              name="parent_id"
+              control={control}
+              label="Parent Category ID"
+              type="number"
+            />
+            
+            <Box sx={{ mt: 2, mb: 2 }}>
+              <FormFileUploadField
+                name="logo"
+                control={control}
+                label="Category Logo"
+                onFileChange={(file) => {
+                  setSelectedFile(file);
+                  setValue("logo", file, { shouldValidate: true });
+                }}
+                helperText={`Upload a category slider image (${MAX_IMAGE_WIDTH} × ${MAX_IMAGE_HEIGHT} px, Max size: 5MB). Supported formats: PNG, JPG, JPEG, WebP`}
+                defaultImage={categoryRef.current?.logo_url || undefined}
+              />
+            </Box>
+            <AppButton
+              label="Update Category Details"
+              loading={isLoading}
+              type="submit"
+              fullWidth
+              size="large"
+              disabled={!areRequiredFieldsFilled() || isMutating}
+              className="mt-4 w-full"
+            />
+          </form>
+
+        
+
+          {/* Category Details Tab Panel - Content is rendered above if activeTab === 0 */}
+          <div role="tabpanel" hidden={activeTab !== 0} id="category-details-panel" aria-labelledby="category-details-tab">
+            {/* The form is now outside and conditionally hidden */}
+          </div>
+
+          {/* FAQ Tab Panel */}
+          <div role="tabpanel" hidden={activeTab !== 1} id="category-faq-panel" aria-labelledby="category-faq-tab">
+            {activeTab === 1 && categoryId && (
+              <Box sx={{ pt: 2 }}>
+                <FaqAccordion entityId={categoryId} entityType="category" />
+              </Box>
+            )}
+            {activeTab === 1 && !categoryId && (
+                <Typography color="error">Category ID is missing. Cannot load FAQs.</Typography>
+            )}
+          </div>
+        </>
       )}
     </div>
   );

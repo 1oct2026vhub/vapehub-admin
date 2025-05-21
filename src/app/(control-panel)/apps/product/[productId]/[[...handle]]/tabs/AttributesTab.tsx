@@ -259,9 +259,6 @@ function AttributesTab() {
       
       try {
         setIsTermSearching(true);
-        console.log(
-          `Searching for terms matching "${query}" for attribute ID ${attributeId}`
-        );
 
         // Always call API, with or without keyword
         const response = await listAttributeTerms({
@@ -272,9 +269,7 @@ function AttributesTab() {
           order: "ASC"
         });
 
-        console.log(
-          `Found ${response?.data?.terms?.length || 0} matching terms for attribute ${attributeId}`
-        );
+      
 
         // Store the search results
         setTermSearchResults((prev) => ({
@@ -304,7 +299,6 @@ function AttributesTab() {
   // Fetch product data including attributes
   const fetchProductData = useCallback(async () => {
     if (!productId) {
-      console.log("fetchProductData skipped: Product ID is null or invalid.");
       setIsLoading(false);
       return;
     }
@@ -320,10 +314,7 @@ function AttributesTab() {
 
     setIsLoading(true);
     try {
-      console.log("Fetching product data for ID:", productId);
       const response = await getProduct(productId);
-      console.log("Product data received:", response?.data);
-
       // Update the form data with product ID if not already set
       if (!formData.productId) {
         updateFormData({
@@ -336,11 +327,7 @@ function AttributesTab() {
         response?.data?.productAttributeTerms &&
         response.data.productAttributeTerms.length > 0
       ) {
-        console.log(
-          "Product attributes found:",
-          response.data.productAttributeTerms
-        );
-
+      
         // Group terms by attribute_id
         const attributeGroups: FormProductAttribute[] = Object.values(
           response.data.productAttributeTerms.reduce((acc, attr) => {
@@ -365,8 +352,6 @@ function AttributesTab() {
             return acc;
           }, {} as Record<number, FormProductAttribute>)
         );
-
-        console.log("Grouped attribute data:", attributeGroups);
 
         // Update form with the loaded attribute data
         replace(attributeGroups);
@@ -460,7 +445,6 @@ function AttributesTab() {
       // Skip API call if the query is empty or too short
       try {
         setIsAttributeSearching(true);
-        console.log(`Searching for attributes with query: "${query}"`);
 
         // Always call API, but only use keyword when it's provided
         const response = await listAttributes({
@@ -470,9 +454,7 @@ function AttributesTab() {
           order: "ASC",
         });
 
-        console.log(
-          `Found ${response?.data?.attributes?.length || 0} attributes`
-        );
+      
         setAttributeSearchResults(response);
 
         // Update attribute options for this specific index
@@ -637,9 +619,6 @@ function AttributesTab() {
       searchedTerms.length > 0 ? searchedTerms : termsList,
       attributeId as number
     );
-
-    // Log for debugging
-    console.log(`Available terms for attribute ${attributeId}:`, combinedTerms.length);
     
     return combinedTerms;
   };
@@ -688,7 +667,6 @@ function AttributesTab() {
           })),
         };
 
-        console.log("Updating product attributes:", updateRequest);
         response = await updateProductAttributes(productId, updateRequest);
         showSnackbar("Product attributes updated successfully", "success");
       } else {
@@ -704,7 +682,6 @@ function AttributesTab() {
           ),
         };
 
-        console.log("Adding product attributes:", addRequest);
         response = await addProductAttributes(productId, addRequest);
         showSnackbar("Product attributes saved successfully", "success");
         nextStep();
@@ -801,12 +778,9 @@ function AttributesTab() {
 
         // Delete each attribute term
         for (const term of attributeTerms) {
-          console.log(
-            `Deleting attribute term ID: ${term.id} for product ${productId}`
-          );
+
           try {
             await deleteProductAttributeTerm(productId, term.id);
-            console.log(`Successfully deleted attribute term ID: ${term.id}`);
           } catch (error) {
             console.error(
               `Error deleting attribute term ID: ${term.id}:`,
@@ -924,7 +898,6 @@ function AttributesTab() {
     <div className="w-full">
       <form
         onSubmit={handleSubmit(onSubmit, (errors) => {
-          console.log("Form validation errors:", errors);
           
           // Show specific error messages based on which fields failed validation
           if (errors.attributes && Array.isArray(errors.attributes)) {
@@ -1476,7 +1449,6 @@ function AttributesTab() {
               trigger().then(isValid => {
                 if (!isValid) {
                   showSnackbar("Please fill out all required fields", "error");
-                  console.log("Form validation errors:", errors);
                 }
               });
             }}

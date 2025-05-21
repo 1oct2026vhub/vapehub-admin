@@ -1,4 +1,5 @@
 import { styled } from "@mui/material/styles";
+import Link from "next/link";
 
 const Root = styled("div")(({ theme }) => ({
   "& > .logo-icon": {
@@ -22,16 +23,18 @@ function Logo() {
   return (
     <Root className="flex flex-1 items-center space-x-3">
       <div className="flex flex-1 items-center space-x-2 px-2.5">
-        <div
+        {/* <div
           onClick={() => window.open("https://vapehub.devateam.com/", "_blank")}
           className="cursor-pointer flex items-center"
-        >
+        > */}
+        <Link href="/dashboards/admin">
           <img
             className="logo-icon min-h-32 w-32"
             src="/assets/images/logo/logo.svg"
             alt="logo"
           />
-        </div>
+          </Link>
+        {/* </div> */}
       </div>
     </Root>
   );

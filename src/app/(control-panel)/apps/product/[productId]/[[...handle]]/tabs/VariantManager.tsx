@@ -695,7 +695,6 @@ const mapVariantForDisplayCard = (variant: Variant) => {
   // Normalize status for the display card to ensure it's lowercase 'active' or 'inactive'
   const displayCardStatus = variant.status?.toString().toLowerCase() === 'active' ? 'active' : 'inactive';
 
-  console.log(`[VariantManager mapVariantForDisplayCard] Variant ID: ${variant.id}, Raw Status from state: "${variant.status}", Mapped Status for Card: "${displayCardStatus}"`);
 
   return {
     id: variant.id,
@@ -753,7 +752,6 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
   useEffect(() => {
     // Check if the tab just became active (transitioned from false to true)
     if (isActive && !prevIsActive.current) {
-      console.log('[VariantManager] Tab became active, resetting viewMode.');
       setViewMode('initial');
       // Optionally reset other states if needed when tab becomes active
       // setSearchTerm(''); 
@@ -913,7 +911,6 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
   // Handle file upload for variant images
   const handleImageUpload = async (files: File[]) => {
     // This function now ONLY handles uploads for EXISTING variants via editDropzone
-    console.log("Handling image upload for EXISTING variant:", selectedVariant?.id);
     if (files.length === 0 || !selectedVariant) {
       console.warn("handleImageUpload called without files or selectedVariant");
       return; 
@@ -1192,7 +1189,6 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
 
       setImageUploading(true); // Start upload indicator specifically for edit
       try {
-        console.log(`Uploading ${acceptedFiles.length} images for existing variant ${selectedVariant.id}...`);
         // Use handleImageUpload as it contains the API call and state update logic
         await handleImageUpload(acceptedFiles); 
 
@@ -1623,11 +1619,9 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
       // Fetch variants if in 'initial' or 'manual' mode, 
       // or if variants haven't been loaded yet (e.g., first load before viewMode is set by user action)
       if (viewMode === 'initial' || viewMode === 'manual' || variants.length === 0) {
-        console.log(`[Effect: productId/viewMode] Fetching variants for viewMode: ${viewMode}`);
         fetchVariants(formData.productId);
       }
     } else {
-      console.log(`[Effect: productId/viewMode] Skipped fetch (no Product ID).`);
       // Optionally clear variants if product ID is removed
       // setVariants([]);
       // setSelectedVariantIndex(0);
@@ -1639,7 +1633,6 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
     let uploadedVariantImages: VariantImage[] = []; // Declare return variable at the start
 
     if (files.length === 0 || !productId || !variantId) {
-      console.log("Skipping image upload: No files or missing IDs.");
       return uploadedVariantImages; // Return empty array if no files or IDs
     }
 
@@ -1659,7 +1652,6 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
     const validFiles = filesWithValidation.filter(f => !f.validationError).map(f => f.file);
     
     if (validFiles.length === 0) {
-      console.log("No valid files to upload after validation");
       return uploadedVariantImages; // Return empty array if no valid files
     }
 
@@ -1669,7 +1661,6 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
 
     try {
       const uploadResponse = await uploadVariantImages(productId, variantId, imageFormData);
-      console.log("Image upload response for new variant:", uploadResponse);
       
       let newImagesFromAPI: any[] = []; // Changed from newImages to newImagesFromAPI to avoid conflict if VariantImage[] is also named newImages
       // Handle different possible response structures (similar to handleImageUpload)
@@ -1717,7 +1708,6 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
           
           return updatedVariants;
         });
-        console.log(`Added ${processedImages.length} images to variant ${variantId}`);
         uploadedVariantImages = processedImages; // Assign to the variable that will be returned
       } else {
         console.warn("Could not extract uploaded images from response:", uploadResponse);
@@ -1815,11 +1805,9 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
       // Call the API to create the variant
       let newVariantApiResponse: any = null; 
       if (formData?.productId) {
-        console.log("Creating variant with payload:", { variants: [variantPayload] });
         newVariantApiResponse = await createProductVariants(formData.productId, {
           variants: [variantPayload]
         });
-        console.log("Create variant API response:", newVariantApiResponse);
       } else {
         showSnackbar("Product ID not found", "error");
         setIsSubmitting(false);
@@ -1924,10 +1912,8 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
   // Filter variants based on search term
   const filteredVariants = variants.filter(variant => {
     // --- Add Logging --- 
-    console.log(`[Search Filter] Checking Variant ID: ${variant.id}, Search Term: "${searchTerm}"`);
     
     if (!searchTerm) {
-      console.log(`[Search Filter] No search term, including variant.`);
       return true;
     }
     
@@ -1937,42 +1923,36 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
     // Search in ID
     const idMatch = variant.id?.toString().toLowerCase().includes(searchLower);
     if (idMatch) {
-      console.log(`[Search Filter] Match found in ID: ${variant.id}`);
       match = true;
     }
     
     // Search in slug
     const slugMatch = !match && variant.slug?.toLowerCase().includes(searchLower);
     if (slugMatch) {
-      console.log(`[Search Filter] Match found in Slug: ${variant.slug}`);
       match = true;
     }
 
     // Search in Price (convert to string)
     const priceMatch = !match && variant.price?.toString().includes(searchLower);
     if (priceMatch) {
-      console.log(`[Search Filter] Match found in Price: ${variant.price}`);
       match = true;
     }
     
     // Search in Stock (convert to string)
     const stockMatch = !match && variant.stock?.toString().includes(searchLower);
     if (stockMatch) {
-      console.log(`[Search Filter] Match found in Stock: ${variant.stock}`);
       match = true;
     }
     
     // Search in Barcode
     const barcodeMatch = !match && variant.barcode?.toLowerCase().includes(searchLower);
     if (barcodeMatch) {
-      console.log(`[Search Filter] Match found in Barcode: ${variant.barcode}`);
       match = true;
     }
 
     // Search in Description
     const descriptionMatch = !match && variant.description?.toLowerCase().includes(searchLower);
     if (descriptionMatch) {
-      console.log(`[Search Filter] Match found in Description: ${variant.description}`);
       match = true;
     }
     
@@ -1984,7 +1964,6 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
           const keyMatch = key.toLowerCase().includes(searchLower);
           const valueMatch = value?.toString().toLowerCase().includes(searchLower); 
           if (keyMatch || valueMatch) {
-            console.log(`[Search Filter] Match found in Attribute - Key: ${key}, Value: ${value}`);
             match = true;
             break; // Exit loop once match is found in attributes
           }
@@ -2001,14 +1980,12 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
         for (const attr of variant.variantAttributes) {
           // Check attribute name
           if (attr.attribute?.name?.toLowerCase().includes(searchLower)) {
-            console.log(`[Search Filter] Match found in variantAttributes - Attribute name: ${attr.attribute.name}`);
             match = true;
             break;
           }
           
           // Check term name
           if (attr.term?.name?.toLowerCase().includes(searchLower)) {
-            console.log(`[Search Filter] Match found in variantAttributes - Term name: ${attr.term.name}`);
             match = true;
             break;
           }
@@ -2017,7 +1994,6 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
           if (attr.attribute?.name && attr.term?.name) {
             const combinedValue = `${attr.attribute.name}: ${attr.term.name}`.toLowerCase();
             if (combinedValue.includes(searchLower)) {
-              console.log(`[Search Filter] Match found in variantAttributes - Combined: ${combinedValue}`);
               match = true;
               break;
             }
@@ -2028,7 +2004,6 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
       }
     }
     
-    console.log(`[Search Filter] Final match result for Variant ID ${variant.id}: ${match}`);
     return match;
     // --- End Logging Additions ---
   });
@@ -2488,7 +2463,6 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
               const newPrimaryImageId = remainingImages[0].id;
               // Check if the new candidate is valid and not already primary (it shouldn't be)
               if (newPrimaryImageId && !remainingImages[0].is_primary) { 
-                console.log(`Auto-setting image ${newPrimaryImageId} as new primary for variant ${variantId}`);
                 // Use setTimeout to ensure this runs after the current state update/render cycle
                 setTimeout(() => handleSetPrimaryImage(newPrimaryImageId), 0); 
               }
@@ -2542,11 +2516,7 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
           showSnackbar("Original variant data not found for comparison.", "error");
           setIsSubmitting(false);
           return;
-      }
-
-      // Log status before update for debugging
-      console.log(`[handleUpdateVariant] Updating variant ${variantId} status from "${originalVariant.status}" to "${data.status}"`);
-      
+      }      
       // Retrieve original attributes from selectedVariant state for API payload
       const attributePayload = Object.entries(originalVariant.attributes)
         .map(([attrName, termName]) => {
@@ -2640,8 +2610,6 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
           return;
       }
 
-      console.log("Updating variant (changed fields): ", variantId, "Payload:", apiPayload);
-
       const numericProductId = Number(productId);
       const numericVariantId = Number(variantId);
 
@@ -2661,9 +2629,7 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
             // Ensure status is correctly formatted for API and UI
             const apiStatus = data.status === 'active' ? 'active' : 'inactive';
             const displayStatus = data.status === 'active' ? 'Active' : 'Inactive';
-            
-            console.log(`[handleUpdateVariant] Setting local state status: form=${data.status}, api=${apiStatus}, display=${displayStatus}`);
-            
+                        
             const updatedVariant: Variant = { 
               ...v, 
               slug: data.slug,
@@ -2687,7 +2653,6 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
               variantAttributes: v.variantAttributes, 
               variantImages: v.variantImages,       
             }; 
-            console.log(`[handleUpdateVariant] Updating LOCAL state for variant ${variantId}:`, updatedVariant);
             return updatedVariant;
           } else {
             return v; 
@@ -2771,7 +2736,6 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
 
   // --- Add Handler for Bulk Update Form Submission --- 
   const onBulkSubmit: SubmitHandler<BulkUpdateFormData> = async (data) => {
-    console.log("Bulk update data:", data);
     setIsBulkSubmitting(true);
 
     // Filter out fields that were not changed (are undefined)
@@ -2820,7 +2784,6 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
       // e.g., discount_price: changes.depositPrice, purchase_price: changes.purchasePrice etc.
     }));
 
-    console.log("Bulk update API payloads (hypothetical):", updatePayloads);
 
     // --- Simulate API Call --- 
     // Replace this with your actual bulk update API call
@@ -2910,8 +2873,6 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
         // Safely convert the status from the variant object to lowercase 'active' or 'inactive' for the form.
         const apiStatus = currentSelectedVariant.status?.toString().toLowerCase() || ''; // Ensure it's a string and lowercase, default to empty if null/undefined
         const formStatus = apiStatus === 'active' ? 'active' : 'inactive'; // Map to form values
-
-        console.log(`[VariantManager resetEditForm] Variant ID: ${currentSelectedVariant.id}, Raw API Status: "${currentSelectedVariant.status}", Lowercase API Status: "${apiStatus}", Form Status: "${formStatus}"`);
 
         const resetData = {
           slug: currentSelectedVariant.slug ?? '',
@@ -3012,14 +2973,10 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
     let successCount = 0;
     let errorCount = 0;
 
-    console.log(`[RemoveAll] Starting deletion for ${variantsToDelete.length} variants.`);
-
     // Process deletions sequentially to avoid overwhelming the backend
     for (const variant of variantsToDelete) {
       try {
-        console.log(`[RemoveAll] Attempting to delete variant ID: ${variant.id}`);
         await deleteProductVariant(Number(variant.id));
-        console.log(`[RemoveAll] Successfully deleted variant ID: ${variant.id}`);
         successCount++;
       } catch (error) {
         console.error(`[RemoveAll] Failed to delete variant ID: ${variant.id}`, error);
@@ -3027,7 +2984,6 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
       }
     }
 
-    console.log(`[RemoveAll] Deletion complete. Success: ${successCount}, Failed: ${errorCount}`);
 
     // Update UI after all deletions are attempted
     setVariants([]);
@@ -3199,7 +3155,7 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
       {isLoading && (
         <div className="flex justify-center items-center py-8">
           <FuseLoading />
-          <span className="ml-2">Loading variants...</span>
+          {/* <span className="ml-2">Loading variants...</span> */}
         </div>
       )}
 

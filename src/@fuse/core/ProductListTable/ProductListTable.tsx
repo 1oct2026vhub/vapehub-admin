@@ -727,7 +727,7 @@ const ProductListTable = ({
               <MenuItem value="DESC">Descending</MenuItem>
             </Select>
 
-            <Select
+            {/* <Select
               value={isNew === null ? "all" : isNew ? "new" : "regular"}
               onChange={(e) =>
                 setIsNew(
@@ -737,9 +737,9 @@ const ProductListTable = ({
               size="small"
             >
               <MenuItem value="all">All Products</MenuItem>
-              <MenuItem value="new">New Products</MenuItem>
-              <MenuItem value="regular">Regular Products</MenuItem>
-            </Select>
+              <MenuItem value="true">New Products</MenuItem>
+              <MenuItem value="false">Regular Products</MenuItem>
+            </Select> */}
 
             <Select
               value={

@@ -42,7 +42,6 @@ const VariantDisplayCard: React.FC<VariantDisplayCardProps> = ({
   isActionDisabled,
 }) => {
   // Add this log to inspect received variant data
-  console.log(`[VariantDisplayCard] Received variant data for ID ${variant.id}:`, JSON.stringify(variant, null, 2));
 
   const primaryImage = variant.variantImages?.find(img => img.is_primary)?.image_url || 
                        (variant.variantImages && variant.variantImages.length > 0 ? variant.variantImages[0].image_url : null);
