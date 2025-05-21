@@ -3155,7 +3155,7 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
       {isLoading && (
         <div className="flex justify-center items-center py-8">
           <FuseLoading />
-          <span className="ml-2">Loading variants...</span>
+          {/* <span className="ml-2">Loading variants...</span> */}
         </div>
       )}
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import {
   Paper,
   Typography,
@@ -51,6 +51,7 @@ import { formatDate, formatPounds, formatStatusText } from "@/utils/actions";
 
 const OrderDetailApp = () => {
   const params = useParams();
+  const router = useRouter();
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
   const [updatingStatus, setUpdatingStatus] = useState(false);
@@ -182,7 +183,7 @@ const OrderDetailApp = () => {
       <Paper className="p-4 bg-white">
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
-            <IconButton size="small">
+            <IconButton size="small" onClick={() => router.back()}>
               <ArrowBackIcon />
             </IconButton>
             <Typography variant="h5" className="font-bold">
