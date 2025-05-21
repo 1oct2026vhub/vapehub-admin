@@ -189,6 +189,27 @@ const navigationConfig: FuseNavItemType[] = [
       },
     ],
   },
+    {
+    id: "banner",
+    title: "Banner",
+    type: "item",
+    icon: "heroicons-outline:photo", // Changed icon to something more relevant for banners
+    url: "/apps/banner",
+  },
+  {
+    id: "carousel",
+    title: "Carousel",
+    type: "item",
+    icon: "heroicons-outline:view-columns",
+    url: "/apps/carousel",
+  },
+  // {
+  //   id: "menu",
+  //   title: "Menu",
+  //   type: "item",
+  //   icon: "heroicons-outline:bars-3",
+  //   url: "/apps/menu",
+  // },
   // {
   //   id: "order",
   //   title: "Order List",
