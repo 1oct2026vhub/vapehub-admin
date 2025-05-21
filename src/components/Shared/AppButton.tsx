@@ -7,6 +7,7 @@ export interface AppButtonProps {
   label: React.ReactNode;
   component?: ElementType;
   to?: string;
+  href?: string;
   onClick?: (event?: React.MouseEvent<HTMLElement>) => void;
   type?: "button" | "submit" | "reset";
   variant?: "text" | "outlined" | "contained";
@@ -54,6 +55,7 @@ const AppButton: React.FC<AppButtonProps> = ({
   label,
   component,
   to,
+  href,
   onClick,
   type = "button",
   variant = "contained",
@@ -67,7 +69,7 @@ const AppButton: React.FC<AppButtonProps> = ({
   startIcon,
   endIcon,
 }) => {
-  const buttonProps: GradientButtonStyledProps & { component?: ElementType; to?: string; sx?: SxProps<Theme>; startIcon?: React.ReactNode; endIcon?: React.ReactNode } = {
+  const buttonProps: GradientButtonStyledProps & { component?: ElementType; to?: string; href?: string; sx?: SxProps<Theme>; startIcon?: React.ReactNode; endIcon?: React.ReactNode } = {
     onClick,
     type,
     variant,
@@ -85,6 +87,9 @@ const AppButton: React.FC<AppButtonProps> = ({
     buttonProps.component = component;
     if (to) {
       buttonProps.to = to;
+    }
+    if (href) {
+      buttonProps.href = href;
     }
   }
 

@@ -309,7 +309,7 @@ const FaqAccordion: React.FC<FaqAccordionProps> = ({ entityId, entityType }) => 
         <Grid item xs={6} sm={4} md={2} container justifyContent="flex-start">
           <FormControlLabel
             control={<Switch checked={showDeleted} onChange={handleShowDeletedChange} />}
-            label="Show Deleted"
+            label="Deleted"
             sx={{ mr: 0 }}
           />
         </Grid>
