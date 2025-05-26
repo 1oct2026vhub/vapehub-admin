@@ -14,6 +14,7 @@ import { z } from 'zod';
 import FormTextField from '@/components/Shared/FormTextField';
 import { useSnackbar } from '@/contexts/SnackbarContext';
 import { createFaq, type CreateFaqPayload, type FaqItem } from '@/services/apiFaq';
+import FormCKEditor from '@/components/Shared/FormCKEditor';
 
 // Schema for the Add FAQ form
 const faqFormSchema = z.object({
@@ -124,19 +125,12 @@ const AddFaqDialog: React.FC<AddFaqDialogProps> = ({
                 }
               }}
             />
-            <FormTextField<FaqFormData>
+            <FormCKEditor
               name="answer"
               control={control}
               label="Answer"
               required
-              multiline
-              rows={5}
-              placeholder="Provide the answer to the question"
-              sx={{ 
-                '& .MuiOutlinedInput-input::placeholder': {
-                  textAlign: 'center',
-                }
-              }}
+              defaultValue={''}
             />
           </Box>
         </DialogContent>
