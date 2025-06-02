@@ -14,6 +14,7 @@ import { z } from 'zod';
 import FormTextField from '@/components/Shared/FormTextField';
 import { useSnackbar } from '@/contexts/SnackbarContext';
 import { updateFaq, type UpdateFaqPayload, type FaqItem } from '@/services/apiFaq';
+import FormCKEditor from '@/components/Shared/FormCKEditor';
 
 // Schema for the Edit FAQ form (can be same as Add if requirements are identical)
 const faqFormSchema = z.object({
@@ -126,15 +127,12 @@ const EditFaqDialog: React.FC<EditFaqDialogProps> = ({
               placeholder="Enter the question here"
               sx={{ '& .MuiOutlinedInput-input::placeholder': { textAlign: 'center' } }}
             />
-            <FormTextField<FaqFormData>
+            <FormCKEditor
               name="answer"
               control={control}
               label="Answer"
               required
-              multiline
-              rows={5}
-              placeholder="Provide the answer to the question"
-              sx={{ '& .MuiOutlinedInput-input::placeholder': { textAlign: 'center' } }}
+              defaultValue={faqToEdit?.answer || ''}
             />
           </Box>
         </DialogContent>

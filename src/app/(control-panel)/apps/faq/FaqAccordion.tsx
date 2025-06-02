@@ -40,6 +40,8 @@ import { debounce } from 'lodash';
 import { SelectChangeEvent } from '@mui/material';
 import AppButton from '@/components/Shared/AppButton';
 import ClearFiltersButton from '@/components/Shared/ClearFiltersButton';
+import ClearIcon from '@mui/icons-material/Clear';
+import FuseLoading from '@fuse/core/FuseLoading';
 
 interface FaqAccordionProps {
   entityId: number | null | undefined;
@@ -124,7 +126,9 @@ const FaqAccordion: React.FC<FaqAccordionProps> = ({ entityId, entityType }) => 
   );
 
   const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    debouncedSearch(event.target.value);
+    const value = event.target.value;
+    setInputValue(value);
+    debouncedSearch(value);
   };
 
   const handleSortByChange = (event: SelectChangeEvent<FetchFaqsParams['sortBy']>) => {
@@ -273,6 +277,19 @@ const FaqAccordion: React.FC<FaqAccordionProps> = ({ entityId, entityType }) => 
             placeholder="Search..."
             value={inputValue}
             onChange={handleSearchChange}
+            InputProps={{
+              endAdornment: inputValue && (
+                <IconButton
+                  size="small"
+                  onClick={() => {
+                    setInputValue('');
+                    setSearchTerm('');
+                  }}
+                >
+                  <ClearIcon fontSize="small" />
+                </IconButton>
+              ),
+            }}
           />
         </Grid>
         <Grid item xs={6} sm={3} md={2}>
@@ -322,7 +339,7 @@ const FaqAccordion: React.FC<FaqAccordionProps> = ({ entityId, entityType }) => 
 
       {loading ? (
         <Box display="flex" justifyContent="center" alignItems="center" p={10}>
-          <CircularProgress />
+          <FuseLoading />
         </Box>
       ) : error ? (
         <Typography color="error" align="center" p={5}>
@@ -330,7 +347,9 @@ const FaqAccordion: React.FC<FaqAccordionProps> = ({ entityId, entityType }) => 
         </Typography>
       ) : faqs?.length === 0 ? (
         <Typography align="center" p={5}>
-          No FAQs found matching your criteria. Click "Add FAQ" to create one.
+          {showDeleted
+            ? "No deleted FAQs found."
+            : 'No FAQs found matching your criteria. Click "Add FAQ" to create one.'}
         </Typography>
       ) : (
         faqs?.map((faq) => (

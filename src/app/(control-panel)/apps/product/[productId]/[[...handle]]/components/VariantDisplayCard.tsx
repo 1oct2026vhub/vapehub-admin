@@ -104,7 +104,7 @@ const VariantDisplayCard: React.FC<VariantDisplayCardProps> = ({
                 </div>
               </div>
             </div>
-            <div className={`px-3 py-1 rounded-md text-sm font-medium ${
+            <div className={`px-3 py-1 rounded-md text-sm font-medium cursor-default ${
               variant.status === 'active' 
                 ? 'bg-white border border-[#005B2F] text-[#14854E]' 
                 : 'bg-white border border-red-500 text-red-500'
