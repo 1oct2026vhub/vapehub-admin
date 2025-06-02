@@ -2,6 +2,7 @@
 import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import DataTable from '@/components/data-table/DataTable';
 import { type MRT_ColumnDef } from 'material-react-table';
+import { formatDate } from "@/utils/actions";
 import FuseLoading from '@fuse/core/FuseLoading';
 import {
   Paper,
@@ -131,8 +132,18 @@ const CouponTable: React.FC = () => {
       { accessorKey: 'status', header: 'Status' },
       { accessorKey: 'discount_type', header: 'Discount Type' },
       { accessorKey: 'discount_value', header: 'Value' },
-      { accessorKey: 'start_date', header: 'Start Date' },
-      { accessorKey: 'end_date', header: 'End Date' },
+      // { accessorKey: 'start_date', header: 'Start Date' },
+      {
+        accessorKey: "start_date",
+        header: "Start Date",
+        Cell: ({ row }) => row.original.start_date ? formatDate(row.original.start_date) : 'N/A',
+      },
+      {
+        accessorKey: "end_date",
+        header: "End Date",
+        Cell: ({ row }) => row.original.end_date ? formatDate(row.original.end_date) : 'N/A',
+      },
+      // { accessorKey: 'end_date', header: 'End Date' },
     ],
     []
   );
