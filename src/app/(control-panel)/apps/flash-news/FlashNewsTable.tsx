@@ -124,7 +124,7 @@ const FlashNewsTable: React.FC = () => {
             sx={{ minWidth: 120, mx: 1 }}
           >
             <MenuItem value="active">Active</MenuItem>
-            <MenuItem value="deleted">Deleted</MenuItem>
+            <MenuItem value="deleted">Inactive</MenuItem>
           </Select>
           {areFiltersActive && <ClearFiltersButton onClick={clearFilters} />}
         </div>
