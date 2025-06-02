@@ -203,6 +203,20 @@ const navigationConfig: FuseNavItemType[] = [
     icon: "heroicons-outline:view-columns",
     url: "/apps/carousel",
   },
+  {
+    id: "coupon",
+    title: "Coupons",
+    type: "item",
+    icon: "heroicons-outline:ticket",
+    url: "/apps/coupon",
+  },
+  {
+    id: "flash-news",
+    title: "Flash News",
+    type: "item",
+    icon: "heroicons-outline:megaphone",
+    url: "/apps/flash-news"
+  },
   // {
   //   id: "menu",
   //   title: "Menu",
