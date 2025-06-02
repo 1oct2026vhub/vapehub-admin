@@ -130,8 +130,8 @@ export default function CouponForm() {
       discount_type: 'percentage',
       status: 'active',
       is_single_use: false,
-      minimum_purchase: 0,
-      maximum_discount: 0,
+      minimum_purchase: null,
+      maximum_discount: null,
       usage_limit: 0,
     },
   });
