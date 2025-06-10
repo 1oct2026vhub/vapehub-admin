@@ -496,7 +496,7 @@ const OrderDetailApp = () => {
                   <Typography variant="body2" color="error">
                     {/* Conditional discount display */}
                     {order.discount_type === 'percentage'
-                      ? `-${order.discount_price}%` // Assumes discount_price holds the percentage rate
+                      ? `-${formatPounds(order.discount_price)}%` // Assumes discount_price holds the percentage rate
                       : `-${formatPounds(order.discount_price || 0)}`}
                   </Typography>
                 </div>

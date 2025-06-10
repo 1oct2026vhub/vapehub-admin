@@ -29,7 +29,7 @@ export const couponSchema = z.object({
   description: z
     .string()
     .min(1, 'Description is required')
-    .max(500, 'Description must be 500 characters or less'),
+    .max(255 , 'Description must be 255 characters or less'),
   discount_value: z.preprocess(
     (val) => {
       if (val === "" || val === null || val === undefined) return null;
@@ -58,18 +58,18 @@ export const couponSchema = z.object({
       return isNaN(parsed) ? "NaN" : parsed;
     },
     z.union([
-      z.literal("NaN").refine(() => false, "Please enter a valid number for Maximum Purchase"),
+      z.literal("NaN").refine(() => false, "Please enter a valid number for Minimum Purchase"),
       z.number()
-        .positive("Maximum Purchase must be greater than zero")
-        .max(9999999.99, "Maximum Purchase exceeds maximum limit")
+        .positive("Minimum Purchase must be greater than zero")
+        .max(9999999.99, "Minimum Purchase exceeds maximum limit")
         .refine(
           (val) => {
             const str = val.toString();
             return !str.includes(".") || str.split(".")[1].length <= 2;
           },
-          { message: "Maximum Purchase can have at most 2 decimal places" }
+          { message: "Minimum Purchase can have at most 2 decimal places" }
         ),
-      z.null().refine(() => false, "Maximum Purchase is required"), // Enforce non-null
+      z.null().refine(() => false, "Minimum purchase is required"), // Enforce non-null
     ])
   ),
   maximum_discount: z.preprocess(
@@ -90,7 +90,7 @@ export const couponSchema = z.object({
           },
           { message: "Maximum Discount can have at most 2 decimal places" }
         ),
-      z.null().refine(() => false, "Maximum Discount is required"), // Enforce non-null
+        z.null(), // Allow null for optional field
     ])
   ),
   discount_type: z.enum(['percentage', 'fixed_amount'], {
@@ -123,7 +123,7 @@ export default function CouponForm() {
   const { showSnackbar } = useSnackbar();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const { control, handleSubmit, watch, formState: { errors, isValid } } = useForm<CreateCouponData>({
+  const { control, handleSubmit, watch, setError, formState: { errors, isValid } } = useForm<CreateCouponData>({
     resolver: zodResolver(couponSchema),
     mode: 'all',
     defaultValues: {
@@ -145,8 +145,27 @@ export default function CouponForm() {
       showSnackbar('Coupon created successfully', 'success');
       router.push('/apps/coupon');
     } catch (error: any) {
-      showSnackbar(error?.message || 'Failed to create coupon', 'error');
-    } finally {
+  if (error?.error) {
+        showSnackbar(error?.error[0]?.msg || error?.error[0]?.message, "error");
+      }
+      else if (error?.errors) {
+        showSnackbar(error?.errors[0]?.msg || error?.errors[0]?.message, "error");
+      }
+       else {
+        const errorMessage = error?.message || "An unexpected error occurred";
+        showSnackbar(errorMessage, "error");
+      }
+      const errorData = error || error;
+      if (errorData?.error && typeof errorData.error === "object") {
+        Object.entries(errorData.error).forEach(([field, message]) => {
+          if (typeof message === "string") {
+            setError(field as any, { type: "manual", message });
+            showSnackbar(message, "error");
+          }
+        });
+      }    
+      } 
+      finally {
       setIsSubmitting(false);
     }
   };
@@ -185,6 +204,8 @@ export default function CouponForm() {
               label="Discount Type"
               select
               required
+              error={!!errors.discount_type}
+              helperText={errors.discount_type?.message}
             >
               <MenuItem value="percentage">Percentage</MenuItem>
               <MenuItem value="fixed_amount">Fixed Amount</MenuItem>
@@ -198,6 +219,8 @@ export default function CouponForm() {
               label="Discount Value"
               type="number"
               required
+              // error={!!errors.discount_value}
+              // helperText={errors.discount_value?.message}
             />
           </Grid>
 
@@ -207,7 +230,8 @@ export default function CouponForm() {
               control={control}
               label="Minimum Purchase"
               type="number"
-              required
+              // error={!!errors.minimum_purchase}
+              // helperText={errors.minimum_purchase?.message}
             />
           </Grid>
 
@@ -217,7 +241,8 @@ export default function CouponForm() {
               control={control}
               label="Maximum Discount"
               type="number"
-              required
+              // error={!!errors.maximum_discount}
+              // helperText={errors.maximum_discount?.message}
             />
           </Grid>
 
@@ -228,6 +253,8 @@ export default function CouponForm() {
               label="Usage Limit"
               type="number"
               required
+              // error={!!errors.usage_limit}
+              // helperText={errors.usage_limit?.message}
             />
           </Grid>
 
@@ -238,6 +265,8 @@ export default function CouponForm() {
               label="Status"
               select
               required
+              // error={!!errors.status}
+              // helperText={errors.status?.message}
             >
               <MenuItem value="active">Active</MenuItem>
               <MenuItem value="inactive">Inactive</MenuItem>
@@ -251,7 +280,7 @@ export default function CouponForm() {
               control={control}
               label="Start Date"
               required
-              helperText="Select when the coupon becomes active"
+              // helperText="Select when the coupon becomes active"
             />
           </Grid>
 
@@ -262,7 +291,7 @@ export default function CouponForm() {
               label="End Date"
               required
               minDateTime={startDate ? new Date(startDate) : undefined}
-              helperText="Select when the coupon expires"
+              // helperText="Select when the coupon expires"
             />
           </Grid>
 

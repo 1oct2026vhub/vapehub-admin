@@ -752,7 +752,7 @@ const TransactionDetailApp = () => {
                         <Typography variant="body2">Discount</Typography>
                         <Typography variant="body2" color="error">
                           {(transaction.order as any).discount_type === 'percentage'
-                            ? `- ${(transaction.order as any).discount_price}%`
+                            ? `- ${formatCurrency((transaction.order as any).discount_price)}%`
                             : `- ${formatCurrency((transaction.order as any).discount_price || 0)}`}
                         </Typography>
                       </div>
