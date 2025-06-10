@@ -28,9 +28,8 @@ const FormTextField = <T extends FieldValues>({
           {...field}
           {...rest} // Spread the rest of the props (like placeholder, inputProps, etc.)
           fullWidth // Default to fullWidth for form consistency
-          label={label}
+          label={<>{label} {required && <span style={{color: 'red'}}>*</span>}</>}
           type={type}
-          required={required}
           multiline={multiline} // Pass multiline prop to TextField
           error={!!error}
           helperText={error?.message}
@@ -47,6 +46,10 @@ const FormTextField = <T extends FieldValues>({
               height: multiline ? 'auto' : '36px', // Auto height for multiline
               // For multiline, padding is better controlled on the input itself
               padding: multiline ? '0px' : undefined, // Reset root padding for multiline if needed
+              '& .MuiSelect-select': {
+                paddingTop: '6px', 
+                paddingBottom: '6px',
+              },
             },
             '& .MuiOutlinedInput-input': {
               backgroundColor: 'white', // Ensure input area is white
