@@ -128,11 +128,29 @@ const CouponTable: React.FC = () => {
   const columns = useMemo<MRT_ColumnDef<Coupon>[]>(
     () => [
       { accessorKey: 'code', header: 'Code' },
-      { accessorKey: 'description', header: 'Description' },
-      { accessorKey: 'status', header: 'Status' },
-      { accessorKey: 'discount_type', header: 'Discount Type' },
-      { accessorKey: 'discount_value', header: 'Value' },
-      // { accessorKey: 'start_date', header: 'Start Date' },
+      // { accessorKey: 'description', header: 'Description' },
+      {
+        accessorKey: 'status',
+        header: 'Status',
+        Cell: ({ row }) => {
+          const status = row.original.status || '';
+          return status.charAt(0).toUpperCase() + status.slice(1);
+        },
+      },
+      {
+        accessorKey: 'discount_type',
+        header: 'Discount Type',
+        Cell: ({ row }) => {
+          const discountType = row.original.discount_type || '';
+          const formatted = discountType
+            .split('_')
+            .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+            .join(' ');
+          return formatted;
+        },
+      },
+      { accessorKey: 'discount_value', header: 'Discount value' },
+      { accessorKey: 'usage_count', header: 'Usage count' },
       {
         accessorKey: "start_date",
         header: "Start Date",
@@ -221,17 +239,7 @@ const CouponTable: React.FC = () => {
             InputLabelProps={{ shrink: true }}
             sx={{ mx: 1, minWidth: 140 }}
           />
-          {/* <div className="flex gap-2">
-            <Select
-              value={deleted === null ? 'active' : 'deleted'}
-              onChange={(e) => setDeleted(e.target.value === 'active' ? null : true)}
-              size="small"
-            >
-              <MenuItem value="active">Active</MenuItem>
-              <MenuItem value="deleted">Deleted</MenuItem>
-            </Select>
-            {areFiltersActive && <ClearFiltersButton onClick={clearFilters} />}
-          </div> */}
+          {areFiltersActive && <ClearFiltersButton onClick={clearFilters} />}
         </div>
         <DataTable
           data={coupons}

@@ -19,13 +19,13 @@ import { FormControlLabel, Switch } from '@mui/material';
 export const couponSchema = z.object({
   code: z
     .string()
-    .min(1, 'Code is required')
+    .min(1, 'Coupon code is required')
     .max(50, 'Code must be 50 characters or less')
     .regex(/^[A-Z0-9_-]+$/, 'Coupon code can only contain uppercase letters, numbers, hyphens and underscores'),
   description: z
     .string()
     .min(1, 'Description is required')
-    .max(500, 'Description must be 500 characters or less'),
+    .max(255, 'Description must be 255 characters or less'),
   discount_value: z.preprocess(
     (val) => {
       if (val === "" || val === null || val === undefined) return null;
@@ -54,18 +54,18 @@ export const couponSchema = z.object({
       return isNaN(parsed) ? "NaN" : parsed;
     },
     z.union([
-      z.literal("NaN").refine(() => false, "Please enter a valid number for Maximum Purchase"),
+      z.literal("NaN").refine(() => false, "Please enter a valid number for Minimum Purchase"),
       z.number()
-        .positive("Maximum Purchase must be greater than zero")
-        .max(9999999.99, "Maximum Purchase exceeds maximum limit")
+        .positive("Minimum Purchase must be greater than zero")
+        .max(9999999.99, "Minimum Purchase exceeds maximum limit")
         .refine(
           (val) => {
             const str = val.toString();
             return !str.includes(".") || str.split(".")[1].length <= 2;
           },
-          { message: "Maximum Purchase can have at most 2 decimal places" }
+          { message: "Minimum Purchase can have at most 2 decimal places" }
         ),
-      z.null().refine(() => false, "Maximum Purchase is required"), // Enforce non-null
+      z.null().refine(() => false, "Minimum Purchase is required"), // Enforce non-null
     ])
   ),
   maximum_discount: z.preprocess(
@@ -86,7 +86,7 @@ export const couponSchema = z.object({
           },
           { message: "Maximum Discount can have at most 2 decimal places" }
         ),
-      z.null().refine(() => false, "Maximum Discount is required"), // Enforce non-null
+      z.null(), // Allow null for optional field // Enforce non-null
     ])
   ),
   discount_type: z.enum(['percentage', 'fixed_amount'], {
@@ -121,7 +121,7 @@ export default function EditCouponForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  const { control, handleSubmit, reset, watch, formState: { errors, isValid } } = useForm<CreateCouponData>({
+  const { control, handleSubmit, reset, watch,setError, formState: { errors, isValid } } = useForm<CreateCouponData>({
     resolver: zodResolver(couponSchema),
     mode: 'all',
     defaultValues: {
@@ -177,7 +177,25 @@ export default function EditCouponForm() {
       showSnackbar('Coupon updated successfully', 'success');
       router.push('/apps/coupon');
     } catch (error: any) {
-      showSnackbar(error?.message || 'Failed to update coupon', 'error');
+      if (error?.error) {
+        showSnackbar(error?.error[0]?.msg || error?.error[0]?.message, "error");
+      }
+      else if (error?.errors) {
+        showSnackbar(error?.errors[0]?.msg || error?.errors[0]?.message, "error");
+      }
+       else {
+        const errorMessage = error?.message || "An unexpected error occurred";
+        showSnackbar(errorMessage, "error");
+      }
+      const errorData = error || error;
+      if (errorData?.error && typeof errorData.error === "object") {
+        Object.entries(errorData.error).forEach(([field, message]) => {
+          if (typeof message === "string") {
+            setError(field as any, { type: "manual", message });
+            showSnackbar(message, "error");
+          }
+        });
+      }    
     } finally {
       setIsSubmitting(false);
     }
