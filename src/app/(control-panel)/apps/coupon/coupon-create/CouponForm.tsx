@@ -21,13 +21,11 @@ import AppButton from '@/components/Shared/AppButton';
 import { useSnackbar } from '@/contexts/SnackbarContext';
 
 export const couponSchema = z.object({
-  code: z
-    .string()
-    .min(1, 'Code is required')
+  code: z.string()
+    .min(1, 'Coupon Code is required')
     .max(50, 'Code must be 50 characters or less')
     .regex(/^[A-Z0-9_-]+$/, 'Coupon code can only contain uppercase letters, numbers, hyphens and underscores'),
-  description: z
-    .string()
+  description: z.string()
     .min(1, 'Description is required')
     .max(255 , 'Description must be 255 characters or less'),
   discount_value: z.preprocess(
@@ -127,6 +125,8 @@ export default function CouponForm() {
     resolver: zodResolver(couponSchema),
     mode: 'all',
     defaultValues: {
+      code: '',
+      description: '',
       discount_type: 'percentage',
       status: 'active',
       is_single_use: false,
@@ -185,6 +185,8 @@ export default function CouponForm() {
               control={control}
               label="Coupon Code"
               required
+              error={!!errors.code}
+              helperText={errors.code?.message}
             />
           </Grid>
 
