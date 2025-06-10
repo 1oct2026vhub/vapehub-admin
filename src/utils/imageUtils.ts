@@ -35,11 +35,11 @@ export const validateImageDimensions = (
       
       if (exactWidth && img.width !== exactWidth) {
         isValid = false;
-        messageParts.push(`Width must be ${exactWidth}px (is ${img.width}px)`);
+        messageParts.push(`Width must be ${exactWidth}px`);
       }
       if (exactHeight && img.height !== exactHeight) {
         isValid = false;
-        messageParts.push(`Height must be ${exactHeight}px (is ${img.height}px)`);
+        messageParts.push(`Height must be ${exactHeight}px`);
       }
 
       if (!isValid) {
