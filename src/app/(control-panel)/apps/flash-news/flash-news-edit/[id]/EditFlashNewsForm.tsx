@@ -21,6 +21,7 @@ const flashNewsSchema = z.object({
     .min(1, 'Label is required')
     .max(100, 'Label must be 100 characters or less'),
   url: z.string()
+    .min(1, 'Url is required')
     .url('Enter a valid URL')
     .max(500, 'URL must be 500 characters or less'),
   status: z.boolean(),
@@ -37,7 +38,7 @@ const EditFlashNewsForm: React.FC = () => {
 
   const { control, handleSubmit, reset, formState: { errors, isValid } } = useForm<FlashNewsFormValues>({
     resolver: zodResolver(flashNewsSchema),
-    mode: 'onChange',
+    mode: 'all',
     defaultValues: {
       label: '',
       url: '',
