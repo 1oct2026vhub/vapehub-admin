@@ -4,8 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Box, Paper, Typography, Button, MenuItem, Grid } from '@mui/material';
-// import { couponSchema } from '../../coupon-create/CouponForm';
+import { Box, Paper, Grid, MenuItem, FormControlLabel, Switch, Button } from '@mui/material';
 import { getCouponById, updateCoupon, CreateCouponData } from '@/services/apiCoupon';
 import FormTextField from '@/components/Shared/FormTextField';
 import FormDateTimeField from '@/components/Shared/FormDateTimeField';
@@ -13,7 +12,7 @@ import AppButton from '@/components/Shared/AppButton';
 import { useSnackbar } from '@/contexts/SnackbarContext';
 import { z } from 'zod';
 import { Controller } from 'react-hook-form';
-import { FormControlLabel, Switch } from '@mui/material';
+import FuseLoading from '@fuse/core/FuseLoading';
 
 
 export const couponSchema = z.object({
@@ -49,7 +48,7 @@ export const couponSchema = z.object({
   ),
   minimum_purchase: z.preprocess(
     (val) => {
-      if (val === "" || val === null || val === undefined) return null;
+      if (val === "" || val === null || val === undefined) return undefined;
       const parsed = Number(val);
       return isNaN(parsed) ? "NaN" : parsed;
     },
@@ -65,12 +64,11 @@ export const couponSchema = z.object({
           },
           { message: "Minimum Purchase can have at most 2 decimal places" }
         ),
-      z.null().refine(() => false, "Minimum Purchase is required"), // Enforce non-null
-    ])
+    ]).optional()
   ),
   maximum_discount: z.preprocess(
     (val) => {
-      if (val === "" || val === null || val === undefined) return null;
+      if (val === "" || val === null || val === undefined) return undefined;
       const parsed = Number(val);
       return isNaN(parsed) ? "NaN" : parsed;
     },
@@ -86,8 +84,7 @@ export const couponSchema = z.object({
           },
           { message: "Maximum Discount can have at most 2 decimal places" }
         ),
-      z.null(), // Allow null for optional field // Enforce non-null
-    ])
+    ]).optional()
   ),
   discount_type: z.enum(['percentage', 'fixed_amount'], {
     required_error: 'Discount type is required',
@@ -107,11 +104,19 @@ export const couponSchema = z.object({
     ])
   ),
   is_single_use: z.boolean(),
-  start_date: z.string().min(1, 'Start date is required'),
-  end_date: z.string().min(1, 'End date is required'),
+  start_date: z.string().nullable().refine(val => val !== null, { message: 'Start date is required' }),
+  end_date: z.string().nullable().refine(val => val !== null, { message: 'End date is required' }),
   status: z.enum(['active', 'inactive', 'expired'], {
     required_error: 'Status is required',
   }),
+}).refine(data => {
+    if (data.start_date && data.end_date) {
+        return new Date(data.end_date) > new Date(data.start_date);
+    }
+    return true;
+}, {
+    message: "End date must be after start date",
+    path: ["end_date"],
 });
 
 export default function EditCouponForm() {
@@ -121,20 +126,20 @@ export default function EditCouponForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  const { control, handleSubmit, reset, watch,setError, formState: { errors, isValid } } = useForm<CreateCouponData>({
+  const { control, handleSubmit, reset, watch, setError, setValue, formState: { errors } } = useForm<CreateCouponData>({
     resolver: zodResolver(couponSchema),
     mode: 'all',
     defaultValues: {
       code: '',
       description: '',
       discount_type: 'percentage',
-      discount_value: 0,
-      minimum_purchase: 0,
-      maximum_discount: 0,
+      discount_value: null,
+      minimum_purchase: null,
+      maximum_discount: null,
       usage_limit: 0,
       is_single_use: false,
-      start_date: '',
-      end_date: '',
+      start_date: null,
+      end_date: null,
       status: 'active',
     },
   });
@@ -145,19 +150,27 @@ export default function EditCouponForm() {
         const response = await getCouponById(Number(params.id));
         const coupon = response.data.coupon;
 
+        const isExpired = coupon.end_date && new Date(coupon.end_date) < new Date();
+        const newStatus = isExpired ? 'expired' : coupon.status || 'active';
+
         reset({
           code: coupon.code || '',
           description: coupon.description || '',
           discount_type: coupon.discount_type || 'percentage',
-          discount_value: coupon.discount_value ? Number(coupon.discount_value) : 0,
-          minimum_purchase: coupon.minimum_purchase ? Number(coupon.minimum_purchase) : 0,
-          maximum_discount: coupon.maximum_discount ? Number(coupon.maximum_discount) : 0,
+          discount_value: coupon.discount_value ? Number(coupon.discount_value) : null,
+          minimum_purchase: coupon.minimum_purchase ? Number(coupon.minimum_purchase) : null,
+          maximum_discount: coupon.maximum_discount ? Number(coupon.maximum_discount) : null,
           usage_limit: coupon.usage_limit ? Number(coupon.usage_limit) : 0,
           is_single_use: !!coupon.is_single_use,
-          start_date: coupon.start_date ? new Date(coupon.start_date).toISOString() : '',
-          end_date: coupon.end_date ? new Date(coupon.end_date).toISOString() : '',
-          status: coupon.status || 'active',
+          start_date: coupon.start_date ? new Date(coupon.start_date).toISOString() : null,
+          end_date: coupon.end_date ? new Date(coupon.end_date).toISOString() : null,
+          status: newStatus,
         });
+
+        if (isExpired && coupon.status !== 'expired') {
+            showSnackbar('This coupon has expired. The status has been automatically set to "Expired".', 'warning');
+        }
+
       } catch (error) {
         // showSnackbar('Failed to fetch coupon data', 'error');
         // router.push('/apps/coupon');
@@ -169,11 +182,28 @@ export default function EditCouponForm() {
   }, [params.id, reset, router, showSnackbar]);
 
   const startDate = watch('start_date');
+  const endDate = watch('end_date');
+
+  useEffect(() => {
+    if (endDate) {
+      const isExpired = new Date(endDate) < new Date();
+      if (isExpired) {
+        setValue('status', 'expired', { shouldValidate: true });
+      }
+    }
+  }, [endDate, setValue]);
 
   const onSubmit = async (data: CreateCouponData) => {
     try {
       setIsSubmitting(true);
-      await updateCoupon(Number(params.id), data);
+      const submissionData = { ...data };
+      if (submissionData.end_date && new Date(submissionData.end_date) < new Date()) {
+          if (submissionData.status !== 'expired') {
+              submissionData.status = 'expired';
+              showSnackbar('Coupon has expired, setting status to "Expired".', 'info');
+          }
+      }
+      await updateCoupon(Number(params.id), submissionData);
       showSnackbar('Coupon updated successfully', 'success');
       router.push('/apps/coupon');
     } catch (error: any) {
@@ -195,45 +225,45 @@ export default function EditCouponForm() {
             showSnackbar(message, "error");
           }
         });
-      }    
+      }
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  if (loading) return <div>Loading...</div>;
+  if (loading) return <FuseLoading/>;
 
   return (
     <Paper sx={{ p: { xs: 2, md: 4 }, borderRadius: 2, boxShadow: 3, bgcolor: 'white' }}>
       <form onSubmit={handleSubmit(onSubmit)} className="">
         <Grid container spacing={3}>
           <Grid item xs={12} md={6}>
-            <FormTextField 
-              name="code" 
-              control={control} 
-              label="Coupon Code" 
-              required 
+            <FormTextField
+              name="code"
+              control={control}
+              label="Coupon Code"
+              required
               error={!!errors.code}
               helperText={errors.code?.message}
             />
           </Grid>
           <Grid item xs={12} md={6}>
-            <FormTextField 
-              name="description" 
-              control={control} 
-              label="Description" 
-              required 
+            <FormTextField
+              name="description"
+              control={control}
+              label="Description"
+              required
               error={!!errors.description}
               helperText={errors.description?.message}
             />
           </Grid>
           <Grid item xs={12} md={6}>
-            <FormTextField 
-              name="discount_type" 
-              control={control} 
-              label="Discount Type" 
-              select 
-              required 
+            <FormTextField
+              name="discount_type"
+              control={control}
+              label="Discount Type"
+              select
+              required
               error={!!errors.discount_type}
               helperText={errors.discount_type?.message}
             >
@@ -242,56 +272,54 @@ export default function EditCouponForm() {
             </FormTextField>
           </Grid>
           <Grid item xs={12} md={6}>
-            <FormTextField 
-              name="discount_value" 
-              control={control} 
-              label="Discount Value" 
-              type="number" 
-              required 
+            <FormTextField
+              name="discount_value"
+              control={control}
+              label="Discount Value"
+              type="number"
+              required
               error={!!errors.discount_value}
-              helperText={errors.discount_value?.message}
+              helperText={errors.discount_value?.message as string}
             />
           </Grid>
           <Grid item xs={12} md={6}>
-            <FormTextField 
-              name="minimum_purchase" 
-              control={control} 
-              label="Minimum Purchase" 
-              type="number" 
-              required 
+            <FormTextField
+              name="minimum_purchase"
+              control={control}
+              label="Minimum Purchase"
+              type="number"
               error={!!errors.minimum_purchase}
-              helperText={errors.minimum_purchase?.message}
+              helperText={errors.minimum_purchase?.message as string}
             />
           </Grid>
           <Grid item xs={12} md={6}>
-            <FormTextField 
-              name="maximum_discount" 
-              control={control} 
-              label="Maximum Discount" 
-              type="number" 
-              required 
+            <FormTextField
+              name="maximum_discount"
+              control={control}
+              label="Maximum Discount"
+              type="number"
               error={!!errors.maximum_discount}
-              helperText={errors.maximum_discount?.message}
+              helperText={errors.maximum_discount?.message as string}
             />
           </Grid>
           <Grid item xs={12} md={6}>
-            <FormTextField 
-              name="usage_limit" 
-              control={control} 
-              label="Usage Limit" 
-              type="number" 
-              required 
+            <FormTextField
+              name="usage_limit"
+              control={control}
+              label="Usage Limit"
+              type="number"
+              required
               error={!!errors.usage_limit}
-              helperText={errors.usage_limit?.message}
+              helperText={errors.usage_limit?.message as string}
             />
           </Grid>
           <Grid item xs={12} md={6}>
-            <FormTextField 
-              name="status" 
-              control={control} 
-              label="Status" 
-              select 
-              required 
+            <FormTextField
+              name="status"
+              control={control}
+              label="Status"
+              select
+              required
               error={!!errors.status}
               helperText={errors.status?.message}
             >
@@ -301,19 +329,19 @@ export default function EditCouponForm() {
             </FormTextField>
           </Grid>
           <Grid item xs={12} md={6}>
-            <FormDateTimeField 
-              name="start_date" 
-              control={control} 
-              label="Start Date" 
-              required 
+            <FormDateTimeField
+              name="start_date"
+              control={control}
+              label="Start Date"
+              required
             />
           </Grid>
           <Grid item xs={12} md={6}>
-            <FormDateTimeField 
-              name="end_date" 
-              control={control} 
-              label="End Date" 
-              required 
+            <FormDateTimeField
+              name="end_date"
+              control={control}
+              label="End Date"
+              required
               minDateTime={startDate ? new Date(startDate) : undefined}
             />
           </Grid>
@@ -339,9 +367,9 @@ export default function EditCouponForm() {
           <Button variant="outlined" onClick={() => router.push('/apps/coupon')} disabled={isSubmitting}>
             Cancel
           </Button>
-          <AppButton 
-            type="submit" 
-            label="Update Coupon" 
+          <AppButton
+            type="submit"
+            label="Update Coupon"
             loading={isSubmitting}
             disabled={isSubmitting}
           />
