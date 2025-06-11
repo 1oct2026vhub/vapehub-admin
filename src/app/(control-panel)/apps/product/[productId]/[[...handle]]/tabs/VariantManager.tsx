@@ -205,16 +205,16 @@ const variantSchema = z.object({
       return isNaN(parsed) ? "NaN" : parsed;
     },
     z.union([
-      z.literal("NaN").refine(() => false, "Please enter a valid number for deposit price"),
+      z.literal("NaN").refine(() => false, "Please enter a valid number for Sale price"),
       z.number()
-        .min(0, "Deposit price cannot be negative")
-        .max(9999999.99, "Deposit price exceeds maximum limit")
+        .min(0, "Sale price cannot be negative")
+        .max(9999999.99, "Sale price exceeds maximum limit")
         .refine(
           (val) => {
             const str = val.toString();
             return !str.includes(".") || str.split(".")[1].length <= 2;
           },
-          { message: "Deposit price can have at most 2 decimal places" }
+          { message: "Sale price can have at most 2 decimal places" }
         ),
       z.null(), // Allow null
     ]).optional() // Make the whole field optional
