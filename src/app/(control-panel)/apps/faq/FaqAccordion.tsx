@@ -412,7 +412,7 @@ const FaqAccordion: React.FC<FaqAccordionProps> = ({ entityId, entityType }) => 
               </Stack>
             </AccordionSummary>
             <AccordionDetails sx={{ p: 2, backgroundColor: '#f9f9f9' }}>
-              <Typography sx={{ whiteSpace: 'pre-line' }}>{faq.answer}</Typography>
+              <Typography component="div" dangerouslySetInnerHTML={{ __html: faq.answer }} />
             </AccordionDetails>
           </Accordion>
         ))

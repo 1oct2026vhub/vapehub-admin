@@ -49,7 +49,7 @@ const EditFlashNewsForm: React.FC = () => {
   useEffect(() => {
     async function fetchData() {
       try {
-        const res = await getFlashNews({ page: 1, limit: 1 });
+        const res = await getFlashNews();
         // Find the flash news by id from the list
         const id = Number(params.id);
         const item = res.data?.flashNews?.find((f) => f.id === id);
@@ -59,7 +59,8 @@ const EditFlashNewsForm: React.FC = () => {
             url: item.url || '',
             status: !!item.status,
           });
-        } else {
+        } 
+        else {
           showSnackbar('Flash news not found', 'error');
           router.push('/apps/flash-news');
         }
