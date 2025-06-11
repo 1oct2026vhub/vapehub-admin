@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm, Control, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -127,7 +127,7 @@ export default function CouponForm() {
   const { showSnackbar } = useSnackbar();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const { control, handleSubmit, watch, setError, formState: { errors, isValid } } = useForm<CreateCouponData>({
+  const { control, handleSubmit, watch, setError, setValue, formState: { errors, isValid } } = useForm<CreateCouponData>({
     resolver: zodResolver(couponSchema),
     mode: 'all',
     defaultValues: {
@@ -144,7 +144,14 @@ export default function CouponForm() {
     },
   });
 
+  const discountType = watch('discount_type');
   const startDate = watch('start_date');
+
+  useEffect(() => {
+    if (discountType === 'fixed_amount') {
+      setValue('maximum_discount', null, { shouldValidate: true });
+    }
+  }, [discountType, setValue]);
 
   const onSubmit = async (data: CreateCouponData) => {
     try {
@@ -245,16 +252,18 @@ export default function CouponForm() {
             />
           </Grid>
 
-          <Grid item xs={12} md={6}>
-            <FormTextField
-              name="maximum_discount"
-              control={control}
-              label="Maximum Discount"
-              type="number"
-              // error={!!errors.maximum_discount}
-              // helperText={errors.maximum_discount?.message}
-            />
-          </Grid>
+          {discountType !== 'fixed_amount' && (
+            <Grid item xs={12} md={6}>
+              <FormTextField
+                name="maximum_discount"
+                control={control}
+                label="Maximum Discount"
+                type="number"
+                // error={!!errors.maximum_discount}
+                // helperText={errors.maximum_discount?.message}
+              />
+            </Grid>
+          )}
 
           <Grid item xs={12} md={6}>
             <FormTextField
