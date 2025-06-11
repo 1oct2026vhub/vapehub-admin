@@ -144,6 +144,8 @@ export default function EditCouponForm() {
     },
   });
 
+  const discountType = watch('discount_type');
+
   useEffect(() => {
     async function fetchCoupon() {
       try {
@@ -192,6 +194,12 @@ export default function EditCouponForm() {
       }
     }
   }, [endDate, setValue]);
+
+  useEffect(() => {
+    if (discountType === 'fixed_amount') {
+      setValue('maximum_discount', null, { shouldValidate: true });
+    }
+  }, [discountType, setValue]);
 
   const onSubmit = async (data: CreateCouponData) => {
     try {
@@ -292,16 +300,18 @@ export default function EditCouponForm() {
               helperText={errors.minimum_purchase?.message as string}
             />
           </Grid>
-          <Grid item xs={12} md={6}>
-            <FormTextField
-              name="maximum_discount"
-              control={control}
-              label="Maximum Discount"
-              type="number"
-              error={!!errors.maximum_discount}
-              helperText={errors.maximum_discount?.message as string}
-            />
-          </Grid>
+          {discountType !== 'fixed_amount' && (
+            <Grid item xs={12} md={6}>
+              <FormTextField
+                name="maximum_discount"
+                control={control}
+                label="Maximum Discount"
+                type="number"
+                error={!!errors.maximum_discount}
+                helperText={errors.maximum_discount?.message as string}
+              />
+            </Grid>
+          )}
           <Grid item xs={12} md={6}>
             <FormTextField
               name="usage_limit"
