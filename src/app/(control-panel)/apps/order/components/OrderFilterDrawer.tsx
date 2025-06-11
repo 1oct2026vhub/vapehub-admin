@@ -16,7 +16,7 @@ import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { OrderStatus, PaymentStatus } from "@/services/apiOrder";
-import { Dayjs } from "dayjs";
+import dayjs, { Dayjs } from "dayjs";
 import GenerateReportButton from "./GenerateReportButton";
 import ClearFiltersButton from "@/components/Shared/ClearFiltersButton";
 
@@ -112,6 +112,7 @@ const OrderFilterDrawer = ({
               label="Start Date"
               value={startDateFilter}
               onChange={onStartDateChange}
+              maxDate={dayjs()} 
               slotProps={{ 
                 textField: { 
                   size: "small", 
@@ -131,6 +132,7 @@ const OrderFilterDrawer = ({
               label="End Date"
               value={endDateFilter}
               onChange={onEndDateChange}
+              maxDate={dayjs()}
               slotProps={{ 
                 textField: { 
                   size: "small", 

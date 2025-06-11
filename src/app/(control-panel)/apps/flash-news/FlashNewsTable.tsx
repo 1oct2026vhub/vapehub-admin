@@ -21,6 +21,8 @@ const FlashNewsTable: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [openDialog, setOpenDialog] = useState(false);
   const [selectedFlashNews, setSelectedFlashNews] = useState<FlashNews | null>(null);
+  const [rowSelection, setRowSelection] = useState({});
+  const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false);
   const router = useRouter();
   const { showSnackbar } = useSnackbar();
 
@@ -33,6 +35,7 @@ const FlashNewsTable: React.FC = () => {
     setDebouncedSearch('');
     setDeleted(null);
     setPage(1);
+    setRowSelection({});
   };
 
   useEffect(() => {
@@ -66,6 +69,36 @@ const FlashNewsTable: React.FC = () => {
   }, [fetchData]);
 
   const totalPages = Math.ceil(total / limit);
+
+  const handleOpenBulkDeleteDialog = () => {
+    setIsBulkDeleteDialogOpen(true);
+  };
+
+  const handleCloseBulkDeleteDialog = () => {
+    setIsBulkDeleteDialogOpen(false);
+  };
+
+  const handleConfirmBulkDelete = async () => {
+    const selectedRows = flashNews.filter((_, index) => rowSelection[index]);
+    const idsToDelete = selectedRows.map(row => row.id);
+
+    if (idsToDelete.length === 0) {
+      showSnackbar('No items selected for deletion.', 'warning');
+      handleCloseBulkDeleteDialog();
+      return;
+    }
+
+    try {
+      await Promise.all(idsToDelete.map(id => deleteFlashNews(id)));
+      showSnackbar(`${idsToDelete.length} flash news item(s) deleted successfully!`, 'success');
+      setRowSelection({});
+      fetchData(); // Refresh data
+    } catch (err: any) {
+      showSnackbar(err?.message || 'Bulk delete failed', 'error');
+    } finally {
+      handleCloseBulkDeleteDialog();
+    }
+  };
 
   const handleDeleteClick = (item: FlashNews) => {
     setSelectedFlashNews(item);
@@ -127,11 +160,24 @@ const FlashNewsTable: React.FC = () => {
             <MenuItem value="deleted">Inactive</MenuItem>
           </Select>
           {areFiltersActive && <ClearFiltersButton onClick={clearFilters} />}
+          {Object.keys(rowSelection).length > 0 && !deleted && (
+            <Button
+              variant="contained"
+              color="error"
+              startIcon={<FuseSvgIcon>heroicons-outline:trash</FuseSvgIcon>}
+              onClick={handleOpenBulkDeleteDialog}
+            >
+              Delete Selected ({Object.keys(rowSelection).length})
+            </Button>
+          )}
         </div>
         <DataTable
           data={flashNews}
           columns={columns}
           enableColumnOrdering
+          enableRowSelection
+          onRowSelectionChange={setRowSelection}
+          state={{ rowSelection }}
           renderRowActionMenuItems={({ closeMenu, row }) => {
             const menuItems = [
               <MenuItem key="edit" onClick={() => { router.push(`/apps/flash-news/flash-news-edit/${row.original.id}`); closeMenu(); }}>
@@ -201,6 +247,24 @@ const FlashNewsTable: React.FC = () => {
             variant="contained"
           >
             {selectedFlashNews?.deleted_at ? 'Restore' : 'Delete'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Bulk Delete Confirmation Dialog */}
+      <Dialog open={isBulkDeleteDialogOpen} onClose={handleCloseBulkDeleteDialog}>
+        <DialogTitle>Delete Selected Flash News</DialogTitle>
+        <DialogContent>
+          Are you sure you want to delete the {Object.keys(rowSelection).length} selected flash news items?
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseBulkDeleteDialog}>Cancel</Button>
+          <Button 
+            onClick={handleConfirmBulkDelete}
+            color="error"
+            variant="contained"
+          >
+            Delete
           </Button>
         </DialogActions>
       </Dialog>
