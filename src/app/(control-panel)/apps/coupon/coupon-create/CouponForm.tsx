@@ -51,7 +51,7 @@ export const couponSchema = z.object({
   ),
   minimum_purchase: z.preprocess(
     (val) => {
-      if (val === "" || val === null || val === undefined) return null;
+      if (val === "" || val === null || val === undefined) return undefined;
       const parsed = Number(val);
       return isNaN(parsed) ? "NaN" : parsed;
     },
@@ -67,12 +67,11 @@ export const couponSchema = z.object({
           },
           { message: "Minimum Purchase can have at most 2 decimal places" }
         ),
-      z.null().refine(() => false, "Minimum purchase is required"), // Enforce non-null
-    ])
+    ]).optional()
   ),
   maximum_discount: z.preprocess(
     (val) => {
-      if (val === "" || val === null || val === undefined) return null;
+      if (val === "" || val === null || val === undefined) return undefined;
       const parsed = Number(val);
       return isNaN(parsed) ? "NaN" : parsed;
     },
@@ -88,8 +87,7 @@ export const couponSchema = z.object({
           },
           { message: "Maximum Discount can have at most 2 decimal places" }
         ),
-        z.null(), // Allow null for optional field
-    ])
+    ]).optional()
   ),
   discount_type: z.enum(['percentage', 'fixed_amount'], {
     required_error: 'Discount type is required',
@@ -109,11 +107,19 @@ export const couponSchema = z.object({
     ])
   ),
   is_single_use: z.boolean(),
-  start_date: z.string().min(1, 'Start date is required'),
-  end_date: z.string().min(1, 'End date is required'),
+  start_date: z.string().nullable().refine(val => val !== null, { message: 'Start date is required' }),
+  end_date: z.string().nullable().refine(val => val !== null, { message: 'End date is required' }),
   status: z.enum(['active', 'inactive', 'expired'], {
     required_error: 'Status is required',
   }),
+}).refine(data => {
+    if (data.start_date && data.end_date) {
+        return new Date(data.end_date) > new Date(data.start_date);
+    }
+    return true;
+}, {
+    message: "End date must be after start date",
+    path: ["end_date"],
 });
 
 export default function CouponForm() {
@@ -133,6 +139,8 @@ export default function CouponForm() {
       minimum_purchase: null,
       maximum_discount: null,
       usage_limit: 0,
+      start_date: null,
+      end_date: null,
     },
   });
 
@@ -163,8 +171,8 @@ export default function CouponForm() {
             showSnackbar(message, "error");
           }
         });
-      }    
-      } 
+      }
+      }
       finally {
       setIsSubmitting(false);
     }
