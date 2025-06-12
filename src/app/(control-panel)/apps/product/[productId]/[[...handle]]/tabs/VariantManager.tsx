@@ -3170,6 +3170,7 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
               // Add filtered variants and search term props - with proper mapping
               filteredVariants={searchTerm ? filteredVariants.map(mapToManualVariantData) : undefined}
               searchTerm={searchTerm || ""}
+              setVariants={setVariants}
               // CREATE Form Props
               createControl={createControl as any}
               handleCreateSubmit={handleCreateSubmit}
@@ -3210,6 +3211,7 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
               isLoading={isLoading}  
               allCombinationsUsed={allCombinationsUsed}
               productAttributes={productAttributes}
+              setVariants={setVariants}
               filteredVariants={searchTerm ? filteredVariants.map(mapToGeneratedVariant) : undefined}
               searchTerm={searchTerm || ""}
               onSuccess={() => {
