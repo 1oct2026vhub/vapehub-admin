@@ -399,6 +399,8 @@ interface ManualVariantViewProps {
   // Add new props for search functionality
   filteredVariants?: ManualVariantData[];
   searchTerm?: string;
+  setVariants: (variants: any[]) => void;
+  onVariantCountChange?: (count: number) => void;
 }
 
 // API Service Placeholders - These will now call the actual imported services
@@ -574,9 +576,11 @@ const ManualVariantView: React.FC<ManualVariantViewProps> = ({
   setPendingCreateImagePreviews,
   createGetRootProps,
   createGetInputProps,
+  setVariants,
   createIsDragActive,
   filteredVariants,
-  searchTerm
+  searchTerm,
+  onVariantCountChange
 }) => {
   const { showSnackbar } = useSnackbar();
   const searchParams = useSearchParams();
@@ -961,7 +965,11 @@ const ManualVariantView: React.FC<ManualVariantViewProps> = ({
     try {
       const response = await deleteManualProductVariantAPI(productId, manualVariantToDeleteId);
       if (response.success) {
-        setManualVariants(prev => prev.filter(v => v.id !== manualVariantToDeleteId));
+        const newVariants = manualVariants.filter(v => v.id !== manualVariantToDeleteId);
+        setVariants(newVariants);
+        setManualVariants(newVariants);
+        onVariantCountChange?.(newVariants.length);
+
         if (selectedManualVariant?.id === manualVariantToDeleteId) {
           setSelectedManualVariant(null); // Clear selection if deleted variant was selected
         }
