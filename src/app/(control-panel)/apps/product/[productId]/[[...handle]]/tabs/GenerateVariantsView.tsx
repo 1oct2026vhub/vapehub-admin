@@ -25,6 +25,7 @@ interface GenerateVariantsViewProps {
   productAttributes:any[];
   filteredVariants?: any[];
   searchTerm?: string;
+  setVariants: (variants: any[] | ((prev: any[]) => any[])) => void;
 }
 
 interface VariantImage {
@@ -350,7 +351,7 @@ const validateFile = async (file: File): Promise<string | null> => {
 };
 // --- END: Image Validation Helper Functions ---
 
-const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: initialLoading, onSuccess, allCombinationsUsed, productAttributes, filteredVariants: propFilteredVariants, searchTerm }) => {
+const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: initialLoading, onSuccess, allCombinationsUsed, productAttributes, filteredVariants: propFilteredVariants, searchTerm, setVariants }) => {
   const [isLoading, setIsLoading] = useState(initialLoading);
   const [generatedVariants, setGeneratedVariants] = useState<GeneratedVariant[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -1359,6 +1360,7 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
         showSnackbar('Variant deleted successfully', 'success');
         
         // Update local state after successful deletion
+        setVariants(prevVariants => prevVariants.filter(v => v.id !== variantToDeleteId));
         setGeneratedVariants(prevVariants => 
           prevVariants.filter(variant => variant.id !== variantToDeleteId)
         );
