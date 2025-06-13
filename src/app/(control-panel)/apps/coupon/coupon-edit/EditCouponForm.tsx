@@ -152,9 +152,6 @@ export default function EditCouponForm() {
         const response = await getCouponById(Number(params.id));
         const coupon = response.data.coupon;
 
-        const isExpired = coupon.end_date && new Date(coupon.end_date) < new Date();
-        const newStatus = isExpired ? 'expired' : coupon.status || 'active';
-
         reset({
           code: coupon.code || '',
           description: coupon.description || '',
@@ -166,12 +163,8 @@ export default function EditCouponForm() {
           is_single_use: !!coupon.is_single_use,
           start_date: coupon.start_date ? new Date(coupon.start_date).toISOString() : null,
           end_date: coupon.end_date ? new Date(coupon.end_date).toISOString() : null,
-          status: newStatus,
+          status: coupon.status || 'active',
         });
-
-        if (isExpired && coupon.status !== 'expired') {
-            showSnackbar('This coupon has expired. The status has been automatically set to "Expired".', 'warning');
-        }
 
       } catch (error) {
         // showSnackbar('Failed to fetch coupon data', 'error');
@@ -187,15 +180,6 @@ export default function EditCouponForm() {
   const endDate = watch('end_date');
 
   useEffect(() => {
-    if (endDate) {
-      const isExpired = new Date(endDate) < new Date();
-      if (isExpired) {
-        setValue('status', 'expired', { shouldValidate: true });
-      }
-    }
-  }, [endDate, setValue]);
-
-  useEffect(() => {
     if (discountType === 'fixed_amount') {
       setValue('maximum_discount', null, { shouldValidate: true });
     }
@@ -204,13 +188,23 @@ export default function EditCouponForm() {
   const onSubmit = async (data: CreateCouponData) => {
     try {
       setIsSubmitting(true);
-      const submissionData = { ...data };
-      if (submissionData.end_date && new Date(submissionData.end_date) < new Date()) {
-          if (submissionData.status !== 'expired') {
-              submissionData.status = 'expired';
-              showSnackbar('Coupon has expired, setting status to "Expired".', 'info');
-          }
-      }
+      const toUTC = (dateString: string | null | undefined): string | null => {
+        if (!dateString) return null;
+        const date = new Date(dateString);
+        return new Date(Date.UTC(
+          date.getFullYear(),
+          date.getMonth(),
+          date.getDate(),
+          date.getHours(),
+          date.getMinutes(),
+          date.getSeconds(),
+        )).toISOString();
+      };
+      const submissionData = {
+        ...data,
+        start_date: toUTC(data.start_date),
+        end_date: toUTC(data.end_date),
+      };
       await updateCoupon(Number(params.id), submissionData);
       showSnackbar('Coupon updated successfully', 'success');
       router.push('/apps/coupon');

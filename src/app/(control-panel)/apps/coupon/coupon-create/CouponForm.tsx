@@ -146,6 +146,9 @@ export default function CouponForm() {
 
   const discountType = watch('discount_type');
   const startDate = watch('start_date');
+  const endDate = watch('end_date');
+  console.log("Start Date", startDate);
+  console.log("End Date", endDate);
 
   useEffect(() => {
     if (discountType === 'fixed_amount') {
@@ -156,9 +159,27 @@ export default function CouponForm() {
   const onSubmit = async (data: CreateCouponData) => {
     try {
       setIsSubmitting(true);
-      await createCoupon(data);
+      const toUTC = (dateString: string | null | undefined): string | null => {
+        if (!dateString) return null;
+        const date = new Date(dateString);
+        return new Date(Date.UTC(
+          date.getFullYear(),
+          date.getMonth(),
+          date.getDate(),
+          date.getHours(),
+          date.getMinutes(),
+          date.getSeconds(),
+        )).toISOString();
+      };
+
+      const payload = {
+        ...data,
+        start_date: toUTC(data.start_date),
+        end_date: toUTC(data.end_date),
+      };
+      await createCoupon(payload);
       showSnackbar('Coupon created successfully', 'success');
-      router.push('/apps/coupon');
+      // router.push('/apps/coupon');
     } catch (error: any) {
   if (error?.error) {
         showSnackbar(error?.error[0]?.msg || error?.error[0]?.message, "error");
@@ -309,7 +330,7 @@ export default function CouponForm() {
               control={control}
               label="End Date"
               required
-              minDateTime={startDate ? new Date(startDate) : undefined}
+              // minDateTime={startDate ? new Date(startDate) : undefined}
               // helperText="Select when the coupon expires"
             />
           </Grid>
