@@ -81,7 +81,6 @@ const TransactionDetailApp = () => {
       setLoading(false);
     }
   };
-
   useEffect(() => {
     fetchTransaction();
   }, [params.transactionId]);
@@ -303,8 +302,10 @@ const TransactionDetailApp = () => {
                     variant="body1"
                     className="font-medium text-center"
                   >
-                    {transaction.paymentMethod.charAt(0).toUpperCase() +
-                      transaction.paymentMethod.slice(1)}
+                    {transaction.paymentMethod
+                      ? transaction.paymentMethod.charAt(0).toUpperCase() +
+                        transaction.paymentMethod.slice(1)
+                      : "N/A"}
                   </Typography>
                 </Box>
               </Grid>

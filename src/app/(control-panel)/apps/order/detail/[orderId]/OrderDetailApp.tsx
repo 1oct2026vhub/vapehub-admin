@@ -103,6 +103,7 @@ const OrderDetailApp = () => {
 
     fetchOrder();
   }, [params.orderId]);
+  console.log("orderDetails",order);
 
   // Format date function
   const formatDate = (dateString: string) => {
@@ -164,6 +165,8 @@ const OrderDetailApp = () => {
       shipped: { bg: "#E3F2FD", text: "#1E88E5" },
       delivered: { bg: "#E6F6EC", text: "#4CAF50" },
       completed: { bg: "#E6F6EC", text: "#4CAF50" },
+      paid: { bg: "#E6F6EC", text: "#4CAF50" },
+      active: { bg: "#E6F6EC", text: "#4CAF50" },
       fail: { bg: "#FEEBEB", text: "#F44336" },
       cancel: { bg: "#F5F5F5", text: "#9E9E9E" },
       out_for_delivery: { bg: "#E0F7FA", text: "#00ACC1" },
@@ -515,6 +518,39 @@ const OrderDetailApp = () => {
                 </Typography>
               </div>
             </div>
+            {order?.paymentMethod && (
+              <>
+                <Divider sx={{ my: 2 }} />
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <Typography variant="body1" className="font-medium">
+                      Payment Method
+                    </Typography>
+                    <Typography variant="body2" className="capitalize">
+                      {order.paymentMethod.payment_method.replace(/_/g, " ")}
+                    </Typography>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <Typography variant="body1" className="font-medium">
+                      Payment Status
+                    </Typography>
+                    <Chip
+                      label={formatStatusText(order.paymentMethod.status)}
+                      size="small"
+                      sx={{
+                        backgroundColor: getStatusColor(
+                          order.paymentMethod.status
+                        ).bg,
+                        color: getStatusColor(order.paymentMethod.status).text,
+                        fontWeight: 600,
+                        fontSize: "0.75rem",
+                        textTransform: "capitalize",
+                      }}
+                    />
+                  </div>
+                </div>
+              </>
+            )}
           </Paper>
 
           {/* Coupon Details Section */}
