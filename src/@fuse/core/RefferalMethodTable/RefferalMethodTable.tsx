@@ -140,7 +140,22 @@ const RefferalMethodTable: React.FC = () => {
 
   const columns = useMemo<MRT_ColumnDef<ReferralMethod>[]>(
     () => [
-      { accessorKey: 'referral_value_type', header: 'Type' },
+      {
+        accessorKey: 'refer_type',
+        header: 'Referral Type',
+        Cell: ({ row }) => {
+          const text = row.original.refer_type || '';
+          return text.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase());
+        },
+      },
+      {
+        accessorKey: 'referral_value_type',
+        header: 'Type',
+        Cell: ({ row }) => {
+          const text = row.original.referral_value_type || '';
+          return text.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase());
+        },
+      },
       { accessorKey: 'referral_value', header: 'Value' },
       {
         accessorKey: 'status',

@@ -217,13 +217,13 @@ const navigationConfig: FuseNavItemType[] = [
     icon: "heroicons-outline:megaphone",
     url: "/apps/flash-news"
   },
-  // {
-  //   id: "refferal-methods",
-  //   title: "Refferal Methods",
-  //   type: "item",
-  //   icon: "heroicons-outline:gift",
-  //   url: "/apps/refferal-methods"
-  // },
+  {
+    id: "refferal-methods",
+    title: "Refferal Methods",
+    type: "item",
+    icon: "heroicons-outline:gift",
+    url: "/apps/refferal-methods"
+  },
   // {
   //   id: "menu",
   //   title: "Menu",

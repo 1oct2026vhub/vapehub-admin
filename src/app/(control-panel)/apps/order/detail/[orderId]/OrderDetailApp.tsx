@@ -103,7 +103,6 @@ const OrderDetailApp = () => {
 
     fetchOrder();
   }, [params.orderId]);
-  console.log("orderDetails",order);
 
   // Format date function
   const formatDate = (dateString: string) => {
@@ -529,24 +528,6 @@ const OrderDetailApp = () => {
                     <Typography variant="body2" className="capitalize">
                       {order.paymentMethod.payment_method.replace(/_/g, " ")}
                     </Typography>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <Typography variant="body1" className="font-medium">
-                      Payment Status
-                    </Typography>
-                    <Chip
-                      label={formatStatusText(order.paymentMethod.status)}
-                      size="small"
-                      sx={{
-                        backgroundColor: getStatusColor(
-                          order.paymentMethod.status
-                        ).bg,
-                        color: getStatusColor(order.paymentMethod.status).text,
-                        fontWeight: 600,
-                        fontSize: "0.75rem",
-                        textTransform: "capitalize",
-                      }}
-                    />
                   </div>
                 </div>
               </>
