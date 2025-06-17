@@ -218,6 +218,13 @@ const navigationConfig: FuseNavItemType[] = [
     url: "/apps/flash-news"
   },
   // {
+  //   id: "refferal-methods",
+  //   title: "Refferal Methods",
+  //   type: "item",
+  //   icon: "heroicons-outline:gift",
+  //   url: "/apps/refferal-methods"
+  // },
+  // {
   //   id: "menu",
   //   title: "Menu",
   //   type: "item",
