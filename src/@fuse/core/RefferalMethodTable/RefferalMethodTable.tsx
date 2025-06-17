@@ -19,10 +19,11 @@ import {
   Pagination,
   PaginationItem,
   ListItemIcon,
+  Switch,
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import ClearFiltersButton from '@/components/Shared/ClearFiltersButton';
-import { getReferralMethods, ReferralMethod, FetchReferralMethodsParams, deleteReferralMethod } from '@/services/apiRefferalMethods';
+import { getReferralMethods, ReferralMethod, FetchReferralMethodsParams, deleteReferralMethod, updateReferralMethodPrimary, updateReferralMethodStatus } from '@/services/apiRefferalMethods';
 import FuseSvgIcon from '@fuse/core/FuseSvgIcon';
 import { useRouter } from 'next/navigation';
 import { useSnackbar } from '@/contexts/SnackbarContext';
@@ -41,6 +42,7 @@ const RefferalMethodTable: React.FC = () => {
   const [primary, setPrimary] = useState<string>('');
   const [sortBy, setSortBy] = useState<string>('created_at');
   const [order, setOrder] = useState<string>('DESC');
+  const [updating, setUpdating] = useState<Record<string, boolean>>({});
   const router = useRouter();
   const { showSnackbar } = useSnackbar();
 
@@ -104,6 +106,32 @@ const RefferalMethodTable: React.FC = () => {
     }
   };
 
+  const handlePrimaryChange = async (method: ReferralMethod, isChecked: boolean) => {
+    setUpdating(prev => ({ ...prev, [`primary-${method.id}`]: true }));
+    try {
+      await updateReferralMethodPrimary(method.id, isChecked);
+      showSnackbar('Primary status updated successfully!', 'success');
+      fetchData();
+    } catch (err: any) {
+      showSnackbar(err?.message || 'Failed to update primary status', 'error');
+    } finally {
+      setUpdating(prev => ({ ...prev, [`primary-${method.id}`]: false }));
+    }
+  };
+
+  const handleStatusChange = async (method: ReferralMethod, newStatus: 'active' | 'inactive') => {
+    setUpdating(prev => ({ ...prev, [`status-${method.id}`]: true }));
+    try {
+      await updateReferralMethodStatus(method.id, newStatus);
+      showSnackbar('Status updated successfully!', 'success');
+      fetchData();
+    } catch (err: any) {
+      showSnackbar(err?.message || 'Failed to update status', 'error');
+    } finally {
+      setUpdating(prev => ({ ...prev, [`status-${method.id}`]: false }));
+    }
+  };
+
   useEffect(() => {
     fetchData();
   }, [fetchData]);
@@ -128,9 +156,9 @@ const RefferalMethodTable: React.FC = () => {
         Cell: ({ row }) => (row.original.primary ? 'Yes' : 'No'),
       },
       {
-        accessorKey: "createdAt",
+        accessorKey: "created_at",
         header: "Created At",
-        Cell: ({ row }) => formatDate(row.original.createdAt),
+        Cell: ({ row }) => formatDate(row.original.created_at),
       },
     ],
     []
@@ -212,7 +240,19 @@ const RefferalMethodTable: React.FC = () => {
                 </ListItemIcon>
                 Edit
               </MenuItem>,
-               <MenuItem key="delete" onClick={() => { handleDeleteClick(row.original); closeMenu(); }}>
+              <MenuItem key="primary" onClick={() => { handlePrimaryChange(row.original, !row.original.primary); closeMenu(); }}>
+                <ListItemIcon>
+                  <FuseSvgIcon>{row.original.primary ? "heroicons-outline:star" : "heroicons-solid:star"}</FuseSvgIcon>
+                </ListItemIcon>
+                {row.original.primary ? "Unset as Primary" : "Set as Primary"}
+              </MenuItem>,
+              <MenuItem key="status" onClick={() => { handleStatusChange(row.original, row.original.status === 'active' ? 'inactive' : 'active'); closeMenu(); }}>
+                <ListItemIcon>
+                  <FuseSvgIcon>{row.original.status === 'active' ? "heroicons-outline:eye-slash" : "heroicons-outline:eye"}</FuseSvgIcon>
+                </ListItemIcon>
+                {row.original.status === 'active' ? "Deactivate" : "Activate"}
+              </MenuItem>,
+              <MenuItem key="delete" onClick={() => { handleDeleteClick(row.original); closeMenu(); }}>
                 <ListItemIcon>
                   <FuseSvgIcon>heroicons-outline:trash</FuseSvgIcon>
                 </ListItemIcon>

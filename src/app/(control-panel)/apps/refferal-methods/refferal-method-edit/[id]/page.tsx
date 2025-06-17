@@ -3,23 +3,26 @@
 import { useEffect, useState } from 'react';
 import { getReferralMethodById, ReferralMethod } from '@/services/apiRefferalMethods';
 import RefferalMethodEditForm from './RefferalMethodEditForm';
-import RefferalEditHeader from './RefferalEditHeader';
+import { useParams } from 'next/navigation';
 
-function EditRefferalMethodPage({ params }: { params: { id: string } }) {
+function EditRefferalMethodPage() {
+	const params = useParams();
+	const id = params.id as string;
 	const [referralMethod, setReferralMethod] = useState<ReferralMethod | null>(null);
 
 	useEffect(() => {
+		if (!id) return;
 		const fetchReferralMethod = async () => {
 			try {
-				const res = await getReferralMethodById(Number(params.id));
-				setReferralMethod(res.data);
+				const res = await getReferralMethodById(Number(id));
+				setReferralMethod(res.data?.data);
 			} catch (error) {
 				console.error('Failed to fetch referral method', error);
 			}
 		};
 
 		fetchReferralMethod();
-	}, [params.id]);
+	}, [id]);
 
 	if (!referralMethod) {
 		return <div>Loading...</div>;
@@ -27,7 +30,6 @@ function EditRefferalMethodPage({ params }: { params: { id: string } }) {
 
 	return (
 		<div className="p-4">
-			<RefferalEditHeader />
 			<RefferalMethodEditForm referralMethod={referralMethod} />
 		</div>
 	);

@@ -20,13 +20,55 @@ import FormTextField from '@/components/Shared/FormTextField';
 import AppButton from '@/components/Shared/AppButton';
 
 const referralMethodSchema = z.object({
-	referral_value_type: z.enum(['percentage', 'fixed_amount']),
-	referral_value: z.string().min(1, 'Referral value is required'),
-	refer_type: z.enum(['referrer', 'referred']),
+	referral_value_type: z.enum(['percentage', 'fixed']),
+	referral_value: z.string()
+		.min(1, 'Referral value is required')
+		.refine((val) => /^\d+(\.\d{1,2})?$/.test(val), {
+			message: 'Referral value must be a positive number with up to two decimal places.',
+		}),
+	refer_type: z.enum(['referrer', 'referral']),
 	status: z.enum(['active', 'inactive']),
 	primary: z.boolean(),
-	minimum_purchase: z.coerce.number().optional(),
-	maximum_purchase: z.coerce.number().optional(),
+	minimum_purchase: z.preprocess(
+		(val) => {
+			if (val === "" || val === null || val === undefined) return undefined;
+			const parsed = Number(val);
+			return isNaN(parsed) ? "NaN" : parsed;
+		},
+		z.union([
+			z.literal("NaN").refine(() => false, "Please enter a valid number for Minimum Purchase"),
+			z.number()
+				.positive("Minimum Purchase must be greater than zero")
+        .max(9999999.99, "Minimum Purchase exceeds maximum limit")
+				.refine(
+					(val) => {
+						const str = val.toString();
+						return !str.includes(".") || str.split(".")[1].length <= 2;
+					},
+					{ message: "Minimum Purchase can have at most 2 decimal places" }
+				),
+		]).optional()
+	),
+	maximum_purchase: z.preprocess(
+		(val) => {
+			if (val === "" || val === null || val === undefined) return undefined;
+			const parsed = Number(val);
+			return isNaN(parsed) ? "NaN" : parsed;
+		},
+		z.union([
+			z.literal("NaN").refine(() => false, "Please enter a valid number for Maximum Purchase"),
+			z.number()
+				.positive("Maximum Purchase must be greater than zero")
+        .max(9999999.99, "Maximum Purchase exceeds maximum limit")
+				.refine(
+					(val) => {
+						const str = val.toString();
+						return !str.includes(".") || str.split(".")[1].length <= 2;
+					},
+					{ message: "Maximum Purchase can have at most 2 decimal places" }
+				),
+		]).optional()
+	),
 });
 
 interface RefferalMethodEditFormProps {
@@ -41,7 +83,7 @@ const RefferalMethodEditForm: React.FC<RefferalMethodEditFormProps> = ({ referra
 	const {
 		control,
 		handleSubmit,
-		formState: { errors, isValid },
+		formState: { errors, isValid, dirtyFields },
 		reset,
 	} = useForm<CreateReferralMethodData>({
 		resolver: zodResolver(referralMethodSchema),
@@ -63,9 +105,20 @@ const RefferalMethodEditForm: React.FC<RefferalMethodEditFormProps> = ({ referra
 	}, [referralMethod, reset]);
 
 	const onSubmit = async (data: CreateReferralMethodData) => {
+		const payload: Partial<CreateReferralMethodData> = {};
+
+		Object.keys(dirtyFields).forEach((key) => {
+			(payload as any)[key] = (data as any)[key];
+		});
+
+		if (Object.keys(payload).length === 0) {
+			showSnackbar('No changes made to save.', 'info');
+			return;
+		}
+
 		try {
 			setIsSubmitting(true);
-			await updateReferralMethod(referralMethod.id, data);
+			await updateReferralMethod(referralMethod.id, payload as any);
 			showSnackbar('Referral method updated successfully!', 'success');
 			router.push('/apps/refferal-methods');
 		} catch (error: any) {
@@ -77,9 +130,9 @@ const RefferalMethodEditForm: React.FC<RefferalMethodEditFormProps> = ({ referra
 
 	return (
 		<div>
-			<Typography variant="h4" className="mb-4">
-				Edit Referral Method
-			</Typography>
+      <Typography variant="h5" component="h2" gutterBottom sx={{ mb: 3, fontWeight: 'bold' }}>
+        Edit Referral Method
+      </Typography>
 			<Paper sx={{ p: { xs: 2, md: 4 }, borderRadius: 2, boxShadow: 3, bgcolor: 'white' }}>
 				<form onSubmit={handleSubmit(onSubmit)}>
 					<Grid container spacing={3}>
@@ -102,7 +155,7 @@ const RefferalMethodEditForm: React.FC<RefferalMethodEditFormProps> = ({ referra
 								required
 							>
 								<MenuItem value="percentage">Percentage</MenuItem>
-								<MenuItem value="fixed_amount">Fixed Amount</MenuItem>
+								<MenuItem value="fixed">Fixed Amount</MenuItem>
 							</FormTextField>
 						</Grid>
 						<Grid item xs={12} md={6}>
@@ -114,7 +167,7 @@ const RefferalMethodEditForm: React.FC<RefferalMethodEditFormProps> = ({ referra
 								required
 							>
 								<MenuItem value="referrer">Referrer</MenuItem>
-								<MenuItem value="referred">Referred</MenuItem>
+								<MenuItem value="referral">Referred</MenuItem>
 							</FormTextField>
 						</Grid>
 						<Grid item xs={12} md={6}>

@@ -19,13 +19,55 @@ import FormTextField from '@/components/Shared/FormTextField';
 import AppButton from '@/components/Shared/AppButton';
 
 const referralMethodSchema = z.object({
-	referral_value_type: z.enum(['percentage', 'fixed_amount']),
-	referral_value: z.string().min(1, 'Referral value is required'),
-	refer_type: z.enum(['referrer', 'referred']),
+	referral_value_type: z.enum(['percentage', 'fixed']),
+	referral_value: z.string()
+		.min(1, 'Referral value is required')
+		.refine((val) => /^\d+(\.\d{1,2})?$/.test(val), {
+			message: 'Referral value must be a positive number with up to two decimal places.',
+		}),
+	refer_type: z.enum(['referrer', 'referral']),
 	status: z.enum(['active', 'inactive']),
 	primary: z.boolean(),
-	minimum_purchase: z.coerce.number().optional(),
-	maximum_purchase: z.coerce.number().optional(),
+	minimum_purchase: z.preprocess(
+		(val) => {
+			if (val === "" || val === null || val === undefined) return undefined;
+			const parsed = Number(val);
+			return isNaN(parsed) ? "NaN" : parsed;
+		},
+		z.union([
+			z.literal("NaN").refine(() => false, "Please enter a valid number for Minimum Purchase"),
+			z.number()
+				.positive("Minimum Purchase must be greater than zero")
+				.max(9999999.99, "Minimum Purchase exceeds maximum limit")
+				.refine(
+					(val) => {
+						const str = val.toString();
+						return !str.includes(".") || str.split(".")[1].length <= 2;
+					},
+					{ message: "Minimum Purchase can have at most 2 decimal places" }
+				),
+		]).optional()
+	),
+	maximum_purchase: z.preprocess(
+		(val) => {
+			if (val === "" || val === null || val === undefined) return undefined;
+			const parsed = Number(val);
+			return isNaN(parsed) ? "NaN" : parsed;
+		},
+		z.union([
+			z.literal("NaN").refine(() => false, "Please enter a valid number for Maximum Purchase"),
+			z.number()
+				.positive("Maximum Purchase must be greater than zero")
+				.max(9999999.99, "Maximum Purchase exceeds maximum limit")
+				.refine(
+					(val) => {
+						const str = val.toString();
+						return !str.includes(".") || str.split(".")[1].length <= 2;
+					},
+					{ message: "Maximum Purchase can have at most 2 decimal places" }
+				),
+		]).optional()
+	),
 });
 
 const RefferalMethodForm = () => {
@@ -67,8 +109,8 @@ const RefferalMethodForm = () => {
 			<form
 				onSubmit={handleSubmit(onSubmit)}
 			>
-  <Grid container spacing={3}>
-          <Grid item xs={12} md={6}>
+				<Grid container spacing={3}>
+					<Grid item xs={12} md={6}>
 						<FormTextField
 							name="referral_value"
 							control={control}
@@ -91,7 +133,7 @@ const RefferalMethodForm = () => {
 							required
 						>
 							<MenuItem value="percentage">Percentage</MenuItem>
-							<MenuItem value="fixed_amount">Fixed Amount</MenuItem>
+							<MenuItem value="fixed">Fixed Amount</MenuItem>
 						</FormTextField>
 					</Grid>
 					<Grid
@@ -107,7 +149,7 @@ const RefferalMethodForm = () => {
 							required
 						>
 							<MenuItem value="referrer">Referrer</MenuItem>
-							<MenuItem value="referred">Referred</MenuItem>
+							<MenuItem value="referral">Referred</MenuItem>
 						</FormTextField>
 					</Grid>
 					<Grid

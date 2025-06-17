@@ -9,7 +9,7 @@ export interface ReferralMethod {
   primary: boolean;
   minimum_purchase: number;
   maximum_purchase: number;
-  createdAt: string;
+  created_at: string;
   updatedAt: string;
   deletedAt: string | null;
 }
@@ -68,5 +68,15 @@ export const getReferralMethodById = async (id: number): Promise<any> => {
 
 export const updateReferralMethod = async (id: number, data: CreateReferralMethodData): Promise<any> => {
 	const response = await axiosInstance.put(`/api/admin/referral-method/${id}`, data);
+	return response.data;
+}
+
+export const updateReferralMethodPrimary = async (id: number, primary: boolean): Promise<any> => {
+	const response = await axiosInstance.patch(`/api/admin/referral-method/${id}/primary`, { primary });
+	return response.data;
+}
+
+export const updateReferralMethodStatus = async (id: number, status: 'active' | 'inactive'): Promise<any> => {
+	const response = await axiosInstance.patch(`/api/admin/referral-method/${id}/status`, { status });
 	return response.data;
 } 
