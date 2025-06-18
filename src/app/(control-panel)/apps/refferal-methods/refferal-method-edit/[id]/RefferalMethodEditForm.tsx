@@ -31,7 +31,7 @@ const referralMethodSchema = z.object({
 	primary: z.boolean(),
 	minimum_purchase: z.preprocess(
 		(val) => {
-			if (val === "" || val === null || val === undefined) return undefined;
+			if (val === "" || val === null || val === undefined) return null;
 			const parsed = Number(val);
 			return isNaN(parsed) ? "NaN" : parsed;
 		},
@@ -47,11 +47,11 @@ const referralMethodSchema = z.object({
 					},
 					{ message: "Minimum Purchase can have at most 2 decimal places" }
 				),
-		]).optional()
+		]).nullable()
 	),
 	maximum_purchase: z.preprocess(
 		(val) => {
-			if (val === "" || val === null || val === undefined) return undefined;
+			if (val === "" || val === null || val === undefined) return null;
 			const parsed = Number(val);
 			return isNaN(parsed) ? "NaN" : parsed;
 		},
@@ -67,7 +67,7 @@ const referralMethodSchema = z.object({
 					},
 					{ message: "Maximum Purchase can have at most 2 decimal places" }
 				),
-		]).optional()
+		]).nullable()
 	),
 });
 
@@ -98,8 +98,8 @@ const RefferalMethodEditForm: React.FC<RefferalMethodEditFormProps> = ({ referra
 				refer_type: referralMethod.refer_type,
 				status: referralMethod.status,
 				primary: referralMethod.primary,
-				minimum_purchase: referralMethod.minimum_purchase,
-				maximum_purchase: referralMethod.maximum_purchase,
+				minimum_purchase: Number(referralMethod.minimum_purchase) === 0 ? undefined : referralMethod.minimum_purchase,
+				maximum_purchase: Number(referralMethod.maximum_purchase) === 0 ? undefined : referralMethod.maximum_purchase,
 			});
 		}
 	}, [referralMethod, reset]);
@@ -167,7 +167,7 @@ const RefferalMethodEditForm: React.FC<RefferalMethodEditFormProps> = ({ referra
 								required
 							>
 								<MenuItem value="referrer">Referrer</MenuItem>
-								<MenuItem value="referral">Referred</MenuItem>
+								<MenuItem value="referral">Referral</MenuItem>
 							</FormTextField>
 						</Grid>
 						<Grid item xs={12} md={6}>
