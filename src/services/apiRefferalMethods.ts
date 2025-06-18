@@ -2,7 +2,7 @@ import axiosInstance from '@/utils/axiosApi';
 
 export interface ReferralMethod {
   id: number;
-  referral_value_type: 'percentage' | 'fixed_amount';
+  referral_value_type: 'percentage' | 'fixed';
   referral_value: string;
   refer_type: 'referrer' | 'referred';
   status: 'active' | 'inactive';
@@ -15,7 +15,7 @@ export interface ReferralMethod {
 }
 
 export interface CreateReferralMethodData {
-  referral_value_type: 'percentage' | 'fixed_amount';
+  referral_value_type: 'percentage' | 'fixed';
   referral_value: string;
   refer_type: 'referrer' | 'referred';
   status: 'active' | 'inactive';

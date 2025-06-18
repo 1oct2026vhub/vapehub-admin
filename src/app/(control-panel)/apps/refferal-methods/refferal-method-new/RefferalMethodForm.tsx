@@ -149,7 +149,7 @@ const RefferalMethodForm = () => {
 							required
 						>
 							<MenuItem value="referrer">Referrer</MenuItem>
-							<MenuItem value="referral">Referred</MenuItem>
+							<MenuItem value="referral">Referral</MenuItem>
 						</FormTextField>
 					</Grid>
 					<Grid
