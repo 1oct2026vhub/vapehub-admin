@@ -264,7 +264,14 @@ const RefferalMethodTable: React.FC = () => {
                 </ListItemIcon>
                 {row.original.primary ? "Unset as Primary" : "Set as Primary"}
               </MenuItem>,
-              <MenuItem key="status" onClick={() => { handleStatusChange(row.original, row.original.status === 'active' ? 'inactive' : 'active'); closeMenu(); }}>
+              <MenuItem
+                key="status"
+                onClick={() => {
+                  handleStatusChange(row.original, row.original.status === 'active' ? 'inactive' : 'active');
+                  closeMenu();
+                }}
+                disabled={row.original.primary && row.original.status === 'active'}
+              >
                 <ListItemIcon>
                   <FuseSvgIcon>{row.original.status === 'active' ? "heroicons-outline:eye-slash" : "heroicons-outline:eye"}</FuseSvgIcon>
                 </ListItemIcon>
