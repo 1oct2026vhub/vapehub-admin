@@ -98,6 +98,8 @@ type AppButtonProps = {
   size?: "small" | "medium" | "large";
   className?: string;
   loading?: boolean; // New prop to show loading state
+  startIcon?: React.ReactNode;
+  endIcon?: React.ReactNode;
 };
 
 const GradientButton = styled(Button)(({ disabled }) => ({
@@ -132,6 +134,8 @@ const AppButton: React.FC<AppButtonProps> = ({
   size = "medium",
   className = "",
   loading = false, // Default loading to false
+  startIcon,
+  endIcon
 }) => {
   const buttonProps: any = {
     onClick,
@@ -141,6 +145,8 @@ const AppButton: React.FC<AppButtonProps> = ({
     fullWidth,
     size,
     className,
+    startIcon,
+    endIcon
   };
 
   if (component) {
