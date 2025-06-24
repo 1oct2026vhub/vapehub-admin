@@ -121,7 +121,8 @@ const MenuDialog: React.FC<MenuDialogProps> = ({ open, onClose, onSave, menuItem
 
       let response: any;
       let fetchedEntities: any[] = [];
-      const params: any = { limit: 1000 };
+      // const params: any = { limit: 1000 };
+      const params: any = {};
 
       if (debouncedSearch) {
         if (entityType === 'product') {
@@ -170,13 +171,13 @@ const MenuDialog: React.FC<MenuDialogProps> = ({ open, onClose, onSave, menuItem
   }, [entityType, debouncedSearch, showSnackbar]);
 
   useEffect(() => {
-    if (entityType === 'page') {
-      setValue('entity_id', null, { shouldValidate: true });
-    } else {
-      setValue('original', '', { shouldValidate: true });
-      if (dirtyFields.entity_type) {
-        setValue('entity_id', undefined, { shouldValidate: true });
-      }
+    if (dirtyFields.entity_type) {
+        if (entityType === 'page') {
+            setValue('entity_id', null, { shouldValidate: true });
+        } else {
+            setValue('original', '', { shouldValidate: true });
+            setValue('entity_id', undefined, { shouldValidate: true });
+        }
     }
   }, [entityType, setValue, dirtyFields.entity_type]);
 
@@ -248,7 +249,25 @@ const MenuDialog: React.FC<MenuDialogProps> = ({ open, onClose, onSave, menuItem
         <DialogContent>
           <Grid container spacing={2} sx={{ mt: 1 }}>
             <Grid item xs={12}>
-              <FormTextField name="entity_type" control={control} label="Entity Type" select fullWidth>
+              <FormTextField
+                name="entity_type"
+                control={control}
+                label="Entity Type"
+                select
+                fullWidth
+                size="small"
+                InputProps={{
+                  sx: { backgroundColor: 'white' },
+                }}
+                SelectProps={{
+                  sx: {
+                    '.MuiSelect-select': {
+                      paddingTop: '8.5px',
+                      paddingBottom: '8.5px',
+                    },
+                  },
+                }}
+              >
                 <MenuItem value="page">Page</MenuItem>
                 <MenuItem value="brand">Brand</MenuItem>
                 <MenuItem value="category">Category</MenuItem>
@@ -268,6 +287,12 @@ const MenuDialog: React.FC<MenuDialogProps> = ({ open, onClose, onSave, menuItem
                       value={entities.find((e) => e.id === field.value) || null}
                       onChange={(event, newValue) => {
                         field.onChange(newValue ? newValue.id : null);
+                        if (newValue && newValue.slug) {
+                          const baseUrl = process.env.NEXT_PUBLIC_API_URL || '';
+                          setValue('original', `${baseUrl}/${newValue.slug}`, { shouldValidate: true });
+                        } else if (!newValue) {
+                          setValue('original', '', { shouldValidate: true });
+                        }
                       }}
                       onInputChange={(event, newInputValue) => {
                         setSearch(newInputValue);
@@ -280,10 +305,12 @@ const MenuDialog: React.FC<MenuDialogProps> = ({ open, onClose, onSave, menuItem
                           {...params}
                           label="Entity ID"
                           fullWidth
+                          size="small"
                           error={!!errors.entity_id}
                           helperText={errors.entity_id?.message as string}
                           InputProps={{
                             ...params.InputProps,
+                            sx: { backgroundColor: 'white' },
                             endAdornment: (
                               <>
                                 {loading ? <CircularProgress color="inherit" size={20} /> : null}
@@ -299,11 +326,11 @@ const MenuDialog: React.FC<MenuDialogProps> = ({ open, onClose, onSave, menuItem
               </Grid>
             )}
 
-            {entityType === 'page' && (
+            {/* {entityType === 'page' && ( */}
               <Grid item xs={12}>
                 <FormTextField name="original" label="Original URL" control={control} fullWidth />
               </Grid>
-            )}
+            {/* )} */}
 
             <Grid item xs={12}>
               <FormTextField name="label" label="Label" control={control} fullWidth />

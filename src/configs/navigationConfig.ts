@@ -193,7 +193,7 @@ const navigationConfig: FuseNavItemType[] = [
     id: "menu",
     title: "Menu",
     type: "item",
-    icon: "heroicons-outline:menu",
+    icon: "heroicons-outline:bars-3",
     url: "/apps/menu",
   },
   // {
