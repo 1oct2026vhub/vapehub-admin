@@ -1,6 +1,7 @@
 "use client";
 
-import { createContext, useContext, useState, ReactNode } from "react";
+import { createContext, useContext, useState, ReactNode, useCallback } from "react";
+import { useForm, Control } from "react-hook-form";
 
 export interface ProductFormData {
   // Basic Info
@@ -67,6 +68,19 @@ export interface ProductFormData {
     url: string;
     is_primary: boolean;
   }>;
+
+  seo: {
+    id?: number;
+    title: string;
+    description: string;
+    focusKeyword: string;
+    entityType?: 'page' | 'product' | 'category' | 'brand';
+    entityId?: string;
+    slug?: string;
+    canonicalUrl?: string;
+    ogImage?: string;
+    noIndex?: boolean;
+  };
 }
 
 interface ProductFormContextType {
@@ -77,6 +91,8 @@ interface ProductFormContextType {
   setCurrentStep: (step: number) => void;
   isStepCompleted: (step: number) => boolean;
   markStepAsCompleted: (step: number) => void;
+  control: Control<ProductFormData>;
+  handleSubmit: any;
 }
 
 const initialFormData: ProductFormData = {
@@ -98,6 +114,13 @@ const initialFormData: ProductFormData = {
 
   attributes: [],
   variants: [],
+  seo: {
+    title: "",
+    description: "",
+    focusKeyword: "",
+    entityType: "product",
+    noIndex: false,
+  },
 
   currentStep: 0,
   isSubmitting: false,
@@ -111,10 +134,18 @@ const ProductFormContext = createContext<ProductFormContextType | undefined>(
 
 export function ProductFormProvider({ children }: { children: ReactNode }) {
   const [formData, setFormData] = useState<ProductFormData>(initialFormData);
+  const { control, watch, reset, handleSubmit } = useForm<ProductFormData>({
+    defaultValues: initialFormData,
+    mode: "onChange",
+  });
 
-  const updateFormData = (data: Partial<ProductFormData>) => {
-    setFormData((prev) => ({ ...prev, ...data }));
-  };
+  const updateFormData = useCallback((data: Partial<ProductFormData>) => {
+    setFormData((prev) => {
+        const newFormData = { ...prev, ...data };
+        reset(newFormData);
+        return newFormData;
+    });
+  }, [reset]);
 
   const isStepCompleted = (step: number) => {
     return formData.completedSteps.includes(step);
@@ -155,6 +186,8 @@ export function ProductFormProvider({ children }: { children: ReactNode }) {
         setCurrentStep,
         isStepCompleted,
         markStepAsCompleted,
+        control,
+        handleSubmit,
       }}
     >
       {children}

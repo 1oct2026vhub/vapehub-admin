@@ -18,9 +18,10 @@ import { getProduct } from "@/services/apiProduct";
 import { useSnackbar } from "@/contexts/SnackbarContext";
 import VariantManager from "./tabs/VariantManager";
 import FaqAccordion from "../../../faq/FaqAccordion";
+import SeoTab from "./tabs/SeoTab";
 // import FaqTab from "./tabs/FaqTab"; // You will need to create and import this later
 
-const steps = ["basic-info", "product-images", "attributes", "variants", "faq"];
+const steps = ["basic-info", "product-images", "attributes", "variants", "faq", "seo"];
 
 function ProductContent() {
   const isMobile = useThemeMediaQuery((theme) => theme.breakpoints.down("lg"));
@@ -51,6 +52,12 @@ function ProductContent() {
             brand_id: productData.brand_id,
             is_new: productData.is_new,
             productId: Number(productId),
+            seo: {
+              ...(productData.seo || {}),
+              entityType: 'product',
+              entityId: productId,
+              slug: productData.slug,
+            },
             // Add other fields as needed
           });
         } catch (error) {
@@ -100,6 +107,11 @@ function ProductContent() {
               label="FAQ"
               className={isStepCompleted(4) ? "text-primary" : ""} // Assuming step 4 is FAQ
             />
+            <FuseTab
+              value="seo"
+              label="SEO"
+              className={isStepCompleted(5) ? "text-primary" : ""}
+            />
           </FuseTabs>
           <div className="mt-4">
             <div className={formData.currentStep !== 0 ? "hidden" : ""}>
@@ -120,6 +132,9 @@ function ProductContent() {
               {/* <FaqTab /> You will replace this with your actual FaqTab component */}
               {/* <Typography>FAQ Content Goes Here</Typography>  */}
               <FaqAccordion entityId={formData.productId} entityType="product" />
+            </div>
+            <div className={formData.currentStep !== 5 ? "hidden" : ""}>
+              <SeoTab />
             </div>
           </div>
         </div>
