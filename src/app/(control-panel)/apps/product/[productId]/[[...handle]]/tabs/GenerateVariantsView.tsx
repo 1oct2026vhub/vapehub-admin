@@ -25,6 +25,7 @@ interface GenerateVariantsViewProps {
   productAttributes:any[];
   filteredVariants?: any[];
   searchTerm?: string;
+  setVariants: (variants: any[] | ((prev: any[]) => any[])) => void;
 }
 
 interface VariantImage {
@@ -171,7 +172,7 @@ const variantSchema = z.object({
       return isNaN(parsed) ? "NaN" : parsed;
     },
     z.union([
-      z.literal("NaN").refine(() => false, "Please enter a valid number for deposit price"),
+      z.literal("NaN").refine(() => false, "Please enter a valid number for Sale price"),
       z.number()
         .min(0, "Sale price cannot be negative")
         .max(9999999.99, "Sale price exceeds maximum limit")
@@ -350,7 +351,7 @@ const validateFile = async (file: File): Promise<string | null> => {
 };
 // --- END: Image Validation Helper Functions ---
 
-const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: initialLoading, onSuccess, allCombinationsUsed, productAttributes, filteredVariants: propFilteredVariants, searchTerm }) => {
+const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: initialLoading, onSuccess, allCombinationsUsed, productAttributes, filteredVariants: propFilteredVariants, searchTerm, setVariants }) => {
   const [isLoading, setIsLoading] = useState(initialLoading);
   const [generatedVariants, setGeneratedVariants] = useState<GeneratedVariant[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -1359,6 +1360,7 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
         showSnackbar('Variant deleted successfully', 'success');
         
         // Update local state after successful deletion
+        setVariants(prevVariants => prevVariants.filter(v => v.id !== variantToDeleteId));
         setGeneratedVariants(prevVariants => 
           prevVariants.filter(variant => variant.id !== variantToDeleteId)
         );
@@ -1402,7 +1404,7 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
     return (
       <div className="flex justify-center items-center py-8">
         <FuseLoading />
-        <span className="ml-2">Loading variants...</span>
+        {/* <span className="ml-2">Loading variants...</span> */}
       </div>
     );
   }
@@ -1412,7 +1414,7 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
        return (
          <div className="flex justify-center items-center py-8">
            <FuseLoading />
-           <span className="ml-2">Generating new variants...</span>
+           {/* <span className="ml-2">Generating new variants...</span> */}
          </div>
        );
   }

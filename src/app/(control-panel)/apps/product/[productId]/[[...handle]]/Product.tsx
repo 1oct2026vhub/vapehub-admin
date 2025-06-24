@@ -17,8 +17,10 @@ import { useParams } from "next/navigation";
 import { getProduct } from "@/services/apiProduct";
 import { useSnackbar } from "@/contexts/SnackbarContext";
 import VariantManager from "./tabs/VariantManager";
+import FaqAccordion from "../../../faq/FaqAccordion";
+// import FaqTab from "./tabs/FaqTab"; // You will need to create and import this later
 
-const steps = ["basic-info", "product-images", "attributes", "variants"];
+const steps = ["basic-info", "product-images", "attributes", "variants", "faq"];
 
 function ProductContent() {
   const isMobile = useThemeMediaQuery((theme) => theme.breakpoints.down("lg"));
@@ -39,7 +41,7 @@ function ProductContent() {
         try {
           const response = await getProduct(Number(productId));
           const productData = response.data;
-
+          console.log("productData", productData);
           // Update form data with fetched product information
           updateFormData({
             name: productData.name,
@@ -60,7 +62,7 @@ function ProductContent() {
 
     fetchProductData();
   }, [productId]);
-
+  console.log("productId", productId);
   return (
     // <FusePageCarded
     // className="bg-white"
@@ -93,6 +95,11 @@ function ProductContent() {
               label="Variants"
               className={isStepCompleted(3) ? "text-primary" : ""}
             />
+            <FuseTab
+              value="faq"
+              label="FAQ"
+              className={isStepCompleted(4) ? "text-primary" : ""} // Assuming step 4 is FAQ
+            />
           </FuseTabs>
           <div className="mt-4">
             <div className={formData.currentStep !== 0 ? "hidden" : ""}>
@@ -107,6 +114,12 @@ function ProductContent() {
             <div className={formData.currentStep !== 3 ? "hidden" : ""}>
               <VariantManager isActive={formData.currentStep === 3} />
               {/* <VariantTab /> */}
+            </div>
+            <div className={formData.currentStep !== 4 ? "hidden" : ""}>
+              {/* <FaqAccordion productId={formData.productId} entityType="product" /> */}
+              {/* <FaqTab /> You will replace this with your actual FaqTab component */}
+              {/* <Typography>FAQ Content Goes Here</Typography>  */}
+              <FaqAccordion entityId={formData.productId} entityType="product" />
             </div>
           </div>
         </div>

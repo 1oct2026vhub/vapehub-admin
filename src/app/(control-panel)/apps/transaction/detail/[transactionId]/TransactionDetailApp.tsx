@@ -81,7 +81,6 @@ const TransactionDetailApp = () => {
       setLoading(false);
     }
   };
-
   useEffect(() => {
     fetchTransaction();
   }, [params.transactionId]);
@@ -303,8 +302,10 @@ const TransactionDetailApp = () => {
                     variant="body1"
                     className="font-medium text-center"
                   >
-                    {transaction.paymentMethod.charAt(0).toUpperCase() +
-                      transaction.paymentMethod.slice(1)}
+                    {transaction.paymentMethod
+                      ? transaction.paymentMethod.charAt(0).toUpperCase() +
+                        transaction.paymentMethod.slice(1)
+                      : "N/A"}
                   </Typography>
                 </Box>
               </Grid>
@@ -752,7 +753,7 @@ const TransactionDetailApp = () => {
                         <Typography variant="body2">Discount</Typography>
                         <Typography variant="body2" color="error">
                           {(transaction.order as any).discount_type === 'percentage'
-                            ? `- ${(transaction.order as any).discount_price}%`
+                            ? `- ${formatCurrency((transaction.order as any).discount_price)}%`
                             : `- ${formatCurrency((transaction.order as any).discount_price || 0)}`}
                         </Typography>
                       </div>

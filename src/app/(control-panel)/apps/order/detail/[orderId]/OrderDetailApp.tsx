@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import {
   Paper,
   Typography,
@@ -51,6 +51,7 @@ import { formatDate, formatPounds, formatStatusText } from "@/utils/actions";
 
 const OrderDetailApp = () => {
   const params = useParams();
+  const router = useRouter();
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
   const [updatingStatus, setUpdatingStatus] = useState(false);
@@ -163,6 +164,8 @@ const OrderDetailApp = () => {
       shipped: { bg: "#E3F2FD", text: "#1E88E5" },
       delivered: { bg: "#E6F6EC", text: "#4CAF50" },
       completed: { bg: "#E6F6EC", text: "#4CAF50" },
+      paid: { bg: "#E6F6EC", text: "#4CAF50" },
+      active: { bg: "#E6F6EC", text: "#4CAF50" },
       fail: { bg: "#FEEBEB", text: "#F44336" },
       cancel: { bg: "#F5F5F5", text: "#9E9E9E" },
       out_for_delivery: { bg: "#E0F7FA", text: "#00ACC1" },
@@ -182,7 +185,7 @@ const OrderDetailApp = () => {
       <Paper className="p-4 bg-white">
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
-            <IconButton size="small">
+            <IconButton size="small" onClick={() => router.back()}>
               <ArrowBackIcon />
             </IconButton>
             <Typography variant="h5" className="font-bold">
@@ -495,7 +498,7 @@ const OrderDetailApp = () => {
                   <Typography variant="body2" color="error">
                     {/* Conditional discount display */}
                     {order.discount_type === 'percentage'
-                      ? `-${order.discount_price}%` // Assumes discount_price holds the percentage rate
+                      ? `-${formatPounds(order.discount_price)}%` // Assumes discount_price holds the percentage rate
                       : `-${formatPounds(order.discount_price || 0)}`}
                   </Typography>
                 </div>
@@ -514,6 +517,21 @@ const OrderDetailApp = () => {
                 </Typography>
               </div>
             </div>
+            {order?.paymentMethod && (
+              <>
+                <Divider sx={{ my: 2 }} />
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <Typography variant="body1" className="font-medium">
+                      Payment Method
+                    </Typography>
+                    <Typography variant="body2" className="capitalize">
+                      {order.paymentMethod.payment_method.replace(/_/g, " ")}
+                    </Typography>
+                  </div>
+                </div>
+              </>
+            )}
           </Paper>
 
           {/* Coupon Details Section */}

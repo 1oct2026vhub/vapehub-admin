@@ -5,7 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useEffect, useState, useRef } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { Alert, Typography, Box, Button, CircularProgress } from "@mui/material";
+import { Alert, Typography, Box, Button, CircularProgress, Tabs, Tab, Divider } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
 import AppButton from "@/components/Shared/AppButton";
 import FormInputField from "@/components/Shared/FormInputField";
@@ -19,6 +19,7 @@ import {
 import { useSnackbar } from "@/contexts/SnackbarContext";
 import axiosInstance from "@/utils/axiosApi";
 import PageBreadcrumb from "@/components/PageBreadcrumb";
+import FaqAccordion from "../../faq/FaqAccordion";
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const ACCEPTED_FILE_TYPES = [
@@ -124,17 +125,16 @@ export type FormType = {
 
 const EditBrandForm = ({ brand: initialBrand }: { brand: FormType }) => {
   const router = useRouter();
-  const params = useParams(); // Get the params object first
-  // Safely access id, handling potential null params and array value for id
-  const id = params?.id ? (Array.isArray(params.id) ? params.id[0] : params.id) : undefined;
+  const params = useParams();
+  const brandId = params?.id ? (Array.isArray(params.id) ? parseInt(params.id[0], 10) : parseInt(params.id, 10)) : null;
   const { showSnackbar } = useSnackbar();
   const [isLoading, setIsLoading] = useState(false);
   const [isImageDeleting, setIsImageDeleting] = useState(false);
   const [hasImageError, setHasImageError] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-
-  // Use ref to maintain a mutable reference to the brand data
   const brandRef = useRef<FormType>(initialBrand);
+
+  const [activeTab, setActiveTab] = useState<number>(0); // 0 for Details, 1 for FAQ
 
   const { control, formState, handleSubmit, setValue, watch } = useForm<InferredSchemaType>({
     mode: "all",
@@ -166,7 +166,7 @@ const EditBrandForm = ({ brand: initialBrand }: { brand: FormType }) => {
     }
   }, [logoError]);
 
-  // Prefill form when brand data is available
+  // Prefill form
   useEffect(() => {
     if (initialBrand) {
       brandRef.current = initialBrand;
@@ -183,87 +183,58 @@ const EditBrandForm = ({ brand: initialBrand }: { brand: FormType }) => {
 
   const onSubmit = async (formData: InferredSchemaType) => {
     setIsLoading(true);
-
     try {
       const formDataObj = new FormData();
-
-      // Ensure required fields are present and properly formatted
       if (!formData.name || !formData.slug) {
         throw new Error("Name and slug are required fields");
       }
-
-      // Append each field to FormData
       formDataObj.append("name", formData.name.trim());
-      formDataObj.append(
-        "slug",
-        formData.slug.toLowerCase().replace(/\s+/g, "-")
-      );
-
+      formDataObj.append("slug", formData.slug.toLowerCase().replace(/\s+/g, "-"));
       if (formData.description) {
         formDataObj.append("description", formData.description);
       }
-
-      // Only append logo if it's a File instance
       if (selectedFile instanceof File) {
         formDataObj.append("logo", selectedFile);
       } else if (formData.logo === null) {
-        // If logo is explicitly set to null, it means we want to remove it
         formDataObj.append("logo", "");
       }
-
-      // ✅ Use the API service function instead of direct API call
-      const response = await updateBrand(id, formDataObj);
-
+      await updateBrand(brandId, formDataObj); // Use parsed brandId
       showSnackbar("Brand updated successfully!", "success");
-      router.push("/apps/product-brand");
-    } catch (error) {
-      if (error?.errors) {
-        showSnackbar(error?.errors[0]?.msg, "error");
-      } else {
-        const errorMessage = error?.message || "An unexpected error occurred";
-        showSnackbar(errorMessage, "error");
-      }
-
-      const errorData = error || error;
-      if (errorData?.error && typeof errorData.error === "object") {
-        Object.entries(errorData.error).forEach(([field, message]) => {
-          if (typeof message === "string") {
-            showSnackbar(message, "error");
-          }
-        });
-      }
+      // Consider if redirection is still desired or if staying on the edit page with tabs is preferred.
+      // router.push("/apps/product-brand"); 
+    } catch (error: any) {
+        if (error?.errors) {
+            showSnackbar(error?.errors[0]?.msg, "error");
+        } else {
+            const errorMessage = error?.response?.data?.message || error?.message || "An unexpected error occurred";
+            showSnackbar(errorMessage, "error");
+        }
     } finally {
-      setIsLoading(false);
+        setIsLoading(false);
     }
   };
 
-  // Add handler to delete brand image
   const handleImageDelete = async () => {
     try {
       setIsImageDeleting(true);
-
-      // Call the API first
-      await removeBrandImage(id);
-
-      // Only update the UI after successful API call
+      await removeBrandImage(brandId); // Use parsed brandId
       setValue("logo", null, { shouldValidate: true });
       setSelectedFile(null);
-
-      // Update the brand object to reflect the removal of the image
       if (brandRef.current) {
         brandRef.current.logo_url = undefined;
         brandRef.current.logo = null as LogoFieldValue;
       }
-
       showSnackbar("Brand image removed successfully", "success");
     } catch (error) {
       console.error("Error removing brand image:", error);
       showSnackbar("Failed to remove brand image", "error");
-
-      // No need to restore anything since we didn't change the form state yet
     } finally {
       setIsImageDeleting(false);
     }
+  };
+
+  const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
+    setActiveTab(newValue);
   };
 
   return (
@@ -275,69 +246,79 @@ const EditBrandForm = ({ brand: initialBrand }: { brand: FormType }) => {
         </Typography>
       </div>
 
-      {isLoading && <p>Loading brand data...</p>}
+      {isLoading && <p>Loading brand data...</p>} 
+      {/* Initial loading for brand data if fetched here, currently assumes initialBrand prop */}
 
       {!isLoading && (
-        <form
-          name="brandForm"
-          noValidate
-          className="flex w-full flex-col justify-center"
-          onSubmit={handleSubmit(onSubmit)}
-        >
-          {errors?.root?.message && (
-            <Alert className="mb-8" severity="error">
-              {errors?.root?.message}
-            </Alert>
-          )}
-
-          <FormInputField
-            name="name"
-            control={control}
-            label="Brand Name"
-            type="text"
-            required
-          />
-          <div className="text-xs text-gray-500 -mt-3 mb-4">
-            {nameLength} / 50 characters used{" "}
-            {nameRemaining < 0 ? "(exceeded maximum)" : ""}
-          </div>
-          <FormInputField
-            name="slug"
-            control={control}
-            label="Slug"
-            type="text"
-            required
-          />
-          <FormInputField
-            name="description"
-            control={control}
-            label="Description"
-            type="text"
-          />
-          
-          <Box sx={{ mt: 2, mb: 2 }}>
-            <FormFileUploadField
-              name="logo"
-              control={control}
-              label="Brand Logo"
-              onFileChange={(file) => {
-                setSelectedFile(file);
-                setValue("logo", file, { shouldValidate: true });
-              }}
-              helperText={`Upload a brand logo (${MAX_IMAGE_WIDTH} × ${MAX_IMAGE_HEIGHT} px, Max size: 5MB). Supported formats: PNG, JPG, JPEG, WebP`}
-              defaultImage={brandRef.current?.logo_url || undefined}
-            />
+        <>
+          <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
+            <Tabs value={activeTab} onChange={handleTabChange} aria-label="brand edit tabs">
+              <Tab label="Brand Details" id="brand-details-tab" aria-controls="brand-details-panel" />
+              <Tab label="FAQ" id="brand-faq-tab" aria-controls="brand-faq-panel" />
+            </Tabs>
           </Box>
-          <AppButton
-            label="Update"
-            loading={isLoading}
-            type="submit"
-            fullWidth
-            size="large"
-            disabled={!isValid || isMutating || hasImageError}
-            className="mt-4 w-full"
-          />
-        </form>
+
+          {/* Brand Details Tab Panel */} 
+          <div role="tabpanel" hidden={activeTab !== 0} id="brand-details-panel" aria-labelledby="brand-details-tab">
+            {activeTab === 0 && (
+              <form
+                name="brandForm"
+                noValidate
+                className="flex w-full flex-col justify-center"
+                onSubmit={handleSubmit(onSubmit)}
+              >
+                {errors?.root?.message && (
+                  <Alert className="mb-8" severity="error">
+                    {errors?.root?.message}
+                  </Alert>
+                )}
+                <FormInputField name="name" control={control} label="Brand Name" type="text" required />
+                <div className="text-xs text-gray-500 -mt-3 mb-4">
+                    {nameLength} / 50 characters used{" "}
+                    {nameRemaining < 0 ? "(exceeded maximum)" : ""}
+                </div>
+                <FormInputField name="slug" control={control} label="Slug" type="text" required />
+                <FormInputField name="description" control={control} label="Description" type="text" />
+
+                <Box sx={{ mt: 2, mb: 2 }}>
+                  <FormFileUploadField
+                    name="logo"
+                    control={control}
+                    label="Brand Logo"
+                    onFileChange={(file) => {
+                      setSelectedFile(file);
+                      setValue("logo", file, { shouldValidate: true });
+                    }}
+                    helperText={`Upload a brand logo (${MAX_IMAGE_WIDTH} × ${MAX_IMAGE_HEIGHT} px, Max size: 5MB). Supported formats: PNG, JPG, JPEG, WebP`}
+                    defaultImage={brandRef.current?.logo_url || undefined}
+                  />
+                  {/* Consider adding image delete button here if tied to this tab */}
+                </Box>
+                <AppButton
+                  label="Update Brand Details"
+                  loading={isLoading} // Use top-level isLoading for form submission
+                  type="submit"
+                  fullWidth
+                  size="large"
+                  disabled={!isValid || isMutating || hasImageError || isLoading}
+                  className="mt-4 w-full"
+                />
+              </form>
+            )}
+          </div>
+
+          {/* FAQ Tab Panel */} 
+          <div role="tabpanel" hidden={activeTab !== 1} id="brand-faq-panel" aria-labelledby="brand-faq-tab">
+            {activeTab === 1 && brandId && (
+              <Box sx={{ pt: 2 }}>
+                <FaqAccordion entityId={brandId} entityType="brand" />
+              </Box>
+            )}
+            {activeTab === 1 && !brandId && (
+                <Typography color="error">Brand ID is missing. Cannot load FAQs.</Typography>
+            )}
+          </div>
+        </>
       )}
     </div>
   );

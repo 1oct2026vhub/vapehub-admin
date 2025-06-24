@@ -10,6 +10,7 @@ import {
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import DeleteIcon from "@mui/icons-material/Delete";
 import { SxProps, Theme } from "@mui/material/styles";
+import { validateImageDimensions } from "@/utils/imageUtils";
 
 const ACCEPTED_IMAGE_TYPES = ["image/png", "image/jpeg", "image/jpg", "image/webp"];
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
@@ -26,6 +27,8 @@ export interface FormFileUploadFieldProps {
   defaultImage?: string;
   error?: boolean;
   errorMessage?: string | null;
+  exactWidth?: number;
+  exactHeight?: number;
 }
 
 const FormFileUploadField: React.FC<FormFileUploadFieldProps> = ({
@@ -40,6 +43,8 @@ const FormFileUploadField: React.FC<FormFileUploadFieldProps> = ({
   defaultImage,
   error: customError,
   errorMessage: customErrorMessage,
+  exactWidth,
+  exactHeight,
 }) => {
   const [previewUrl, setPreviewUrl] = useState<string | null>(defaultImage || null);
   const [touched, setTouched] = useState(false);
@@ -50,7 +55,7 @@ const FormFileUploadField: React.FC<FormFileUploadFieldProps> = ({
     }
   }, [defaultImage]);
 
-  const validateFile = (file: File) => {
+  const validateFile = async (file: File | null) => {
     if (required && !file) return "File is required";
     
     if (file) {
@@ -59,7 +64,15 @@ const FormFileUploadField: React.FC<FormFileUploadFieldProps> = ({
       }
       
       if (file.size > MAX_FILE_SIZE) {
-        return "File size exceeds the maximum limit of 5MB.";
+        return `File size exceeds the maximum limit of ${MAX_FILE_SIZE / (1024*1024)}MB.`;
+      }
+
+      // Dimension validation
+      if (file.type.startsWith("image/") && (exactWidth || exactHeight)) {
+        const dimensionValidation = await validateImageDimensions(file, exactWidth, exactHeight);
+        if (!dimensionValidation.valid) {
+          return dimensionValidation.message || "Image dimensions are invalid.";
+        }
       }
     }
     
@@ -114,7 +127,7 @@ const FormFileUploadField: React.FC<FormFileUploadFieldProps> = ({
       name={name}
       control={control}
       rules={{ 
-        validate: validateFile 
+        validate: async (value) => validateFile(value)
       }}
       render={({ field: { onChange, value }, fieldState: { error } }) => (
         <Box className="mb-6" sx={sx}>

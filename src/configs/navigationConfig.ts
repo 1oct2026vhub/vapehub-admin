@@ -189,13 +189,48 @@ const navigationConfig: FuseNavItemType[] = [
       },
     ],
   },
-  {
-    id: "menu",
-    title: "Menu",
+    {
+    id: "banner",
+    title: "Banner",
     type: "item",
-    icon: "heroicons-outline:bars-3",
-    url: "/apps/menu",
+    icon: "heroicons-outline:photo", // Changed icon to something more relevant for banners
+    url: "/apps/banner",
   },
+  {
+    id: "carousel",
+    title: "Carousel",
+    type: "item",
+    icon: "heroicons-outline:view-columns",
+    url: "/apps/carousel",
+  },
+  {
+    id: "coupon",
+    title: "Coupons",
+    type: "item",
+    icon: "heroicons-outline:ticket",
+    url: "/apps/coupon",
+  },
+  {
+    id: "flash-news",
+    title: "Flash News",
+    type: "item",
+    icon: "heroicons-outline:megaphone",
+    url: "/apps/flash-news"
+  },
+  {
+    id: "refferal-methods",
+    title: "Refferal Methods",
+    type: "item",
+    icon: "heroicons-outline:gift",
+    url: "/apps/refferal-methods"
+  },
+  // {
+  //   id: "menu",
+  //   title: "Menu",
+  //   type: "item",
+  //   icon: "heroicons-outline:bars-3",
+  //   url: "/apps/menu",
+  // },
   // {
   //   id: "order",
   //   title: "Order List",

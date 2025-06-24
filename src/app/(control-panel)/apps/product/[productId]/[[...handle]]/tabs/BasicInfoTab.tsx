@@ -34,7 +34,7 @@ const schema = z.object({
   slug: z
     .string()
     .min(1, "Slug is required")
-    .max(50, "Slug must be at most 50 characters")
+    .max(200, "Slug must be at most 200 characters")
     .regex(
       /^[a-z0-9-]+$/,
       "Slug must be a valid URL-friendly string (lowercase letters, numbers, and hyphens only)"

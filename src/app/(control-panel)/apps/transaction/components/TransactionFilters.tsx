@@ -178,6 +178,7 @@ const TransactionFilters: React.FC<TransactionFiltersProps> = ({
           label="Start Date"
           value={startDateFilter}
           onChange={onStartDateChange}
+          maxDate={dayjs()}
           slotProps={{ 
             textField: { 
               size: "small",
@@ -192,6 +193,7 @@ const TransactionFilters: React.FC<TransactionFiltersProps> = ({
           label="End Date"
           value={endDateFilter}
           onChange={onEndDateChange}
+          maxDate={dayjs()}
           slotProps={{ 
             textField: { 
               size: "small",

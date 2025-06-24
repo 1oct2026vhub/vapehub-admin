@@ -169,6 +169,14 @@ export interface Order {
   orderLogs?: OrderLogItem[];
   statusTimeline?: StatusTimelineItem[];
   coupon?: Coupon | null;
+  paymentMethod?: PaymentMethod;
+}
+
+// Define PaymentMethod interface based on API response
+export interface PaymentMethod {
+  id: number;
+  payment_method: string;
+  status: string;
 }
 
 // Define Coupon interface based on API response

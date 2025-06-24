@@ -205,16 +205,16 @@ const variantSchema = z.object({
       return isNaN(parsed) ? "NaN" : parsed;
     },
     z.union([
-      z.literal("NaN").refine(() => false, "Please enter a valid number for deposit price"),
+      z.literal("NaN").refine(() => false, "Please enter a valid number for Sale price"),
       z.number()
-        .min(0, "Deposit price cannot be negative")
-        .max(9999999.99, "Deposit price exceeds maximum limit")
+        .min(0, "Sale price cannot be negative")
+        .max(9999999.99, "Sale price exceeds maximum limit")
         .refine(
           (val) => {
             const str = val.toString();
             return !str.includes(".") || str.split(".")[1].length <= 2;
           },
-          { message: "Deposit price can have at most 2 decimal places" }
+          { message: "Sale price can have at most 2 decimal places" }
         ),
       z.null(), // Allow null
     ]).optional() // Make the whole field optional
@@ -3155,7 +3155,7 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
       {isLoading && (
         <div className="flex justify-center items-center py-8">
           <FuseLoading />
-          <span className="ml-2">Loading variants...</span>
+          {/* <span className="ml-2">Loading variants...</span> */}
         </div>
       )}
 
@@ -3170,6 +3170,7 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
               // Add filtered variants and search term props - with proper mapping
               filteredVariants={searchTerm ? filteredVariants.map(mapToManualVariantData) : undefined}
               searchTerm={searchTerm || ""}
+              setVariants={setVariants}
               // CREATE Form Props
               createControl={createControl as any}
               handleCreateSubmit={handleCreateSubmit}
@@ -3210,6 +3211,7 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
               isLoading={isLoading}  
               allCombinationsUsed={allCombinationsUsed}
               productAttributes={productAttributes}
+              setVariants={setVariants}
               filteredVariants={searchTerm ? filteredVariants.map(mapToGeneratedVariant) : undefined}
               searchTerm={searchTerm || ""}
               onSuccess={() => {

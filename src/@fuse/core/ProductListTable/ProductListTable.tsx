@@ -118,6 +118,7 @@ const ProductListTable = ({
   const [order, setOrder] = useState<"ASC" | "DESC">("DESC");
   const [sortBy, setSortBy] = useState<string>("id");
   const [deleted, setDeleted] = useState<boolean | null>(null);
+  const [status, setStatus] = useState<string | null>(null);
   const [isNew, setIsNew] = useState<boolean | null>(null);
   const [priceRange, setPriceRange] = useState<string>("");
   const [categories, setCategories] = useState<string>("");
@@ -157,12 +158,13 @@ const ProductListTable = ({
       sortBy !== "id" ||
       order !== "DESC" ||
       deleted !== null ||
+      status !== null ||
       isNew !== null ||
       priceRange !== "" ||
       categories !== "" ||
       brands !== ""
     );
-  }, [search, sortBy, order, deleted, isNew, priceRange, categories, brands]);
+  }, [search, sortBy, order, deleted, status, isNew, priceRange, categories, brands]);
   // --- END ADD ---
 
   // Add debounce effect for search term
@@ -344,6 +346,7 @@ const ProductListTable = ({
       ...(categories && { categories }),
       ...(brands && { brands }),
       ...(deleted !== null && { deleted }),
+      ...(status && { status }),
       ...(isNew !== null && { is_new: isNew }),
     }),
     [
@@ -351,6 +354,7 @@ const ProductListTable = ({
       sortBy,
       order,
       deleted,
+      status,
       isNew,
       priceRange,
       categories,
@@ -640,6 +644,7 @@ const ProductListTable = ({
     setOrder("DESC");
     setSortBy("id");
     setDeleted(null);
+    setStatus(null);
     setIsNew(null);
     setPriceRange("");
     setCategories("");
@@ -727,7 +732,7 @@ const ProductListTable = ({
               <MenuItem value="DESC">Descending</MenuItem>
             </Select>
 
-            <Select
+            {/* <Select
               value={isNew === null ? "all" : isNew ? "new" : "regular"}
               onChange={(e) =>
                 setIsNew(
@@ -737,9 +742,9 @@ const ProductListTable = ({
               size="small"
             >
               <MenuItem value="all">All Products</MenuItem>
-              <MenuItem value="new">New Products</MenuItem>
-              <MenuItem value="regular">Regular Products</MenuItem>
-            </Select>
+              <MenuItem value="true">New Products</MenuItem>
+              <MenuItem value="false">Regular Products</MenuItem>
+            </Select> */}
 
             <Select
               value={
@@ -756,6 +761,23 @@ const ProductListTable = ({
             >
               <MenuItem value="active">Active</MenuItem>
               <MenuItem value="deleted">Deleted</MenuItem>
+            </Select>
+
+            <Select
+              value={status || "all"}
+              onChange={(e) =>
+                setStatus(
+                  e.target.value === "all"
+                    ? null
+                    : (e.target.value as string)
+                )
+              }
+              size="small"
+            >
+              <MenuItem value="all">All Statuses</MenuItem>
+              <MenuItem value="draft">Draft</MenuItem>
+              <MenuItem value="published">Published</MenuItem>
+              <MenuItem value="archived">Archived</MenuItem>
             </Select>
 
             <FormControl sx={{ minWidth: 120 }} size="small">
@@ -1107,6 +1129,25 @@ const ProductListTable = ({
               <MenuItem value="all">All Status</MenuItem>
               <MenuItem value="active">Active</MenuItem>
               <MenuItem value="deleted">Deleted</MenuItem>
+            </Select>
+          </ListItem>
+          <ListItem>
+            <Select
+              value={status || "all"}
+              onChange={(e) =>
+                setStatus(
+                  e.target.value === "all"
+                    ? null
+                    : (e.target.value as string)
+                )
+              }
+              fullWidth
+              size="small"
+            >
+              <MenuItem value="all">All Statuses</MenuItem>
+              <MenuItem value="draft">Draft</MenuItem>
+              <MenuItem value="published">Published</MenuItem>
+              <MenuItem value="archived">Archived</MenuItem>
             </Select>
           </ListItem>
           <ListItem>
