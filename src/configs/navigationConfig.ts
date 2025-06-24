@@ -224,13 +224,13 @@ const navigationConfig: FuseNavItemType[] = [
     icon: "heroicons-outline:gift",
     url: "/apps/refferal-methods"
   },
-  // {
-  //   id: "menu",
-  //   title: "Menu",
-  //   type: "item",
-  //   icon: "heroicons-outline:bars-3",
-  //   url: "/apps/menu",
-  // },
+  {
+    id: "menu",
+    title: "Menu",
+    type: "item",
+    icon: "heroicons-outline:bars-3",
+    url: "/apps/menu",
+  },
   // {
   //   id: "order",
   //   title: "Order List",
