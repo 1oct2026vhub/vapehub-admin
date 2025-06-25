@@ -288,7 +288,7 @@ const MenuDialog: React.FC<MenuDialogProps> = ({ open, onClose, onSave, menuItem
                       onChange={(event, newValue) => {
                         field.onChange(newValue ? newValue.id : null);
                         if (newValue && newValue.slug) {
-                          const baseUrl = process.env.NEXT_PUBLIC_API_URL || '';
+                          const baseUrl = process.env.NEXT_PUBLIC_WEB_URL || '';
                           setValue('original', `${baseUrl}/${newValue.slug}`, { shouldValidate: true });
                         } else if (!newValue) {
                           setValue('original', '', { shouldValidate: true });

@@ -22,7 +22,7 @@ function SeoForm({ entityType, entityId, entityName, entitySlug, fullWidth = fal
   const [isEditing, setIsEditing] = useState(false);
   const [seoHealth, setSeoHealth] = useState<SeoHealth | null>(null);
 
-  const { control, handleSubmit, reset } = useForm<SeoData>({
+  const { control, handleSubmit, reset, setValue, formState, getValues } = useForm<SeoData>({
     defaultValues: {
       title: '',
       description: '',
@@ -34,13 +34,27 @@ function SeoForm({ entityType, entityId, entityName, entitySlug, fullWidth = fal
     mode: 'onChange',
   });
 
+  useEffect(() => {
+    if (entitySlug) {
+      const currentCanonicalUrl = getValues('canonicalUrl');
+      if (!formState.dirtyFields.canonicalUrl && !currentCanonicalUrl) {
+        const newCanonicalUrl = `https://vapehub.devateam.com/${entitySlug}`;
+        setValue('canonicalUrl', newCanonicalUrl, { shouldValidate: true });
+      }
+    }
+  }, [entitySlug, setValue, getValues, formState.dirtyFields.canonicalUrl]);
+
   const fetchSeoData = useCallback(async () => {
     if (entityId) {
       try {
         const response = await getSeo(entityType, String(entityId));
         if (response.data) {
           if (response.data.seoMeta) {
-            reset(response.data.seoMeta);
+            const seoMeta = response.data.seoMeta;
+            if (!seoMeta.canonicalUrl && entitySlug) {
+              seoMeta.canonicalUrl = `${process.env.NEXT_PUBLIC_WEB_URL}/${entitySlug}`;
+            }
+            reset(seoMeta);
             setIsEditing(true);
           }
           if (response.data.health) {
@@ -53,7 +67,7 @@ function SeoForm({ entityType, entityId, entityName, entitySlug, fullWidth = fal
         setSeoHealth(null);
       }
     }
-  }, [entityId, entityType, reset]);
+  }, [entityId, entityType, reset, entitySlug]);
 
   useEffect(() => {
     fetchSeoData();
