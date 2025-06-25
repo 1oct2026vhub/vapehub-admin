@@ -68,19 +68,6 @@ export interface ProductFormData {
     url: string;
     is_primary: boolean;
   }>;
-
-  seo: {
-    id?: number;
-    title: string;
-    description: string;
-    focusKeyword: string;
-    entityType?: 'page' | 'product' | 'category' | 'brand';
-    entityId?: string;
-    slug?: string;
-    canonicalUrl?: string;
-    ogImage?: string;
-    noIndex?: boolean;
-  };
 }
 
 interface ProductFormContextType {
@@ -114,13 +101,6 @@ const initialFormData: ProductFormData = {
 
   attributes: [],
   variants: [],
-  seo: {
-    title: "",
-    description: "",
-    focusKeyword: "",
-    entityType: "product",
-    noIndex: false,
-  },
 
   currentStep: 0,
   isSubmitting: false,
@@ -152,8 +132,8 @@ export function ProductFormProvider({ children }: { children: ReactNode }) {
   };
 
   const nextStep = () => {
-    if (formData.currentStep < 3) {
-      // Now 4 steps (0, 1, 2, 3)
+    if (formData.currentStep < 5) {
+      // Now 6 steps (0, 1, 2, 3, 4, 5)
       markStepAsCompleted(formData.currentStep);
       setFormData((prev) => ({ ...prev, currentStep: prev.currentStep + 1 }));
     }

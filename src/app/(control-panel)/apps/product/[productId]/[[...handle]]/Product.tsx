@@ -52,12 +52,6 @@ function ProductContent() {
             brand_id: productData.brand_id,
             is_new: productData.is_new,
             productId: Number(productId),
-            seo: {
-              ...(productData.seo || {}),
-              entityType: 'product',
-              entityId: productId,
-              slug: productData.slug,
-            },
             // Add other fields as needed
           });
         } catch (error) {
