@@ -26,15 +26,15 @@ function SeoHealthIndicator({ health }: SeoHealthIndicatorProps) {
   }
 
   return (
-    <Paper elevation={3} sx={{ p: 3, mt: 4 }}>
+    <Paper elevation={3} sx={{ p: 2 }}>
       <Typography variant="h6" gutterBottom>SEO Health Analysis</Typography>
-      <Grid container spacing={3} alignItems="center">
+      <Grid container spacing={2} alignItems="center">
         <Grid item xs={12} md={4} sx={{ textAlign: 'center' }}>
           <Box sx={{ position: 'relative', display: 'inline-flex' }}>
             <CircularProgress
               variant="determinate"
               value={health.score}
-              size={120}
+              size={90}
               thickness={4}
               sx={{ color: getStatusColor(health.status) }}
             />
@@ -50,12 +50,12 @@ function SeoHealthIndicator({ health }: SeoHealthIndicatorProps) {
                 justifyContent: 'center',
               }}
             >
-              <Typography variant="h4" component="div" color="text.secondary">
+              <Typography variant="h5" component="div" color="text.secondary">
                 {`${Math.round(health.score)}%`}
               </Typography>
             </Box>
           </Box>
-          <Typography variant="h6" sx={{ mt: 1, textTransform: 'capitalize' }}>
+          <Typography variant="subtitle1" sx={{ mt: 1, textTransform: 'capitalize' }}>
             {health.status}
           </Typography>
         </Grid>

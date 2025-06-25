@@ -72,49 +72,47 @@ function SeoTab() {
         {isEditing ? 'Edit SEO' : 'Create SEO'}
       </Typography>
       <form onSubmit={handleSubmit(onSubmit)}>
-        <Grid container spacing={2}>
-          {/* <Grid item xs={12} md={6}>
-              <FormTextField name="seo.entityType" label="Entity Type" control={control} fullWidth  />
-          </Grid>
-          <Grid item xs={12} md={6}>
-              <FormTextField name="name" label="Entity Name" control={control} fullWidth  />
-         </Grid> */}
-          <Grid item xs={12}>
-            <FormTextField name="seo.title" label="Meta Title" control={control} fullWidth />
-          </Grid>
-          <Grid item xs={12}>
-            <FormTextField name="seo.description" label="Meta Description" control={control} fullWidth multiline rows={4} />
-          </Grid>
-          <Grid item xs={12}>
-            <FormTextField name="seo.focusKeyword" label="Focus Keyword" control={control} fullWidth />
-          </Grid>
-          {/* <Grid item xs={12}>
-            <FormTextField name="seo.slug" label="Slug" control={control} fullWidth />
-         </Grid> */}
-          <Grid item xs={12}>
-            <FormTextField name="seo.canonicalUrl" label="Canonical URL" control={control} fullWidth />
-          </Grid>
-          <Grid item xs={12}>
-            <FormTextField name="seo.ogImage" label="OG Image URL" control={control} fullWidth />
-          </Grid>
-          <Grid item xs={12}>
-            <FormControlLabel
-              control={
-                <Controller
-                  name="seo.noIndex"
-                  control={control}
-                  render={({ field }) => <Switch {...field} checked={!!field.value} />}
-                />
-              }
-              label="No Index"
-            />
-          </Grid>
-          <Grid item xs={12} style={{ display: 'flex', justifyContent: 'flex-end' }}>
-            <AppButton label={isEditing ? 'Update' : 'Save'} type="submit" />
-          </Grid>
+        <Grid container spacing={4}>
+            <Grid item xs={12} md={7}>
+                <Grid container spacing={2}>
+                    <Grid item xs={12}>
+                        <FormTextField name="seo.title" label="Meta Title" control={control} fullWidth />
+                    </Grid>
+                    <Grid item xs={12}>
+                        <FormTextField name="seo.description" label="Meta Description" control={control} fullWidth multiline rows={4} />
+                    </Grid>
+                    <Grid item xs={12}>
+                        <FormTextField name="seo.focusKeyword" label="Focus Keyword" control={control} fullWidth />
+                    </Grid>
+                    <Grid item xs={12}>
+                        <FormTextField name="seo.canonicalUrl" label="Canonical URL" control={control} fullWidth />
+                    </Grid>
+                    <Grid item xs={12}>
+                        <FormTextField name="seo.ogImage" label="OG Image URL" control={control} fullWidth />
+                    </Grid>
+                    <Grid item xs={12}>
+                        <FormControlLabel
+                        control={
+                            <Controller
+                            name="seo.noIndex"
+                            control={control}
+                            render={({ field }) => <Switch {...field} checked={!!field.value} />}
+                            />
+                        }
+                        label="No Index"
+                        />
+                    </Grid>
+                </Grid>
+                  <Grid item xs={12} style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                <AppButton label={isEditing ? 'Update' : 'Save'} type="submit" />
+            </Grid>
+            </Grid>
+            <Grid item xs={12} md={5}>
+                {seoHealth && <SeoHealthIndicator health={seoHealth} />}
+            </Grid>
+          
         </Grid>
       </form>
-      <SeoHealthIndicator health={seoHealth} />
     </Box>
   );
 }
