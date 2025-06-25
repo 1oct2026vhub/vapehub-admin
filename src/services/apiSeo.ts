@@ -2,7 +2,7 @@ import axiosInstance from '@/utils/axiosApi';
 
 // Define the SEO data structure for POST/PUT requests
 export interface SeoData {
-  entityType: 'page' | 'product' | 'category' | 'brand';
+  entityType: 'page' | 'product' | 'category' | 'brand' | 'blog_post' |'blog_category';
   entityId: string;
   title: string;
   description: string;
