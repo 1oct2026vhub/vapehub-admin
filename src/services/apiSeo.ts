@@ -31,6 +31,33 @@ export interface SeoHealth {
     }
 }
 
+export interface SeoListItem extends SeoMeta {
+    health: SeoHealth;
+}
+
+export interface ListSeoApiResponse {
+    success: boolean;
+    message: string;
+    data: {
+        data: SeoListItem[];
+        pagination: {
+            total: number;
+            page: number;
+            limit: number;
+            totalPages: number;
+        }
+    }
+}
+
+export interface ListSeoParams {
+    entityType?: 'page' | 'product' | 'category' | 'brand' | 'blog_post' | 'blog_category';
+    entityId?: string;
+    keyword?: string;
+    noIndex?: boolean;
+    page?: number;
+    limit?: number;
+}
+
 export interface SeoApiResponse {
     success: boolean;
     message: string;
@@ -50,6 +77,19 @@ export const createOrUpdateSeo = async (data: Partial<SeoData>): Promise<SeoApiR
     return response.data;
   } catch (error: any) {
     const errorMessage = error.response?.data?.message || error.message || 'An unexpected error occurred while saving SEO data.';
+    throw new Error(errorMessage);
+  }
+};
+
+/**
+ * List SEO metadata with filtering and pagination.
+ */
+export const listSeo = async (params: ListSeoParams): Promise<ListSeoApiResponse> => {
+  try {
+    const response = await axiosInstance.get('/api/admin/seo', { params });
+    return response.data;
+  } catch (error: any) {
+    const errorMessage = error.response?.data?.message || error.message || 'An unexpected error occurred while fetching SEO list.';
     throw new Error(errorMessage);
   }
 };
