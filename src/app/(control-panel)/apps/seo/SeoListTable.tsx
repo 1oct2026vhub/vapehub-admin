@@ -177,16 +177,16 @@ const SeoListTable: React.FC<{ refreshTrigger: number, onEdit: (data: SeoListIte
                         const editUrl = getEditUrl(row.original);
                         const menuItems = [];
 
-                        if (editUrl) {
-                            menuItems.push(
-                                <MenuItem key="edit-redirect" onClick={() => { router.push(editUrl); closeMenu(); }}>
-                                    <ListItemIcon>
-                                        <FuseSvgIcon>heroicons-outline:pencil-square</FuseSvgIcon>
-                                    </ListItemIcon>
-                                    Edit in Page
-                                </MenuItem>
-                            );
-                        }
+                        // if (editUrl) {
+                        //     menuItems.push(
+                        //         <MenuItem key="edit-redirect" onClick={() => { router.push(editUrl); closeMenu(); }}>
+                        //             <ListItemIcon>
+                        //                 <FuseSvgIcon>heroicons-outline:pencil-square</FuseSvgIcon>
+                        //             </ListItemIcon>
+                        //             Edit in Page
+                        //         </MenuItem>
+                        //     );
+                        // }
                         
                         menuItems.push(
                             <MenuItem key="edit-modal" onClick={() => { onEdit(row.original); closeMenu(); }}>

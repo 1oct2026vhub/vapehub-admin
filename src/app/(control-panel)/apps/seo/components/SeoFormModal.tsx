@@ -20,6 +20,7 @@ import {
   TextField,
   Autocomplete,
   CircularProgress,
+  Box,
 } from '@mui/material';
 import { createOrUpdateSeo, SeoData, SeoListItem } from '@/services/apiSeo';
 import { useSnackbar } from '@/contexts/SnackbarContext';
@@ -29,6 +30,8 @@ import { listProductBrand } from '@/services/apiProductBrand';
 import { listProductCategory } from '@/services/apiProductCategory';
 import { getBlogPosts, getBlogCategories } from '@/services/apiBlog';
 import { useDebounce } from '@/hooks/useDebounce';
+import { getEntity, Entity } from '@/services/apiForSeo';
+import SeoHealthIndicator from './SeoHealthIndicator';
 
 interface SeoFormModalProps {
   open: boolean;
@@ -152,7 +155,7 @@ function SeoFormModal({ open, onClose, onSaved, initialData }: SeoFormModalProps
         setEntities(fetchedEntities);
       } catch (error) {
         console.error('Failed to fetch entities:', error);
-        showSnackbar('Failed to fetch entities', 'error');
+        // showSnackbar('Failed to fetch entities', 'error');
         setEntities([]);
       } finally {
         setLoadingEntities(false);
@@ -213,138 +216,166 @@ function SeoFormModal({ open, onClose, onSaved, initialData }: SeoFormModalProps
   };
 
   return (
-    <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth>
+    <Dialog
+      open={open}
+      onClose={handleClose}
+      maxWidth={isEditMode ? 'lg' : 'md'}
+      fullWidth={isEditMode}
+      PaperProps={{
+        sx: {
+          backgroundColor: 'white',
+        },
+      }}
+    >
       <DialogTitle>{isEditMode ? 'Edit SEO Entry' : 'Create New SEO Entry'}</DialogTitle>
       <form onSubmit={handleSubmit(onSubmit)}>
         <DialogContent>
-          <Grid container spacing={2} sx={{ mt: 1 }}>
-            <Grid item xs={12} sm={entityType === 'page' ? 12 : 6}>
-              <Controller
-                name="entityType"
-                control={control}
-                render={({ field }) => (
-                  <FormControl fullWidth>
-                    <InputLabel>Entity Type</InputLabel>
-                    <Select {...field} label="Entity Type" readOnly={isEditMode}>
-                      <MenuItem value="page">Page</MenuItem>
-                      <MenuItem value="product">Product</MenuItem>
-                      <MenuItem value="category">Category</MenuItem>
-                      <MenuItem value="brand">Brand</MenuItem>
-                      <MenuItem value="blog_post">Blog Post</MenuItem>
-                      <MenuItem value="blog_category">Blog Category</MenuItem>
-                    </Select>
-                  </FormControl>
-                )}
-              />
-            </Grid>
-            {entityType !== 'page' && (
-                <Grid item xs={12} sm={6}>
-                    {isEditMode ? (
-                        <FormTextField name="entityId" control={control} label="Entity ID" required fullWidth InputProps={{ readOnly: true }} />
-                    ) : (
+          <Grid container spacing={3}>
+            <Grid item xs={12} md={isEditMode ? 7 : 12}>
+              <Grid container spacing={2}>
+                {!isEditMode && (
+                  <>
+                    <Grid item xs={12} sm={6}>
+                      <Controller
+                        name="entityType"
+                        control={control}
+                        render={({ field }) => (
+                          <FormControl fullWidth>
+                            <InputLabel>Entity Type</InputLabel>
+                            <Select {...field} label="Entity Type">
+                              <MenuItem value="page">Page</MenuItem>
+                              <MenuItem value="product">Product</MenuItem>
+                              <MenuItem value="category">Category</MenuItem>
+                              <MenuItem value="brand">Brand</MenuItem>
+                              <MenuItem value="blog_post">Blog Post</MenuItem>
+                              <MenuItem value="blog_category">Blog Category</MenuItem>
+                            </Select>
+                          </FormControl>
+                        )}
+                      />
+                    </Grid>
+                    {entityType !== 'page' && (
+                      <Grid item xs={12} sm={6}>
                         <Controller
-                            name="entityId"
-                            control={control}
-                            render={({ field }) => (
-                                <Autocomplete
-                                    options={entities}
-                                    getOptionLabel={(option) => option.name || option.title || ''}
-                                    value={entities.find((e) => String(e.id) === field.value) || null}
-                                    onChange={async (event, newValue) => {
-                                      field.onChange(newValue ? String(newValue.id) : '');
+                          name="entityId"
+                          control={control}
+                          render={({ field }) => (
+                            <Autocomplete
+                              options={entities}
+                              getOptionLabel={(option) => option.name || option.title || ''}
+                              value={entities.find((e) => String(e.id) === field.value) || null}
+                              onChange={async (event, newValue) => {
+                                field.onChange(newValue ? String(newValue.id) : '');
 
-                                      if (!newValue) {
-                                          setValue('slug', '', { shouldValidate: true });
-                                          setValue('ogImage', '', { shouldValidate: true });
-                                          return;
-                                      }
-                                      
-                                      setValue('slug', newValue.slug || '', { shouldValidate: true });
+                                if (!newValue) {
+                                  setValue('slug', '', { shouldValidate: true });
+                                  setValue('ogImage', '', { shouldValidate: true });
+                                  return;
+                                }
+                                
+                                setValue('slug', newValue.slug || '', { shouldValidate: true });
 
-                                      let imageUrl = '';
-                                      try {
-                                          switch (entityType) {
-                                              case 'brand':
-                                              case 'category':
-                                                  imageUrl = newValue.logo_url || '';
-                                                  break;
-                                              case 'blog_post':
-                                              case 'blog_category':
-                                                  imageUrl = newValue.image_url || '';
-                                                  break;
-                                              case 'product':
-                                                  const response = await getProduct(newValue.id);
-                                                  const primaryImage = response.data?.ProductImages?.find((img: any) => img.is_primary);
-                                                  imageUrl = primaryImage?.image_url || '';
-                                                  break;
-                                          }
-                                      } catch (e) {
-                                          console.error(`Failed to get details for ${entityType} ID ${newValue.id}`, e);
-                                          showSnackbar(`Could not fetch image for the selected ${entityType}.`, 'error');
-                                      }
-                                      setValue('ogImage', imageUrl, { shouldValidate: true });
-                                    }}
-                                    onInputChange={(event, newInputValue) => {
-                                        setSearch(newInputValue);
-                                    }}
-                                    filterOptions={(x) => x}
-                                    loading={loadingEntities}
-                                    renderInput={(params) => (
-                                        <TextField
-                                        {...params}
-                                        label="Entity"
-                                        fullWidth
-                                        size="small"
-                                        error={!!formState.errors.entityId}
-                                        helperText={formState.errors.entityId?.message as string}
-                                        InputProps={{
-                                            ...params.InputProps,
-                                            endAdornment: (
-                                            <>
-                                                {loadingEntities ? <CircularProgress color="inherit" size={20} /> : null}
-                                                {params.InputProps.endAdornment}
-                                            </>
-                                            ),
-                                        }}
-                                        />
-                                    )}
+                                let imageUrl = '';
+                                try {
+                                  switch (entityType) {
+                                    case 'brand':
+                                    case 'category':
+                                      imageUrl = newValue.logo_url || '';
+                                      break;
+                                    case 'blog_post':
+                                    case 'blog_category':
+                                      imageUrl = newValue.image_url || '';
+                                      break;
+                                    case 'product':
+                                      const response = await getProduct(newValue.id);
+                                      const primaryImage = response.data?.ProductImages?.find((img: any) => img.is_primary);
+                                      imageUrl = primaryImage?.image_url || '';
+                                      break;
+                                  }
+                                } catch (e) {
+                                  console.error(`Failed to get details for ${entityType} ID ${newValue.id}`, e);
+                                  showSnackbar(`Could not fetch image for the selected ${entityType}.`, 'error');
+                                }
+                                setValue('ogImage', imageUrl, { shouldValidate: true });
+                              }}
+                              onInputChange={(event, newInputValue) => {
+                                setSearch(newInputValue);
+                              }}
+                              filterOptions={(x) => x}
+                              loading={loadingEntities}
+                              renderInput={(params) => (
+                                <TextField
+                                  {...params}
+                                  label="Entity"
+                                  fullWidth
+                                  size="small"
+                                  error={!!formState.errors.entityId}
+                                  helperText={formState.errors.entityId?.message as string}
+                                  InputProps={{
+                                    ...params.InputProps,
+                                    endAdornment: (
+                                      <>
+                                        {loadingEntities ? <CircularProgress color="inherit" size={20} /> : null}
+                                        {params.InputProps.endAdornment}
+                                      </>
+                                    ),
+                                  }}
                                 />
-                           )}
+                              )}
+                            />
+                          )}
                         />
+                      </Grid>
                     )}
-                </Grid>
-            )}
-            <Grid item xs={12}>
-              <FormTextField name="title" control={control} label="Meta Title" required fullWidth />
-            </Grid>
-            <Grid item xs={12}>
-                <FormTextField name="slug" label="Slug" control={control} required fullWidth />
-            </Grid>
-            <Grid item xs={12}>
-              <FormTextField name="description" label="Meta Description" control={control} fullWidth multiline rows={3} />
-            </Grid>
-            <Grid item xs={12}>
-              <FormTextField name="focusKeyword" label="Focus Keyword" control={control} fullWidth />
-            </Grid>
-            <Grid item xs={12}>
-              <FormTextField name="canonicalUrl" label="Canonical URL" control={control} fullWidth />
-            </Grid>
-            {entityType !== 'page' && (
+                  </>
+                )}
                 <Grid item xs={12}>
-                    <FormTextField name="ogImage" label="OG Image URL" control={control} fullWidth />
+                  <FormTextField name="title" control={control} label="Meta Title" required fullWidth />
                 </Grid>
-            )}
-            <Grid item xs={12}>
-              <FormControlLabel
-                control={<Controller name="noIndex" control={control} render={({ field }) => <Switch {...field} checked={field.value} />} />}
-                label="No Index"
-              />
+                <Grid item xs={12}>
+                  <FormTextField name="slug" label="Slug" control={control} required fullWidth />
+                </Grid>
+                <Grid item xs={12}>
+                  <FormTextField name="description" label="Meta Description" control={control} fullWidth multiline rows={3} />
+                </Grid>
+                <Grid item xs={12}>
+                  <FormTextField name="focusKeyword" label="Focus Keyword" control={control} fullWidth />
+                </Grid>
+                <Grid item xs={12}>
+                  <FormTextField name="canonicalUrl" label="Canonical URL" control={control} fullWidth />
+                </Grid>
+                {entityType !== 'page' && (
+                  <Grid item xs={12}>
+                    <FormTextField name="ogImage" label="OG Image URL" control={control} fullWidth />
+                  </Grid>
+                )}
+                <Grid item xs={12}>
+                  <FormControlLabel
+                    control={<Controller name="noIndex" control={control} render={({ field }) => <Switch {...field} checked={field.value} />} />}
+                    label="No Index"
+                  />
+                </Grid>
+              </Grid>
             </Grid>
+            {isEditMode && initialData?.health && (
+              <Grid item xs={12} md={5}>
+                <Box
+                  sx={{
+                    p: 3,
+                    bgcolor: 'grey.100',
+                    borderRadius: 2,
+                    height: '100%',
+                  }}
+                >
+                  <SeoHealthIndicator health={initialData.health} />
+                </Box>
+              </Grid>
+            )}
           </Grid>
         </DialogContent>
         <DialogActions>
           <Button onClick={handleClose}>Cancel</Button>
-          <Button type="submit" variant="contained">{isEditMode ? 'Save Changes' : 'Create'}</Button>
+          <Button type="submit" variant="contained">{isEditMode ? 'Update' : 'Create'}</Button>
         </DialogActions>
       </form>
     </Dialog>
