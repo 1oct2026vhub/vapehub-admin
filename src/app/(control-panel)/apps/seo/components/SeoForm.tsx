@@ -87,7 +87,7 @@ function SeoForm({ entityType, entityId, entityName, entitySlug, fullWidth = fal
     if (entitySlug) {
       const currentCanonicalUrl = getValues('canonicalUrl');
       if (!formState.dirtyFields.canonicalUrl && !currentCanonicalUrl) {
-        const newCanonicalUrl = `https://vapehub.devateam.com/${entitySlug}`;
+        const newCanonicalUrl = `${process.env.NEXT_PUBLIC_WEB_URL}/${entitySlug}`;
         setValue('canonicalUrl', newCanonicalUrl, { shouldValidate: true });
       }
     }
