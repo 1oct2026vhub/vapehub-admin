@@ -8,6 +8,10 @@ import FormTextField from '@/components/Shared/FormTextField';
 import { createOrUpdateSeo, getSeo, SeoData, SeoHealth } from '@/services/apiSeo';
 import { useSnackbar } from '@/contexts/SnackbarContext';
 import SeoHealthIndicator from './SeoHealthIndicator';
+import { getProduct } from '@/services/apiProduct';
+import { brandDetails } from '@/services/apiProductBrand';
+import { categoryDetails } from '@/services/apiProductCategory';
+import { getBlogPost, getBlogCategory } from '@/services/apiBlog';
 
 interface SeoFormProps {
   entityType: 'product' | 'page' | 'brand' | 'category' | 'blog_post' | 'blog_category';
@@ -34,6 +38,51 @@ function SeoForm({ entityType, entityId, entityName, entitySlug, fullWidth = fal
     mode: 'onChange',
   });
 
+  const fetchDefaultOgImage = useCallback(async () => {
+    if (!entityId || entityType === 'page') return;
+
+    try {
+        let imageUrl = '';
+        const currentOgImage = getValues('ogImage');
+
+        if (formState.dirtyFields.ogImage || currentOgImage) return;
+
+        switch (entityType) {
+            case 'product': {
+                const res = await getProduct(Number(entityId));
+                const primaryImage = res.data?.ProductImages?.find((img: any) => img.is_primary);
+                imageUrl = primaryImage?.image_url || '';
+                break;
+            }
+            case 'brand': {
+                const res = await brandDetails(Number(entityId) );
+                imageUrl = res.data?.logo_url || '';
+                break;
+            }
+            case 'category': {
+                const res = await categoryDetails( Number(entityId));
+                imageUrl = res.data?.logo_url || '';
+                break;
+            }
+            case 'blog_post': {
+                const res = await getBlogPost(Number(entityId));
+                imageUrl = res.data?.image_url || '';
+                break;
+            }
+            case 'blog_category': {
+                const res = await getBlogCategory(Number(entityId));
+                imageUrl = res.data?.image_url || '';
+                break;
+            }
+        }
+        if (imageUrl) {
+            setValue('ogImage', imageUrl, { shouldDirty: true, shouldValidate: true });
+        }
+    } catch (error) {
+        console.error(`Failed to fetch default OG image for ${entityType} ${entityId}`, error);
+    }
+}, [entityId, entityType, setValue, getValues, formState.dirtyFields.ogImage]);
+
   useEffect(() => {
     if (entitySlug) {
       const currentCanonicalUrl = getValues('canonicalUrl');
@@ -56,6 +105,8 @@ function SeoForm({ entityType, entityId, entityName, entitySlug, fullWidth = fal
             }
             reset(seoMeta);
             setIsEditing(true);
+          } else {
+            fetchDefaultOgImage();
           }
           if (response.data.health) {
             setSeoHealth(response.data.health);
@@ -63,11 +114,12 @@ function SeoForm({ entityType, entityId, entityName, entitySlug, fullWidth = fal
         }
       } catch (error) {
         console.log("No existing SEO data found.");
+        fetchDefaultOgImage();
         setIsEditing(false);
         setSeoHealth(null);
       }
     }
-  }, [entityId, entityType, reset, entitySlug]);
+  }, [entityId, entityType, reset, entitySlug, fetchDefaultOgImage]);
 
   useEffect(() => {
     fetchSeoData();

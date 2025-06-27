@@ -30,7 +30,6 @@ import { listProductBrand } from '@/services/apiProductBrand';
 import { listProductCategory } from '@/services/apiProductCategory';
 import { getBlogPosts, getBlogCategories } from '@/services/apiBlog';
 import { useDebounce } from '@/hooks/useDebounce';
-import { getEntity, Entity } from '@/services/apiForSeo';
 import SeoHealthIndicator from './SeoHealthIndicator';
 
 interface SeoFormModalProps {
