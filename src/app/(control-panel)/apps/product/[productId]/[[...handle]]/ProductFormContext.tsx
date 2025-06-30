@@ -1,6 +1,7 @@
 "use client";
 
-import { createContext, useContext, useState, ReactNode } from "react";
+import { createContext, useContext, useState, ReactNode, useCallback } from "react";
+import { useForm, Control } from "react-hook-form";
 
 export interface ProductFormData {
   // Basic Info
@@ -77,6 +78,8 @@ interface ProductFormContextType {
   setCurrentStep: (step: number) => void;
   isStepCompleted: (step: number) => boolean;
   markStepAsCompleted: (step: number) => void;
+  control: Control<ProductFormData>;
+  handleSubmit: any;
 }
 
 const initialFormData: ProductFormData = {
@@ -111,18 +114,26 @@ const ProductFormContext = createContext<ProductFormContextType | undefined>(
 
 export function ProductFormProvider({ children }: { children: ReactNode }) {
   const [formData, setFormData] = useState<ProductFormData>(initialFormData);
+  const { control, watch, reset, handleSubmit } = useForm<ProductFormData>({
+    defaultValues: initialFormData,
+    mode: "onChange",
+  });
 
-  const updateFormData = (data: Partial<ProductFormData>) => {
-    setFormData((prev) => ({ ...prev, ...data }));
-  };
+  const updateFormData = useCallback((data: Partial<ProductFormData>) => {
+    setFormData((prev) => {
+        const newFormData = { ...prev, ...data };
+        reset(newFormData);
+        return newFormData;
+    });
+  }, [reset]);
 
   const isStepCompleted = (step: number) => {
     return formData.completedSteps.includes(step);
   };
 
   const nextStep = () => {
-    if (formData.currentStep < 3) {
-      // Now 4 steps (0, 1, 2, 3)
+    if (formData.currentStep < 5) {
+      // Now 6 steps (0, 1, 2, 3, 4, 5)
       markStepAsCompleted(formData.currentStep);
       setFormData((prev) => ({ ...prev, currentStep: prev.currentStep + 1 }));
     }
@@ -155,6 +166,8 @@ export function ProductFormProvider({ children }: { children: ReactNode }) {
         setCurrentStep,
         isStepCompleted,
         markStepAsCompleted,
+        control,
+        handleSubmit,
       }}
     >
       {children}

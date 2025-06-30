@@ -17,7 +17,12 @@ import {
   Tab,
   Tabs,
   SelectChangeEvent,
+  TextField,
+  Autocomplete,
 } from "@mui/material";
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import AdminDashboardHeader from "./AdminDashboardHeader";
 import StatisticsCard from "./components/StatisticsCard";
 import SalesChart from "./components/SalesChart";
@@ -35,10 +40,15 @@ import {
   type SalesChartData,
   type UserGrowthChartData,
   type TransactionChartData,
+  type SalesSummary as SalesSummaryData,
 } from "@/services/apiDashboard";
+import { listProducts } from "@/services/apiProduct";
+import { useDebounce } from "@/hooks/useDebounce";
 import FuseLoading from "@fuse/core/FuseLoading";
+import SalesSummary from "./components/SalesSummary";
+import SalesStatsOverview from "./components/SalesStatsOverview";
 
-type ChartPeriod = "daily" | "weekly" | "monthly";
+type ChartPeriod = "daily" | "weekly" | "monthly" | "yearly" | "custom";
 
 // Helper function to get color for status count
 const getStatusCountColor = (status: string | undefined | null): string => {
@@ -70,18 +80,65 @@ const AdminDashboardApp = () => {
   const [loading, setLoading] = useState(true);
   const [chartTabValue, setChartTabValue] = useState(0);
   const [activityTabValue, setActivityTabValue] = useState(0);
+  const [salesSummary, setSalesSummary] = useState<SalesSummaryData | null>(null);
+
+  // New states for product filter and custom dates
+  const [products, setProducts] = useState<any[]>([]);
+  const [selectedProduct, setSelectedProduct] = useState<any | null>(null);
+  const [productSearch, setProductSearch] = useState('');
+  const [loadingProducts, setLoadingProducts] = useState(false);
+  const [startDate, setStartDate] = useState<any>(null);
+  const [endDate, setEndDate] = useState<any>(null);
+  
+  const debouncedProductSearch = useDebounce(productSearch, 500);
+
+  useEffect(() => {
+    const fetchProducts = async () => {
+      setLoadingProducts(true);
+      try {
+        const response = await listProducts({
+          keyword: debouncedProductSearch,
+          limit: 20,
+        });
+        setProducts(response.data.products || []);
+      } catch (error) {
+        console.error("Failed to fetch products:", error);
+      } finally {
+        setLoadingProducts(false);
+      }
+    };
+    fetchProducts();
+  }, [debouncedProductSearch]);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
         setLoading(true);
+        // Prevent calling API if custom date range is not fully selected
+        if (chartPeriod === 'custom' && (!startDate || !endDate)) {
+          setSalesData([]); // Clear previous data
+          return;
+        }
+
         const statsData = await getDashboardStats();
-        const sales = await getSalesChartData(chartPeriod);
-        const users = await getUserGrowthChartData(chartPeriod);
-        const transactions = await getTransactionChartData(chartPeriod);
+        const salesResponse = await getSalesChartData(chartPeriod, {
+          productId: selectedProduct?.id,
+          startDate: startDate?.format('YYYY-MM-DD'),
+          endDate: endDate?.format('YYYY-MM-DD'),
+        });
+        const users = await getUserGrowthChartData(chartPeriod, {
+          startDate: startDate?.format('YYYY-MM-DD'),
+          endDate: endDate?.format('YYYY-MM-DD'),
+        });
+        const transactions = await getTransactionChartData(chartPeriod, {
+          productId: selectedProduct?.id,
+          startDate: startDate?.format('YYYY-MM-DD'),
+          endDate: endDate?.format('YYYY-MM-DD'),
+        });
 
         setStats(statsData);
-        setSalesData(sales);
+        setSalesData(salesResponse.chart);
+        setSalesSummary(salesResponse.summary);
         setUserData(users);
         setTransactionData(transactions);
       } catch (error) {
@@ -92,10 +149,15 @@ const AdminDashboardApp = () => {
     };
 
     fetchDashboardData();
-  }, [chartPeriod]);
+  }, [chartPeriod, selectedProduct, startDate, endDate]);
 
   const handlePeriodChange = (event: SelectChangeEvent) => {
-    setChartPeriod(event.target.value as ChartPeriod);
+    const newPeriod = event.target.value as ChartPeriod;
+    setChartPeriod(newPeriod);
+    if (newPeriod !== 'custom') {
+      setStartDate(null);
+      setEndDate(null);
+    }
   };
 
   const handleChartTabChange = (event: React.SyntheticEvent, newValue: number) => {
@@ -125,7 +187,8 @@ const AdminDashboardApp = () => {
     <Box className="dashboard-container">
       <AdminDashboardHeader />
 
-      {/* Statistics Section */}
+      
+{/* Statistics Section */}
       <Grid
         container
         spacing={3}
@@ -195,7 +258,6 @@ const AdminDashboardApp = () => {
           />
         </Grid> */}
       </Grid>
-
       {/* Combined Status Sections */}
       <Grid container spacing={2} sx={{ px: 3, pb: 3 }}>
         {/* Product Inventory Status */}
@@ -519,29 +581,80 @@ const AdminDashboardApp = () => {
           </Paper>
         </Grid>
       </Grid>
-
+     <Box sx={{ p: 3 }}>
+        <SalesStatsOverview />
+      </Box>
       {/* Chart Controls */}
       <Box
         display="flex"
         justifyContent="space-between"
         alignItems="center"
         mb={2}
-        sx={{ p: 3 }}
+        sx={{ p: 3, flexWrap: 'wrap', gap: 2 }}
       >
         <Typography variant="h5">Performance Charts</Typography>
-        <FormControl variant="outlined" size="small" sx={{ minWidth: 120 }}>
-          <InputLabel id="period-select-label">Period</InputLabel>
-          <Select
-            labelId="period-select-label"
-            value={chartPeriod}
-            onChange={handlePeriodChange}
-            label="Period"
-          >
-            <MenuItem value="daily">Daily</MenuItem>
-            <MenuItem value="weekly">Weekly</MenuItem>
-            <MenuItem value="monthly">Monthly</MenuItem>
-          </Select>
-        </FormControl>
+        <Box display="flex" alignItems="center" gap={2} flexWrap="wrap">
+          <Autocomplete
+            sx={{ minWidth: 200 }}
+            options={products}
+            getOptionLabel={(option) => option.name}
+            value={selectedProduct}
+            onChange={(event, newValue) => {
+              setSelectedProduct(newValue);
+            }}
+            onInputChange={(event, newInputValue) => {
+              setProductSearch(newInputValue);
+            }}
+            loading={loadingProducts}
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                label="Select Product"
+                size="small"
+                InputProps={{
+                  ...params.InputProps,
+                  endAdornment: (
+                    <>
+                      {loadingProducts ? <CircularProgress color="inherit" size={20} /> : null}
+                      {params.InputProps.endAdornment}
+                    </>
+                  ),
+                }}
+              />
+            )}
+          />
+
+          <FormControl variant="outlined" size="small" sx={{ minWidth: 120 }}>
+            <InputLabel id="period-select-label">Period</InputLabel>
+            <Select
+              labelId="period-select-label"
+              value={chartPeriod}
+              onChange={handlePeriodChange}
+              label="Period"
+            >
+              <MenuItem value="daily">Daily</MenuItem>
+              <MenuItem value="weekly">Weekly</MenuItem>
+              <MenuItem value="monthly">Monthly</MenuItem>
+              <MenuItem value="yearly">Yearly</MenuItem>
+              <MenuItem value="custom">Custom</MenuItem>
+            </Select>
+          </FormControl>
+          {chartPeriod === 'custom' && (
+            <LocalizationProvider dateAdapter={AdapterDayjs}>
+                <DatePicker
+                  label="Start Date"
+                  value={startDate}
+                  onChange={setStartDate}
+                  
+                />
+                <DatePicker
+                  label="End Date"
+                  value={endDate}
+                  onChange={setEndDate}
+                />
+            </LocalizationProvider>
+          )}
+        </Box>
       </Box>
 
       {/* Charts Section with Tabs */}
@@ -566,6 +679,7 @@ const AdminDashboardApp = () => {
                 <Typography variant="h6" gutterBottom>
                   Sales
                 </Typography>
+                  {salesSummary && <SalesSummary summary={salesSummary} />}
                 <Box sx={{ height: 400 }}>
                   <SalesChart data={salesData} period={chartPeriod} />
                 </Box>

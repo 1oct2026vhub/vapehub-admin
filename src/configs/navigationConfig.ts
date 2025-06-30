@@ -1,8 +1,5 @@
 import { FuseNavItemType } from "@fuse/core/FuseNavigation/types/FuseNavItemType";
 
-/**
- * The navigationConfig object is an array of navigation items for the Fuse application.
- */
 const navigationConfig: FuseNavItemType[] = [
   {
     id: "example-component",
@@ -26,24 +23,6 @@ const navigationConfig: FuseNavItemType[] = [
         type: "item",
         url: "/apps/analytics",
       },
-      // {
-      //   id: "analytics.realtime-pages",
-      //   title: "Realtime Pages",
-      //   type: "item",
-      //   url: "/apps/analytics/realtime-pages",
-      // },
-      // {
-      //   id: "analytics.generate-leads",
-      //   title: "Generate Leads Overview",
-      //   type: "item",
-      //   url: "/apps/analytics/generate-leads",
-      // },
-      // {
-      //   id: "analytics.traffic-overview",
-      //   title: "Traffic Overview",
-      //   type: "item",
-      //   url: "/apps/analytics/traffic-overview",
-      // },
     ],
   },
   {
@@ -144,28 +123,20 @@ const navigationConfig: FuseNavItemType[] = [
     icon: "heroicons-outline:shopping-cart", // Clipboard List Icon for Orders
     url: "/apps/order/list",
   },
-  // {
-  //   id: "order",
-  //   title: "Order Report",
-  //   type: "collapse",
-  //   icon: "heroicons-outline:shopping-cart",
-  //   children: [
-  //     {
-  //       id: "statics",
-  //       title: "Order Statistics",
-  //       type: "item",
-  //       url: "/apps/order/list",
-  //       end: true,
-  //     },
-  //     {
-  //       id: "list",
-  //       title: "Order List",
-  //       type: "item",
-  //       url: "",
-  //       end: true,
-  //     },
-  //   ],
-  // },
+  {
+    id: "seo",
+    title: "SEO",
+    type: "collapse",
+    icon: "heroicons-outline:globe-alt",
+    children: [
+      {
+        id: "seo.list",
+        title: "SEO List",
+        type: "item",
+        url: "/apps/seo",
+      },
+    ],
+  },
   {
     id: "transaction",
     title: "Transaction",
@@ -224,35 +195,14 @@ const navigationConfig: FuseNavItemType[] = [
     icon: "heroicons-outline:gift",
     url: "/apps/refferal-methods"
   },
-  // {
-  //   id: "menu",
-  //   title: "Menu",
-  //   type: "item",
-  //   icon: "heroicons-outline:bars-3",
-  //   url: "/apps/menu",
-  // },
-  // {
-  //   id: "order",
-  //   title: "Order List",
-  //   type: "item",
-  //   icon: "heroicons-outline:shopping-cart", // Clipboard List Icon for Orders
-  //   url: "",
-  // },
-  // {
-  // 	id: 'apps.forgotPassword',
-  // 	title: 'Authentication',
-  // 	type: 'collapse',
-  // 	icon: 'heroicons-outline:lock-closed',
-  // 	children: [
-  // 		{
-  // 			id: 'forgotPassword',
-  // 			title: 'Forgot Password',
-  // 			type: 'item',
-  // 			url: '/pages/authentication/forgot-password',
-  // 			end: true
-  // 		}
-  // 	]
-  // }
+  {
+    id: "menu",
+    title: "Menu",
+    type: "item",
+    icon: "heroicons-outline:bars-3",
+    url: "/apps/menu",
+  },
+  
 ];
 
 export default navigationConfig;

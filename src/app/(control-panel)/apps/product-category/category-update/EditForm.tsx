@@ -20,6 +20,7 @@ import { useSnackbar } from "@/contexts/SnackbarContext";
 import axiosInstance from "@/utils/axiosApi";
 import PageBreadcrumb from "@/components/PageBreadcrumb";
 import FaqAccordion from "../../faq/FaqAccordion";
+import SeoForm from "@/app/(control-panel)/apps/seo/components/SeoForm";
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const ACCEPTED_FILE_TYPES = [
@@ -146,7 +147,7 @@ const EditCategoryForm = ({
   const [isImageDeleting, setIsImageDeleting] = useState(false);
   const [hasImageError, setHasImageError] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [activeTab, setActiveTab] = useState<number>(0); // 0 for Details, 1 for FAQ
+  const [activeTab, setActiveTab] = useState<number>(0); // 0 for Details, 1 for FAQ, 2 for SEO
 
   const categoryRef = useRef<FormType>(initialCategory);
 
@@ -161,6 +162,7 @@ const EditCategoryForm = ({
 
   // Watch the name field to display character count
   const nameValue = watch("name") || "";
+  const slugValue = watch("slug") || "";
   const nameLength = nameValue.length;
   const nameRemaining = 50 - nameLength;
 
@@ -318,7 +320,7 @@ const EditCategoryForm = ({
   };
 
   return (
-    <div className="md:px-64 p-4">
+    <div className="md:px-14 p-4">
       <div>
         <PageBreadcrumb className="mt-8" />
         <Typography className="text-4xl font-extrabold leading-none tracking-tight mb-4 mt-8">
@@ -334,6 +336,7 @@ const EditCategoryForm = ({
             <Tabs value={activeTab} onChange={handleTabChange} aria-label="category edit tabs">
               <Tab label="Category Details" id="category-details-tab" aria-controls="category-details-panel" />
               <Tab label="FAQ" id="category-faq-tab" aria-controls="category-faq-panel" />
+              <Tab label="SEO" id="category-seo-tab" aria-controls="category-seo-panel" />
             </Tabs>
           </Box>
           <form
@@ -420,6 +423,24 @@ const EditCategoryForm = ({
             )}
             {activeTab === 1 && !categoryId && (
                 <Typography color="error">Category ID is missing. Cannot load FAQs.</Typography>
+            )}
+          </div>
+
+          {/* SEO Tab Panel */}
+          <div role="tabpanel" hidden={activeTab !== 2} id="category-seo-panel" aria-labelledby="category-seo-tab">
+            {activeTab === 2 && categoryId && (
+              <Box sx={{ pt: 2 }}>
+                <SeoForm
+                  entityType="category"
+                  entityId={categoryId}
+                  entityName={nameValue}
+                  entitySlug={slugValue}
+                  // fullWidth={true}
+                />
+              </Box>
+            )}
+            {activeTab === 2 && !categoryId && (
+                <Typography color="error">Category ID is missing. Cannot load SEO details.</Typography>
             )}
           </div>
         </>
