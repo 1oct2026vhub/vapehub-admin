@@ -20,6 +20,7 @@ import { useSnackbar } from "@/contexts/SnackbarContext";
 import axiosInstance from "@/utils/axiosApi";
 import PageBreadcrumb from "@/components/PageBreadcrumb";
 import FaqAccordion from "../../faq/FaqAccordion";
+import SeoForm from "@/app/(control-panel)/apps/seo/components/SeoForm";
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const ACCEPTED_FILE_TYPES = [
@@ -134,7 +135,7 @@ const EditBrandForm = ({ brand: initialBrand }: { brand: FormType }) => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const brandRef = useRef<FormType>(initialBrand);
 
-  const [activeTab, setActiveTab] = useState<number>(0); // 0 for Details, 1 for FAQ
+  const [activeTab, setActiveTab] = useState<number>(0); // 0 for Details, 1 for FAQ, 2 for SEO
 
   const { control, formState, handleSubmit, setValue, watch } = useForm<InferredSchemaType>({
     mode: "all",
@@ -144,6 +145,7 @@ const EditBrandForm = ({ brand: initialBrand }: { brand: FormType }) => {
 
   // Watch the name field to display character count
   const nameValue = watch("name") || "";
+  const slugValue = watch("slug") || "";
   const nameLength = nameValue.length;
   const nameRemaining = 50 - nameLength;
 
@@ -238,7 +240,7 @@ const EditBrandForm = ({ brand: initialBrand }: { brand: FormType }) => {
   };
 
   return (
-    <div className="md:px-64 p-4">
+    <div className="md:px-14 p-4">
       <div>
         <PageBreadcrumb className="mt-8" />
         <Typography className="text-4xl font-extrabold leading-none tracking-tight mb-4 mt-8">
@@ -255,6 +257,7 @@ const EditBrandForm = ({ brand: initialBrand }: { brand: FormType }) => {
             <Tabs value={activeTab} onChange={handleTabChange} aria-label="brand edit tabs">
               <Tab label="Brand Details" id="brand-details-tab" aria-controls="brand-details-panel" />
               <Tab label="FAQ" id="brand-faq-tab" aria-controls="brand-faq-panel" />
+              <Tab label="SEO" id="brand-seo-tab" aria-controls="brand-seo-panel" />
             </Tabs>
           </Box>
 
@@ -316,6 +319,24 @@ const EditBrandForm = ({ brand: initialBrand }: { brand: FormType }) => {
             )}
             {activeTab === 1 && !brandId && (
                 <Typography color="error">Brand ID is missing. Cannot load FAQs.</Typography>
+            )}
+          </div>
+
+          {/* SEO Tab Panel */}
+          <div role="tabpanel" hidden={activeTab !== 2} id="brand-seo-panel" aria-labelledby="brand-seo-tab">
+            {activeTab === 2 && brandId && (
+              <Box sx={{ pt: 2 }}>
+                <SeoForm
+                  entityType="brand"
+                  entityId={brandId}
+                  entityName={nameValue}
+                  entitySlug={slugValue}
+                  // fullWidth={true}
+                />
+              </Box>
+            )}
+            {activeTab === 2 && !brandId && (
+                <Typography color="error">Brand ID is missing. Cannot load SEO details.</Typography>
             )}
           </div>
         </>

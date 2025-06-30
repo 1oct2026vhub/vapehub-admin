@@ -7,7 +7,7 @@ import dayjs from 'dayjs';
 
 interface UserGrowthChartProps {
   data: UserGrowthChartData[];
-  period: 'daily' | 'weekly' | 'monthly';
+  period: 'daily' | 'weekly' | 'monthly' | 'yearly' | 'custom';
 }
 
 const UserGrowthChart = ({ data, period }: UserGrowthChartProps) => {
@@ -32,6 +32,10 @@ const UserGrowthChart = ({ data, period }: UserGrowthChartProps) => {
     
     return `${monthName} ${year}`;
   };
+
+  const formatYearlyDate = (dateRange: string) => {
+    return dayjs(dateRange).format('YYYY');
+  }
 
   // Format the dateRange for better display for weekly data
   const formatDateRange = (dateRange: string): string => {
@@ -71,6 +75,8 @@ const UserGrowthChart = ({ data, period }: UserGrowthChartProps) => {
         return formatDailyDate(item.date || item.dateRange);
       } else if (period === 'monthly') {
         return formatMonthlyDate(item.dateRange);
+      } else if (period === 'yearly') {
+        return formatYearlyDate(item.dateRange);
       } else {
         return formatDateRange(item.dateRange);
       }

@@ -93,7 +93,44 @@ export interface ProductStats {
   outOfStockStatus: number | string;
 }
 
-type ChartPeriod = "daily" | "weekly" | "monthly";
+export interface SalesSummary {
+  grossSales: number;
+  averageGrossDailySales: number;
+  netSales: number;
+  averageNetDailySales: number;
+  ordersPlaced: number;
+  itemsPurchased: number;
+  refundedOrders: number;
+  shippingCharged: number;
+  couponsUsed: number;
+}
+
+export interface SalesChartApiResponse {
+  summary: SalesSummary;
+  chart: SalesChartData[];
+}
+
+export interface PercentChange {
+  totalSales: string;
+  totalOrders: string;
+  newUsers: string;
+}
+
+export interface SalesStatsPeriod {
+  dateRange: string;
+  totalSales: string;
+  totalOrders: number | string;
+  newUsers: number;
+  percentChange: PercentChange;
+}
+
+export interface SalesStatsOverview {
+  today: SalesStatsPeriod;
+  week: SalesStatsPeriod;
+  month: SalesStatsPeriod;
+}
+
+type ChartPeriod = "daily" | "weekly" | "monthly" | "yearly" | "custom";
 
 // Function to get dashboard statistics
 export const getDashboardStats = async (): Promise<DashboardStats> => {
@@ -101,30 +138,57 @@ export const getDashboardStats = async (): Promise<DashboardStats> => {
   return response.data;
 };
 
+/**
+ * Retrieve sales statistics overview including total sales, total orders, and new users.
+ */
+export const getSalesStatsOverview = async (): Promise<SalesStatsOverview> => {
+  const response = await fetcher('/api/admin/dashboard/sales-stats-overview');
+  return response.data;
+};
+
 // Function to get sales chart data
 export const getSalesChartData = async (
-  period: ChartPeriod
-): Promise<SalesChartData[]> => {
+  period: ChartPeriod,
+  params?: {
+    productId?: string;
+    startDate?: string;
+    endDate?: string;
+  }
+): Promise<SalesChartApiResponse> => {
   const response = await fetcher(`/api/admin/dashboard/chart/sales`, {
     period,
+    ...params,
   });
   return response.data;
 };
 
 // Function to get user growth chart data
 export const getUserGrowthChartData = async (
-  period: ChartPeriod
+  period: ChartPeriod,
+  params?: {
+    startDate?: string;
+    endDate?: string;
+  }
 ): Promise<UserGrowthChartData[]> => {
-  const response = await fetcher(`/api/admin/dashboard/chart/user`, { period });
+  const response = await fetcher(`/api/admin/dashboard/chart/user`, {
+    period,
+    ...params,
+  });
   return response.data;
 };
 
 // Function to get transaction chart data
 export const getTransactionChartData = async (
-  period: ChartPeriod
+  period: ChartPeriod,
+  params?: {
+    productId?: string;
+    startDate?: string;
+    endDate?: string;
+  }
 ): Promise<TransactionChartData[]> => {
   const response = await fetcher(`/api/admin/dashboard/chart/transaction`, {
     period,
+    ...params,
   });
   return response.data;
 };

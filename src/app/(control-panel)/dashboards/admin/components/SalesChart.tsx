@@ -9,7 +9,7 @@ import { Chart } from 'chart.js';
 
 interface SalesChartProps {
   data: SalesChartData[];
-  period: 'daily' | 'weekly' | 'monthly';
+  period: 'daily' | 'weekly' | 'monthly' | 'yearly' | 'custom';
 }
 
 const SalesChart = ({ data, period }: SalesChartProps) => {
@@ -33,6 +33,10 @@ const SalesChart = ({ data, period }: SalesChartProps) => {
     
     return `${monthName} ${year}`;
   };
+
+  const formatYearlyDate = (dateRange: string) => {
+    return dayjs(dateRange).format('YYYY');
+  }
 
   // Format date range to display in a more readable format for weekly data
   const formatDateRange = (dateRange: string) => {
@@ -61,6 +65,8 @@ const SalesChart = ({ data, period }: SalesChartProps) => {
         return formatDailyDate(item.dateRange);
       } else if (period === 'monthly') {
         return formatMonthlyDate(item.dateRange);
+      } else if (period === 'yearly') {
+        return formatYearlyDate(item.dateRange);
       } else {
         return formatDateRange(item.dateRange);
       }

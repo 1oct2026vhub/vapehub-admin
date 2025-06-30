@@ -15,6 +15,8 @@ import {
   InputLabel,
   Select,
   MenuItem,
+  Tabs,
+  Tab,
 } from "@mui/material";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -28,6 +30,7 @@ import FormCKEditor from "@/components/Shared/FormCKEditor";
 import { useSnackbar } from "@/contexts/SnackbarContext";
 import { getBlogCategory, updateBlogCategory, getBlogCategories, type BlogCategory } from "@/services/apiBlog";
 import FormFileUploadField from "@/components/Shared/FormFileUploadField";
+import SeoForm from "@/app/(control-panel)/apps/seo/components/SeoForm";
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB in bytes
 const MAX_IMAGE_WIDTH = 322;
@@ -116,9 +119,7 @@ export default function EditBlogCategory() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [categories, setCategories] = useState<BlogCategory[]>([]);
   const [category, setCategory] = useState<BlogCategory | null>(null);
-useEffect(() => {
-    document.title = "Edit Blog Category | VapeHub";
-  }, []);
+  const [activeTab, setActiveTab] = useState(0);
 
   const {
     control,
@@ -126,6 +127,7 @@ useEffect(() => {
     setValue,
     getValues,
     reset,
+    watch,
     formState: { isValid, errors },
   } = useForm<CategoryFormType>({
     mode: "all",
@@ -138,6 +140,9 @@ useEffect(() => {
     },
     resolver: zodResolver(categorySchema),
   });
+
+  const nameValue = watch("name");
+  const slugValue = watch("slug");
 
   // Fetch categories for parent selection
   useEffect(() => {
@@ -271,6 +276,10 @@ useEffect(() => {
     }
   };
 
+  const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
+    setActiveTab(newValue);
+  };
+
   const handleNameChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setValue("name", event.target.value);
   };
@@ -280,143 +289,167 @@ useEffect(() => {
   }
 
   return (
-    <Container maxWidth="lg" sx={{ py: 4 }}>
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3 }}
-      >
-        <Box
-          sx={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            width: "100%",
-          }}
-        >
-          <Box sx={{ width: "100%", maxWidth: 800, mb: 4 }}>
+    <div className="md:px-14 p-4">
+    {/* // <Container maxWidth="lg" sx={{ py: 4 }}>
+    //   <motion.div
+    //     initial={{ opacity: 0, y: 20 }}
+    //     animate={{ opacity: 1, y: 0 }}
+    //     transition={{ duration: 0.3 }}
+    //   >
+    //     <Box
+    //       sx={{
+    //         display: "flex",
+    //         flexDirection: "column",
+    //         alignItems: "center",
+    //         width: "100%",
+    //       }}
+    //     > */}
+          <Box>
             <Box sx={{ mb: 3 }}>
               <Typography variant="h4" component="h1" fontWeight="bold">
                 Edit Category
               </Typography>
             </Box>
 
-            <Paper sx={{ p: 4 }}>
-              <form onSubmit={handleSubmit(onSubmit)}>
-                <Grid container spacing={3}>
-                  <Grid item xs={12}>
-                    <FormInputField
-                      name="name"
-                      control={control}
-                      label="Name"
-                      required
-                    />
-                  </Grid>
+            <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
+              <Tabs value={activeTab} onChange={handleTabChange} aria-label="blog category edit tabs">
+                <Tab label="Category Details" />
+                <Tab label="SEO" />
+              </Tabs>
+            </Box>
 
-                  <Grid item xs={12}>
-                    <FormInputField
-                      name="slug"
-                      control={control}
-                      label="Slug"
-                      required
-                      helperText="URL-friendly identifier (e.g., my-category)"
-                    />
-                  </Grid>
+            <div role="tabpanel" hidden={activeTab !== 0}>
+              {activeTab === 0 && (
+                <Paper sx={{ p: 4 }}>
+                  <form onSubmit={handleSubmit(onSubmit)}>
+                    <Grid container spacing={3}>
+                      <Grid item xs={12}>
+                        <FormInputField
+                          name="name"
+                          control={control}
+                          label="Name"
+                          required
+                        />
+                      </Grid>
 
-                  <Grid item xs={12}>
-                    <FormCKEditor
-                      name="description"
-                      control={control}
-                      label="Description"
-                    />
-                  </Grid>
+                      <Grid item xs={12}>
+                        <FormInputField
+                          name="slug"
+                          control={control}
+                          label="Slug"
+                          required
+                          helperText="URL-friendly identifier (e.g., my-category)"
+                        />
+                      </Grid>
 
-                  <Grid item xs={12} md={6}>
-                    <Controller
-                      name="parent_id"
-                      control={control}
-                      render={({ field }) => (
-                        <FormControl fullWidth>
-                          <InputLabel>Parent Category (Optional)</InputLabel>
-                          <Select
-                            {...field}
-                            value={field.value || ""}
-                            label="Parent Category (Optional)"
+                      <Grid item xs={12}>
+                        <FormCKEditor
+                          name="description"
+                          control={control}
+                          label="Description"
+                        />
+                      </Grid>
+
+                      <Grid item xs={12} md={6}>
+                        <Controller
+                          name="parent_id"
+                          control={control}
+                          render={({ field }) => (
+                            <FormControl fullWidth>
+                              <InputLabel>Parent Category (Optional)</InputLabel>
+                              <Select
+                                {...field}
+                                value={field.value || ""}
+                                label="Parent Category (Optional)"
+                              >
+                                <MenuItem value="">
+                                  <em>None</em>
+                                </MenuItem>
+                                {categories.map((category) => (
+                                  <MenuItem key={category.id} value={category.id}>
+                                    {category.name}
+                                  </MenuItem>
+                                ))}
+                              </Select>
+                            </FormControl>
+                          )}
+                        />
+                      </Grid>
+
+                      <Grid item xs={12} md={6}>
+                        <Controller
+                          name="status"
+                          control={control}
+                          render={({ field }) => (
+                            <FormControl fullWidth>
+                              <InputLabel>Status</InputLabel>
+                              <Select {...field} label="Status">
+                                <MenuItem value="active">Active</MenuItem>
+                                <MenuItem value="inactive">Inactive</MenuItem>
+                              </Select>
+                            </FormControl>
+                          )}
+                        />
+                      </Grid>
+
+                      <Grid item xs={12}>
+                        <FormFileUploadField
+                          name="image"
+                          control={control}
+                          label="Category Image"
+                          onFileChange={(file) => {
+                            setSelectedFile(file);
+                            setValue("image", file, { shouldValidate: true });
+                          }}
+                          accept="image/png,image/jpeg,image/jpg,image/webp"
+                          helperText="Recommended size: 322 × 512 px. Supported formats: PNG, JPG, JPEG, WebP"
+                          defaultImage={category?.image_url}
+                        />
+                      </Grid>
+
+                      <Grid item xs={12}>
+                        <Box
+                          sx={{
+                            display: "flex",
+                            justifyContent: "flex-end",
+                            gap: 2,
+                            mt: 2,
+                          }}
+                        >
+                          <Button
+                            variant="outlined"
+                            onClick={() => router.push("/apps/blog/categories")}
                           >
-                            <MenuItem value="">
-                              <em>None</em>
-                            </MenuItem>
-                            {categories.map((category) => (
-                              <MenuItem key={category.id} value={category.id}>
-                                {category.name}
-                              </MenuItem>
-                            ))}
-                          </Select>
-                        </FormControl>
-                      )}
-                    />
-                  </Grid>
-
-                  <Grid item xs={12} md={6}>
-                    <Controller
-                      name="status"
-                      control={control}
-                      render={({ field }) => (
-                        <FormControl fullWidth>
-                          <InputLabel>Status</InputLabel>
-                          <Select {...field} label="Status">
-                            <MenuItem value="active">Active</MenuItem>
-                            <MenuItem value="inactive">Inactive</MenuItem>
-                          </Select>
-                        </FormControl>
-                      )}
-                    />
-                  </Grid>
-
-                  <Grid item xs={12}>
-                    <FormFileUploadField
-                      name="image"
-                      control={control}
-                      label="Category Image"
-                      onFileChange={(file) => {
-                        setSelectedFile(file);
-                        setValue("image", file, { shouldValidate: true });
-                      }}
-                      accept="image/png,image/jpeg,image/jpg,image/webp"
-                      helperText="Recommended size: 322 × 512 px. Supported formats: PNG, JPG, JPEG, WebP"
-                      defaultImage={category?.image_url}
-                    />
-                  </Grid>
-
-                  <Grid item xs={12}>
-                    <Box
-                      sx={{
-                        display: "flex",
-                        justifyContent: "flex-end",
-                        gap: 2,
-                        mt: 2,
-                      }}
-                    >
-                      <Button
-                        variant="outlined"
-                        onClick={() => router.push("/apps/blog/categories")}
-                      >
-                        Cancel
-                      </Button>
-                      <AppButton
-                        label="Update"
-                        type="submit"
-                        disabled={!isValid || submitting}
-                        loading={submitting}
-                      />
-                    </Box>
-                  </Grid>
-                </Grid>
-              </form>
-            </Paper>
-          </Box>
-        </Box>
-      </motion.div>
-    </Container>
+                            Cancel
+                          </Button>
+                          <AppButton
+                            label="Update"
+                            type="submit"
+                            disabled={!isValid || submitting}
+                            loading={submitting}
+                          />
+                        </Box>
+                      </Grid>
+                    </Grid>
+                  </form>
+                </Paper>
+              )}
+            </div>
+            
+            <div role="tabpanel" hidden={activeTab !== 1}>
+              {activeTab === 1 && category && (
+                <SeoForm
+                  entityId={category.id}
+                  entityType="blog_category"
+                  entityName={nameValue}
+                  entitySlug={slugValue}
+                  // fullWidth
+                />
+              )}
+            </div>
+           </Box>
+        {/* </Box>
+      </motion.div>  */}
+  </div>
   );
 } 

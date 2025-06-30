@@ -20,6 +20,8 @@ import {
   MenuItem,
   IconButton,
   Tooltip,
+  Tabs,
+  Tab,
 } from "@mui/material";
 import AddIcon from '@mui/icons-material/Add';
 import { useForm, Controller } from "react-hook-form";
@@ -46,6 +48,8 @@ import FuseLoading from "@fuse/core/FuseLoading";
 import debounce from "lodash/debounce";
 import AddCategoryModal from "@/components/Shared/AddCategoryModal";
 import { Button as MuiButton, Box as MuiBox } from "@mui/material";
+import SeoForm from "@/app/(control-panel)/apps/seo/components/SeoForm";
+
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB in bytes
 const MIN_IMAGE_WIDTH = 1091;
 const MIN_IMAGE_HEIGHT = 320;
@@ -125,6 +129,7 @@ export default function EditBlogPost() {
   const [post, setPost] = useState<BlogPost | null>(null);
   const [imageError, setImageError] = useState<string | null>(null);
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState(0);
 
   useEffect(() => {
     document.title = "Edit Post Category | VapeHub";
@@ -153,6 +158,8 @@ export default function EditBlogPost() {
     }
   });
 
+  const titleValue = watch("title");
+  const slugValue = watch("slug");
   const currentStatus = watch("status");
 
   const fetchCategories = debounce(async (searchTerm: string) => {
@@ -335,6 +342,10 @@ export default function EditBlogPost() {
     }
   };
 
+  const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
+    setActiveTab(newValue);
+  };
+
   if (loading) {
     return <FuseLoading />;
   }
@@ -350,8 +361,9 @@ export default function EditBlogPost() {
   }
 
   return (
-    <Container maxWidth="lg" sx={{ py: 4 }}>
-      <motion.div
+      <div className="md:px-14 p-4">
+   {/* <Container maxWidth="lg" sx={{ py: 4 }}> */}
+      {/* <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
@@ -363,203 +375,227 @@ export default function EditBlogPost() {
             alignItems: "center",
             width: "100%",
           }}
-        >
-          <Box sx={{ width: "100%", maxWidth: 900, mb: 4 }}>
+        > */}
+        
+          <Box >
             <Box sx={{ mb: 3 }}>
               <Typography variant="h4" component="h1" fontWeight="bold">
                 Edit Blog Post
               </Typography>
             </Box>
 
-            <Paper sx={{ p: 4 }}>
-              <form onSubmit={handleSubmit(onSubmit)}>
-                <Grid container spacing={3}>
-                  <Grid item xs={12}>
-                    <FormInputField
-                      name="title"
-                      control={control}
-                      label="Title"
-                      required
-                      onChange={handleTitleChange}
-                      sx={commonFieldStyles}
-                    />
-                  </Grid>
+            <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
+                <Tabs value={activeTab} onChange={handleTabChange} aria-label="blog edit tabs">
+                  <Tab label="Post Details" />
+                  <Tab label="SEO" />
+                </Tabs>
+            </Box>
 
-                  <Grid item xs={12}>
-                    <FormInputField
-                      name="slug"
-                      control={control}
-                      label="Slug"
-                      required
-                      helperText="URL-friendly identifier (e.g., my-blog-post)"
-                      sx={commonFieldStyles}
-                    />
-                  </Grid>
+            <div role="tabpanel" hidden={activeTab !== 0}>
+              {activeTab === 0 && (
+                <Paper sx={{ p: 4 }}>
+                  <form onSubmit={handleSubmit(onSubmit)}>
+                    <Grid container spacing={3}>
+                      <Grid item xs={12}>
+                        <FormInputField
+                          name="title"
+                          control={control}
+                          label="Title"
+                          required
+                          onChange={handleTitleChange}
+                          sx={commonFieldStyles}
+                        />
+                      </Grid>
 
-                  <Grid item xs={12}>
-                    <FormCKEditor
-                      name="content"
-                      control={control}
-                      label="Content"
-                      required
-                    />
-                  </Grid>
+                      <Grid item xs={12}>
+                        <FormInputField
+                          name="slug"
+                          control={control}
+                          label="Slug"
+                          required
+                          helperText="URL-friendly identifier (e.g., my-blog-post)"
+                          sx={commonFieldStyles}
+                        />
+                      </Grid>
 
-                  <Grid item xs={12}>
-                    <FormFileUploadField
-                      name="image"
-                      control={control}
-                      label="Featured Image"
-                      onFileChange={handleFileChange}
-                      accept="image/*"
-                      helperText={`Upload a featured image for the blog post (${MIN_IMAGE_WIDTH}-${MAX_IMAGE_WIDTH} × ${MIN_IMAGE_HEIGHT}-${MAX_IMAGE_HEIGHT} px, Max size: 5MB). Supported formats: PNG, JPG, JPEG, WebP`}
-                      sx={commonFieldStyles}
-                      defaultImage={post.image_url}
-                      error={!!imageError}
-                      errorMessage={imageError}
-                    />
-                  </Grid>
+                      <Grid item xs={12}>
+                        <FormCKEditor
+                          name="content"
+                          control={control}
+                          label="Content"
+                          required
+                        />
+                      </Grid>
 
-                  <Grid item xs={12} md={currentStatus === "published" ? 6 : 12}>
-                    <FormControl fullWidth>
-                      <InputLabel id="status-label" sx={{ color: "#2E9970" }}>Status</InputLabel>
-                      <Controller
-                        name="status"
-                        control={control}
-                        render={({ field }) => (
-                          <Select
-                            {...field}
-                            labelId="status-label"
-                            label="Status"
+                      <Grid item xs={12}>
+                        <FormFileUploadField
+                          name="image"
+                          control={control}
+                          label="Featured Image"
+                          onFileChange={handleFileChange}
+                          accept="image/*"
+                          helperText={`Upload a featured image for the blog post (${MIN_IMAGE_WIDTH}-${MAX_IMAGE_WIDTH} × ${MIN_IMAGE_HEIGHT}-${MAX_IMAGE_HEIGHT} px, Max size: 5MB). Supported formats: PNG, JPG, JPEG, WebP`}
+                          sx={commonFieldStyles}
+                          defaultImage={post.image_url}
+                          error={!!imageError}
+                          errorMessage={imageError}
+                        />
+                      </Grid>
+
+                      <Grid item xs={12} md={currentStatus === "published" ? 6 : 12}>
+                        <FormControl fullWidth>
+                          <InputLabel id="status-label" sx={{ color: "#2E9970" }}>Status</InputLabel>
+                          <Controller
+                            name="status"
+                            control={control}
+                            render={({ field }) => (
+                              <Select
+                                {...field}
+                                labelId="status-label"
+                                label="Status"
+                                sx={commonFieldStyles}
+                                onChange={(e) => {
+                                  field.onChange(e);
+                                  if (e.target.value !== "published") {
+                                    setValue("published_at", null);
+                                  }
+                                }}
+                              >
+                                <MenuItem value="draft">Draft</MenuItem>
+                                <MenuItem value="published">Published</MenuItem>
+                                <MenuItem value="archived">Archived</MenuItem>
+                              </Select>
+                            )}
+                          />
+                        </FormControl>
+                      </Grid>
+
+                      {currentStatus === "published" && (
+                        <Grid item xs={12} md={6}>
+                          <FormDateTimeField
+                            name="published_at"
+                            control={control}
+                            label="Published Date"
+                            required
                             sx={commonFieldStyles}
-                            onChange={(e) => {
-                              field.onChange(e);
-                              if (e.target.value !== "published") {
-                                setValue("published_at", null);
-                              }
-                            }}
-                          >
-                            <MenuItem value="draft">Draft</MenuItem>
-                            <MenuItem value="published">Published</MenuItem>
-                            <MenuItem value="archived">Archived</MenuItem>
-                          </Select>
-                        )}
-                      />
-                    </FormControl>
-                  </Grid>
+                          />
+                        </Grid>
+                      )}
 
-                  {currentStatus === "published" && (
-                    <Grid item xs={12} md={6}>
-                      <FormDateTimeField
-                        name="published_at"
-                        control={control}
-                        label="Published Date"
-                        required
-                        sx={commonFieldStyles}
-                      />
-                    </Grid>
-                  )}
-
-                  <Grid item xs={12}>
-                      <Controller
-                        name="categories"
-                        control={control}
-                        render={({ field: { value, onChange } }) => (
-                          <Autocomplete
-                            multiple
-                            options={categories}
-                            getOptionLabel={(option) => option.name}
-                            isOptionEqualToValue={(option, val) => option.id === val.id}
-                            value={value}
-                            onChange={(_, newValue) => onChange(newValue)}
-                            onInputChange={(_, newInputValue) => setCategorySearch(newInputValue)}
-                            renderInput={(params) => (
-                              <TextField
-                                {...params}
-                                label="Categories"
-                                variant="outlined"
-                                sx={{...commonFieldStyles, flexGrow: 1}}
+                      <Grid item xs={12}>
+                          <Controller
+                            name="categories"
+                            control={control}
+                            render={({ field: { value, onChange } }) => (
+                              <Autocomplete
+                                multiple
+                                options={categories}
+                                getOptionLabel={(option) => option.name}
+                                isOptionEqualToValue={(option, val) => option.id === val.id}
+                                value={value}
+                                onChange={(_, newValue) => onChange(newValue)}
+                                onInputChange={(_, newInputValue) => setCategorySearch(newInputValue)}
+                                renderInput={(params) => (
+                                  <TextField
+                                    {...params}
+                                    label="Categories"
+                                    variant="outlined"
+                                    sx={{...commonFieldStyles, flexGrow: 1}}
+                                  />
+                                )}
+                                renderTags={(value, getTagProps) =>
+                                  value.map((option, index) => (
+                                    <Chip
+                                      label={option.name}
+                                      {...getTagProps({ index })}
+                                      key={option.id}
+                                    />
+                                  ))
+                                }
                               />
                             )}
-                            renderTags={(value, getTagProps) =>
-                              value.map((option, index) => (
-                                <Chip
-                                  label={option.name}
-                                  {...getTagProps({ index })}
-                                  key={option.id}
-                                />
-                              ))
-                            }
                           />
-                        )}
-                      />
-                      <MuiButton
-              variant="text" 
-              size="small" 
-            onClick={() => setIsCategoryModalOpen(true)}
-              sx={{ alignSelf: 'flex-start', mt: 2, textTransform: 'none', color: '#247c5c' }}
-            >
-              + Add New Category
-            </MuiButton>
-                  </Grid>
+                          <MuiButton
+                    variant="text" 
+                    size="small" 
+                  onClick={() => setIsCategoryModalOpen(true)}
+                    sx={{ alignSelf: 'flex-start', mt: 2, textTransform: 'none', color: '#247c5c' }}
+                  >
+                    + Add New Category
+                  </MuiButton>
+                      </Grid>
 
-                  <Grid item xs={12}>
-                    <Controller
-                      name="tags"
-                      control={control}
-                      render={({ field: { value, onChange } }) => (
-                        <Autocomplete
-                          multiple
-                          options={tags}
-                          getOptionLabel={(option) => option.name}
-                          value={value}
-                          onChange={(_, newValue) => onChange(newValue)}
-                          onInputChange={(_, newInputValue) => setTagSearch(newInputValue)}
-                          renderInput={(params) => (
-                            <TextField
-                              {...params}
-                              label="Tags"
-                              variant="outlined"
-                              sx={commonFieldStyles}
+                      <Grid item xs={12}>
+                        <Controller
+                          name="tags"
+                          control={control}
+                          render={({ field: { value, onChange } }) => (
+                            <Autocomplete
+                              multiple
+                              options={tags}
+                              getOptionLabel={(option) => option.name}
+                              value={value}
+                              onChange={(_, newValue) => onChange(newValue)}
+                              onInputChange={(_, newInputValue) => setTagSearch(newInputValue)}
+                              renderInput={(params) => (
+                                <TextField
+                                  {...params}
+                                  label="Tags"
+                                  variant="outlined"
+                                  sx={commonFieldStyles}
+                                />
+                              )}
+                              renderTags={(value, getTagProps) =>
+                                value.map((option, index) => (
+                                  <Chip
+                                    label={option.name}
+                                    {...getTagProps({ index })}
+                                    key={option.id}
+                                  />
+                                ))
+                              }
                             />
                           )}
-                          renderTags={(value, getTagProps) =>
-                            value.map((option, index) => (
-                              <Chip
-                                label={option.name}
-                                {...getTagProps({ index })}
-                                key={option.id}
-                              />
-                            ))
-                          }
                         />
-                      )}
-                    />
-                  </Grid>
+                      </Grid>
 
-                  <Grid item xs={12}>
-                    <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 2, mt: 2 }}>
-                      <Button onClick={() => router.back()}>Cancel</Button>
-                      <AppButton
-                        label="Update Post"
-                        type="submit"
-                        disabled={!isValid || submitting}
-                        loading={submitting}
-                      />
-                    </Box>
-                  </Grid>
-                </Grid>
-              </form>
-            </Paper>
+                      <Grid item xs={12}>
+                        <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 2, mt: 2 }}>
+                          <Button onClick={() => router.back()}>Cancel</Button>
+                          <AppButton
+                            label="Update Post"
+                            type="submit"
+                            disabled={!isValid || submitting}
+                            loading={submitting}
+                          />
+                        </Box>
+                      </Grid>
+                    </Grid>
+                  </form>
+                </Paper>
+              )}
+            </div>
+
+            <div role="tabpanel" hidden={activeTab !== 1}>
+              {activeTab === 1 && post && (
+                <SeoForm
+                  entityId={post.id}
+                  entityType="blog_post"
+                  entityName={titleValue}
+                  entitySlug={slugValue}
+                  // fullWidth
+                />
+              )}
+            </div>
           </Box>
-        </Box>
-      </motion.div>
+        {/* </Box>
+      </motion.div> */}
       
       <AddCategoryModal 
         open={isCategoryModalOpen}
         onClose={() => setIsCategoryModalOpen(false)}
         onCategoryCreated={handleCategoryCreated}
       />
-    </Container>
+    </div>
   );
 } 
