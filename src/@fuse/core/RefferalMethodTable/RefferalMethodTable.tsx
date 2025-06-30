@@ -187,7 +187,7 @@ const RefferalMethodTable: React.FC = () => {
   return (
     <div>
       <Paper className="flex flex-col flex-auto shadow-1 overflow-hidden" elevation={0}>
-        <div className="flex items-center p-3 flex-wrap gap-2">
+        {/* <div className="flex items-center p-3 flex-wrap gap-2">
           <TextField
             label="Search"
             variant="outlined"
@@ -246,7 +246,7 @@ const RefferalMethodTable: React.FC = () => {
             <MenuItem value="DESC">Descending</MenuItem>
           </Select>
           {areFiltersActive && <ClearFiltersButton onClick={clearFilters} />}
-        </div>
+        </div> */}
         <DataTable
           data={referralMethods}
           columns={columns}
@@ -258,25 +258,25 @@ const RefferalMethodTable: React.FC = () => {
                 </ListItemIcon>
                 Edit
               </MenuItem>,
-              <MenuItem key="primary" onClick={() => { handlePrimaryChange(row.original, !row.original.primary); closeMenu(); }}>
-                <ListItemIcon>
-                  <FuseSvgIcon>{row.original.primary ? "heroicons-outline:star" : "heroicons-solid:star"}</FuseSvgIcon>
-                </ListItemIcon>
-                {row.original.primary ? "Unset as Primary" : "Set as Primary"}
-              </MenuItem>,
-              <MenuItem
-                key="status"
-                onClick={() => {
-                  handleStatusChange(row.original, row.original.status === 'active' ? 'inactive' : 'active');
-                  closeMenu();
-                }}
-                disabled={row.original.primary && row.original.status === 'active'}
-              >
-                <ListItemIcon>
-                  <FuseSvgIcon>{row.original.status === 'active' ? "heroicons-outline:eye-slash" : "heroicons-outline:eye"}</FuseSvgIcon>
-                </ListItemIcon>
-                {row.original.status === 'active' ? "Deactivate" : "Activate"}
-              </MenuItem>,
+              // <MenuItem key="primary" onClick={() => { handlePrimaryChange(row.original, !row.original.primary); closeMenu(); }}>
+              //   <ListItemIcon>
+              //     <FuseSvgIcon>{row.original.primary ? "heroicons-outline:star" : "heroicons-solid:star"}</FuseSvgIcon>
+              //   </ListItemIcon>
+              //   {row.original.primary ? "Unset as Primary" : "Set as Primary"}
+              // </MenuItem>,
+              // <MenuItem
+              //   key="status"
+              //   onClick={() => {
+              //     handleStatusChange(row.original, row.original.status === 'active' ? 'inactive' : 'active');
+              //     closeMenu();
+              //   }}
+              //   disabled={row.original.primary && row.original.status === 'active'}
+              // >
+              //   <ListItemIcon>
+              //     <FuseSvgIcon>{row.original.status === 'active' ? "heroicons-outline:eye-slash" : "heroicons-outline:eye"}</FuseSvgIcon>
+              //   </ListItemIcon>
+              //   {row.original.status === 'active' ? "Deactivate" : "Activate"}
+              // </MenuItem>,
               <MenuItem key="delete" onClick={() => { handleDeleteClick(row.original); closeMenu(); }}>
                 <ListItemIcon>
                   <FuseSvgIcon>heroicons-outline:trash</FuseSvgIcon>
@@ -285,7 +285,7 @@ const RefferalMethodTable: React.FC = () => {
               </MenuItem>
             ]}
         />
-        <div className="flex justify-center p-4">
+        {/* <div className="flex justify-center p-4">
           <Pagination
             count={totalPages}
             page={page}
@@ -301,7 +301,7 @@ const RefferalMethodTable: React.FC = () => {
                   },
                 }}
           />
-        </div>
+        </div> */}
         <Dialog open={openDialog} onClose={() => setOpenDialog(false)}>
           <DialogTitle>
             Confirm Delete
