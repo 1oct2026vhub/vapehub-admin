@@ -2,6 +2,8 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import { Box, Grid, FormControlLabel, Switch, Typography } from '@mui/material';
 import AppButton from '@/components/Shared/AppButton';
 import FormTextField from '@/components/Shared/FormTextField';
@@ -21,12 +23,24 @@ interface SeoFormProps {
   fullWidth?: boolean;
 }
 
+const seoFormSchema = z.object({
+    title: z.string().optional(),
+    description: z.string().optional(),
+    focusKeyword: z.string().optional(),
+    canonicalUrl: z.string().url({ message: 'Please enter a valid URL' }).optional().or(z.literal('')),
+    ogImage: z.string().url({ message: 'Please enter a valid URL' }).optional().or(z.literal('')),
+    noIndex: z.boolean().default(false),
+});
+
+type SeoFormType = z.infer<typeof seoFormSchema>;
+
 function SeoForm({ entityType, entityId, entityName, entitySlug, fullWidth = false }: SeoFormProps) {
   const { showSnackbar } = useSnackbar();
   const [isEditing, setIsEditing] = useState(false);
   const [seoHealth, setSeoHealth] = useState<SeoHealth | null>(null);
 
-  const { control, handleSubmit, reset, setValue, formState, getValues } = useForm<SeoData>({
+  const { control, handleSubmit, reset, setValue, formState, getValues } = useForm<SeoFormType>({
+    resolver: zodResolver(seoFormSchema),
     defaultValues: {
       title: '',
       description: '',
@@ -81,7 +95,7 @@ function SeoForm({ entityType, entityId, entityName, entitySlug, fullWidth = fal
     } catch (error) {
         console.error(`Failed to fetch default OG image for ${entityType} ${entityId}`, error);
     }
-}, [entityId, entityType, setValue, getValues, formState.dirtyFields.ogImage]);
+}, [entityId, entityType, setValue, getValues]);
 
   useEffect(() => {
     if (entitySlug) {
@@ -125,13 +139,11 @@ function SeoForm({ entityType, entityId, entityName, entitySlug, fullWidth = fal
     fetchSeoData();
   }, [fetchSeoData]);
 
-  const onSubmit = async (data: SeoData) => {
+  const onSubmit = async (data: SeoFormType) => {
     const payload: Partial<SeoData> = {
+        ...data,
         entityType,
         entityId: String(entityId),
-        title: data.title,
-        description: data.description,
-        focusKeyword: data.focusKeyword,
         slug: entitySlug,
         canonicalUrl: data.canonicalUrl,
         ogImage: data.ogImage,
