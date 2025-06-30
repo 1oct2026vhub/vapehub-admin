@@ -70,8 +70,9 @@ function SeoFormModal({ open, onClose, onSaved, initialData }: SeoFormModalProps
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebounce(search, 500);
 
-  const { control, handleSubmit, reset, watch, setValue, formState } = useForm<SeoFormType>({
+  const { control, handleSubmit, reset, watch, setValue, formState, trigger } = useForm<SeoFormType>({
     resolver: zodResolver(seoSchema),
+    mode: 'all',
   });
 
   const entityType = watch('entityType');
@@ -241,7 +242,7 @@ function SeoFormModal({ open, onClose, onSaved, initialData }: SeoFormModalProps
                         render={({ field }) => (
                           <FormControl fullWidth>
                             <InputLabel>Entity Type</InputLabel>
-                            <Select {...field} label="Entity Type">
+                            <Select {...field} label="Entity Type" sx={{ backgroundColor: 'white' }}>
                               <MenuItem value="page">Page</MenuItem>
                               <MenuItem value="product">Product</MenuItem>
                               <MenuItem value="category">Category</MenuItem>
@@ -265,6 +266,7 @@ function SeoFormModal({ open, onClose, onSaved, initialData }: SeoFormModalProps
                               value={entities.find((e) => String(e.id) === field.value) || null}
                               onChange={async (event, newValue) => {
                                 field.onChange(newValue ? String(newValue.id) : '');
+                                await trigger('entityId');
 
                                 if (!newValue) {
                                   setValue('slug', '', { shouldValidate: true });
@@ -299,6 +301,11 @@ function SeoFormModal({ open, onClose, onSaved, initialData }: SeoFormModalProps
                               }}
                               onInputChange={(event, newInputValue) => {
                                 setSearch(newInputValue);
+                              }}
+                              sx={{
+                                '& .MuiOutlinedInput-root': {
+                                  backgroundColor: 'white',
+                                },
                               }}
                               filterOptions={(x) => x}
                               loading={loadingEntities}
