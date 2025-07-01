@@ -202,6 +202,13 @@ const navigationConfig: FuseNavItemType[] = [
     icon: "heroicons-outline:bars-3",
     url: "/apps/menu",
   },
+  {
+    id: "review",
+    title: "Review",
+    type: "item",
+    icon: "heroicons-outline:star",
+    url: "/apps/review"
+  },
   
 ];
 
