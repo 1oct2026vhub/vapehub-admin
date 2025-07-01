@@ -33,6 +33,10 @@ export interface SeoHealth {
 
 export interface SeoListItem extends SeoMeta {
     health: SeoHealth;
+    entity?: {
+        id: number;
+        name: string;
+    }
 }
 
 export interface ListSeoApiResponse {
