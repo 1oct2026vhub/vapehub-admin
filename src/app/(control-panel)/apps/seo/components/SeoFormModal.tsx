@@ -70,8 +70,9 @@ function SeoFormModal({ open, onClose, onSaved, initialData }: SeoFormModalProps
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebounce(search, 500);
 
-  const { control, handleSubmit, reset, watch, setValue, formState } = useForm<SeoFormType>({
+  const { control, handleSubmit, reset, watch, setValue, formState, trigger } = useForm<SeoFormType>({
     resolver: zodResolver(seoSchema),
+    mode: 'all',
   });
 
   const entityType = watch('entityType');
@@ -197,6 +198,11 @@ function SeoFormModal({ open, onClose, onSaved, initialData }: SeoFormModalProps
         payload.entityId = data.entityId;
         payload.ogImage = data.ogImage;
       }
+
+      if (isEditMode && initialData) {
+        payload.entityType = initialData.entityType;
+        payload.entityId = String(initialData.entityId);
+      }
       
       const response = await createOrUpdateSeo(payload);
       showSnackbar(response.message, 'success');
@@ -241,7 +247,7 @@ function SeoFormModal({ open, onClose, onSaved, initialData }: SeoFormModalProps
                         render={({ field }) => (
                           <FormControl fullWidth>
                             <InputLabel>Entity Type</InputLabel>
-                            <Select {...field} label="Entity Type">
+                            <Select {...field} label="Entity Type" sx={{ backgroundColor: 'white' }} disabled={isEditMode}>
                               <MenuItem value="page">Page</MenuItem>
                               <MenuItem value="product">Product</MenuItem>
                               <MenuItem value="category">Category</MenuItem>
@@ -255,6 +261,16 @@ function SeoFormModal({ open, onClose, onSaved, initialData }: SeoFormModalProps
                     </Grid>
                     {entityType !== 'page' && (
                       <Grid item xs={12} sm={6}>
+                        {isEditMode ? (
+                            <TextField
+                                label="Entity"
+                                value={initialData?.entity?.name || ''}
+                                fullWidth
+                                disabled
+                                size="small"
+                                sx={{ backgroundColor: 'white' }}
+                            />
+                        ) : (
                         <Controller
                           name="entityId"
                           control={control}
@@ -265,6 +281,7 @@ function SeoFormModal({ open, onClose, onSaved, initialData }: SeoFormModalProps
                               value={entities.find((e) => String(e.id) === field.value) || null}
                               onChange={async (event, newValue) => {
                                 field.onChange(newValue ? String(newValue.id) : '');
+                                await trigger('entityId');
 
                                 if (!newValue) {
                                   setValue('slug', '', { shouldValidate: true });
@@ -300,6 +317,11 @@ function SeoFormModal({ open, onClose, onSaved, initialData }: SeoFormModalProps
                               onInputChange={(event, newInputValue) => {
                                 setSearch(newInputValue);
                               }}
+                              sx={{
+                                '& .MuiOutlinedInput-root': {
+                                  backgroundColor: 'white',
+                                },
+                              }}
                               filterOptions={(x) => x}
                               loading={loadingEntities}
                               renderInput={(params) => (
@@ -324,6 +346,7 @@ function SeoFormModal({ open, onClose, onSaved, initialData }: SeoFormModalProps
                             />
                           )}
                         />
+                        )}
                       </Grid>
                     )}
                   </>
