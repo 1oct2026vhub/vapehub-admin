@@ -320,9 +320,9 @@ const MenuList: React.FC = () => {
   if (error) {
     return <Alert severity="error">{error}</Alert>;
   }
-  if (!menus?.length) {
-    return <Typography>No menus found.</Typography>;
-  }
+  // if (!menus?.length) {
+  //   return <Typography>No menus found.</Typography>;
+  // }
   return (
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>

@@ -84,7 +84,7 @@ const RefferalMethodForm = () => {
 		mode: 'all',
 		defaultValues: {
 			referral_value_type: 'percentage',
-			referral_value: '',
+			referral_value: '10',
 			refer_type: 'referrer',
 			status: 'active',
 			primary: false,
