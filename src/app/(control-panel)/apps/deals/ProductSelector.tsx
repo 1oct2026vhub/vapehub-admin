@@ -1,7 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { Autocomplete, TextField, CircularProgress, Box, Popper } from '@mui/material';
-import { listProducts, ProductType } from '@/services/apiProduct';
+import { listProducts} from '@/services/apiProduct';
 import { addProductsToDeal } from '@/services/apiDeals';
 import AppButton from '@/components/Shared/AppButton';
 import { useSnackbar } from '@/contexts/SnackbarContext';
@@ -10,13 +10,13 @@ import { useDebounce } from '@/hooks/useDebounce';
 
 interface ProductSelectorProps {
     dealId: number;
-    onProductAdded: (product: ProductType) => void;
+    onProductAdded: (product) => void;
 }
 
 const ProductSelector: React.FC<ProductSelectorProps> = ({ dealId, onProductAdded }) => {
     const [open, setOpen] = useState(false);
     const [inputValue, setInputValue] = useState('');
-    const [selectedProduct, setSelectedProduct] = useState<ProductType | null>(null);
+    const [selectedProduct, setSelectedProduct] = useState(null);
     const { showSnackbar } = useSnackbar();
     const [isAdding, setIsAdding] = useState(false);
 
