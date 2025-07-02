@@ -215,8 +215,8 @@ function AnalyticsOverview() {
 			setAnalyticsLoading(true);
 			setAnalyticsErrors({}); // Clear previous errors
 			
-			// const propertyId = process.env.NEXT_PUBLIC_GA_PROPERTY_ID;
-			const propertyId = '487771831';
+			const propertyId = process.env.NEXT_PUBLIC_GA_PROPERTY_ID;
+			// const propertyId = '487771831';
 			const googleApiUrl = `https://analyticsdata.googleapis.com/v1beta/properties/${propertyId}:runRealtimeReport`;
 			const requestHeaders = {
 				Authorization: `Bearer ${accessToken}`,
