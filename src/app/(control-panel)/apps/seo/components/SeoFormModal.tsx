@@ -80,7 +80,7 @@ function SeoFormModal({ open, onClose, onSaved, initialData }: SeoFormModalProps
 
   useEffect(() => {
     if (open) {
-      if (isEditMode) {
+      if (isEditMode && initialData) {
         reset(initialData);
       } else {
         reset({
@@ -95,6 +95,58 @@ function SeoFormModal({ open, onClose, onSaved, initialData }: SeoFormModalProps
           noIndex: false,
         });
       }
+    }
+  }, [open, isEditMode, initialData, reset]);
+
+  useEffect(() => {
+    if (open && isEditMode && initialData && !initialData.entity) {
+      const fetchEntityDetails = async () => {
+        if (!initialData.entityType || initialData.entityType === 'page' || !initialData.entityId) return;
+  
+        let entityData: any = null;
+        try {
+          const entityIdNum = parseInt(initialData.entityId, 10);
+          if (isNaN(entityIdNum)) return;
+
+          switch (initialData.entityType) {
+            case 'product': {
+              const response = await getProduct(entityIdNum);
+              entityData = response?.data;
+              break;
+            }
+            case 'brand': {
+              const response = await listProductBrand({ limit: 1000 });
+              entityData = response?.data?.brands.find((b: any) => b.id === entityIdNum);
+              break;
+            }
+            case 'category': {
+              const response = await listProductCategory({ limit: 1000 });
+              entityData = response?.data?.categories.find((c: any) => c.id === entityIdNum);
+              break;
+            }
+            case 'blog_post': {
+              const response = await getBlogPosts({ limit: 1000 });
+              entityData = response?.data?.blogs.find((p: any) => p.id === entityIdNum);
+              break;
+            }
+            case 'blog_category': {
+              const response = await getBlogCategories({ limit: 1000 });
+              entityData = response?.data?.categories.find((c: any) => c.id === entityIdNum);
+              break;
+            }
+            default:
+              return;
+          }
+  
+          if (entityData) {
+            const updatedInitialData = { ...initialData, entity: entityData };
+            reset(updatedInitialData);
+          }
+        } catch (error) {
+          console.error(`Failed to fetch details for ${initialData.entityType}:`, error);
+        }
+      };
+      fetchEntityDetails();
     }
   }, [open, isEditMode, initialData, reset]);
 
