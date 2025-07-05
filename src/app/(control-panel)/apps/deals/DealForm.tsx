@@ -44,7 +44,7 @@ const dealSchema = z.object({
     is_active: z.boolean(),
     valid_from: z.string().min(1, 'Valid from date is required'),
     valid_to: z.string().min(1, 'Valid to date is required'),
-    required_qty: z.coerce.number().int({ message: "Quantity must be a whole number." }).min(1, { message: "Quantity is required." }),
+    required_qty: z.coerce.number().positive({ message: "Quantity must be a positive number." }).int({ message: "Quantity must be a whole number." }).min(1, { message: "Quantity is required." }),
     get_qty: z.coerce.number().optional().nullable(),
     fixed_price: z.coerce.number().positive({ message: "Price must be a positive number." }).min(1, { message:'Price is required.'}),
     discount_percent: z.coerce.number().optional().nullable(),
