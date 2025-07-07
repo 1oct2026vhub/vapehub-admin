@@ -52,4 +52,86 @@ export interface InventoryDashboardResponse {
 export const getInventoryDashboard = async (params: InventoryParams = {}): Promise<InventoryDashboardResponse> => {
   const response = await axiosInstance.get('/api/admin/inventory/dashboard', { params });
   return response.data;
-}; 
+};
+
+export interface AddStockPayload {
+  variant_id: number;
+  quantity: number;
+  reference: string;
+}
+
+export const addStock = async (payload: AddStockPayload) => {
+  const response = await axiosInstance.post('/api/admin/inventory/add-stock', payload);
+  return response.data;
+}
+
+export interface RemoveStockPayload {
+  variant_id: number;
+  quantity: number;
+  reference: string;
+}
+
+export const removeStock = async (payload: RemoveStockPayload) => {
+  const response = await axiosInstance.post('/api/admin/inventory/remove-stock', payload);
+  return response.data;
+}
+
+export interface AdjustStockPayload {
+  variant_id: number;
+  new_quantity: number;
+  reference: string;
+}
+
+export const adjustStock = async (payload: AdjustStockPayload) => {
+  const response = await axiosInstance.post('/api/admin/inventory/adjust-stock', payload);
+  return response.data;
+}
+
+export interface StockMovementParams {
+  page?: number;
+  limit?: number;
+  variant_id?: number;
+  change_type?: string;
+  start_date?: string;
+  end_date?: string;
+  sort_by?: string;
+  sort_order?: 'ASC' | 'DESC';
+}
+
+export interface StockMovement {
+  id: number;
+  variant_id: number;
+  change_type: 'adjustment' | 'addition' | 'deduction';
+  quantity: number;
+  reference: string | null;
+  updated_by: number;
+  created_at: string;
+  variant: {
+    id: number;
+    slug: string;
+    stock: number;
+    product: {
+      id: number;
+      name: string;
+    }
+  };
+  updatedByUser: {
+    id: number;
+    first_name: string | null;
+    last_name: string | null;
+  }
+}
+
+export interface StockMovementsResponse {
+  success: boolean;
+  message: string;
+  data: {
+    movements: StockMovement[];
+    pagination: Pagination;
+  };
+}
+
+export const getStockMovements = async (params: StockMovementParams): Promise<StockMovementsResponse> => {
+  const response = await axiosInstance.get('/api/admin/inventory/movements', { params });
+  return response.data;
+} 

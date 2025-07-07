@@ -1,13 +1,6 @@
 'use client';
 import {
-    Table,
-    TableBody,
-    TableCell,
-    TableContainer,
-    TableHead,
-    TableRow,
     Paper,
-    TablePagination,
     Chip,
     Avatar,
     Box,
@@ -15,11 +8,10 @@ import {
     MenuItem,
     Checkbox,
     FormControlLabel,
-    TableSortLabel,
-    CircularProgress,
     InputAdornment,
     PaginationItem,
-    Pagination
+    Pagination,
+    ListItemIcon
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import { InventoryItem, Pagination as IPagination, InventoryParams } from '@/services/apiInventory';
@@ -27,8 +19,8 @@ import { useState, useEffect, useMemo } from 'react';
 import DataTable from '@/components/data-table/DataTable';
 import { type MRT_ColumnDef } from 'material-react-table';
 import ClearFiltersButton from '@/components/Shared/ClearFiltersButton';
-
-
+import { useRouter } from 'next/navigation';
+import FuseSvgIcon from '@fuse/core/FuseSvgIcon';
 interface InventoryTableProps {
     inventory: InventoryItem[];
     pagination: IPagination;
@@ -37,7 +29,6 @@ interface InventoryTableProps {
     onParamsChange: (params: Partial<InventoryParams>) => void;
     onPageChange: (page: number) => void;
 }
-
 const InventoryTable: React.FC<InventoryTableProps> = ({
     inventory,
     pagination,
@@ -48,6 +39,7 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
 }) => {
     const [search, setSearch] = useState('');
     const [debouncedSearch, setDebouncedSearch] = useState('');
+    const router = useRouter();
 
     const areFiltersActive = useMemo(() => {
         return debouncedSearch !== '' || params.stock_status || params.top_selling;
@@ -169,8 +161,21 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
                 data={inventory}
                 columns={columns}
                 state={{ isLoading: loading }}
+                renderRowActionMenuItems={({ closeMenu, row }) => [
+                    <MenuItem
+                      key="view"
+                      onClick={() => {
+                        router.push(`/apps/inventory/${row.original.id}?name=${encodeURIComponent(row.original.name)}`);
+                        closeMenu();
+                      }}
+                    >
+                      <ListItemIcon>
+                        <FuseSvgIcon>heroicons-outline:eye</FuseSvgIcon>
+                      </ListItemIcon>
+                      View Details
+                    </MenuItem>,
+                  ]}
             />
-
             <div className="flex justify-center p-4">
                 <Pagination
                     count={pagination.totalPages}

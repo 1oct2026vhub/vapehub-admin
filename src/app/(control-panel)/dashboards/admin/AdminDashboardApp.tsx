@@ -20,9 +20,11 @@ import {
   TextField,
   Autocomplete,
 } from "@mui/material";
-import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { DateRange } from '@mui/x-date-pickers-pro';
+import { Dayjs } from 'dayjs';
+
 import AdminDashboardHeader from "./AdminDashboardHeader";
 import StatisticsCard from "./components/StatisticsCard";
 import SalesChart from "./components/SalesChart";
@@ -47,6 +49,7 @@ import { useDebounce } from "@/hooks/useDebounce";
 import FuseLoading from "@fuse/core/FuseLoading";
 import SalesSummary from "./components/SalesSummary";
 import SalesStatsOverview from "./components/SalesStatsOverview";
+import FormDateRangePicker from "@/components/Shared/FormDateRangePicker";
 
 type ChartPeriod = "daily" | "weekly" | "monthly" | "yearly" | "custom";
 
@@ -87,8 +90,7 @@ const AdminDashboardApp = () => {
   const [selectedProduct, setSelectedProduct] = useState<any | null>(null);
   const [productSearch, setProductSearch] = useState('');
   const [loadingProducts, setLoadingProducts] = useState(false);
-  const [startDate, setStartDate] = useState<any>(null);
-  const [endDate, setEndDate] = useState<any>(null);
+  const [dateRange, setDateRange] = useState<DateRange<Dayjs>>([null, null]);
   
   const debouncedProductSearch = useDebounce(productSearch, 500);
 
@@ -115,25 +117,28 @@ const AdminDashboardApp = () => {
       try {
         setLoading(true);
         // Prevent calling API if custom date range is not fully selected
-        if (chartPeriod === 'custom' && (!startDate || !endDate)) {
+        if (chartPeriod === 'custom' && (!dateRange[0] || !dateRange[1])) {
           setSalesData([]); // Clear previous data
+          setSalesSummary(null);
+          setUserData([]);
+          setTransactionData([]);
           return;
         }
 
         const statsData = await getDashboardStats();
         const salesResponse = await getSalesChartData(chartPeriod, {
           productId: selectedProduct?.id,
-          startDate: startDate?.format('YYYY-MM-DD'),
-          endDate: endDate?.format('YYYY-MM-DD'),
+          startDate: dateRange[0]?.format('YYYY-MM-DD'),
+          endDate: dateRange[1]?.format('YYYY-MM-DD'),
         });
         const users = await getUserGrowthChartData(chartPeriod, {
-          startDate: startDate?.format('YYYY-MM-DD'),
-          endDate: endDate?.format('YYYY-MM-DD'),
+          startDate: dateRange[0]?.format('YYYY-MM-DD'),
+          endDate: dateRange[1]?.format('YYYY-MM-DD'),
         });
         const transactions = await getTransactionChartData(chartPeriod, {
           productId: selectedProduct?.id,
-          startDate: startDate?.format('YYYY-MM-DD'),
-          endDate: endDate?.format('YYYY-MM-DD'),
+          startDate: dateRange[0]?.format('YYYY-MM-DD'),
+          endDate: dateRange[1]?.format('YYYY-MM-DD'),
         });
 
         setStats(statsData);
@@ -149,14 +154,13 @@ const AdminDashboardApp = () => {
     };
 
     fetchDashboardData();
-  }, [chartPeriod, selectedProduct, startDate, endDate]);
+  }, [chartPeriod, selectedProduct, dateRange]);
 
   const handlePeriodChange = (event: SelectChangeEvent) => {
     const newPeriod = event.target.value as ChartPeriod;
     setChartPeriod(newPeriod);
     if (newPeriod !== 'custom') {
-      setStartDate(null);
-      setEndDate(null);
+      setDateRange([null, null]);
     }
   };
 
@@ -641,17 +645,11 @@ const AdminDashboardApp = () => {
           </FormControl>
           {chartPeriod === 'custom' && (
             <LocalizationProvider dateAdapter={AdapterDayjs}>
-                <DatePicker
-                  label="Start Date"
-                  value={startDate}
-                  onChange={setStartDate}
-                  
-                />
-                <DatePicker
-                  label="End Date"
-                  value={endDate}
-                  onChange={setEndDate}
-                />
+              <FormDateRangePicker
+                value={dateRange}
+                onChange={setDateRange}
+                label="Select Date Range"
+              />
             </LocalizationProvider>
           )}
         </Box>
