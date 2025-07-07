@@ -12,6 +12,9 @@ export interface Review {
     is_visible: boolean;
     created_at: string;
     updated_at: string;
+    product?: {
+        name: string;
+    };
 }
 
 export interface CreateReviewData {
