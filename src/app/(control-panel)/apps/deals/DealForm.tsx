@@ -113,12 +113,37 @@ const DealForm: React.FC<DealFormProps> = ({ deal }) => {
     const onSubmit = async (data: DealFormData) => {
         setIsSubmitting(true);
         try {
+            const slug = data.name
+                .toLowerCase()
+                .replace(/\s+/g, '-') // Replace spaces with -
+                .replace(/[^\w-]+/g, '') // Remove all non-word chars
+                .replace(/--+/g, '-') // Replace multiple - with single -
+                .replace(/^-+/, '') // Trim - from start of text
+                .replace(/-+$/, ''); // Trim - from end of text
+
+
+            let payload: Partial<DealFormData> & { slug: string }= {
+                name: data.name,
+                slug,
+                deal_type: data.deal_type,
+                is_active: data.is_active,
+                valid_from: data.valid_from,
+                valid_to: data.valid_to,
+            };
+
+            if (data.deal_type === 'BUY_N_FOR_FIXED') {
+                payload = {
+                    ...payload,
+                    required_qty: data.required_qty,
+                    fixed_price: data.fixed_price,
+                };
+            }
+            
             if (deal) {
-                const { bundle_product_ids_json, ...updateData } = data;
-                await updateDeal(deal.id, updateData);
+                await updateDeal(deal.id, payload as DealFormData);
                 showSnackbar('Deal updated successfully!', 'success');
             } else {
-                await createDeal(data);
+                await createDeal(payload as DealFormData);
                 showSnackbar('Deal created successfully!', 'success');
             }
             router.push('/apps/deals');
