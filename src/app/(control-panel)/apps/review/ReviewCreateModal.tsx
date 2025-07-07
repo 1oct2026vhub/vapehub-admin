@@ -17,7 +17,7 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { createReview, updateReview, CreateReviewData, Review } from '@/services/apiReview';
-import { listProducts } from '@/services/apiProduct';
+import { getProduct, listProducts } from '@/services/apiProduct';
 import { useSnackbar } from '@/contexts/SnackbarContext';
 import FormTextField from '@/components/Shared/FormTextField';
 import AppButton from '@/components/Shared/AppButton';
@@ -26,7 +26,7 @@ import { useDebounce } from '@/hooks/useDebounce';
 const reviewSchema = z.object({
   product_id: z.number().min(1, 'Product Id is required'),
   user_name: z.string().min(1, 'User name is required').max(100, 'User name must be less than 100 characters'),
-  company_name: z.string().min(1, 'Company name is required').max(150, 'Company name must be less than 150 characters'),
+  company_name: z.string().max(150, 'Company name must be less than 150 characters').optional(),
   rating: z.string().min(1, 'Rating is required'),
   comment: z.string().min(1, 'Comment is required').min(10, 'Comment must be at least 10 characters').max(1000, 'Comment must be less than 1000 characters'),
   is_visible: z.boolean().default(true),
@@ -63,6 +63,7 @@ const ReviewCreateModal: React.FC<ReviewCreateModalProps> = ({
   const [productsLoading, setProductsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [search, setSearch] = useState('');
+  const [editedProduct, setEditedProduct] = useState<Product | null>(null);
   const debouncedSearch = useDebounce(search, 500);
   const { showSnackbar } = useSnackbar();
   const isEditMode = !!initialData;
@@ -83,6 +84,18 @@ const ReviewCreateModal: React.FC<ReviewCreateModalProps> = ({
           comment: initialData.comment,
           is_visible: initialData.is_visible,
         });
+
+        if (initialData.product_id) {
+          getProduct(initialData.product_id)
+            .then((productData) => {
+              if (productData && productData.data) {
+                setEditedProduct(productData.data);
+              }
+            })
+            .catch(() => {
+              showSnackbar('Failed to fetch product details for editing.', 'error');
+            });
+        }
       } else {
         reset({
           product_id: 1,
@@ -92,9 +105,10 @@ const ReviewCreateModal: React.FC<ReviewCreateModalProps> = ({
           comment: '',
           is_visible: true,
         });
+        setEditedProduct(null);
       }
     }
-  }, [open, isEditMode, initialData, reset]);
+  }, [open, isEditMode, initialData, reset, showSnackbar]);
 
   useEffect(() => {
     setValue('product_id', 1, { shouldValidate: true });
@@ -156,6 +170,7 @@ const ReviewCreateModal: React.FC<ReviewCreateModalProps> = ({
     reset();
     setSearch('');
     setProducts([]);
+    setEditedProduct(null);
     onClose();
   };
 
@@ -175,68 +190,65 @@ const ReviewCreateModal: React.FC<ReviewCreateModalProps> = ({
       <form onSubmit={handleSubmit(onSubmit)}>
         <DialogContent>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, pt: 1 }}>
-            {/* Product Selection - Only show in create mode */}
-            {!isEditMode && (
-              <Controller
-                name="product_id"
-                control={control}
-                render={({ field }) => (
-                  <Autocomplete
-                    options={products}
-                    getOptionLabel={(option) => option.name}
-                    loading={productsLoading}
-                    value={products.find(p => p.id === field.value) || null}
-                    onChange={async (_, newValue) => {
-                      field.onChange(newValue?.id || 0);
-                      await trigger('product_id');
-                    }}
-                    onInputChange={(event, newInputValue) => {
-                      setSearch(newInputValue);
-                    }}
-                    filterOptions={(x) => x}
-                    sx={{
-                      '& .MuiOutlinedInput-root': {
-                        backgroundColor: 'white',
-                      },
-                    }}
-                    renderInput={(params) => (
-                      <TextField
-                        {...params}
-                        label="Product"
-                        error={!!formState.errors.product_id}
-                        helperText={formState.errors.product_id?.message}
-                        required
-                        InputProps={{
-                          ...params.InputProps,
-                          endAdornment: (
-                            <>
-                              {productsLoading ? <CircularProgress color="inherit" size={20} /> : null}
-                              {params.InputProps.endAdornment}
-                            </>
-                          ),
-                        }}
-                      />
-                    )}
-                  />
-                )}
-              />
-            )}
+            {/* Product Selection */}
+            <Controller
+              name="product_id"
+              control={control}
+              render={({ field }) => (
+                <Autocomplete
+                  disabled={isEditMode}
+                  options={
+                    editedProduct && !products.some((p) => p.id === editedProduct.id)
+                      ? [editedProduct, ...products]
+                      : products
+                  }
+                  getOptionLabel={(option) => option.name}
+                  loading={productsLoading}
+                  value={products.find((p) => p.id === field.value) || editedProduct}
+                  onChange={async (_, newValue) => {
+                    field.onChange(newValue?.id || 0);
+                    await trigger('product_id');
+                  }}
+                  onInputChange={(event, newInputValue) => {
+                    setSearch(newInputValue);
+                  }}
+                  filterOptions={(x) => x}
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      backgroundColor: 'white',
+                    },
+                  }}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      label="Product"
+                      error={!!formState.errors.product_id}
+                      helperText={formState.errors.product_id?.message}
+                      required
+                      InputProps={{
+                        ...params.InputProps,
+                        endAdornment: (
+                          <>
+                            {productsLoading ? <CircularProgress color="inherit" size={20} /> : null}
+                            {params.InputProps.endAdornment}
+                          </>
+                        ),
+                      }}
+                    />
+                  )}
+                />
+              )}
+            />
 
             {/* User Name */}
-            <FormTextField 
-              name="user_name" 
-              control={control} 
-              label="User Name" 
-              required 
-              fullWidth 
-            />
+            <FormTextField name="user_name" control={control} label="User Name" required fullWidth />
 
             {/* Company Name */}
             <FormTextField 
               name="company_name" 
               control={control} 
               label="Company Name" 
-              required 
+              // required 
               fullWidth 
             />
 
