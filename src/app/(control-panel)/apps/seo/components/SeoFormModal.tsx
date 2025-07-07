@@ -55,7 +55,7 @@ const seoSchema = z.object({
     }
     return true;
 }, {
-    message: 'Entity ID is required',
+    message: 'Entity Name is required',
     path: ['entityId'],
 });
 
@@ -315,7 +315,7 @@ function SeoFormModal({ open, onClose, onSaved, initialData }: SeoFormModalProps
                       <Grid item xs={12} sm={6}>
                         {isEditMode ? (
                             <TextField
-                                label="Entity"
+                                label="Entity Name"
                                 value={initialData?.entity?.name || ''}
                                 fullWidth
                                 disabled
