@@ -87,7 +87,7 @@ const SeoListTable: React.FC<{ refreshTrigger: number, onEdit: (data: SeoListIte
             setSeoData(res.data?.data || []);
             setTotal(res.data?.pagination?.total || 0);
         } catch (error) {
-            showSnackbar('Failed to fetch SEO data', 'error');
+            // showSnackbar('Failed to fetch SEO data', 'error');
         } finally {
             setIsLoading(false);
         }
