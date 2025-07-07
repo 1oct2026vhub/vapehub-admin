@@ -216,6 +216,13 @@ const navigationConfig: FuseNavItemType[] = [
     icon: "heroicons-outline:tag",
     url: "/apps/deals"
   },
+  {
+    id: "inventory",
+    title: "Inventory Management",
+    type: "item",
+    icon: "heroicons-outline:inbox",
+    url: "/apps/inventory"
+  },
   
 ];
 
