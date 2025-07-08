@@ -195,7 +195,8 @@ const TransactionsTable = ({
       Cell: ({ row }) => row.original.referenceNumber || "N/A",
     },
     {
-      accessorKey: "order",
+      id: 'orderId',
+      accessorFn: (row) => row.order?.order_unique_id,
       header: "Order ID",
       Cell: ({ row }) => {
         return row.original.order?.order_unique_id || "N/A";

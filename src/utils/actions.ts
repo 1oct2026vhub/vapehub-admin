@@ -79,12 +79,24 @@ export const NUMERIC_CURRENCY_CODES: { [key: string]: string } = {
  * @returns ISO currency code string (default: 'GBP')
  */
 export const getCurrencyCode = (code: string | number | undefined): string => {
-  if (!code) return 'GBP';
-  
-  if (typeof code === 'number' || /^\d+$/.test(code.toString())) {
-    return NUMERIC_CURRENCY_CODES[code.toString()] || 'GBP';
+  if (!code) {
+    return 'GBP';
   }
-  return code.toString() || 'GBP';
+
+  const codeStr = String(code);
+
+  // Handle numeric codes from the map
+  if (NUMERIC_CURRENCY_CODES[codeStr]) {
+    return NUMERIC_CURRENCY_CODES[codeStr];
+  }
+
+  // Handle standard 3-letter ISO codes, case-insensitive
+  if (/^[a-zA-Z]{3}$/.test(codeStr)) {
+    return codeStr.toUpperCase();
+  }
+
+  // Fallback for invalid codes (e.g., "string", longer codes, etc.)
+  return 'GBP';
 };
 
 /**
