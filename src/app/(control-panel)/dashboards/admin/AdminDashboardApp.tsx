@@ -22,8 +22,8 @@ import {
 } from "@mui/material";
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
-import { DateRange } from '@mui/x-date-pickers-pro';
-import { Dayjs } from 'dayjs';
+// import { DateRange } from '@mui/x-date-pickers-pro';
+// import { Dayjs } from 'dayjs';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 
 import AdminDashboardHeader from "./AdminDashboardHeader";
@@ -33,7 +33,7 @@ import UserGrowthChart from "./components/UserGrowthChart";
 import TransactionChart from "./components/TransactionChart";
 import RecentOrdersTable from "./components/RecentOrdersTable";
 import RecentTransactionsTable from "./components/RecentTransactionsTable";
-import { formatPounds, formatStatusText } from "@/utils/actions";
+import { formatStatusText } from "@/utils/actions";
 import {
   getDashboardStats,
   getSalesChartData,
@@ -93,7 +93,7 @@ const AdminDashboardApp = () => {
   const [selectedProduct, setSelectedProduct] = useState<any | null>(null);
   const [productSearch, setProductSearch] = useState('');
   const [loadingProducts, setLoadingProducts] = useState(false);
-  const [dateRange, setDateRange] = useState<DateRange<Dayjs>>([null, null]);
+  // const [dateRange, setDateRange] = useState<DateRange<Dayjs>>([null, null]);
   
   const debouncedProductSearch = useDebounce(productSearch, 500);
 
