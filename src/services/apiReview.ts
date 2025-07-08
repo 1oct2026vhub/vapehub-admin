@@ -29,6 +29,10 @@ export interface CreateReviewData {
 export interface FetchReviewsParams {
     page?: number;
     limit?: number;
+    search?: string;
+    rating?: string;
+    sortBy?: string;
+    sortOrder?: 'ASC' | 'DESC';
 }
 
 export interface ListReviewsApiResponse {
