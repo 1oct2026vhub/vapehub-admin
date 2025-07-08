@@ -47,6 +47,8 @@ export interface CreateCouponData {
   start_date: string;
   end_date: string;
   status: 'active' | 'inactive' | 'expired';
+  entity_type?: 'product' | 'brand' | 'category' | null;
+  entity_id?: string | number | null;
 }
 
 export async function getCoupons(params: FetchCouponsParams = {}): Promise<CouponListResponse> {
