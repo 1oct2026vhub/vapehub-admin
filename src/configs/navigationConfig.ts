@@ -223,6 +223,13 @@ const navigationConfig: FuseNavItemType[] = [
     icon: "heroicons-outline:inbox",
     url: "/apps/inventory"
   },
+  {
+    id: "loyalty-points",
+    title: "Loyalty Points",
+    type: "item",
+    icon: "heroicons-outline:gift",
+    url: "/apps/loyalty-points"
+  },
   
 ];
 
