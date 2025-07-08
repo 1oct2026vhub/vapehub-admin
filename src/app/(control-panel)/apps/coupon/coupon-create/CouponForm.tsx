@@ -13,12 +13,22 @@ import {
   Button,
   Paper,
   Typography,
+  Select,
+  FormControl,
+  InputLabel,
+  Autocomplete,
+  CircularProgress,
+  TextField,
 } from '@mui/material';
 import { type CreateCouponData, createCoupon } from '@/services/apiCoupon';
 import FormTextField from '@/components/Shared/FormTextField';
 import FormDateTimeField from '@/components/Shared/FormDateTimeField';
 import AppButton from '@/components/Shared/AppButton';
 import { useSnackbar } from '@/contexts/SnackbarContext';
+import { useDebounce } from '@/hooks/useDebounce';
+import { listProducts } from '@/services/apiProduct';
+import { listProductBrand } from '@/services/apiProductBrand';
+import { listProductCategory } from '@/services/apiProductCategory';
 
 export const couponSchema = z.object({
   code: z.string()
@@ -112,6 +122,8 @@ export const couponSchema = z.object({
   status: z.enum(['active', 'inactive', 'expired'], {
     required_error: 'Status is required',
   }),
+  entity_type: z.enum(['product', 'brand', 'category']).nullable().optional(),
+  entity_id: z.string().nullable().optional(),
 }).refine(data => {
     if (data.start_date && data.end_date) {
         return new Date(data.end_date) > new Date(data.start_date);
@@ -120,12 +132,24 @@ export const couponSchema = z.object({
 }, {
     message: "End date must be after start date",
     path: ["end_date"],
+}).refine(data => {
+    if (data.entity_type) {
+        return !!data.entity_id;
+    }
+    return true;
+}, {
+    message: 'Entity is required when entity type is selected.',
+    path: ['entity_id'],
 });
 
 export default function CouponForm() {
   const router = useRouter();
   const { showSnackbar } = useSnackbar();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [entities, setEntities] = useState<any[]>([]);
+  const [loadingEntities, setLoadingEntities] = useState(false);
+  const [search, setSearch] = useState('');
+  const debouncedSearch = useDebounce(search, 500);
 
   const { control, handleSubmit, watch, setError, setValue, formState: { errors, isValid } } = useForm<CreateCouponData>({
     resolver: zodResolver(couponSchema),
@@ -141,12 +165,15 @@ export default function CouponForm() {
       usage_limit: 0,
       start_date: null,
       end_date: null,
+      entity_type: null,
+      entity_id: null,
     },
   });
 
   const discountType = watch('discount_type');
   const startDate = watch('start_date');
   const endDate = watch('end_date');
+  const entityType = watch('entity_type');
   console.log("Start Date", startDate);
   console.log("End Date", endDate);
 
@@ -155,6 +182,62 @@ export default function CouponForm() {
       setValue('maximum_discount', null, { shouldValidate: true });
     }
   }, [discountType, setValue]);
+
+  useEffect(() => {
+    setValue('entity_id', null, { shouldValidate: true });
+  }, [entityType, setValue]);
+
+  useEffect(() => {
+    const fetchEntities = async () => {
+      if (!entityType) {
+        setEntities([]);
+        return;
+      }
+
+      setLoadingEntities(true);
+
+      let response: any;
+      let fetchedEntities: any[] = [];
+      const params: any = { limit: 50 };
+
+      if (debouncedSearch) {
+        if (entityType === 'product') {
+          params.keyword = debouncedSearch;
+        } else {
+          params.search = debouncedSearch;
+          params.search_only_name = true;
+        }
+      }
+
+      try {
+        switch (entityType) {
+          case 'brand':
+            response = await listProductBrand(params);
+            fetchedEntities = response?.data?.brands || [];
+            break;
+          case 'category':
+            response = await listProductCategory(params);
+            fetchedEntities = response?.data?.categories || [];
+            break;
+          case 'product':
+            response = await listProducts(params);
+            fetchedEntities = response?.data?.products || [];
+            break;
+          default:
+            fetchedEntities = [];
+            break;
+        }
+        setEntities(fetchedEntities);
+      } catch (error) {
+        console.error('Failed to fetch entities:', error);
+        setEntities([]);
+      } finally {
+        setLoadingEntities(false);
+      }
+    };
+
+    fetchEntities();
+  }, [entityType, debouncedSearch]);
 
   const onSubmit = async (data: CreateCouponData) => {
     try {
@@ -215,6 +298,77 @@ export default function CouponForm() {
 
       <form onSubmit={handleSubmit(onSubmit)} className="">
         <Grid container spacing={3}>
+          <Grid item xs={12} md={6}>
+            <Controller
+              name="entity_type"
+              control={control}
+              render={({ field }) => (
+                <FormControl fullWidth>
+                  <InputLabel>Entity Type</InputLabel>
+                  <Select
+                    {...field}
+                    label="Entity Type"
+                    sx={{ backgroundColor: 'white' }}
+                    value={field.value || ''}
+                    onChange={(e) => field.onChange(e.target.value === '' ? null : e.target.value)}
+                  >
+                    <MenuItem value="product">Product</MenuItem>
+                    <MenuItem value="category">Category</MenuItem>
+                    <MenuItem value="brand">Brand</MenuItem>
+                  </Select>
+                </FormControl>
+              )}
+            />
+          </Grid>
+
+          {entityType && (
+            <Grid item xs={12} md={6}>
+              <Controller
+                name="entity_id"
+                control={control}
+                render={({ field }) => (
+                  <Autocomplete
+                    options={entities}
+                    getOptionLabel={(option) => option.name || option.title || ''}
+                    value={entities.find((e) => String(e.id) === field.value) || null}
+                    onChange={async (event, newValue) => {
+                      field.onChange(newValue ? String(newValue.id) : '');
+                    }}
+                    onInputChange={(event, newInputValue) => {
+                      setSearch(newInputValue);
+                    }}
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        backgroundColor: 'white',
+                      },
+                    }}
+                    filterOptions={(x) => x}
+                    loading={loadingEntities}
+                    renderInput={(params) => (
+                      <TextField
+                        {...params}
+                        label="Entity Name"
+                        fullWidth
+                        className='h-10'
+                        error={!!errors.entity_id}
+                        helperText={errors.entity_id?.message as string}
+                        InputProps={{
+                          ...params.InputProps,
+                          endAdornment: (
+                            <>
+                              {loadingEntities ? <CircularProgress color="inherit" size={20} /> : null}
+                              {params.InputProps.endAdornment}
+                            </>
+                          ),
+                        }}
+                      />
+                    )}
+                  />
+                )}
+              />
+            </Grid>
+          )}
+
           <Grid item xs={12} md={6}>
             <FormTextField
               name="code"
