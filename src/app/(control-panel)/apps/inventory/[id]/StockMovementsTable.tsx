@@ -72,7 +72,7 @@ const StockMovementsTable: React.FC<StockMovementsTableProps> = ({
     );
 
     return (
-        <Paper sx={{ width: '100%', overflow: 'hidden', p: 2, backgroundColor: 'white', mt: 4 }}>
+        <Paper sx={{ width: '100%', p: 2, backgroundColor: 'white' }}>
             <Typography variant="h6" className="p-2">Stock Movements</Typography>
             <Box sx={{ display: 'flex', justifyContent: 'flex-start', p: 2, flexWrap: 'wrap', gap: 2 }}>
                 <TextField
@@ -83,7 +83,6 @@ const StockMovementsTable: React.FC<StockMovementsTableProps> = ({
                     size="small"
                     sx={{ width: '150px' }}
                 >
-                    <MenuItem value="">All</MenuItem>
                     <MenuItem value="addition">Addition</MenuItem>
                     <MenuItem value="deduction">Deduction</MenuItem>
                     <MenuItem value="adjustment">Adjustment</MenuItem>
@@ -111,6 +110,13 @@ const StockMovementsTable: React.FC<StockMovementsTableProps> = ({
                 data={movements}
                 columns={columns}
                 state={{ isLoading: loading }}
+                enableRowSelection={false}
+                enableColumnOrdering={false}
+                enableSorting={false}
+                enableRowActions={false}
+                enableColumnActions={false}
+                enableColumnDragging={false}
+                enableDensityToggle={false}
             />
 
             <div className="flex justify-center p-4">

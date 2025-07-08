@@ -57,7 +57,7 @@ export const getInventoryDashboard = async (params: InventoryParams = {}): Promi
 export interface AddStockPayload {
   variant_id: number;
   quantity: number;
-  reference: string;
+  reference?: string;
 }
 
 export const addStock = async (payload: AddStockPayload) => {
@@ -68,7 +68,7 @@ export const addStock = async (payload: AddStockPayload) => {
 export interface RemoveStockPayload {
   variant_id: number;
   quantity: number;
-  reference: string;
+  reference?: string;
 }
 
 export const removeStock = async (payload: RemoveStockPayload) => {
@@ -79,7 +79,7 @@ export const removeStock = async (payload: RemoveStockPayload) => {
 export interface AdjustStockPayload {
   variant_id: number;
   new_quantity: number;
-  reference: string;
+  reference?: string;
 }
 
 export const adjustStock = async (payload: AdjustStockPayload) => {
