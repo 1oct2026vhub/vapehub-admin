@@ -19,10 +19,16 @@ import {
   Button,
   MenuItem,
   ListItemIcon,
+  TextField,
+  FormControl,
+  InputLabel,
+  Select,
 } from '@mui/material';
 import { getReviews, Review, FetchReviewsParams, deleteReview } from '@/services/apiReview';
 import { useSnackbar } from '@/contexts/SnackbarContext';
 import FuseSvgIcon from '@fuse/core/FuseSvgIcon';
+import { useDebounce } from '@/hooks/useDebounce';
+import ClearFiltersButton from '@/components/Shared/ClearFiltersButton';
 
 interface ReviewTableProps {
   onEditClick?: (review: Review) => void;
@@ -37,6 +43,21 @@ const ReviewTable: React.FC<ReviewTableProps> = ({ onEditClick }) => {
   const [openDialog, setOpenDialog] = useState(false);
   const [selectedReview, setSelectedReview] = useState<Review | null>(null);
   const { showSnackbar } = useSnackbar();
+  const [search, setSearch] = useState('');
+  const [rating, setRating] = useState('all');
+  const [sortBy, setSortBy] = useState('created_at');
+  const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC'>('DESC');
+
+  const debouncedSearch = useDebounce(search, 500);
+
+  const handleClearFilters = () => {
+    setSearch('');
+    setRating('all');
+    setSortBy('created_at');
+    setSortOrder('DESC');
+  };
+
+  const isFilterApplied = search !== '' || rating !== 'all' || sortBy !== 'created_at' || sortOrder !== 'DESC';
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);
@@ -44,8 +65,13 @@ const ReviewTable: React.FC<ReviewTableProps> = ({ onEditClick }) => {
       const params: FetchReviewsParams = {
         page,
         limit,
+        search: debouncedSearch,
+        rating,
+        sortBy,
+        sortOrder,
       };
       const res = await getReviews(params);
+      console.log("reviews", res);
       setReviews(res.reviews || []);
       setTotal(res.total || 0);
       setPage(res.page || 1);
@@ -55,7 +81,7 @@ const ReviewTable: React.FC<ReviewTableProps> = ({ onEditClick }) => {
     finally {
       setIsLoading(false);
     }
-  }, [page, limit, showSnackbar]);
+  }, [page, limit, showSnackbar, debouncedSearch, rating, sortBy, sortOrder]);
 
   useEffect(() => {
     fetchData();
@@ -90,9 +116,9 @@ const ReviewTable: React.FC<ReviewTableProps> = ({ onEditClick }) => {
         Cell: ({ row }) => row.original.user_name ? `${row.original.user_name}` :  'N/A'
       },
       { 
-        accessorKey: 'product_id', 
-        header: 'Product',
-        Cell: ({ row }) => row.original.product_id ? ` ${row.original.product_id}`: 'N/A'
+        accessorKey: 'product_name', 
+        header: 'Product Name',
+        Cell: ({ row }) => row.original.product?.name ? ` ${row.original.product.name}`: 'N/A'
       },
       {
         accessorKey: 'rating',
@@ -127,7 +153,58 @@ const ReviewTable: React.FC<ReviewTableProps> = ({ onEditClick }) => {
 
   return (
     <div>
-      <Paper className="flex flex-col flex-auto shadow-1 overflow-hidden" elevation={0}>
+      <Paper className="flex flex-col flex-auto shadow-1 overflow-hidden p-4" elevation={0}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 4, flexWrap: 'wrap' }}>
+          <TextField
+            label="Search by user or product"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            variant="outlined"
+            sx={{ minWidth: '240px' }}
+          />
+          <FormControl variant="outlined" sx={{ minWidth: 200 }}>
+            <InputLabel>Rating</InputLabel>
+            <Select
+              value={rating}
+              onChange={(e) => setRating(e.target.value)}
+              label="Rating"
+            >
+              <MenuItem value="all"><em>All Ratings</em></MenuItem>
+              <MenuItem value="5">5 Stars</MenuItem>
+              <MenuItem value="4">4 Stars</MenuItem>
+              <MenuItem value="3">3 Stars</MenuItem>
+              <MenuItem value="2">2 Stars</MenuItem>
+              <MenuItem value="1">1 Star</MenuItem>
+            </Select>
+          </FormControl>
+          <FormControl variant="outlined" sx={{ minWidth: 200 }}>
+            <InputLabel>Sort By</InputLabel>
+            <Select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+              label="Sort By"
+            >
+              <MenuItem value="created_at">Date</MenuItem>
+              <MenuItem value="rating">Rating</MenuItem>
+              <MenuItem value="user_name">User Name</MenuItem>
+              <MenuItem value="comment">Comment</MenuItem>
+            </Select>
+          </FormControl>
+          <FormControl variant="outlined" sx={{ minWidth: 150 }}>
+            <InputLabel>Order</InputLabel>
+            <Select
+              value={sortOrder}
+              onChange={(e) => setSortOrder(e.target.value as 'ASC' | 'DESC')}
+              label="Order"
+            >
+              <MenuItem value="DESC">Descending</MenuItem>
+              <MenuItem value="ASC">Ascending</MenuItem>
+            </Select>
+          </FormControl>
+          {isFilterApplied && (
+            <ClearFiltersButton onClick={handleClearFilters} />
+          )}
+        </Box>
         <DataTable
           data={reviews}
           columns={columns}
