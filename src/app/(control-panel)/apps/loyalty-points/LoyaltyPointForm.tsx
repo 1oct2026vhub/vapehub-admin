@@ -19,23 +19,51 @@ import { CreateLoyaltyPointSettingData, createLoyaltyPointSetting, updateLoyalty
 
 const loyaltyPointSchema = z.object({
   program_name: z.string().min(1, 'Program name is required'),
-  points_value: z.preprocess(
-    (val) => val === '' ? null : Number(val),
-    z.number().positive('Points value must be a positive number')
-  ),
-  loyalty_amount: z.preprocess(
-    (val) => val === '' ? null : Number(val),
-    z.number().positive('Loyalty amount must be a positive number')
-  ),
+  points_value: z.coerce
+    .number()
+    .min(1, 'Points value is required')
+    .positive('Points value must be a positive number')
+    .refine(
+      (value) => {
+        const parts = String(value).split('.');
+        return parts.length === 1 || (parts.length === 2 && parts[1].length <= 2);
+      },
+      {
+        message: 'Points value can have at most 2 decimal places.',
+      }
+    ),
+  loyalty_amount: z.coerce
+    .number()
+    .min(1, 'Loyalty amount is required')
+    .positive('Loyalty amount must be a positive number')
+    .refine(
+      (value) => {
+        const parts = String(value).split('.');
+        return parts.length === 1 || (parts.length === 2 && parts[1].length <= 2);
+      },
+      {
+        message: 'Loyalty amount can have at most 2 decimal places.',
+      }
+    ),
   loyalty_amount_type: z.enum(['percentage', 'fixed']),
-  minimum_points_redemption: z.preprocess(
-    (val) => val === '' ? null : Number(val),
-    z.number().int().positive('Minimum points redemption must be a positive integer')
-  ),
-  minimum_purchase_amount: z.preprocess(
-    (val) => val === '' ? null : Number(val),
-    z.number().positive('Minimum purchase amount must be a positive number')
-  ),
+  minimum_points_redemption: z.coerce
+    .number()
+    .int()
+    .min(1, 'Minimum points redemption is required')
+    .positive('Minimum points redemption must be a positive integer'),
+  minimum_purchase_amount: z.coerce
+    .number()
+    .min(1, 'Minimum purchase amount is required')
+    .positive('Minimum purchase amount must be a positive number')
+    .refine(
+      (value) => {
+        const parts = String(value).split('.');
+        return parts.length === 1 || (parts.length === 2 && parts[1].length <= 2);
+      },
+      {
+        message: 'Minimum purchase amount can have at most 2 decimal places.',
+      }
+    ),
   status: z.boolean(),
 });
 
@@ -151,6 +179,11 @@ export default function LoyaltyPointForm({ initialData = null }: LoyaltyPointFor
               required
               error={!!errors.minimum_points_redemption}
               helperText={errors.minimum_points_redemption?.message}
+              onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
+                if (e.key === '.') {
+                  e.preventDefault();
+                }
+              }}
             />
           </Grid>
           <Grid item xs={12} md={6}>

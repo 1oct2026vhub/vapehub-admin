@@ -112,7 +112,14 @@ const LoyaltyPointsTable: React.FC = () => {
       {
         accessorKey: 'updatedBy.first_name',
         header: 'Updated By',
-        Cell: ({ row }) => `${row.original.updatedBy?.first_name || ''} ${row.original.updatedBy?.last_name || ''}`,
+        Cell: ({ row }) => {
+            const { updatedBy } = row.original;
+            if (!updatedBy) {
+                return 'N/A';
+            }
+            const fullName = `${updatedBy.first_name || ''} ${updatedBy.last_name || ''}`.trim();
+            return fullName || updatedBy.email || 'N/A';
+        },
       },
     ],
     []
