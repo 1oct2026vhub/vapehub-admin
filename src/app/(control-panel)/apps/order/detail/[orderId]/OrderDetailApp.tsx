@@ -238,7 +238,7 @@ const OrderDetailApp = () => {
               <Typography variant="h6" className="font-medium">
                 Order #{order?.order_unique_id || ""}
               </Typography>
-              <Button
+              {/* <Button
                 startIcon={<DownloadIcon />}
                 size="small"
                 variant="outlined"
@@ -252,7 +252,7 @@ const OrderDetailApp = () => {
                 }}
               >
                 Export Invoice
-              </Button>
+              </Button> */}
             </div>
             <Typography variant="body2" color="text.secondary" className="mb-4">
               Shipping Details 
@@ -465,7 +465,7 @@ const OrderDetailApp = () => {
               <Typography variant="h6" className="font-medium">
                 Payment Details
               </Typography>
-              <Button
+              {/* <Button
                 startIcon={<DownloadIcon />}
                 size="small"
                 variant="outlined"
@@ -479,7 +479,7 @@ const OrderDetailApp = () => {
                 }}
               >
                 Download Invoice
-              </Button>
+              </Button> */}
             </div>
             <Typography variant="body2" color="text.secondary" className="mb-4">
               Final Payment Amount

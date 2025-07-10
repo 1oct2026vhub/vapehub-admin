@@ -215,12 +215,13 @@ const DealsTable: React.FC = () => {
           enableColumnOrdering
           renderRowActionMenuItems={({ closeMenu, row }) => {
             const menuItems = [
+              !row.original.deletedAt && (
               <MenuItem key="edit" onClick={() => { router.push(`/apps/deals/deal-edit/${row.original.id}`); closeMenu(); }}>
                 <ListItemIcon>
                   <FuseSvgIcon>heroicons-outline:pencil-square</FuseSvgIcon>
                 </ListItemIcon>
                 Edit
-              </MenuItem>,
+              </MenuItem>),
               <MenuItem key="delete" onClick={() => { handleDeleteClick(row.original); closeMenu(); }}>
                 <ListItemIcon>
                   <FuseSvgIcon>

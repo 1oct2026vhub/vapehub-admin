@@ -79,7 +79,7 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
         () => [
             {
                 accessorKey: 'name',
-                header: 'Product',
+                header: 'Product Name',
                 Cell: ({ row }) => (
                     <Box sx={{ display: 'flex', alignItems: 'center' }}>
                         <Avatar src={row.original.image || undefined} sx={{ mr: 2 }}>{row.original.name?.charAt(0)}</Avatar>

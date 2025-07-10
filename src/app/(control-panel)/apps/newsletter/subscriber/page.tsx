@@ -14,14 +14,14 @@ function MailSubscriptionSettingsPage() {
 				<Typography variant="h4" className="font-semibold mb-4">
 					Mail Subscription Settings
 				</Typography>
-				<Button
+				{/* <Button
 					variant="contained"
 					color="primary"
 					startIcon={<FuseSvgIcon>heroicons-outline:plus</FuseSvgIcon>}
 					onClick={() => router.push('/apps/newsletter/settings/new')}
 				>
 					Add Setting
-				</Button>
+				</Button> */}
 			</div>
 			<div className="p-8">
 				<MailSubscriptionSettingsTable />

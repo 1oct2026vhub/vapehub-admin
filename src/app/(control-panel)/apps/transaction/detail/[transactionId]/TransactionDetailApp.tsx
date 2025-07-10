@@ -243,7 +243,7 @@ const TransactionDetailApp = () => {
               </Select>
             </FormControl>
             <div className="flex gap-2">
-              <Button
+              {/* <Button
                 variant="outlined"
                 startIcon={<DownloadIcon />}
                 size="small"
@@ -258,7 +258,7 @@ const TransactionDetailApp = () => {
                 }}
               >
                 Export Receipt
-              </Button>
+              </Button> */}
               <Tooltip title="Process full or partial refund">
                 <Button
                   variant="outlined"

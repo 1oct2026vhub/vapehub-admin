@@ -113,7 +113,7 @@ export const couponSchema = z.object({
   status: z.enum(['active', 'inactive', 'expired'], {
     required_error: 'Status is required',
   }),
-  entity_type: z.enum(['product', 'brand', 'category']).nullable().optional(),
+  entity_type: z.enum(['product', 'brand', 'category', 'all']).nullable().optional(),
   entity_id: z.string().nullable().optional(),
 }).refine(data => {
     if (data.start_date && data.end_date) {
@@ -124,7 +124,7 @@ export const couponSchema = z.object({
     message: "End date must be after start date",
     path: ["end_date"],
 }).refine(data => {
-    if (data.entity_type) {
+    if (data.entity_type && data.entity_type !== 'all') {
         return !!data.entity_id;
     }
     return true;
@@ -132,6 +132,8 @@ export const couponSchema = z.object({
     message: 'Entity Name is required when entity type is selected.',
     path: ['entity_id'],
 });
+
+type CouponFormValues = z.infer<typeof couponSchema>;
 
 export default function EditCouponForm() {
   const router = useRouter();
@@ -145,7 +147,7 @@ export default function EditCouponForm() {
   const debouncedSearch = useDebounce(search, 500);
   const [initialEntity, setInitialEntity] = useState<any>(null);
 
-  const { control, handleSubmit, reset, watch, setError, setValue, formState: { errors } } = useForm<CreateCouponData>({
+  const { control, handleSubmit, reset, watch, setError, setValue, formState: { errors } } = useForm<CouponFormValues>({
     resolver: zodResolver(couponSchema),
     mode: 'all',
     defaultValues: {
@@ -160,7 +162,7 @@ export default function EditCouponForm() {
       start_date: null,
       end_date: null,
       status: 'active',
-      entity_type: null,
+      entity_type: 'all',
       entity_id: null,
     },
   });
@@ -186,7 +188,7 @@ export default function EditCouponForm() {
           start_date: coupon.start_date ? new Date(coupon.start_date).toISOString() : null,
           end_date: coupon.end_date ? new Date(coupon.end_date).toISOString() : null,
           status: coupon.status || 'active',
-          entity_type: coupon.entity_type || null,
+          entity_type: coupon.entity_type || 'all',
           entity_id: coupon.entity_id ? String(coupon.entity_id) : null,
         });
 
@@ -206,7 +208,7 @@ export default function EditCouponForm() {
 
   useEffect(() => {
     const fetchEntities = async () => {
-      if (!entityType) {
+      if (!entityType || entityType === 'all') {
         setEntities([]);
         return;
       }
@@ -265,7 +267,7 @@ export default function EditCouponForm() {
     }
   }, [discountType, setValue]);
 
-  const onSubmit = async (data: CreateCouponData) => {
+  const onSubmit = async (data: CouponFormValues) => {
     try {
       setIsSubmitting(true);
       const toUTC = (dateString: string | null | undefined): string | null => {
@@ -282,10 +284,12 @@ export default function EditCouponForm() {
       };
       const submissionData = {
         ...data,
+        entity_type: data.entity_type === 'all' ? null : data.entity_type,
+        entity_id: data.entity_type === 'all' ? null : data.entity_id,
         start_date: toUTC(data.start_date),
         end_date: toUTC(data.end_date),
       };
-      await updateCoupon(Number(params.id), submissionData);
+      await updateCoupon(Number(params.id), submissionData as unknown as CreateCouponData);
       showSnackbar('Coupon updated successfully', 'success');
       router.push('/apps/coupon');
     } catch (error: any) {
@@ -338,6 +342,7 @@ export default function EditCouponForm() {
                         setInitialEntity(null);
                     }}
                   >
+                    <MenuItem value="all">All</MenuItem>
                     <MenuItem value="product">Product</MenuItem>
                     <MenuItem value="category">Category</MenuItem>
                     <MenuItem value="brand">Brand</MenuItem>
@@ -347,7 +352,7 @@ export default function EditCouponForm() {
             />
           </Grid>
 
-          {entityType && (
+          {entityType && entityType !== 'all' && (
             <Grid item xs={12} md={6}>
               <Controller
                 name="entity_id"
