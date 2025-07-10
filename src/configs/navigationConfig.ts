@@ -230,6 +230,33 @@ const navigationConfig: FuseNavItemType[] = [
     icon: "heroicons-outline:gift",
     url: "/apps/loyalty-points"
   },
+  {
+    id: "newsletter",
+    title: "Newsletter",
+    // translate: 'EXAMPLE',
+    type: "collapse",
+    icon: "heroicons-outline:envelope",
+    children: [
+      {
+        id: "subscriber",
+        title: "Subscriber",
+        type: "item",
+        url: "/apps/newsletter/subscriber",
+      },
+      {
+        id: "settings",
+        title: "Settings",
+        type: "item",
+        url: "/apps/newsletter/settings/new",
+      },
+      {
+        id: "newsletter.list",
+        title: "Newsletter",
+        type: "item",
+        url: "/apps/newsletter",
+      },
+    ],
+  },
   
 ];
 
