@@ -122,7 +122,7 @@ export const couponSchema = z.object({
   status: z.enum(['active', 'inactive', 'expired'], {
     required_error: 'Status is required',
   }),
-  entity_type: z.enum(['product', 'brand', 'category']).nullable().optional(),
+  entity_type: z.enum(['product', 'brand', 'category', 'all']).nullable().optional(),
   entity_id: z.string().nullable().optional(),
 }).refine(data => {
     if (data.start_date && data.end_date) {
@@ -138,9 +138,11 @@ export const couponSchema = z.object({
     }
     return true;
 }, {
-    message: 'Entity is required when entity type is selected.',
+    message: 'Entity Name is required when entity type is selected.',
     path: ['entity_id'],
 });
+
+type CouponFormValues = z.infer<typeof couponSchema>;
 
 export default function CouponForm() {
   const router = useRouter();
@@ -151,7 +153,7 @@ export default function CouponForm() {
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebounce(search, 500);
 
-  const { control, handleSubmit, watch, setError, setValue, formState: { errors, isValid } } = useForm<CreateCouponData>({
+  const { control, handleSubmit, watch, setError, setValue, formState: { errors, isValid } } = useForm<CouponFormValues>({
     resolver: zodResolver(couponSchema),
     mode: 'all',
     defaultValues: {
@@ -239,7 +241,7 @@ export default function CouponForm() {
     fetchEntities();
   }, [entityType, debouncedSearch]);
 
-  const onSubmit = async (data: CreateCouponData) => {
+  const onSubmit = async (data: CouponFormValues) => {
     try {
       setIsSubmitting(true);
       const toUTC = (dateString: string | null | undefined): string | null => {
@@ -255,14 +257,15 @@ export default function CouponForm() {
         )).toISOString();
       };
 
-      const payload = {
+      const submissionData = {
         ...data,
-        start_date: toUTC(data.start_date),
-        end_date: toUTC(data.end_date),
+        entity_type: data.entity_type === 'all' ? null : data.entity_type,
+        entity_id: data.entity_type === 'all' ? null : data.entity_id,
       };
-      await createCoupon(payload);
+
+      await createCoupon(submissionData as unknown as CreateCouponData);
       showSnackbar('Coupon created successfully', 'success');
-      // router.push('/apps/coupon');
+      router.push('/apps/coupon');
     } catch (error: any) {
   if (error?.error) {
         showSnackbar(error?.error[0]?.msg || error?.error[0]?.message, "error");
@@ -312,6 +315,7 @@ export default function CouponForm() {
                     value={field.value || ''}
                     onChange={(e) => field.onChange(e.target.value === '' ? null : e.target.value)}
                   >
+                    <MenuItem value="all">All</MenuItem>
                     <MenuItem value="product">Product</MenuItem>
                     <MenuItem value="category">Category</MenuItem>
                     <MenuItem value="brand">Brand</MenuItem>
@@ -321,7 +325,7 @@ export default function CouponForm() {
             />
           </Grid>
 
-          {entityType && (
+          {entityType && entityType !== 'all' && (
             <Grid item xs={12} md={6}>
               <Controller
                 name="entity_id"
