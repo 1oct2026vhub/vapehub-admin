@@ -250,6 +250,12 @@ const navigationConfig: FuseNavItemType[] = [
         url: "/apps/newsletter/settings/new",
       },
       {
+        id: "promotional",
+        title: "Promotional",
+        type: "item",
+        url: "/apps/newsletter/promotional",
+      },
+      {
         id: "newsletter.list",
         title: "Newsletter",
         type: "item",

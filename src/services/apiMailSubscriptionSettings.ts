@@ -82,3 +82,22 @@ export async function restoreSetting(id: number): Promise<any> {
   const response = await axiosInstance.post(`/api/admin/mail-subscription-settings/${id}/restore`);
   return response.data;
 } 
+
+export interface PromotionalEmailData {
+  subject: string;
+  content: string;
+  highlightText?: string;
+  ctaText?: string;
+  ctaUrl?: string;
+  sendToAll: boolean;
+  images?: {
+    url: string;
+    alt: string;
+    isPrimary?: boolean;
+  }[];
+}
+
+export async function sendPromotionalEmail(data: PromotionalEmailData): Promise<any> {
+  const response = await axiosInstance.post('/api/admin/mail-subscription-settings/promotional/send', data);
+  return response.data;
+} 
