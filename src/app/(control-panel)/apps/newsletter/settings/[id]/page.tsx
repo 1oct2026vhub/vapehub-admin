@@ -1,36 +1,38 @@
 'use client';
-
 import { useEffect, useState } from 'react';
 import { getMailSubscriptionSettingById } from '@/services/apiMailSubscriptionSettings';
 import type { MailSubscriptionSetting } from '@/services/apiMailSubscriptionSettings';
 import MailSubscriptionSettingForm from '../_components/MailSubscriptionSettingForm';
 import { Typography } from '@mui/material';
 import FuseLoading from '@fuse/core/FuseLoading';
+import { useParams, notFound } from 'next/navigation';
 
-interface Params {
-    id: string;
-}
-
-function EditMailSubscriptionSettingPage({ params }: { params: Params }) {
+function EditMailSubscriptionSettingPage() {
     const [setting, setSetting] = useState<MailSubscriptionSetting | null>(null);
     const [loading, setLoading] = useState(true);
+    const params = useParams();
+    const settingId = Number(params.id);
 
     useEffect(() => {
+        if (isNaN(settingId)) {
+            notFound();
+            return;
+        }
+
         const fetchSetting = async () => {
             try {
-                if (params.id) {
-                    const response = await getMailSubscriptionSettingById(Number(params.id));
-                    setSetting(response.data);
-                }
+                const response = await getMailSubscriptionSettingById(settingId);
+                setSetting(response.data);
             } catch (error) {
                 console.error('Failed to fetch setting', error);
+                notFound();
             } finally {
                 setLoading(false);
             }
         };
 
         fetchSetting();
-    }, [params.id]);
+    }, [settingId]);
 
     if (loading) {
         return <FuseLoading />;
