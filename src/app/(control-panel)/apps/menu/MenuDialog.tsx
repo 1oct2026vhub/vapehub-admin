@@ -244,7 +244,7 @@ const MenuDialog: React.FC<MenuDialogProps> = ({ open, onClose, onSave, menuItem
         },
       }}
     >
-      <DialogTitle>{isEditing ? 'Edit Menu Item' : 'Create Menu Item'}</DialogTitle>
+      <DialogTitle>{isEditing ? 'Edit Menu' : 'Create Menu'}</DialogTitle>
       <form onSubmit={handleSubmit(onSubmit)}>
         <DialogContent>
           <Grid container spacing={2} sx={{ mt: 1 }}>
@@ -286,7 +286,7 @@ const MenuDialog: React.FC<MenuDialogProps> = ({ open, onClose, onSave, menuItem
                       getOptionLabel={(option) => option.name || option.title || ''}
                       value={entities.find((e) => e.id === field.value) || null}
                       onChange={(event, newValue) => {
-                        field.onChange(newValue ? newValue.id : null);
+                        setValue('entity_id', newValue ? newValue.id : null, { shouldValidate: true });
                         if (newValue && newValue.slug) {
                           const baseUrl = process.env.NEXT_PUBLIC_WEB_URL || '';
                           setValue('original', `${baseUrl}/${newValue.slug}`, { shouldValidate: true });

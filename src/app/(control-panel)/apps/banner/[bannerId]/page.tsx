@@ -169,14 +169,14 @@ const BannerDetailPage: React.FC = () => {
                       <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap' }}>{banner.description}</Typography>
                     </div>
                   )}
-                  <div className='flex gap-2 items-center'>
+                  {/* <div className='flex gap-2 items-center'>
                     <Typography variant="subtitle2" color="text.secondary">Status:</Typography>
                     <Chip
                       label={banner.status ? 'Active' : 'Inactive'}
                       color={banner.status ? 'success' : 'error'}
                       size="small"
                     />
-                  </div>
+                  </div> */}
                   {/* <div>
                     <Typography variant="subtitle2" color="text.secondary">Display Order:</Typography>
                     <Typography variant="body1">{banner.display_order}</Typography>

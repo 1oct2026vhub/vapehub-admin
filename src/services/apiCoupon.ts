@@ -7,6 +7,7 @@ export interface Coupon {
   status: 'active' | 'inactive' | 'expired';
   discount_type: 'percentage' | 'fixed_amount';
   discount_value: number;
+  entity_type?: 'product' | 'brand' | 'category' | null;
   start_date: string;
   end_date: string;
   createdAt: string;
@@ -31,6 +32,7 @@ export interface FetchCouponsParams {
   search?: string;
   status?: 'active' | 'inactive' | 'expired';
   discount_type?: 'percentage' | 'fixed_amount';
+  entity_type?: 'product' | 'brand' | 'category';
   start_date?: string;
   end_date?: string;
 }

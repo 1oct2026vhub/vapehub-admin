@@ -20,8 +20,7 @@ import { CreateLoyaltyPointSettingData, createLoyaltyPointSetting, updateLoyalty
 const loyaltyPointSchema = z.object({
   program_name: z.string().min(1, 'Program name is required'),
   points_value: z.coerce
-    .number()
-    .min(0, 'Points value cannot be negative.')
+    .number({ invalid_type_error: 'Points value is required' })
     .positive('Points value must be a positive number')
     .refine(
       (value) => {
@@ -33,8 +32,7 @@ const loyaltyPointSchema = z.object({
       }
     ),
   loyalty_amount: z.coerce
-    .number()
-    .min(0, 'Loyalty amount cannot be negative.')
+    .number({ invalid_type_error: 'Loyalty amount is required' })
     .positive('Loyalty amount must be a positive number')
     .refine(
       (value) => {
@@ -47,12 +45,11 @@ const loyaltyPointSchema = z.object({
     ),
   loyalty_amount_type: z.enum(['percentage', 'fixed']),
   minimum_points_redemption: z.coerce
-    .number()
-    .int()
-    .min(0, 'Minimum points redemption cannot be negative.'),
+    .number({ invalid_type_error: 'Minimum points redemption is required' })
+    .int('Minimum points redemption must be a whole number')
+    .positive('Minimum points redemption must be a positive integer'),
   minimum_purchase_amount: z.coerce
-    .number()
-    .min(0, 'Minimum purchase amount cannot be negative.')
+    .number({ invalid_type_error: 'Minimum purchase amount is required' })
     .positive('Minimum purchase amount must be a positive number')
     .refine(
       (value) => {
@@ -82,11 +79,11 @@ export default function LoyaltyPointForm({ initialData = null }: LoyaltyPointFor
     mode: 'all',
     defaultValues: {
       program_name: initialData?.program_name || '',
-      points_value: initialData ? Number(initialData.points_value) : null,
-      loyalty_amount: initialData ? Number(initialData.loyalty_amount) : null,
+      points_value: initialData ? Number(initialData.points_value) : undefined,
+      loyalty_amount: initialData ? Number(initialData.loyalty_amount) : undefined,
       loyalty_amount_type: (initialData?.loyalty_amount_type as 'percentage' | 'fixed') || 'fixed',
-      minimum_points_redemption: initialData?.minimum_points_redemption || null,
-      minimum_purchase_amount: initialData ? Number(initialData.minimum_purchase_amount) : null,
+      minimum_points_redemption: initialData?.minimum_points_redemption || undefined,
+      minimum_purchase_amount: initialData ? Number(initialData.minimum_purchase_amount) : undefined,
       status: initialData?.status ?? true,
     },
   });
@@ -144,7 +141,6 @@ export default function LoyaltyPointForm({ initialData = null }: LoyaltyPointFor
               required
               error={!!errors.points_value}
               helperText={errors.points_value?.message}
-              inputProps={{ min: 0, step: "0.01" }}
             />
           </Grid>
           <Grid item xs={12} md={6}>
@@ -156,7 +152,6 @@ export default function LoyaltyPointForm({ initialData = null }: LoyaltyPointFor
               required
               error={!!errors.loyalty_amount}
               helperText={errors.loyalty_amount?.message}
-              inputProps={{ min: 0, step: "0.01" }}
             />
           </Grid>
           <Grid item xs={12} md={6}>
@@ -180,7 +175,6 @@ export default function LoyaltyPointForm({ initialData = null }: LoyaltyPointFor
               required
               error={!!errors.minimum_points_redemption}
               helperText={errors.minimum_points_redemption?.message}
-              inputProps={{ min: 0 }}
               onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
                 if (e.key === '.') {
                   e.preventDefault();
@@ -197,7 +191,6 @@ export default function LoyaltyPointForm({ initialData = null }: LoyaltyPointFor
               required
               error={!!errors.minimum_purchase_amount}
               helperText={errors.minimum_purchase_amount?.message}
-              inputProps={{ min: 0, step: "0.01" }}
             />
           </Grid>
           <Grid item xs={12}>
