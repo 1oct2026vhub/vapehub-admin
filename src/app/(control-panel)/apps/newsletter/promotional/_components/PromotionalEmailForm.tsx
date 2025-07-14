@@ -71,7 +71,7 @@ const PromotionalEmailForm = () => {
   return (
     <div className="p-6">
       {/* <PageHeader title="Send Promotional Email" /> */}
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 bg-white rounded-lg p-6">
         <FormTextField name="subject" control={control} label="Subject" required />
         <FormCKEditor name="content" control={control} label="Content" required />
         <FormTextField name="highlightText" control={control} label="Highlight Text" />
