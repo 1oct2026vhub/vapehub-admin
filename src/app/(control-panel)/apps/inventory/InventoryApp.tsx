@@ -17,7 +17,7 @@ function InventoryApp() {
         page: 1,
         limit: 10,
         sort_by: 'name',
-        sort_order: 'ASC',
+        sort_order: 'DESC',
     });
 
     const fetchInventory = useCallback(async () => {

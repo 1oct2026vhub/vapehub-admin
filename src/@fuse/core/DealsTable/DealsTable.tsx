@@ -28,8 +28,6 @@ import { getDeals, Deal, FetchDealsParams, deleteDeal, restoreDeal } from '@/ser
 import FuseSvgIcon from '@fuse/core/FuseSvgIcon';
 import { useRouter } from 'next/navigation';
 import { useSnackbar } from '@/contexts/SnackbarContext';
-import { useFetch } from '@/hooks/useFetch';
-import { mutate } from 'swr';
 
 const DealsTable: React.FC = () => {
   const [search, setSearch] = useState('');
@@ -42,8 +40,9 @@ const DealsTable: React.FC = () => {
   const [dealType, setDealType] = useState<string>('BUY_N_FOR_FIXED');
   const [validNow, setValidNow] = useState<boolean | null>(null);
   const [isDeleted, setIsDeleted] = useState<boolean | null>(null);
-  const [localDeals, setLocalDeals] = useState<Deal[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [deals, setDeals] = useState<Deal[]>([]);
+  const [total, setTotal] = useState(0);
+  const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
   const { showSnackbar } = useSnackbar();
 
@@ -68,28 +67,30 @@ const DealsTable: React.FC = () => {
     return () => clearTimeout(timer);
   }, [search]);
 
-  const queryParams = useMemo(() => {
-    const params: FetchDealsParams = { page, limit };
-    if (debouncedSearch) params.search = debouncedSearch;
-    if (status) params.status = status === 'active';
-    if (dealType) params.type = dealType;
-    if (validNow !== null) params.validNow = validNow;
-    if (isDeleted !== null) params.deleted = isDeleted;
-    return params;
-  }, [page, limit, debouncedSearch, status, dealType, validNow, isDeleted]);
-
-  const { data, error, isLoading: fetchLoading } = useFetch(['dealsList', queryParams], () => getDeals(queryParams), {
-    keepPreviousData: true,
-  });
+  const fetchData = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const params: FetchDealsParams = { page, limit };
+      if (debouncedSearch) params.search = debouncedSearch;
+      if (status) params.status = status === 'active';
+      if (dealType) params.type = dealType;
+      if (validNow !== null) params.validNow = validNow;
+      if (isDeleted !== null) params.deleted = isDeleted;
+      
+      const res = await getDeals(params);
+      setDeals(res.data.deals || []);
+      setTotal(res.data.pagination?.total || 0);
+    } catch (error) {
+      showSnackbar('Failed to fetch deals', 'error');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [page, limit, debouncedSearch, status, dealType, validNow, isDeleted, showSnackbar]);
 
   useEffect(() => {
-    if (data?.data.deals) {
-      setLocalDeals(data.data.deals);
-    }
-    setIsLoading(fetchLoading && localDeals.length === 0);
-  }, [data?.data.deals, fetchLoading, localDeals.length]);
+    fetchData();
+  }, [fetchData]);
 
-  const total = data?.data.pagination?.total || 0;
   const totalPages = Math.ceil(total / limit);
 
   const handleDeleteClick = (deal: Deal) => {
@@ -104,11 +105,12 @@ const DealsTable: React.FC = () => {
       if (selectedDeal.deletedAt) {
         await restoreDeal(selectedDeal.id);
         showSnackbar('Deal restored successfully!', 'success');
+        clearFilters();
       } else {
         await deleteDeal(selectedDeal.id);
         showSnackbar('Deal deleted successfully!', 'success');
+        fetchData();
       }
-      mutate(['dealsList', queryParams]);
     } catch (err: any) {
       showSnackbar(err?.message || 'Action failed', 'error');
     }
@@ -153,7 +155,6 @@ const DealsTable: React.FC = () => {
   );
 
   if (isLoading) return <FuseLoading />;
-  if (error) return <p>Error loading deals.</p>;
 
   return (
     <div>
@@ -210,7 +211,7 @@ const DealsTable: React.FC = () => {
           {areFiltersActive && <ClearFiltersButton onClick={clearFilters} />}
         </div>
         <DataTable
-          data={localDeals}
+          data={deals}
           columns={columns}
           enableColumnOrdering
           renderRowActionMenuItems={({ closeMenu, row }) => {
