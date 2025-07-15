@@ -17,7 +17,7 @@ const AdminDashboardHeader = () => {
             Admin Dashboard
           </Typography>
           <Breadcrumbs aria-label="breadcrumb">
-            <Link href="/" passHref>
+            {/* <Link href="/" passHref>
               <Box
                 component="span"
                 sx={{
@@ -30,7 +30,7 @@ const AdminDashboardHeader = () => {
                 <HomeIcon sx={{ mr: 0.5 }} fontSize="inherit" />
                 Home
               </Box>
-            </Link>
+            </Link> */}
             <Link href="/dashboards" passHref>
               <Box
                 component="span"

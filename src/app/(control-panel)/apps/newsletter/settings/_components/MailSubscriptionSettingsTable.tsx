@@ -140,7 +140,6 @@ const MailSubscriptionSettingsTable: React.FC = () => {
   );
 
   if (isLoading) return <FuseLoading />;
-
   return (
     <div>
       <Paper className="flex flex-col flex-auto shadow-1 overflow-hidden" elevation={0}>

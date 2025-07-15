@@ -163,7 +163,7 @@ const SeoListTable: React.FC<{ refreshTrigger: number, onEdit: (data: SeoListIte
                         displayEmpty
                         size="small"
                     >
-                        <MenuItem value="">Any No Index</MenuItem>
+                        <MenuItem value="">All</MenuItem>
                         <MenuItem value="true">Yes</MenuItem>
                         <MenuItem value="false">No</MenuItem>
                     </Select>
@@ -193,7 +193,7 @@ const SeoListTable: React.FC<{ refreshTrigger: number, onEdit: (data: SeoListIte
                                 <ListItemIcon>
                                     <FuseSvgIcon>heroicons-outline:pencil-square</FuseSvgIcon>
                                 </ListItemIcon>
-                                Edit in Modal
+                                Edit
                             </MenuItem>
                         );
 

@@ -133,16 +133,16 @@ export const couponSchema = z.object({
     message: "End date must be after start date",
     path: ["end_date"],
 }).refine(data => {
-    if (data.entity_type) {
+    if (data.entity_type && data.entity_type !== 'all') {
         return !!data.entity_id;
     }
     return true;
 }, {
-    message: 'Entity Name is required when entity type is selected.',
+    message: 'Entity is required when entity type is selected.',
     path: ['entity_id'],
 });
 
-type CouponFormValues = z.infer<typeof couponSchema>;
+export type CouponFormSchema = z.infer<typeof couponSchema>;
 
 export default function CouponForm() {
   const router = useRouter();
@@ -153,7 +153,7 @@ export default function CouponForm() {
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebounce(search, 500);
 
-  const { control, handleSubmit, watch, setError, setValue, formState: { errors, isValid } } = useForm<CouponFormValues>({
+  const { control, handleSubmit, watch, setError, setValue, formState: { errors, isValid } } = useForm<CouponFormSchema>({
     resolver: zodResolver(couponSchema),
     mode: 'all',
     defaultValues: {
@@ -241,7 +241,7 @@ export default function CouponForm() {
     fetchEntities();
   }, [entityType, debouncedSearch]);
 
-  const onSubmit = async (data: CouponFormValues) => {
+  const onSubmit = async (data: CouponFormSchema) => {
     try {
       setIsSubmitting(true);
       const toUTC = (dateString: string | null | undefined): string | null => {
@@ -257,13 +257,13 @@ export default function CouponForm() {
         )).toISOString();
       };
 
-      const submissionData = {
+      const payload = {
         ...data,
+        start_date: toUTC(data.start_date),
+        end_date: toUTC(data.end_date),
         entity_type: data.entity_type === 'all' ? null : data.entity_type,
-        entity_id: data.entity_type === 'all' ? null : data.entity_id,
       };
-
-      await createCoupon(submissionData as unknown as CreateCouponData);
+      await createCoupon(payload as CreateCouponData);
       showSnackbar('Coupon created successfully', 'success');
       router.push('/apps/coupon');
     } catch (error: any) {
@@ -307,12 +307,13 @@ export default function CouponForm() {
               control={control}
               render={({ field }) => (
                 <FormControl fullWidth>
-                  <InputLabel>Entity Type</InputLabel>
+                  <InputLabel id="entity-type-label">Entity Type</InputLabel>
                   <Select
                     {...field}
+                    labelId="entity-type-label"
                     label="Entity Type"
                     sx={{ backgroundColor: 'white' }}
-                    value={field.value || ''}
+                    value={field.value ?? ''}
                     onChange={(e) => field.onChange(e.target.value === '' ? null : e.target.value)}
                   >
                     <MenuItem value="all">All</MenuItem>

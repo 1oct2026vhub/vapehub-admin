@@ -78,7 +78,45 @@ export async function deleteSetting(id: number): Promise<any> {
   return response.data;
 }
 
+export interface SubscriberStatsData {
+  totalSubscribers: number;
+  recentSubscribers: number;
+  frequencyStats: {
+    [key: string]: number;
+  };
+}
+
+export interface SubscriberStatsApiResponse {
+    success: boolean;
+    data: SubscriberStatsData;
+    message: string;
+}
+
+export async function getSubscriberStats(): Promise<SubscriberStatsApiResponse> {
+  const response = await axiosInstance.get('/api/admin/mail-subscription-settings/subscribers/stats');
+  return response.data;
+}
+
 export async function restoreSetting(id: number): Promise<any> {
   const response = await axiosInstance.post(`/api/admin/mail-subscription-settings/${id}/restore`);
+  return response.data;
+} 
+
+export interface PromotionalEmailData {
+  subject: string;
+  content: string;
+  highlightText?: string;
+  ctaText?: string;
+  ctaUrl?: string;
+  sendToAll: boolean;
+  images?: {
+    url: string;
+    alt: string;
+    isPrimary?: boolean;
+  }[];
+}
+
+export async function sendPromotionalEmail(data: PromotionalEmailData): Promise<any> {
+  const response = await axiosInstance.post('/api/admin/mail-subscription-settings/promotional/send', data);
   return response.data;
 } 

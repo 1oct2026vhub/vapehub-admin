@@ -24,9 +24,9 @@ interface SeoFormProps {
 }
 
 const seoFormSchema = z.object({
-    title: z.string().optional(),
+    title: z.string().min(1, 'Title is required'),
     description: z.string().optional(),
-    focusKeyword: z.string().optional(),
+    focusKeyword: z.string().min(1, 'Focus Keyword is required'),
     canonicalUrl: z.string().url({ message: 'Please enter a valid URL' }).optional().or(z.literal('')),
     ogImage: z.string().url({ message: 'Please enter a valid URL' }).optional().or(z.literal('')),
     noIndex: z.boolean().default(false),
@@ -174,13 +174,13 @@ function SeoForm({ entityType, entityId, entityName, entitySlug, fullWidth = fal
           <Grid item xs={12} md={fullWidth ? 12 : 7}>
             <Grid container spacing={2}>
               <Grid item xs={12}>
-                <FormTextField name="title" label="Meta Title" control={control} fullWidth />
+                <FormTextField name="title" label="Meta Title" control={control} fullWidth required/>
               </Grid>
               <Grid item xs={12}>
                 <FormTextField name="description" label="Meta Description" control={control} fullWidth multiline rows={4} />
               </Grid>
               <Grid item xs={12}>
-                <FormTextField name="focusKeyword" label="Focus Keyword" control={control} fullWidth />
+                <FormTextField name="focusKeyword" label="Focus Keyword" control={control} fullWidth required/>
               </Grid>
               <Grid item xs={12}>
                 <FormTextField name="canonicalUrl" label="Canonical URL" control={control} fullWidth />

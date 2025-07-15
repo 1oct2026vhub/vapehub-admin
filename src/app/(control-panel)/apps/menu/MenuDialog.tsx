@@ -26,11 +26,12 @@ import { listProductBrand } from '@/services/apiProductBrand';
 import { listProductCategory } from '@/services/apiProductCategory';
 import { getBlogPosts } from '@/services/apiBlog';
 import { useDebounce } from '@/hooks/useDebounce';
+import { getDeals } from '@/services/apiDeals';
 
 const menuSchema = z
   .object({
     label: z.string().min(1, 'Label is required'),
-    entity_type: z.enum(['brand', 'category', 'product', 'blog', 'page']).optional().nullable(),
+    entity_type: z.enum(['brand', 'category', 'product', 'blog', 'page', 'deal']).optional().nullable(),
     entity_id: z.preprocess((val) => (val === '' ? null : val), z.coerce.number().optional().nullable()),
     original: z.string().optional().nullable(),
     menu_parent: z.number().optional().nullable(),
@@ -153,6 +154,10 @@ const MenuDialog: React.FC<MenuDialogProps> = ({ open, onClose, onSave, menuItem
             response = await getBlogPosts(params);
             fetchedEntities = response?.data?.blogs || [];
             break;
+          case 'deal':
+            response = await getDeals(params);
+            fetchedEntities = response?.data?.deals || [];
+            break;
           default:
             fetchedEntities = [];
             break;
@@ -244,7 +249,7 @@ const MenuDialog: React.FC<MenuDialogProps> = ({ open, onClose, onSave, menuItem
         },
       }}
     >
-      <DialogTitle>{isEditing ? 'Edit Menu Item' : 'Create Menu Item'}</DialogTitle>
+      <DialogTitle>{isEditing ? 'Edit Menu' : 'Create Menu'}</DialogTitle>
       <form onSubmit={handleSubmit(onSubmit)}>
         <DialogContent>
           <Grid container spacing={2} sx={{ mt: 1 }}>
@@ -273,6 +278,7 @@ const MenuDialog: React.FC<MenuDialogProps> = ({ open, onClose, onSave, menuItem
                 <MenuItem value="category">Category</MenuItem>
                 <MenuItem value="product">Product</MenuItem>
                 <MenuItem value="blog">Blog</MenuItem>
+                <MenuItem value="deal">Deal</MenuItem>
               </FormTextField>
             </Grid>
             {entityType !== 'page' && (
@@ -286,7 +292,7 @@ const MenuDialog: React.FC<MenuDialogProps> = ({ open, onClose, onSave, menuItem
                       getOptionLabel={(option) => option.name || option.title || ''}
                       value={entities.find((e) => e.id === field.value) || null}
                       onChange={(event, newValue) => {
-                        field.onChange(newValue ? newValue.id : null);
+                        setValue('entity_id', newValue ? newValue.id : null, { shouldValidate: true });
                         if (newValue && newValue.slug) {
                           const baseUrl = process.env.NEXT_PUBLIC_WEB_URL || '';
                           setValue('original', `${baseUrl}/${newValue.slug}`, { shouldValidate: true });

@@ -91,8 +91,16 @@ const LoyaltyPointsTable: React.FC = () => {
   const columns = useMemo<MRT_ColumnDef<LoyaltyPointSetting>[]>(
     () => [
       { accessorKey: 'program_name', header: 'Program Name' },
-      { accessorKey: 'points_value', header: 'Points Value' },
-      { accessorKey: 'loyalty_amount', header: 'Loyalty Amount' },
+      {
+        accessorKey: 'points_value',
+        header: 'Points Value',
+        Cell: ({ row }) => <span>{parseFloat(String(row.original.points_value))}</span>,
+      },
+      {
+        accessorKey: 'loyalty_amount',
+        header: 'Loyalty Amount',
+        Cell: ({ row }) => <span>{parseFloat(String(row.original.loyalty_amount))}</span>,
+      },
       {
         accessorKey: 'loyalty_amount_type',
         header: 'Amount Type',
