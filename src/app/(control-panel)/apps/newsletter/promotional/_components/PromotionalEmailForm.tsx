@@ -35,6 +35,7 @@ const PromotionalEmailForm = () => {
 
   const { control, handleSubmit, watch, setValue } = useForm<PromotionalEmailFormValues>({
     resolver: zodResolver(promotionalEmailSchema),
+    mode: 'all',
     defaultValues: {
       subject: '',
       content: '',
