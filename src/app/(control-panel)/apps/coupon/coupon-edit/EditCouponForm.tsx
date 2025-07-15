@@ -5,7 +5,11 @@ import { useRouter, useParams } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Box, Paper, Grid, MenuItem, FormControlLabel, Switch, Button, Select, FormControl, InputLabel, Autocomplete, CircularProgress, TextField } from '@mui/material';
-import { getCouponById, updateCoupon, CreateCouponData } from '@/services/apiCoupon';
+import {
+  getCouponById,
+  updateCoupon,
+  type CreateCouponData
+} from '@/services/apiCoupon';
 import FormTextField from '@/components/Shared/FormTextField';
 import FormDateTimeField from '@/components/Shared/FormDateTimeField';
 import AppButton from '@/components/Shared/AppButton';
@@ -133,7 +137,7 @@ export const couponSchema = z.object({
     path: ['entity_id'],
 });
 
-type CouponFormValues = z.infer<typeof couponSchema>;
+export type CouponFormSchema = z.infer<typeof couponSchema>;
 
 export default function EditCouponForm() {
   const router = useRouter();
@@ -147,7 +151,7 @@ export default function EditCouponForm() {
   const debouncedSearch = useDebounce(search, 500);
   const [initialEntity, setInitialEntity] = useState<any>(null);
 
-  const { control, handleSubmit, reset, watch, setError, setValue, formState: { errors } } = useForm<CouponFormValues>({
+  const { control, handleSubmit, reset, watch, setError, setValue, formState: { errors } } = useForm<CouponFormSchema>({
     resolver: zodResolver(couponSchema),
     mode: 'all',
     defaultValues: {
@@ -162,7 +166,7 @@ export default function EditCouponForm() {
       start_date: null,
       end_date: null,
       status: 'active',
-      entity_type: 'all',
+      entity_type: null,
       entity_id: null,
     },
   });
@@ -188,7 +192,7 @@ export default function EditCouponForm() {
           start_date: coupon.start_date ? new Date(coupon.start_date).toISOString() : null,
           end_date: coupon.end_date ? new Date(coupon.end_date).toISOString() : null,
           status: coupon.status || 'active',
-          entity_type: coupon.entity_type || 'all',
+          entity_type: coupon.entity_type === null ? 'all' : coupon.entity_type,
           entity_id: coupon.entity_id ? String(coupon.entity_id) : null,
         });
 
@@ -267,7 +271,7 @@ export default function EditCouponForm() {
     }
   }, [discountType, setValue]);
 
-  const onSubmit = async (data: CouponFormValues) => {
+  const onSubmit = async (data: CouponFormSchema) => {
     try {
       setIsSubmitting(true);
       const toUTC = (dateString: string | null | undefined): string | null => {
@@ -284,12 +288,11 @@ export default function EditCouponForm() {
       };
       const submissionData = {
         ...data,
-        entity_type: data.entity_type === 'all' ? null : data.entity_type,
-        entity_id: data.entity_type === 'all' ? null : data.entity_id,
         start_date: toUTC(data.start_date),
         end_date: toUTC(data.end_date),
+        entity_type: data.entity_type === 'all' ? null : data.entity_type,
       };
-      await updateCoupon(Number(params.id), submissionData as unknown as CreateCouponData);
+      await updateCoupon(Number(params.id), submissionData as CreateCouponData);
       showSnackbar('Coupon updated successfully', 'success');
       router.push('/apps/coupon');
     } catch (error: any) {
@@ -329,12 +332,13 @@ export default function EditCouponForm() {
               control={control}
               render={({ field }) => (
                 <FormControl fullWidth>
-                  <InputLabel>Entity Type</InputLabel>
+                  <InputLabel id="entity-type-label">Entity Type</InputLabel>
                   <Select
                     {...field}
+                    labelId="entity-type-label"
                     label="Entity Type"
                     sx={{ backgroundColor: 'white' }}
-                    value={field.value || ''}
+                    value={field.value ?? ''}
                     onChange={(e) => {
                         const value = e.target.value === '' ? null : e.target.value;
                         field.onChange(value);

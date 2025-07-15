@@ -91,7 +91,7 @@ function SeoFormModal({ open, onClose, onSaved, initialData }: SeoFormModalProps
 
   return (
     <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth>
-      <DialogTitle>{isEditMode ? 'Edit SEO Entry' : 'Create New SEO Entry'}</DialogTitle>
+      <DialogTitle>{isEditMode ? 'Edit SEO' : 'Create SEO'}</DialogTitle>
       <form onSubmit={handleSubmit(onSubmit)}>
         <DialogContent>
           <Grid container spacing={2} sx={{ mt: 1 }}>

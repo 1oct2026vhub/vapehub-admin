@@ -52,7 +52,7 @@ const DraggableBannerCard: React.FC<DraggableBannerCardProps> = ({
           height: '100%', 
           width: '100%',
           position: 'relative',
-          cursor: 'pointer',
+          cursor: banner.deletedAt ? 'default' : 'pointer',
           '&:hover': {
             boxShadow: '0px 5px 15px rgba(0,0,0,0.1)'
           }
@@ -81,46 +81,78 @@ const DraggableBannerCard: React.FC<DraggableBannerCardProps> = ({
           <DragIndicatorIcon fontSize="small" />
         </Box>
 
-        <Link 
-          href={`/apps/banner/${banner.id}`} 
-          passHref 
-          style={{ textDecoration: 'none', color: 'inherit' }}
-        >
-          <Box sx={{ height: '100%' }}>
-            {banner.image_url && (
-              <CardMedia
-                component="img"
-                sx={{ height: 160, objectFit: 'cover', borderBottom: '1px solid #eee' }}
-                image={banner.image_url_low || banner.image_url}
-                alt={banner.title}
-                onError={(e: React.SyntheticEvent<HTMLImageElement, Event>) => {
-                  const target = e.target as HTMLImageElement;
-                  if (target.src === banner.image_url_low && banner.image_url) {
-                    target.src = banner.image_url;
-                  } else {
-                    target.src = '/assets/images/placeholder/16x9.svg';
-                    target.style.objectFit = 'contain';
-                  }
-                }}
-              />
-            )}
-            {!banner.image_url && (
-              <Box sx={{ height: 160, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f0f0f0', borderBottom: '1px solid #eee' }}>
-                <Typography variant="caption" color="textSecondary">No Image</Typography>
-              </Box>
-            )}
-            <CardContent sx={{ flexGrow: 1 }}>
-              <Typography gutterBottom variant="h6" component="div" noWrap title={banner.title}>
-                {banner.title}
-              </Typography>
-              {/* {banner.description && (
-                <Typography variant="body2" color="text.secondary" sx={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', textOverflow: 'ellipsis', minHeight: '40px' }} title={banner.description}>
-                  {banner.description}
+        {banner.deletedAt ? (
+            <Box sx={{ height: '100%' }}>
+              {banner.image_url && (
+                <CardMedia
+                  component="img"
+                  sx={{ height: 160, objectFit: 'cover', borderBottom: '1px solid #eee' }}
+                  image={banner.image_url_low || banner.image_url}
+                  alt={banner.title}
+                  onError={(e: React.SyntheticEvent<HTMLImageElement, Event>) => {
+                    const target = e.target as HTMLImageElement;
+                    if (target.src === banner.image_url_low && banner.image_url) {
+                      target.src = banner.image_url;
+                    } else {
+                      target.src = '/assets/images/placeholder/16x9.svg';
+                      target.style.objectFit = 'contain';
+                    }
+                  }}
+                />
+              )}
+              {!banner.image_url && (
+                <Box sx={{ height: 160, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f0f0f0', borderBottom: '1px solid #eee' }}>
+                  <Typography variant="caption" color="textSecondary">No Image</Typography>
+                </Box>
+              )}
+              <CardContent sx={{ flexGrow: 1 }}>
+                <Typography gutterBottom variant="h6" component="div" noWrap title={banner.title}>
+                  {banner.title}
                 </Typography>
-              )} */}
-            </CardContent>
-          </Box>
-        </Link>
+              </CardContent>
+            </Box>
+        ) : (
+          <Link 
+            href={`/apps/banner/${banner.id}`} 
+            passHref 
+            style={{ textDecoration: 'none', color: 'inherit' }}
+          >
+            <Box sx={{ height: '100%' }}>
+              {banner.image_url && (
+                <CardMedia
+                  component="img"
+                  sx={{ height: 160, objectFit: 'cover', borderBottom: '1px solid #eee' }}
+                  image={banner.image_url_low || banner.image_url}
+                  alt={banner.title}
+                  onError={(e: React.SyntheticEvent<HTMLImageElement, Event>) => {
+                    const target = e.target as HTMLImageElement;
+                    if (target.src === banner.image_url_low && banner.image_url) {
+                      target.src = banner.image_url;
+                    } else {
+                      target.src = '/assets/images/placeholder/16x9.svg';
+                      target.style.objectFit = 'contain';
+                    }
+                  }}
+                />
+              )}
+              {!banner.image_url && (
+                <Box sx={{ height: 160, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f0f0f0', borderBottom: '1px solid #eee' }}>
+                  <Typography variant="caption" color="textSecondary">No Image</Typography>
+                </Box>
+              )}
+              <CardContent sx={{ flexGrow: 1 }}>
+                <Typography gutterBottom variant="h6" component="div" noWrap title={banner.title}>
+                  {banner.title}
+                </Typography>
+                {/* {banner.description && (
+                  <Typography variant="body2" color="text.secondary" sx={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', textOverflow: 'ellipsis', minHeight: '40px' }} title={banner.description}>
+                    {banner.description}
+                  </Typography>
+                )} */}
+              </CardContent>
+            </Box>
+          </Link>
+        )}
 
         <Stack 
           direction="row" 
@@ -129,26 +161,28 @@ const DraggableBannerCard: React.FC<DraggableBannerCardProps> = ({
           sx={{ p: 1, borderTop: '1px solid #eee' }}
           onClick={(e) => e.stopPropagation()}
         >
-          {banner.deletedAt && onRestore ? (
-            <Tooltip title="Restore Banner">
-              <IconButton size="small" onClick={() => onRestore(banner)}>
-                <RestoreFromTrashIcon fontSize="small" />
-              </IconButton>
-            </Tooltip>
-          ) : (
-            <>
-              <Tooltip title="Edit Banner">
-                <IconButton size="small" component={Link} href={`/apps/banner/edit/${banner.id}`}>
-                  <EditIcon fontSize="small" />
+          {banner.deletedAt ? 
+            ( onRestore &&
+              <Tooltip title="Restore Banner">
+                <IconButton size="small" onClick={() => onRestore(banner)}>
+                  <RestoreFromTrashIcon fontSize="small" />
                 </IconButton>
               </Tooltip>
-              <Tooltip title="Delete Banner">
-                <IconButton size="small" onClick={() => onDelete(banner)}>
-                  <DeleteIcon fontSize="small" />
-                </IconButton>
-              </Tooltip>
-            </>
-          )}
+            ) : (
+              <>
+                <Tooltip title="Edit Banner">
+                  <IconButton size="small" component={Link} href={`/apps/banner/edit/${banner.id}`}>
+                    <EditIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+                <Tooltip title="Delete Banner">
+                  <IconButton size="small" onClick={() => onDelete(banner)}>
+                    <DeleteIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              </>
+            )
+          }
         </Stack>
       </Card>
     </Box>

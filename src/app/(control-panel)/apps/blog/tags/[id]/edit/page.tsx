@@ -31,7 +31,7 @@ const tagSchema = z.object({
   slug: z
     .string()
     .min(1, "Slug is required")
-    .max(50, "Slug must not exceed 50 characters")
+    .max(100, "Slug must not exceed 100 characters")
     .regex(
       /^[a-z0-9]+(?:-[a-z0-9]+)*$/,
       "Slug must be in valid format (lowercase letters, numbers, and hyphens)"

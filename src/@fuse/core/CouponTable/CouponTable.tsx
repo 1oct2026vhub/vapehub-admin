@@ -40,6 +40,7 @@ const CouponTable: React.FC = () => {
   const [selectedCoupon, setSelectedCoupon] = useState<Coupon | null>(null);
   const [status, setStatus] = useState<string>('');
   const [discountType, setDiscountType] = useState<string>('');
+  const [entityType, setEntityType] = useState<string>('');
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
   const router = useRouter();
@@ -47,8 +48,8 @@ const CouponTable: React.FC = () => {
 
   // --- START: Are Filters Active ---
   const areFiltersActive = useMemo(() => {
-    return search !== '' || deleted !== null || status !== '' || discountType !== '' || startDate !== '' || endDate !== '';
-  }, [search, deleted, status, discountType, startDate, endDate]);
+    return search !== '' || deleted !== null || status !== '' || discountType !== '' || entityType !== '' || startDate !== '' || endDate !== '';
+  }, [search, deleted, status, discountType, entityType, startDate, endDate]);
   // --- END ---
 
   // --- START: Clear Filters ---
@@ -57,6 +58,7 @@ const CouponTable: React.FC = () => {
     setDebouncedSearch('');
     setStatus('');
     setDiscountType('');
+    setEntityType('');
     setStartDate('');
     setEndDate('');
     setDeleted(null);
@@ -82,6 +84,7 @@ const CouponTable: React.FC = () => {
         search: debouncedSearch || undefined,
         status: status ? status as 'active' | 'inactive' | 'expired' : undefined,
         discount_type: discountType ? discountType as 'percentage' | 'fixed_amount' : undefined,
+        entity_type: entityType ? entityType as 'product' | 'category' | 'brand' : undefined,
         start_date: startDate || undefined,
         end_date: endDate || undefined,
       };
@@ -93,7 +96,7 @@ const CouponTable: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [page, limit, debouncedSearch, status, discountType, startDate, endDate]);
+  }, [page, limit, debouncedSearch, status, discountType, entityType, startDate, endDate]);
 
   useEffect(() => {
     fetchData();
@@ -128,6 +131,17 @@ const CouponTable: React.FC = () => {
   const columns = useMemo<MRT_ColumnDef<Coupon>[]>(
     () => [
       { accessorKey: 'code', header: 'Code' },
+      {
+        accessorKey: 'entity_type',
+        header: 'Entity Type',
+        Cell: ({ row }) => {
+          const entityType = row.original.entity_type;
+          if (!entityType) {
+            return 'All';
+          }
+          return entityType.charAt(0).toUpperCase() + entityType.slice(1);
+        },
+      },
       // { accessorKey: 'description', header: 'Description' },
       {
         accessorKey: 'status',
@@ -220,6 +234,18 @@ const CouponTable: React.FC = () => {
             <MenuItem value="">All Types</MenuItem>
             <MenuItem value="percentage">Percentage</MenuItem>
             <MenuItem value="fixed_amount">Fixed Amount</MenuItem>
+          </Select>
+          <Select
+            value={entityType}
+            onChange={e => setEntityType(e.target.value)}
+            displayEmpty
+            size="small"
+            sx={{ minWidth: 140, mx: 1 }}
+          >
+            <MenuItem value="">All Entity Types</MenuItem>
+            <MenuItem value="product">Product</MenuItem>
+            <MenuItem value="category">Category</MenuItem>
+            <MenuItem value="brand">Brand</MenuItem>
           </Select>
           <TextField
             type="date"

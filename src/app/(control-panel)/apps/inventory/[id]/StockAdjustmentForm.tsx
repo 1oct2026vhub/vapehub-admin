@@ -25,7 +25,7 @@ const StockAdjustmentForm: React.FC<StockAdjustmentFormProps> = ({
     const [submittingAction, setSubmittingAction] = useState<'add' | 'remove' | 'adjust' | null>(null);
 
     const schema = useMemo(() => z.object({
-            quantity: z.coerce.number({invalid_type_error: "Quantity is required."}).min(1, "Quantity is required"),
+            quantity: z.coerce.number({invalid_type_error: "Quantity is required."}).int('Quantity must be a whole number.').min(1, "Quantity must be a positive number."),
             reference: z.string().optional(),
             action: z.enum(['add', 'remove', 'adjust']),
         }).refine((data) => {
@@ -42,6 +42,7 @@ const StockAdjustmentForm: React.FC<StockAdjustmentFormProps> = ({
 
     const { control, handleSubmit, reset, setValue } = useForm<FormData>({
         resolver: zodResolver(schema),
+        mode: 'all',
         defaultValues: {
             quantity: undefined,
             reference: '',

@@ -44,7 +44,7 @@ const seoSchema = z.object({
   entityId: z.string(),
   title: z.string().min(1, 'Title is required'),
   description: z.string().optional(),
-  focusKeyword: z.string().optional(),
+  focusKeyword: z.string().min(1, 'Focus Keyword is required'),
   slug: z.string().min(1, 'Slug is required'),
   canonicalUrl: z.string().url({ message: 'Invalid URL' }).optional().or(z.literal('')),
   ogImage: z.string().url({ message: 'Invalid URL' }).optional().or(z.literal('')),
