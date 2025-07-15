@@ -239,7 +239,7 @@ const navigationConfig: FuseNavItemType[] = [
     children: [
       {
         id: "subscriber",
-        title: "Subscriber",
+        title: "Subscribers",
         type: "item",
         url: "/apps/newsletter/subscriber",
       },
@@ -247,7 +247,7 @@ const navigationConfig: FuseNavItemType[] = [
         id: "settings",
         title: "Settings",
         type: "item",
-        url: "/apps/newsletter/settings/new",
+        url: "/apps/newsletter/settings",
       },
       {
         id: "promotional",

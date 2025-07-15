@@ -26,11 +26,12 @@ import { listProductBrand } from '@/services/apiProductBrand';
 import { listProductCategory } from '@/services/apiProductCategory';
 import { getBlogPosts } from '@/services/apiBlog';
 import { useDebounce } from '@/hooks/useDebounce';
+import { getDeals } from '@/services/apiDeals';
 
 const menuSchema = z
   .object({
     label: z.string().min(1, 'Label is required'),
-    entity_type: z.enum(['brand', 'category', 'product', 'blog', 'page']).optional().nullable(),
+    entity_type: z.enum(['brand', 'category', 'product', 'blog', 'page', 'deal']).optional().nullable(),
     entity_id: z.preprocess((val) => (val === '' ? null : val), z.coerce.number().optional().nullable()),
     original: z.string().optional().nullable(),
     menu_parent: z.number().optional().nullable(),
@@ -153,6 +154,10 @@ const MenuDialog: React.FC<MenuDialogProps> = ({ open, onClose, onSave, menuItem
             response = await getBlogPosts(params);
             fetchedEntities = response?.data?.blogs || [];
             break;
+          case 'deal':
+            response = await getDeals(params);
+            fetchedEntities = response?.data?.deals || [];
+            break;
           default:
             fetchedEntities = [];
             break;
@@ -273,6 +278,7 @@ const MenuDialog: React.FC<MenuDialogProps> = ({ open, onClose, onSave, menuItem
                 <MenuItem value="category">Category</MenuItem>
                 <MenuItem value="product">Product</MenuItem>
                 <MenuItem value="blog">Blog</MenuItem>
+                <MenuItem value="deal">Deal</MenuItem>
               </FormTextField>
             </Grid>
             {entityType !== 'page' && (

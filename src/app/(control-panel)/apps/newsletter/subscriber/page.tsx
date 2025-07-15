@@ -1,33 +1,39 @@
 'use client';
 
-import MailSubscriptionSettingsTable from './_components/MailSubscriptionSettingsTable';
-import { Typography } from '@mui/material';
-import Button from '@mui/material/Button';
-import FuseSvgIcon from '@fuse/core/FuseSvgIcon';
-import { useRouter } from 'next/navigation';
+import SubscribersTable from './_components/SubscribersTable';
+import Typography from '@mui/material/Typography';
+import SubscriberStats from './_components/SubscriberStats';
 
-function MailSubscriptionSettingsPage() {
-	const router = useRouter();
+function SubscribersPage() {
 	return (
-		<div className="w-full flex flex-col min-h-full">
-			<div className="flex items-center justify-between p-8">
-				<Typography variant="h4" className="font-semibold mb-4">
-					Mail Subscription Settings
-				</Typography>
-				{/* <Button
-					variant="contained"
-					color="primary"
-					startIcon={<FuseSvgIcon>heroicons-outline:plus</FuseSvgIcon>}
-					onClick={() => router.push('/apps/newsletter/settings/new')}
+		<div className="w-full flex flex-col min-h-full p-12">
+			<div className='pb-12'>
+				<Typography
+					variant="h4"
+					className="mb-4 font-semibold leading-tight"
 				>
-					Add Setting
-				</Button> */}
+					Subscriber Analytics
+				</Typography>
+				<SubscriberStats />
 			</div>
-			<div className="p-8">
-				<MailSubscriptionSettingsTable />
+
+			<div>
+				<Typography
+					variant="h4"
+					className="mb-4 font-semibold leading-tight"
+				>
+					Subscribers
+				</Typography>
+				{/* <Typography
+					variant="subtitle1"
+					className="mb-12 text-gray-600"
+				>
+					A list of all the users subscribed to your newsletter.
+				</Typography> */}
+				<SubscribersTable />
 			</div>
 		</div>
 	);
 }
 
-export default MailSubscriptionSettingsPage; 
+export default SubscribersPage; 
