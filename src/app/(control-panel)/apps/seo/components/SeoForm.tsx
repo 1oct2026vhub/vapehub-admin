@@ -195,7 +195,12 @@ function SeoForm({ entityType, entityId, entityName, entitySlug, fullWidth = fal
                 />
               </Grid>
               <Grid item xs={12} style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                <AppButton label={isEditing ? 'Update' : 'Save'} type="submit" />
+                <AppButton
+                  label={isEditing ? 'Update' : 'Save'}
+                  type="submit"
+                  loading={formState.isSubmitting}
+                  disabled={formState.isSubmitting}
+                />
               </Grid>
             </Grid>
           </Grid>

@@ -31,6 +31,7 @@ import { listProductCategory } from '@/services/apiProductCategory';
 import { getBlogPosts, getBlogCategories } from '@/services/apiBlog';
 import { useDebounce } from '@/hooks/useDebounce';
 import SeoHealthIndicator from './SeoHealthIndicator';
+import AppButton from '@/components/Shared/AppButton';
 
 interface SeoFormModalProps {
   open: boolean;
@@ -449,7 +450,12 @@ function SeoFormModal({ open, onClose, onSaved, initialData }: SeoFormModalProps
         </DialogContent>
         <DialogActions>
           <Button onClick={handleClose}>Cancel</Button>
-          <Button type="submit" variant="contained">{isEditMode ? 'Update' : 'Create'}</Button>
+          <AppButton
+            type="submit"
+            label={isEditMode ? 'Update' : 'Create'}
+            loading={formState.isSubmitting}
+            disabled={formState.isSubmitting}
+          />
         </DialogActions>
       </form>
     </Dialog>

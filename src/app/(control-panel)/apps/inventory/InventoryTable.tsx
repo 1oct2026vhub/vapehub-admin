@@ -149,6 +149,17 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
                         <MenuItem value="out_of_stock">Out of Stock</MenuItem>
                         <MenuItem value="low_stock">Low Stock</MenuItem>
                     </TextField>
+                    <TextField
+                        select
+                        label="Sort Order"
+                        value={params.sort_order || 'DESC'}
+                        onChange={(e) => onParamsChange({ sort_order: e.target.value as 'ASC' | 'DESC' })}
+                        size="small"
+                        sx={{ width: '150px' }}
+                    >
+                        <MenuItem value="ASC">Ascending</MenuItem>
+                        <MenuItem value="DESC">Descending</MenuItem>
+                    </TextField>
                     <FormControlLabel
                         control={<Checkbox checked={params.top_selling || false} onChange={handleTopSellingChange} />}
                         label="Top Selling"
