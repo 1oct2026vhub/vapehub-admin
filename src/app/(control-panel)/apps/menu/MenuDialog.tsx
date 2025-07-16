@@ -27,6 +27,7 @@ import { listProductCategory } from '@/services/apiProductCategory';
 import { getBlogPosts } from '@/services/apiBlog';
 import { useDebounce } from '@/hooks/useDebounce';
 import { getDeals } from '@/services/apiDeals';
+import AppButton from '@/components/Shared/AppButton';
 
 const menuSchema = z
   .object({
@@ -388,9 +389,12 @@ const MenuDialog: React.FC<MenuDialogProps> = ({ open, onClose, onSave, menuItem
         </DialogContent>
         <DialogActions sx={{ p: 3 }}>
           <Button onClick={onClose}>Cancel</Button>
-          <Button type="submit" variant="contained" disabled={isSubmitting}>
-            {isEditing ? 'Save Changes' : 'Create'}
-          </Button>
+          <AppButton
+            type="submit"
+            label={isEditing ? 'Save Changes' : 'Create'}
+            loading={isSubmitting}
+            disabled={isSubmitting}
+          />
         </DialogActions>
       </form>
     </Dialog>
