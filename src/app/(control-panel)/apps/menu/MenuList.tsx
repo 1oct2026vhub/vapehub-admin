@@ -197,8 +197,7 @@ const MenuList: React.FC = () => {
           // If in the same list and dragging down, insert *after* the target item
           if (activeLocation.container === targetContainer && draggingDown) {
             targetIndex += 1;
-          }
-          
+          }      
           targetContainer.splice(targetIndex, 0, draggedItem);
         } else {
             // Fallback for cases like un-nesting to the root
