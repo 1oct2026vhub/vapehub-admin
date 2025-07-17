@@ -37,6 +37,9 @@ import FormTextField from '@/components/Shared/FormTextField';
 import AppButton from '@/components/Shared/AppButton';
 import FuseSvgIcon from '@fuse/core/FuseSvgIcon';
 import ProductSelector from './ProductSelector';
+import FormFileUploadField from '@/components/Shared/FormFileUploadField';
+import { ACCEPTED_IMAGE_TYPES, MAX_FILE_SIZE } from '@/utils/fileValidation';
+import { validateImageDimensions } from '@/utils/imageUtils';
 
 const dealSchema = z.object({
     name: z.string().min(1, 'Name is required'),
@@ -53,6 +56,17 @@ const dealSchema = z.object({
         discount: z.coerce.number().min(1, "Discount is required"),
     })).optional().nullable(),
     bundle_product_ids_json: z.array(z.number()).optional().nullable(),
+    image: z.any().optional()
+        .refine((file) => !file || file.size <= MAX_FILE_SIZE, `Max image size is 5MB.`)
+        .refine(
+            (file) => !file || ACCEPTED_IMAGE_TYPES.includes(file?.type),
+            "Only .jpg, .jpeg, .png and .webp formats are supported."
+        )
+        .refine(async (file) => {
+            if (!file) return true;
+            const dimensions = await validateImageDimensions(file, 312, 258);
+            return dimensions.valid;
+        }, "Image must be 312x258px."),
 });
 
 interface DealFormProps {
@@ -87,6 +101,7 @@ const DealForm: React.FC<DealFormProps> = ({ deal }) => {
             discount_percent: null,
             tiered_qty_json: [],
             bundle_product_ids_json: [],
+            image: null,
         },
     });
 
@@ -101,9 +116,11 @@ const DealForm: React.FC<DealFormProps> = ({ deal }) => {
         if (deal) {
             reset({
                 ...deal,
+                fixed_price: Number(deal.fixed_price),
                 valid_from: deal.valid_from.split('T')[0],
                 valid_to: deal.valid_to.split('T')[0],
                 bundle_product_ids_json: deal.products.map(p => p.id),
+                image: deal.image_url,
             });
             setAssociatedProducts(deal.products);
         }
@@ -129,6 +146,7 @@ const DealForm: React.FC<DealFormProps> = ({ deal }) => {
                 is_active: data.is_active,
                 valid_from: data.valid_from,
                 valid_to: data.valid_to,
+                image: data.image,
             };
 
             if (data.deal_type === 'BUY_N_FOR_FIXED') {
@@ -215,6 +233,17 @@ const DealForm: React.FC<DealFormProps> = ({ deal }) => {
                                 </Grid>
                                 <Grid item xs={12} md={6}>
                                     <FormTextField name="valid_to" control={control} label="Valid To" type="date" InputLabelProps={{ shrink: true }} required />
+                                </Grid>
+                                <Grid item xs={12}>
+                                    <FormFileUploadField
+                                        name="image"
+                                        control={control}
+                                        label="Deal Image"
+                                        defaultImage={deal?.image_url}
+                                        exactWidth={312}
+                                        exactHeight={258}
+                                        helperText="Image must be 312x258 px. Supported formats: PNG, JPG, JPEG, WebP (max 5MB)"
+                                    />
                                 </Grid>
                                 <Grid item xs={12}>
                                     <Controller
