@@ -32,6 +32,7 @@ export interface Deal {
   createdAt: string;
   updatedAt: string;
   products: ProductInDeal[];
+  image_url?: string;
 }
 
 
@@ -79,18 +80,43 @@ export interface DealFormData {
   valid_to: string;
   required_qty?: number | null;
   get_qty?: number | null;
-  fixed_price?: string | null;
+  fixed_price?: number | null;
   discount_percent?: number | null;
   tiered_qty_json?: TieredQty[] | null;
   bundle_product_ids_json?: number[] | null;
+  image?: File | null | string;
+}
+
+const buildFormData = (data: Partial<DealFormData>): FormData => {
+    const formData = new FormData();
+    for (const key in data) {
+        if (Object.prototype.hasOwnProperty.call(data, key)) {
+            const value = data[key];
+            if (value === null || value === undefined) continue;
+            if (key === 'image') {
+                if (value instanceof File) {
+                    formData.append(key, value);
+                }
+            } else if (Array.isArray(value)) {
+                if(value.length > 0){
+                    formData.append(key, JSON.stringify(value));
+                }
+            } else {
+                formData.append(key, String(value));
+            }
+        }
+    }
+    return formData;
 }
 
 export const createDeal = (data: DealFormData): Promise<Deal> => {
-    return poster('/api/admin/deals', data);
+    const formData = buildFormData(data);
+    return poster('/api/admin/deals', formData);
 };
 
 export const updateDeal = (id: number, data: Partial<DealFormData>): Promise<Deal> => {
-    return updater(`/api/admin/deals/${id}`, data);
+    const formData = buildFormData(data);
+    return updater(`/api/admin/deals/${id}`, formData);
 };
 
 export const addProductsToDeal = (id: number, product_ids: number[]): Promise<void> => {

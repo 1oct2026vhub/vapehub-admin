@@ -52,31 +52,19 @@ export type ProductType = {
   description: string;
   price: number | string;
   stock_quantity: number;
-  category_id: number;
-  brand_id: number;
-  category_name: string;
-  brand_name: string;
   is_new: boolean;
   deletedAt: string | null;
   createdAt: string;
   updatedAt: string;
   status: "draft" | "published" | "archived";
-  // Add Brand and Category properties
-  Brand?: {
+  Brands?: {
     id: number;
     name: string;
-    slug: string;
-    logo_url?: string;
-    description?: string;
-  };
-
-  Category?: {
+  }[];
+  Categories?: {
     id: number;
     name: string;
-    slug: string;
-    description?: string;
-    logo_url?: string | null;
-  };
+  }[];
 };
 
 interface ProductListTableProps {
@@ -540,12 +528,12 @@ const ProductListTable = ({
       {
         accessorKey: "category_name",
         header: "Category",
-        Cell: ({ row }) => row.original.Category?.name || "N/A",
+        Cell: ({ row }) => row.original.Categories?.map(cat => cat.name).join(', ') || "N/A",
       },
       {
         accessorKey: "brand_name",
         header: "Brand",
-        Cell: ({ row }) => row.original.Brand?.name || "N/A",
+        Cell: ({ row }) => row.original.Brands?.map(brand => brand.name).join(', ') || "N/A",
       },
       {
         accessorKey: "is_new",
