@@ -35,7 +35,7 @@ import { useSnackbar } from "@/contexts/SnackbarContext";
 
 // Add custom breadcrumb configuration
 const getBreadcrumbItems = (productId: string | number) => [
-  { label: "Home", link: "/" },
+  { label: "Dashboard", link: "/" },
   { label: "Product", link: "/apps/product" },
   { label: "Product-Detail", link: "#", disabled: true },
 ];
@@ -123,16 +123,16 @@ export interface ProductType {
   brand_id: number;
   category_id: number;
   createdAt: string;
-  Category: {
+  Categories: {
     id: number;
     name: string;
     slug: string;
-  };
-  Brand: {
+  }[];
+  Brands: {
     id: number;
     name: string;
     slug: string;
-  };
+  }[];
   ProductImages: ProductImage[];
   productAttributeTerms: ProductAttributeTerm[];
   variants: Variant[];
@@ -401,7 +401,11 @@ export default function ProductDetailTable() {
                         Category
                       </TableCell>
                       <TableCell>
-                        {productDetail.Category?.name || "N/A"}
+                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                          {productDetail.Categories?.map((category) => (
+                            <Chip key={category.id} label={category.name} size="small" />
+                          ))}
+                        </Box>
                       </TableCell>
                     </TableRow>
                     <TableRow>
@@ -409,7 +413,11 @@ export default function ProductDetailTable() {
                         Brand
                       </TableCell>
                       <TableCell>
-                        {productDetail.Brand?.name || "N/A"}
+                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                          {productDetail.Brands?.map((brand) => (
+                            <Chip key={brand.id} label={brand.name} size="small" />
+                          ))}
+                        </Box>
                       </TableCell>
                     </TableRow>
 
