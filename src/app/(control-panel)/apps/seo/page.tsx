@@ -7,6 +7,7 @@ import AppButton from '@/components/Shared/AppButton';
 import { useState } from 'react';
 import SeoFormModal from './components/SeoFormModal';
 import { SeoListItem } from '@/services/apiSeo';
+import PageBreadcrumb from '@/components/PageBreadcrumb';
 
 function SeoListPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -34,6 +35,7 @@ function SeoListPage() {
 
   return (
     <Box className="w-full p-6">
+      <PageBreadcrumb />
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
         <Typography variant="h4">SEO Management</Typography>
         <AppButton

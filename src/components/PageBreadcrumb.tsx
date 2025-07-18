@@ -76,7 +76,7 @@ function PageBreadcrumb(props: PageBreadcrumbProps) {
       });
       return acc;
     },
-    skipHome ? [] : [{ title: "Home", url: "/", isDetailPage: false }]
+    skipHome ? [] : [{ title: "Dashboard", url: "/", isDetailPage: false }]
   );
 
   return (

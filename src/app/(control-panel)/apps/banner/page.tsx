@@ -11,6 +11,7 @@ const BannerPage: React.FC = () => {
       {/* You can add a PageBreadcrumb component here if you use it elsewhere */}
       {/* <PageBreadcrumb title="Banners" /> */}
       {/* The Typography for the main title is now inside BannerList for better layout control with the Add button */}
+      <PageBreadcrumb />  
       <BannerList />
     </Box>
   );
