@@ -40,18 +40,8 @@ const schema = z.object({
       "Slug must be a valid URL-friendly string (lowercase letters, numbers, and hyphens only)"
     ),
   description: z.string().optional().default(""),
-  category_id: z
-    .any()
-    .refine((val) => val && Number(val) > 0, {
-      message: "Category is required",
-    })
-    .transform((val) => Number(val)),
-  brand_id: z
-    .any()
-    .refine((val) => val && Number(val) > 0, {
-      message: "Brand is required",
-    })
-    .transform((val) => Number(val)),
+  category_id: z.array(z.number()).min(1, "At least one category is required"),
+  brand_id: z.array(z.number()).min(1, "At least one brand is required"),
   is_new: z.boolean().optional(),
 });
 
@@ -103,8 +93,8 @@ function BasicInfoTab() {
       name: formData.name || "",
       slug: formData.slug || "",
       description: formData.description || "",
-      category_id: formData.category_id || 0,
-      brand_id: formData.brand_id || 0,
+      category_id: formData.category_id || [],
+      brand_id: formData.brand_id || [],
       // is_new: formData.is_new ?? true,
     },
     resolver: zodResolver(schema),
@@ -209,11 +199,11 @@ function BasicInfoTab() {
   );
 
   // Fetch selected category and brand on edit
-  const fetchSelectedOptions = async (categoryId: number, brandId: number) => {
-    if (categoryId > 0) {
+  const fetchSelectedOptions = async (category_id: number[], brand_id: number[]) => {
+    if (category_id?.length > 0) {
       try {
         const response = await listProductCategory({ 
-          id: categoryId, 
+          ids: category_id, 
           search_only_name: true 
         });
         
@@ -234,10 +224,10 @@ function BasicInfoTab() {
       }
     }
     
-    if (brandId > 0) {
+    if (brand_id?.length > 0) {
       try {
         const response = await listProductBrand({ 
-          id: brandId, 
+          ids: brand_id, 
           search_only_name: true 
         });
         
@@ -276,20 +266,20 @@ function BasicInfoTab() {
             setValue("name", productData.name || "");
             setValue("slug", productData.slug || "");
             setValue("description", productData.description || "");
-            setValue("category_id", productData.category_id || 0);
-            setValue("brand_id", productData.brand_id || 0);
+            setValue("category_id", productData.Categories?.map(c => c.id) || []);
+            setValue("brand_id", productData.Brands?.map(b => b.id) || []);
             setValue("is_new", productData.is_new ?? true);
 
             // Fetch selected category and brand details
-            await fetchSelectedOptions(productData.category_id, productData.brand_id);
+            await fetchSelectedOptions(productData.Categories?.map(c => c.id), productData.Brands?.map(b => b.id));
 
             // Update form context
             updateFormData({
               name: productData.name || "",
               slug: productData.slug || "",
               description: productData.description || "",
-              category_id: productData.category_id || 0,
-              brand_id: productData.brand_id || 0,
+              category_id: productData.Categories?.map(c => c.id) || [],
+              brand_id: productData.Brands?.map(b => b.id) || [],
               is_new: productData.is_new ?? true,
               productId: Number(finalProductId),
             });
@@ -322,8 +312,8 @@ function BasicInfoTab() {
         name: data.name.trim(),
         slug: data.slug.trim(),
         description: data.description || "",
-        category_id: Number(data.category_id),
-        brand_id: Number(data.brand_id),
+        category_ids: data.category_id,
+        brand_ids: data.brand_id,
         is_new: Boolean(data.is_new),
       };
 
@@ -526,6 +516,7 @@ function BasicInfoTab() {
               }}
               searchTerm={categorySearchInput}
               required
+              multiple
               loadingText="Searching categories..."
               noOptionsText={
                 categorySearchInput.length < 2 && categorySearchInput.length > 0
@@ -561,6 +552,7 @@ function BasicInfoTab() {
               }}
               searchTerm={brandSearchInput}
               required
+              multiple
               loadingText="Searching brands..."
               noOptionsText={
                 brandSearchInput.length < 2 && brandSearchInput.length > 0

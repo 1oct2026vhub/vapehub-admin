@@ -20,6 +20,7 @@ interface FormSearchableSelectFieldProps {
   noOptionsText?: string;
   placeholder?: string;
   searchTerm?: string;
+  multiple?: boolean;
 }
 
 const FormSearchableSelectField: React.FC<FormSearchableSelectFieldProps> = ({
@@ -34,13 +35,18 @@ const FormSearchableSelectField: React.FC<FormSearchableSelectFieldProps> = ({
   loadingText = "Searching...",
   noOptionsText,
   placeholder,
-  searchTerm = ""
+  searchTerm = "",
+  multiple = false,
 }) => {
   const [touched, setTouched] = useState(false);
   const [inputValue, setInputValue] = useState("");
 
   // ✅ Handle value mapping correctly
-  const getSelectedOption = (value: string | number) => {
+  const getSelectedOption = (value: any) => {
+    if (multiple) {
+      if (!Array.isArray(value)) return [];
+      return options.filter((option) => value.includes(option.value));
+    }
     return options.find((option) => option.value === value) || null;
   };
 
@@ -80,14 +86,21 @@ const FormSearchableSelectField: React.FC<FormSearchableSelectFieldProps> = ({
       rules={{ required: required ? `${label} is required` : false }}
       render={({ field, fieldState: { error } }) => (
         <Autocomplete
+          multiple={multiple}
           options={options}
-          getOptionLabel={(option) => option.label}
-          isOptionEqualToValue={(option, value) => 
-            option.value === (value as Option)?.value  // ✅ Proper type assertion
+          getOptionLabel={(option: Option) => option.label}
+          isOptionEqualToValue={(option: Option, value: Option) =>
+            option.value === value.value
           }
           value={getSelectedOption(field.value)} // ✅ Properly map selected value
           onChange={(_, newValue) =>
-            field.onChange(newValue ? newValue.value : "")
+            field.onChange(
+              multiple
+                ? (newValue as Option[]).map((item) => item.value)
+                : newValue
+                ? (newValue as Option).value
+                : ""
+            )
           }
           onInputChange={(event, newInputValue) => {
             setInputValue(newInputValue);
@@ -100,7 +113,7 @@ const FormSearchableSelectField: React.FC<FormSearchableSelectFieldProps> = ({
           noOptionsText={noOptionsText || defaultNoOptionsText}
           onFocus={() => setTouched(true)}
           filterOptions={(x) => x} // Don't filter client-side, we're using server filtering
-          renderOption={(props, option, state) => (
+          renderOption={(props, option: Option) => (
             <li {...props} key={`option-${option.value}`}>
               {highlightMatch(option.label, searchTerm || inputValue)}
             </li>
@@ -128,14 +141,9 @@ const FormSearchableSelectField: React.FC<FormSearchableSelectFieldProps> = ({
                     {params.InputProps.endAdornment}
                   </>
                 ),
-                sx: {
-                  height: 40, // ✅ Reduced height
-                  padding: "0 10px",
-                },
               }}
               sx={{
                 "& .MuiOutlinedInput-root": {
-                  height: 40, // ✅ Reduced height
                   "& fieldset": {
                     borderImage:
                       "linear-gradient(to right, #2E9970, #005434) 1",
