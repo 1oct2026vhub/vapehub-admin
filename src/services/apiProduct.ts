@@ -127,16 +127,14 @@ export const bulkUpdateProducts = async (file: File) => {
   return response.data;
 };
 
+// Interface for creating a new product
 export interface CreateProductData {
   name: string;
   slug: string;
-  description: string;
-  // price: number;
-  // discount_price?: number;
-  // stock_quantity: number;
-  is_new: boolean;
-  category_id: number;
-  brand_id: number;
+  description?: string;
+  category_ids?: number[];
+  brand_ids?: number[];
+  is_new?: boolean;
 }
 
 export const createProduct = async (data: CreateProductData) => {
