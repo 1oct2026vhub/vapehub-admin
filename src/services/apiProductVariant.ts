@@ -11,6 +11,7 @@ export interface ProductVariant {
   created_at: string;
   updated_at: string;
   deleted_at: string | null;
+  slug: string;
 }
 
 export interface ProductVariantListParams {

@@ -135,3 +135,14 @@ export const getStockMovements = async (params: StockMovementParams): Promise<St
   const response = await axiosInstance.get('/api/admin/inventory/movements', { params });
   return response.data;
 } 
+
+export interface BulkUpdateByQuantityPayload {
+  variant_ids: number[];
+  quantity: number;
+  reference?: string;
+}
+
+export const bulkUpdateByQuantity = async (payload: BulkUpdateByQuantityPayload) => {
+  const response = await axiosInstance.post('/api/admin/inventory/bulk-update-by-quantity', payload);
+  return response.data;
+} 

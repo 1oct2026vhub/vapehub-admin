@@ -7,6 +7,7 @@ type FormTextFieldProps<T extends FieldValues> = Omit<TextFieldProps, 'name' | '
   name: Path<T>; // Use Path for type safety
   control: Control<T>;
   label: string; // Make label required for consistency
+  rules?: any;
   multiline?: boolean; // Explicitly include multiline for conditional styling
   multiple?: boolean; // Add multiple prop for multi-select support
 };
@@ -16,6 +17,7 @@ const FormTextField = <T extends FieldValues>({
   control,
   label,
   required,
+  rules,
   type = 'text', // Default type to text
   multiline = false, // Default multiline to false
   multiple = false, // Default multiple to false
@@ -25,6 +27,7 @@ const FormTextField = <T extends FieldValues>({
     <Controller
       name={name}
       control={control}
+      rules={rules}
       render={({ field, fieldState: { error } }) => (
         <TextField
           {...field}
