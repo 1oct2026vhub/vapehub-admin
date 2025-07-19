@@ -4,14 +4,14 @@ import ListItemIcon from "@mui/material/ListItemIcon";
 import ListItemText from "@mui/material/ListItemText";
 import MenuItem from "@mui/material/MenuItem";
 import Typography from "@mui/material/Typography";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "@fuse/core/Link";
 import FuseSvgIcon from "@fuse/core/FuseSvgIcon";
 import {  alpha } from "@mui/material/styles";
 import Tooltip from "@mui/material/Tooltip";
 import clsx from "clsx";
 import Popover from "@mui/material/Popover";
-import { logoutUser } from "@/utils/auth";
+import { logoutUser , getUser} from "@/utils/auth";
 import { useRouter } from "next/navigation";
 
 const mockUser = {
@@ -28,6 +28,14 @@ function UserMenu({
   arrowIcon = "heroicons-outline:chevron-up",
 }) {
   const [userMenu, setUserMenu] = useState(null);
+  const [user, setUser] = useState(null);
+
+  useEffect(() => {
+    const userData = getUser();
+    setUser(userData);
+  }, []);
+  console.log("user", user);
+
   const userMenuClick = (event) => {
     setUserMenu(event.currentTarget);
   };
@@ -77,7 +85,7 @@ function UserMenu({
             variant="rounded"
           />
         ) : (
-          <Avatar className="avatar md:mx-1">{mockUser.displayName[0]}</Avatar>
+          <Avatar className="avatar md:mx-1">{user.displayName[0]}</Avatar>
         )}
 
         <div className="flex flex-col flex-auto space-y-2">
@@ -85,22 +93,17 @@ function UserMenu({
             component="span"
             className="title flex font-semibold text-base capitalize truncate"
           >
-            {mockUser.displayName}
+            {user?.first_name} {user?.last_name}
           </Typography>
           <Typography
             className="subtitle flex text-md font-medium tracking-tighter leading-none"
             color="text.secondary"
           >
-            {mockUser.email}
+            {user?.email}
           </Typography>
         </div>
 
         <div className="flex shrink-0 items-center space-x-2">
-          <Tooltip title={mockUser.role || "Guest"}>
-            <FuseSvgIcon className="info-icon" size={20}>
-              heroicons-outline:information-circle
-            </FuseSvgIcon>
-          </Tooltip>
           <FuseSvgIcon className="arrow" size={13}>
             {arrowIcon}
           </FuseSvgIcon>

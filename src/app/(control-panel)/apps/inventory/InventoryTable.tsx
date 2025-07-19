@@ -79,7 +79,7 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
         () => [
             {
                 accessorKey: 'name',
-                header: 'Product Name',
+                header: 'Product variant name',
                 Cell: ({ row }) => (
                     <Box sx={{ display: 'flex', alignItems: 'center' }}>
                         <Avatar src={row.original.image || undefined} sx={{ mr: 2 }}>{row.original.name?.charAt(0)}</Avatar>
@@ -89,6 +89,8 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
             },
             { accessorKey: 'currentStock', header: 'Current Stock' },
             { accessorKey: 'lowStockThreshold', header: 'Low Stock Threshold' },
+            { accessorKey: 'totalSales', header: 'Total Sales' },
+
             {
                 accessorKey: 'isOutOfStock',
                 header: 'Stock Status',

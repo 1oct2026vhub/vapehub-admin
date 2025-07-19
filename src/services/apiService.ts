@@ -40,6 +40,11 @@ export const forgotPassword = (credentials) =>
 export const resetPassword = (credentials) =>
   poster("/api/admin/auth/reset-password", credentials);
 
+export const getUserProfile = () => fetcher("/api/users/profile");
+export const updateUserProfile = (data) => updater("/api/users/profile", data);
+export const changePassword = (data) =>
+  updater("/api/users/change-password", data);
+
 // User actions
 // export const listUser = () => fetcher('/api/admin/user');
 export const listUser = (params = {}) => fetcher("/api/admin/user", params);

@@ -64,7 +64,7 @@ function InventoryApp() {
                 Inventory Management
             </Typography>
 
-            {data?.summary && <InventoryHeader summary={data.summary} />}
+            {data?.summary && <InventoryHeader summary={data.summary} onRefresh={fetchInventory} />}
             
             {data && (
                  <InventoryTable

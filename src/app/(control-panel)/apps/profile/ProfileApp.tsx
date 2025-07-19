@@ -1,111 +1,184 @@
 "use client";
 
-import FusePageSimple from "@fuse/core/FusePageSimple";
 import { styled } from "@mui/material/styles";
-import Avatar from "@mui/material/Avatar";
-import Typography from "@mui/material/Typography";
-import { motion } from "motion/react";
-import { SyntheticEvent, useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { SyntheticEvent, useState, useEffect } from "react";
 import useThemeMediaQuery from "@fuse/hooks/useThemeMediaQuery";
-import FuseTabs from "src/components/tabs/FuseTabs";
-import FuseTab from "src/components/tabs/FuseTab";
-import AboutTab from "./tabs/about/AboutTab";
-import PhotosVideosTab from "./tabs/photos-videos/PhotosVideosTab";
-import TimelineTab from "./tabs/timeline/TimelineTab";
+import { useFetch, usePost, useUpdate } from "@/hooks/useFetch";
+import { getUserProfile, updateUserProfile } from "@/services/apiService";
+import { Paper, Typography, Button, Grid, Box, Modal } from "@mui/material";
+import FormTextField from "@/components/Shared/FormTextField";
+import AppButton from "@/components/Shared/AppButton";
+import { useSnackbar } from "@/contexts/SnackbarContext";
+import { useSWRConfig } from "swr";
+import ChangePasswordForm from "./ChangePasswordForm";
 
-const Root = styled(FusePageSimple)(({ theme }) => ({
-  "& .FusePageSimple-header": {
-    backgroundColor: theme.palette.background.paper,
-    borderBottomWidth: 1,
-    borderStyle: "solid",
-    borderColor: theme.palette.divider,
-    "& > .container": {
-      maxWidth: "100% !important",
-    },
-  },
-}));
+const schema = z.object({
+  first_name: z.string().min(1, "First name is required"),
+  last_name: z.string().min(1, "Last name is required"),
+  email: z.string().email("Invalid email format"),
+  phone: z.string().optional(),
+});
 
-/**
- * The profile page.
- */
+type FormData = z.infer<typeof schema>;
+
 function ProfileApp() {
-  const [selectedTab, setSelectedTab] = useState("timeline");
-  const isMobile = useThemeMediaQuery((theme) => theme.breakpoints.down("lg"));
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
+  const { data: user, isLoading } = useFetch("user-profile", getUserProfile);
+  const { showSnackbar } = useSnackbar();
+  const { mutate } = useSWRConfig();
 
-  function handleTabChange(event: SyntheticEvent, value: string) {
-    setSelectedTab(value);
+  const {
+    control,
+    handleSubmit,
+    reset,
+    formState: { errors, isDirty },
+  } = useForm<FormData>({
+    resolver: zodResolver(schema),
+    defaultValues: {
+      first_name: "",
+      last_name: "",
+      email: "",
+      phone: "",
+    },
+  });
+
+  useEffect(() => {
+    if (user?.data) {
+      reset(user.data);
+    }
+  }, [user, reset]);
+
+  const { trigger: updateUser, isMutating: isUpdating } = useUpdate(
+    "user-profile",
+    updateUserProfile
+  );
+
+  const onSubmit = async (data: FormData) => {
+    try {
+      await updateUser(data);
+      showSnackbar("Profile updated successfully", "success");
+      setIsEditMode(false);
+      mutate("user-profile");
+    } catch (error: any) {
+      showSnackbar(error.message || "Failed to update profile", "error");
+    }
+  };
+
+  if (isLoading) {
+    return <div>Loading...</div>;
   }
 
   return (
- <div>
-        <div className="flex flex-col w-full">
-          <img
-            className="h-40 lg:h-80 object-cover w-full"
-            src="/assets/images/pages/profile/cover.jpg"
-            alt="Profile Cover"
-          />
+    <Paper
+      sx={{
+        p: 4,
+        borderRadius: 2,
+        boxShadow: 3,
+        backgroundColor: "white",
+        textAlign: "center",
+        margin: "auto",
+      }}
+    >
+      <Box
+        display="flex"
+        justifyContent="space-between"
+        alignItems="center"
+        mb={4}
+      >
+        <Typography variant="h6" component="h2">
+          Personal Information
+        </Typography>
+        <div className="flex flex-1 justify-end gap-2">
+      
+        <Button variant="contained" onClick={() => setIsPasswordModalOpen(true)}>
+          Change Password
+        </Button>
+    
+        {!isEditMode && (
+          <Button onClick={() => setIsEditMode(true)} variant="outlined">
+            Edit
+          </Button>
+        )}
+      </div>
+      </Box>
+      <form onSubmit={handleSubmit(onSubmit)}>
+        <Grid container spacing={2}>
+          <Grid item xs={12} sm={6}>
+            <FormTextField
+              name="first_name"
+              label="First Name"
+              control={control}
+              disabled={!isEditMode}
+            />
+          </Grid>
+          <Grid item xs={12} sm={6}>
+            <FormTextField
+              name="last_name"
+              label="Last Name"
+              control={control}
+              disabled={!isEditMode}
+            />
+          </Grid>
+          <Grid item xs={12}>
+            <FormTextField
+              name="email"
+              label="Email"
+              control={control}
+              disabled
+            />
+          </Grid>
+          <Grid item xs={12}>
+            <FormTextField
+              name="phone"
+              label="Mobile Number"
+              control={control}
+              disabled={!isEditMode}
+              required
+            />
+          </Grid>
+        </Grid>
+        {isEditMode && (
+          <Box display="flex" justifyContent="flex-end" mt={4} gap={2}>
+            <Button
+              onClick={() => {
+                setIsEditMode(false);
+                reset(user.data);
+              }}
+              color="secondary"
+            >
+              Cancel
+            </Button>
+            <AppButton
+              label="Save"
+              type="submit"
+              loading={isUpdating}
+              disabled={!isDirty || isUpdating}
+            />
+          </Box>
+        )}
+      </form>
+      
 
-          <div className="flex flex-col shrink-0 lg:flex-row items-center max-w-7xl w-full mx-auto px-8 lg:h-18">
-            <div className="-mt-24 lg:-mt-22 rounded-full">
-              <motion.div
-                initial={{ scale: 0 }}
-                animate={{ scale: 1, transition: { delay: 0.1 } }}
-              >
-                <Avatar
-                  sx={{ borderColor: "background.paper" }}
-                  className="w-32 h-32 border-4"
-                  src="/assets/images/avatars/male-04.jpg"
-                  alt="User avatar"
-                />
-              </motion.div>
-            </div>
-
-            <div className="flex flex-col items-center lg:items-start mt-4 lg:mt-0 lg:ml-8">
-              <Typography className="text-lg font-bold leading-none">
-                Brian Hughes
-              </Typography>
-              <Typography color="text.secondary">London, UK</Typography>
-            </div>
-
-            <div className="hidden lg:flex h-8 mx-8 border-l-2" />
-
-            <div className="flex items-center mt-6 lg:mt-0 space-x-6">
-              <div className="flex flex-col items-center">
-                <Typography className="font-bold">200k</Typography>
-                <Typography
-                  className="text-sm font-medium"
-                  color="text.secondary"
-                >
-                  FOLLOWERS
-                </Typography>
-              </div>
-              <div className="flex flex-col items-center">
-                <Typography className="font-bold">1.2k</Typography>
-                <Typography
-                  className="text-sm font-medium"
-                  color="text.secondary"
-                >
-                  FOLLOWING
-                </Typography>
-              </div>
-            </div>
-
-            <div className="flex flex-1 justify-end my-4 lg:my-0">
-              <FuseTabs value={selectedTab} onChange={handleTabChange}>
-                <FuseTab label="Timeline" value="timeline" />
-                <FuseTab label="About" value="about" />
-                <FuseTab label="Photos & Videos" value="photos-videos" />
-              </FuseTabs>
-            </div>
-          </div>
-        </div>
-   
-        <div className="flex flex-auto justify-center w-full max-w-7xl mx-auto p-6 sm:p-8">
-          {/* {selectedTab === 'timeline' && <TimelineTab />} */}
-          {selectedTab === "about" && <AboutTab />}
-          {/* {selectedTab === 'photos-videos' && <PhotosVideosTab />} */}
-        </div>
-        </div>  
+      <Modal
+        open={isPasswordModalOpen}
+        onClose={() => setIsPasswordModalOpen(false)}
+      >
+        <Box
+          sx={{
+            position: "absolute",
+            top: "50%",
+            left: "50%",
+            transform: "translate(-50%, -50%)",
+          }}
+        >
+          <ChangePasswordForm onClose={() => setIsPasswordModalOpen(false)} />
+        </Box>
+      </Modal>
+    </Paper>
   );
 }
 
