@@ -1,5 +1,8 @@
 import { Grid, Paper, Typography } from '@mui/material';
 import { InventorySummary } from '@/services/apiInventory';
+import AppButton from '@/components/Shared/AppButton';
+import { useState } from 'react';
+import BulkUpdateStockModal from './BulkUpdateStockModal';
 
 interface StatCardProps {
     title: string;
@@ -17,11 +20,20 @@ const StatCard: React.FC<StatCardProps> = ({ title, value, colorClass }) => (
 
 interface InventoryHeaderProps {
     summary: InventorySummary;
+    onRefresh: () => void;
 }
 
-const InventoryHeader: React.FC<InventoryHeaderProps> = ({ summary }) => {
+const InventoryHeader: React.FC<InventoryHeaderProps> = ({ summary, onRefresh }) => {
+    const [isModalOpen, setIsModalOpen] = useState(false);
     return (
         <div className="mb-8">
+            <div className="flex justify-between items-center mb-4">
+            <Typography variant="h5" component="h1" className="text-xl font-semibold">Inventory Dashboard</Typography>
+                <AppButton
+                    label="Bulk Upload"
+                    onClick={() => setIsModalOpen(true)}
+                />
+            </div>
             <Grid container spacing={3}>
                 <Grid item xs={12} sm={6} md={2}>
                     <StatCard title="Total Inventory" value={summary.totalInventory} colorClass="text-blue-500" />
@@ -42,6 +54,14 @@ const InventoryHeader: React.FC<InventoryHeaderProps> = ({ summary }) => {
                     <StatCard title="Revenue (Last Month)" value={`$${summary.totalRevenueLastMonth.toFixed(2)}`} colorClass="text-indigo-500" />
                 </Grid>
             </Grid>
+            <BulkUpdateStockModal
+                open={isModalOpen}
+                onClose={() => setIsModalOpen(false)}
+                onSuccess={() => {
+                    onRefresh();
+                    setIsModalOpen(false);
+                }}
+            />
         </div>
     );
 };

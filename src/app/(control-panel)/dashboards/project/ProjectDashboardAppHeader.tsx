@@ -20,8 +20,6 @@ import { Box } from "@mui/material";
  */
 function ProjectDashboardAppHeader() {
   const token = getAuthToken();
-  console.log("token", token);
-
   const { data: projects } = useGetProjectDashboardProjectsQuery();
 
   const { data: user, isGuest } = useUser();

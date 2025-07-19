@@ -164,8 +164,8 @@ const SeoListTable: React.FC<{ refreshTrigger: number, onEdit: (data: SeoListIte
                         size="small"
                     >
                         <MenuItem value="">All</MenuItem>
-                        <MenuItem value="true">Yes</MenuItem>
-                        <MenuItem value="false">No</MenuItem>
+                        <MenuItem value="true">Indexed</MenuItem>
+                        <MenuItem value="false">Not Indexed</MenuItem>
                     </Select>
                     {areFiltersActive && <ClearFiltersButton onClick={clearFilters} />}
                 </div>

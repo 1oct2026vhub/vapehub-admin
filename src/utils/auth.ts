@@ -76,9 +76,40 @@ export const getAuthToken = (): string | null => {
 };
 
 /**
+ * Stores the user info object in cookies
+ */
+export const storeUser = (user: object) => {
+  const encryptedUser = encryptToken(JSON.stringify(user));
+  setCookie("user_info", encryptedUser, {
+    httpOnly: false,
+    secure: process.env.NODE_ENV === "production",
+    maxAge: 60 * 60 * 24 * 7, // 7 days
+    path: "/",
+  });
+};
+
+/**
+ * Retrieves the user info from cookies
+ */
+export const getUser = (): any | null => {
+  const encryptedUser = getCookie("user_info");
+  const decryptedUser = decryptToken(encryptedUser as string);
+  if (decryptedUser) {
+    try {
+      return JSON.parse(decryptedUser);
+    } catch (error) {
+      console.error("Failed to parse user info:", error);
+      return null;
+    }
+  }
+  return null;
+};
+
+/**
  * Removes the auth token (for logout)
  */
 export const logoutUser = () => {
   deleteCookie("auth_token", { path: "/" });
+  deleteCookie("user_info", { path: "/" });
   redirect("/sign-in"); // Redirect in App Router
 };
