@@ -30,7 +30,7 @@ const InventoryHeader: React.FC<InventoryHeaderProps> = ({ summary, onRefresh })
             <div className="flex justify-between items-center mb-4">
             <Typography variant="h5" component="h1" className="text-xl font-semibold">Inventory Dashboard</Typography>
                 <AppButton
-                    label="Bulk Update"
+                    label="Bulk Upload"
                     onClick={() => setIsModalOpen(true)}
                 />
             </div>

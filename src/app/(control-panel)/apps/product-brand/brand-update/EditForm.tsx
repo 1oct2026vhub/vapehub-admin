@@ -5,7 +5,18 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useEffect, useState, useRef } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { Alert, Typography, Box, Button, CircularProgress, Tabs, Tab, Divider } from "@mui/material";
+import {
+  Alert,
+  Typography,
+  Box,
+  Button,
+  CircularProgress,
+  Tabs,
+  Tab,
+  Divider,
+  Grid,
+  IconButton,
+} from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
 import AppButton from "@/components/Shared/AppButton";
 import FormInputField from "@/components/Shared/FormInputField";
@@ -133,6 +144,7 @@ const EditBrandForm = ({ brand: initialBrand }: { brand: FormType }) => {
   const [isImageDeleting, setIsImageDeleting] = useState(false);
   const [hasImageError, setHasImageError] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const brandRef = useRef<FormType>(initialBrand);
 
   const [activeTab, setActiveTab] = useState<number>(0); // 0 for Details, 1 for FAQ, 2 for SEO
@@ -202,8 +214,7 @@ const EditBrandForm = ({ brand: initialBrand }: { brand: FormType }) => {
       }
       await updateBrand(brandId, formDataObj); // Use parsed brandId
       showSnackbar("Brand updated successfully!", "success");
-      // Consider if redirection is still desired or if staying on the edit page with tabs is preferred.
-      // router.push("/apps/product-brand"); 
+      router.push("/apps/product-brand");
     } catch (error: any) {
         if (error?.errors) {
             showSnackbar(error?.errors[0]?.msg, "error");
@@ -214,6 +225,12 @@ const EditBrandForm = ({ brand: initialBrand }: { brand: FormType }) => {
     } finally {
         setIsLoading(false);
     }
+  };
+
+  const handleRemoveNewLogo = () => {
+    setSelectedFile(null);
+    setLogoPreview(null);
+    setValue("logo", brandRef.current.logo_url, { shouldValidate: true });
   };
 
   const handleImageDelete = async () => {
@@ -291,11 +308,49 @@ const EditBrandForm = ({ brand: initialBrand }: { brand: FormType }) => {
                     onFileChange={(file) => {
                       setSelectedFile(file);
                       setValue("logo", file, { shouldValidate: true });
+                      if (file) {
+                        setLogoPreview(URL.createObjectURL(file));
+                      } else {
+                        setLogoPreview(null);
+                      }
                     }}
                     helperText={`Upload a brand logo (${MAX_IMAGE_WIDTH} × ${MAX_IMAGE_HEIGHT} px, Max size: 5MB). Supported formats: PNG, JPG, JPEG, WebP`}
-                    defaultImage={brandRef.current?.logo_url || undefined}
+                    hidePreview
                   />
-                  {/* Consider adding image delete button here if tied to this tab */}
+                  <Grid container spacing={2} sx={{ mt: 2 }}>
+                    {logoPreview ? (
+                      <Grid item>
+                        <Typography variant="subtitle2">New Image Preview:</Typography>
+                        <Box sx={{ border: '1px solid #ddd', p: 1, position: 'relative' }}>
+                          <img
+                            src={logoPreview}
+                            alt="New logo preview"
+                            style={{ width: 150, height: 150, objectFit: 'contain' }}
+                          />
+                          <IconButton
+                            size="small"
+                            onClick={handleRemoveNewLogo}
+                            sx={{ position: 'absolute', top: 0, right: 0, backgroundColor: 'white' }}
+                          >
+                            <DeleteIcon fontSize="small" />
+                          </IconButton>
+                        </Box>
+                      </Grid>
+                    ) : (
+                      brandRef.current?.logo_url && (
+                        <Grid item>
+                          <Typography variant="subtitle2">Current Image:</Typography>
+                          <Box sx={{ border: '1px solid #ddd', p: 1 }}>
+                            <img
+                              src={brandRef.current.logo_url}
+                              alt="Current logo"
+                              style={{ width: 150, height: 150, objectFit: 'contain' }}
+                            />
+                          </Box>
+                        </Grid>
+                      )
+                    )}
+                  </Grid>
                 </Box>
                 <AppButton
                   label="Update Brand Details"

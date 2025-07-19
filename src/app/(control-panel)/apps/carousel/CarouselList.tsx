@@ -256,7 +256,7 @@ const CarouselList: React.FC = () => {
   const carouselIds = useMemo(() => carousels.map(c => c.id.toString()), [carousels]);
 
   return (
-    <Box sx={{ p: 3, position: 'relative' }}>
+    <Box sx={{ marginTop: 3, position: 'relative' }}>
       {/* Loading Overlay */}
       {/* {(loading || isReordering) && (
         <Box

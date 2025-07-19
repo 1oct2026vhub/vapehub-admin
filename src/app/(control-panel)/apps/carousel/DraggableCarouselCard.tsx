@@ -33,6 +33,7 @@ const DraggableCarouselCard: React.FC<DraggableCarouselCardProps> = ({
 }) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: carousel.id.toString(),
+    disabled: !!carousel.deletedAt,
   });
 
   const style = {
@@ -43,84 +44,88 @@ const DraggableCarouselCard: React.FC<DraggableCarouselCardProps> = ({
     zIndex: isDragging ? 10 : 'auto',
   };
 
+  const cardContent = (
+    <Box sx={{ height: '100%' }}>
+      {carousel.image_url && (
+        <CardMedia
+          component="img"
+          sx={{ height: 160, objectFit: 'cover', borderBottom: '1px solid #eee' }}
+          image={carousel.image_url_low || carousel.image_url}
+          alt={carousel.title}
+          onError={(e: React.SyntheticEvent<HTMLImageElement, Event>) => {
+            const target = e.target as HTMLImageElement;
+            if (target.src === carousel.image_url_low && carousel.image_url) {
+              target.src = carousel.image_url;
+            } else {
+              target.src = '/assets/images/placeholder/16x9.svg';
+              target.style.objectFit = 'contain';
+            }
+          }}
+        />
+      )}
+      {!carousel.image_url && (
+        <Box sx={{ height: 160, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f0f0f0', borderBottom: '1px solid #eee' }}>
+          <Typography variant="caption" color="textSecondary">No Image</Typography>
+        </Box>
+      )}
+      <CardContent sx={{ flexGrow: 1 }}>
+        <Typography gutterBottom variant="h6" component="div" noWrap title={carousel.title}>
+          {carousel.title}
+        </Typography>
+      </CardContent>
+    </Box>
+  );
+
+
   return (
     <Box sx={{ display: 'flex', width: '100%' }} ref={setNodeRef} style={style}>
-      <Card 
-        sx={{ 
-          display: 'flex', 
-          flexDirection: 'column', 
-          height: '100%', 
+      <Card
+        sx={{
+          display: 'flex',
+          flexDirection: 'column',
+          height: '100%',
           width: '100%',
           position: 'relative',
-          cursor: 'pointer',
+          cursor: carousel.deletedAt ? 'default' : 'pointer',
           '&:hover': {
             boxShadow: '0px 5px 15px rgba(0,0,0,0.1)'
           }
         }}
       >
-        <Box 
-          {...attributes} 
-          {...listeners} 
-          sx={{
-            position: 'absolute',
-            top: 8,
-            left: 8,
-            cursor: 'grab',
-            backgroundColor: 'rgba(255, 255, 255, 0.7)',
-            borderRadius: '50%',
-            padding: '4px',
-            zIndex: 5,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            '&:hover': {
-              backgroundColor: 'rgba(255, 255, 255, 0.9)',
-            }
-          }}
-        >
-          <DragIndicatorIcon fontSize="small" />
-        </Box>
-
-        <Link 
-          href={`/apps/carousel/${carousel.id}`} 
-          passHref 
-          style={{ textDecoration: 'none', color: 'inherit' }}
-        >
-          <Box sx={{ height: '100%' }}>
-            {carousel.image_url && (
-              <CardMedia
-                component="img"
-                sx={{ height: 160, objectFit: 'cover', borderBottom: '1px solid #eee' }}
-                image={carousel.image_url_low || carousel.image_url}
-                alt={carousel.title}
-                onError={(e: React.SyntheticEvent<HTMLImageElement, Event>) => {
-                  const target = e.target as HTMLImageElement;
-                  if (target.src === carousel.image_url_low && carousel.image_url) {
-                    target.src = carousel.image_url;
-                  } else {
-                    target.src = '/assets/images/placeholder/16x9.svg';
-                    target.style.objectFit = 'contain';
-                  }
-                }}
-              />
-            )}
-            {!carousel.image_url && (
-              <Box sx={{ height: 160, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f0f0f0', borderBottom: '1px solid #eee' }}>
-                <Typography variant="caption" color="textSecondary">No Image</Typography>
-              </Box>
-            )}
-            <CardContent sx={{ flexGrow: 1 }}>
-              <Typography gutterBottom variant="h6" component="div" noWrap title={carousel.title}>
-                {carousel.title}
-              </Typography>
-              {/* {carousel.description && (
-                <Typography variant="body2" color="text.secondary" sx={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', textOverflow: 'ellipsis', minHeight: '40px' }} title={carousel.description}>
-                  {carousel.description}
-                </Typography>
-              )} */}
-            </CardContent>
+        {!carousel.deletedAt && (
+          <Box
+            {...attributes}
+            {...listeners}
+            sx={{
+              position: 'absolute',
+              top: 8,
+              left: 8,
+              cursor: 'grab',
+              backgroundColor: 'rgba(255, 255, 255, 0.7)',
+              borderRadius: '50%',
+              padding: '4px',
+              zIndex: 5,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              '&:hover': {
+                backgroundColor: 'rgba(255, 255, 255, 0.9)',
+              }
+            }}
+          >
+            <DragIndicatorIcon fontSize="small" />
           </Box>
-        </Link>
+        )}
+
+        {carousel.deletedAt ? cardContent : (
+          <Link 
+            href={`/apps/carousel/${carousel.id}`} 
+            passHref 
+            style={{ textDecoration: 'none', color: 'inherit' }}
+          >
+            {cardContent}
+          </Link>
+        )}
 
         <Stack 
           direction="row" 
@@ -129,12 +134,14 @@ const DraggableCarouselCard: React.FC<DraggableCarouselCardProps> = ({
           sx={{ p: 1, borderTop: '1px solid #eee' }}
           onClick={(e) => e.stopPropagation()}
         >
-          {carousel.deletedAt && onRestore ? (
-            <Tooltip title="Restore Carousel">
-              <IconButton size="small" onClick={() => onRestore(carousel)}>
-                <RestoreFromTrashIcon fontSize="small" />
-              </IconButton>
-            </Tooltip>
+          {carousel.deletedAt ? (
+            onRestore && (
+              <Tooltip title="Restore Carousel">
+                <IconButton size="small" onClick={() => onRestore(carousel)}>
+                  <RestoreFromTrashIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            )
           ) : (
             <>
               <Tooltip title="Edit Carousel">

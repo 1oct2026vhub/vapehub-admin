@@ -33,6 +33,7 @@ const DraggableBannerCard: React.FC<DraggableBannerCardProps> = ({
 }) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: banner.id.toString(),
+    disabled: !!banner.deletedAt,
   });
 
   const style = {
@@ -58,28 +59,30 @@ const DraggableBannerCard: React.FC<DraggableBannerCardProps> = ({
           }
         }}
       >
-        <Box 
-          {...attributes} 
-          {...listeners} 
-          sx={{
-            position: 'absolute',
-            top: 8,
-            left: 8,
-            cursor: 'grab',
-            backgroundColor: 'rgba(255, 255, 255, 0.7)',
-            borderRadius: '50%',
-            padding: '4px',
-            zIndex: 5,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            '&:hover': {
-              backgroundColor: 'rgba(255, 255, 255, 0.9)',
-            }
-          }}
-        >
-          <DragIndicatorIcon fontSize="small" />
-        </Box>
+        {!banner.deletedAt && (
+          <Box
+            {...attributes}
+            {...listeners}
+            sx={{
+              position: 'absolute',
+              top: 8,
+              left: 8,
+              cursor: 'grab',
+              backgroundColor: 'rgba(255, 255, 255, 0.7)',
+              borderRadius: '50%',
+              padding: '4px',
+              zIndex: 5,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              '&:hover': {
+                backgroundColor: 'rgba(255, 255, 255, 0.9)',
+              }
+            }}
+          >
+            <DragIndicatorIcon fontSize="small" />
+          </Box>
+        )}
 
         {banner.deletedAt ? (
             <Box sx={{ height: '100%' }}>

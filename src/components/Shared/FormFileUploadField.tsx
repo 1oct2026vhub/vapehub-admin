@@ -29,6 +29,7 @@ export interface FormFileUploadFieldProps {
   errorMessage?: string | null;
   exactWidth?: number;
   exactHeight?: number;
+  hidePreview?: boolean;
 }
 
 const FormFileUploadField: React.FC<FormFileUploadFieldProps> = ({
@@ -45,8 +46,11 @@ const FormFileUploadField: React.FC<FormFileUploadFieldProps> = ({
   errorMessage: customErrorMessage,
   exactWidth,
   exactHeight,
+  hidePreview = false,
 }) => {
-  const [previewUrl, setPreviewUrl] = useState<string | null>(defaultImage || null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(
+    defaultImage || null
+  );
   const [touched, setTouched] = useState(false);
 
   useEffect(() => {
@@ -93,7 +97,7 @@ const FormFileUploadField: React.FC<FormFileUploadFieldProps> = ({
     
     if (file) {
       // Create preview URL for images
-      if (file.type.startsWith("image/")) {
+      if (file.type.startsWith("image/") && !hidePreview) {
         const url = URL.createObjectURL(file);
         setPreviewUrl(url);
       }
@@ -169,12 +173,12 @@ const FormFileUploadField: React.FC<FormFileUploadFieldProps> = ({
           </Box>
 
           {/* Preview for newly uploaded image */}
-          {previewUrl && previewUrl !== defaultImage && (
+          {!hidePreview && previewUrl && previewUrl !== defaultImage && (
             <Box className="mb-3">
               <Typography variant="subtitle2" color="textSecondary" className="mb-2">
                 New Image Preview:
               </Typography>
-              <Box className="relative w-full max-w-xs h-40 border rounded-none overflow-hidden mb-2">
+              <Box className="relative w-full max-w-xs h-40 overflow-hidden mb-2">
                 <img
                   src={previewUrl}
                   alt="New Preview"
@@ -209,12 +213,12 @@ const FormFileUploadField: React.FC<FormFileUploadFieldProps> = ({
           )}
           
           {/* Current/Default image preview - shown at bottom */}
-          {defaultImage && (
+          {!hidePreview && defaultImage && (
             <Box className="mt-4">
               <Typography variant="subtitle2" color="textSecondary" className="mb-2">
                 Current Image:
               </Typography>
-              <Box className="relative w-32 h-32 border rounded-none overflow-hidden">
+              <Box className="relative w-32 h-32 overflow-hidden">
                 <img
                   src={defaultImage}
                   alt="Current"

@@ -257,26 +257,7 @@ const BannerList: React.FC = () => {
   const bannerIds = useMemo(() => banners.map(b => b.id.toString()), [banners]);
 
   return (
-    <Box sx={{ p: 3, position: 'relative' }}>
-      {/* Loading Overlay */}
-      {/* {(loading || isReordering) && (
-        <Box
-          sx={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            width: '100%',
-            height: '100%',
-            bgcolor: 'rgba(255,255,255,0.7)',
-            zIndex: 20,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <CircularProgress />
-        </Box>
-      )} */}
+    <Box sx={{ marginTop: 3, position: 'relative' }}>
       <Stack direction="row" justifyContent="space-between" alignItems="center" mb={3}>
         <Typography variant="h4" component="h1" gutterBottom>
           Banner Management
@@ -324,7 +305,7 @@ const BannerList: React.FC = () => {
             </Select>
           </FormControl>
         </Grid>
-        <Grid item xs={6} sm={4} md={2}>
+        {/* <Grid item xs={6} sm={4} md={2}>
           <FormControl fullWidth size="small">
             <InputLabel>Status</InputLabel>
             <Select value={statusFilter || ''} label="Status" onChange={handleStatusFilterChange}>
@@ -333,7 +314,7 @@ const BannerList: React.FC = () => {
               <MenuItem value="inactive">Inactive</MenuItem>
             </Select>
           </FormControl>
-        </Grid>
+        </Grid> */}
         <Grid item xs={6} sm={3} md={1.5}>
           <FormControl fullWidth size="small">
             <InputLabel>Per Page</InputLabel>
