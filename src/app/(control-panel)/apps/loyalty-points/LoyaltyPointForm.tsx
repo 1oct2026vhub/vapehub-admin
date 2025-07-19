@@ -60,6 +60,18 @@ const loyaltyPointSchema = z.object({
         message: 'Minimum purchase amount can have at most 2 decimal places.',
       }
     ),
+  min_amount_for_loyalty_points: z.coerce
+    .number({ invalid_type_error: 'Minimum amount for loyalty points is required' })
+    .positive('Minimum amount for loyalty points must be a positive number')
+    .refine(
+      (value) => {
+        const parts = String(value).split('.');
+        return parts.length === 1 || (parts.length === 2 && parts[1].length <= 2);
+      },
+      {
+        message: 'Minimum amount for loyalty points can have at most 2 decimal places.',
+      }
+    ),
   status: z.boolean(),
 });
 
@@ -84,6 +96,7 @@ export default function LoyaltyPointForm({ initialData = null }: LoyaltyPointFor
       loyalty_amount_type: (initialData?.loyalty_amount_type as 'percentage' | 'fixed') || 'fixed',
       minimum_points_redemption: initialData?.minimum_points_redemption || undefined,
       minimum_purchase_amount: initialData ? Number(initialData.minimum_purchase_amount) : undefined,
+      min_amount_for_loyalty_points: initialData ? Number(initialData.min_amount_for_loyalty_points) : undefined,
       status: initialData?.status ?? true,
     },
   });
@@ -96,6 +109,7 @@ export default function LoyaltyPointForm({ initialData = null }: LoyaltyPointFor
             loyalty_amount: Number(initialData.loyalty_amount),
             loyalty_amount_type: initialData.loyalty_amount_type as 'percentage' | 'fixed',
             minimum_purchase_amount: Number(initialData.minimum_purchase_amount),
+            min_amount_for_loyalty_points: Number(initialData.min_amount_for_loyalty_points),
         });
     }
   }, [initialData, reset]);
@@ -193,6 +207,17 @@ export default function LoyaltyPointForm({ initialData = null }: LoyaltyPointFor
               helperText={errors.minimum_purchase_amount?.message}
             />
           </Grid>
+          <Grid item xs={12} md={6}>
+            <FormTextField
+                name="min_amount_for_loyalty_points"
+                control={control}
+                label="Minimum Amount for Loyalty Points"
+                type="number"
+                error={!!errors.min_amount_for_loyalty_points}
+                helperText={errors.min_amount_for_loyalty_points?.message}
+                required
+            />
+            </Grid>
           <Grid item xs={12}>
             <Controller
               name="status"

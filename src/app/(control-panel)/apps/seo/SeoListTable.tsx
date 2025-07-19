@@ -102,7 +102,7 @@ const SeoListTable: React.FC<{ refreshTrigger: number, onEdit: (data: SeoListIte
     const columns = useMemo<MRT_ColumnDef<SeoListItem>[]>(() => [
         { accessorKey: 'title', header: 'Title' },
         { accessorKey: 'entityType', header: 'Entity Type', Cell: ({ row }) => <span style={{ textTransform: 'capitalize' }}>{row.original.entityType.replace('_', ' ')}</span> },
-        { accessorKey: 'entityId', header: 'Entity ID' },
+        { accessorKey: 'entityName', header: 'Entity Name' },
         {
             accessorKey: 'health.score',
             header: 'Health Score',
