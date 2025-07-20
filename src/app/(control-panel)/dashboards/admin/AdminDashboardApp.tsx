@@ -103,7 +103,9 @@ const AdminDashboardApp = () => {
       try {
         const response = await listProducts({
           keyword: debouncedProductSearch,
-          limit: 20,
+          limit: 50,
+          sort_by: 'id',
+          order: 'DESC'
         });
         setProducts(response.data.products || []);
       } catch (error) {
@@ -174,6 +176,9 @@ setStartDate(null);
 
   const handleChartTabChange = (event: React.SyntheticEvent, newValue: number) => {
     setChartTabValue(newValue);
+    if (newValue === 1) {
+      setSelectedProduct(null);
+    }
   };
 
   const handleActivityTabChange = (event: React.SyntheticEvent, newValue: number) => {
@@ -606,35 +611,37 @@ setStartDate(null);
       >
         <Typography variant="h5">Performance Charts</Typography>
         <Box display="flex" alignItems="center" gap={2} flexWrap="wrap">
-          <Autocomplete
-            sx={{ minWidth: 200 }}
-            options={products}
-            getOptionLabel={(option) => option.name}
-            value={selectedProduct}
-            onChange={(event, newValue) => {
-              setSelectedProduct(newValue);
-            }}
-            onInputChange={(event, newInputValue) => {
-              setProductSearch(newInputValue);
-            }}
-            loading={loadingProducts}
-            renderInput={(params) => (
-              <TextField
-                {...params}
-                label="Select Product"
-                size="small"
-                InputProps={{
-                  ...params.InputProps,
-                  endAdornment: (
-                    <>
-                      {loadingProducts ? <CircularProgress color="inherit" size={20} /> : null}
-                      {params.InputProps.endAdornment}
-                    </>
-                  ),
-                }}
-              />
-            )}
-          />
+          {chartTabValue !== 1 && (
+            <Autocomplete
+              sx={{ minWidth: 200 }}
+              options={products}
+              getOptionLabel={(option) => option.name}
+              value={selectedProduct}
+              onChange={(event, newValue) => {
+                setSelectedProduct(newValue);
+              }}
+              onInputChange={(event, newInputValue) => {
+                setProductSearch(newInputValue);
+              }}
+              loading={loadingProducts}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label="Search product"
+                  size="small"
+                  InputProps={{
+                    ...params.InputProps,
+                    endAdornment: (
+                      <>
+                        {loadingProducts ? <CircularProgress color="inherit" size={20} /> : null}
+                        {params.InputProps.endAdornment}
+                      </>
+                    ),
+                  }}
+                />
+              )}
+            />
+          )}
 
           <FormControl variant="outlined" size="small" sx={{ minWidth: 120 }}>
             <InputLabel id="period-select-label">Period</InputLabel>

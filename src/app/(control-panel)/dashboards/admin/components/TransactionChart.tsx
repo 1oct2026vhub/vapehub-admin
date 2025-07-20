@@ -25,7 +25,10 @@ const TransactionChart = ({ data, period }: TransactionChartProps) => {
     return `${monthName} ${year}`;
   };
 
-  const formatYearlyDate = (dateRange: string) => dayjs(dateRange).format('YYYY');
+  const formatYearlyDate = (dateRange: string) => {
+    if (!dateRange) return "";
+    return dateRange.substring(0, 4);
+  };
 
   const formatDateRange = (dateRange: string): string => {
     if (!dateRange) return "";
