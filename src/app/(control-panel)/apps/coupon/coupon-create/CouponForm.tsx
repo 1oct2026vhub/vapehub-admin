@@ -200,7 +200,11 @@ export default function CouponForm() {
 
       let response: any;
       let fetchedEntities: any[] = [];
-      const params: any = { limit: 50 };
+      const params: any = { 
+        limit: 50,
+        sort_by: 'id',
+        order: 'DESC'
+      };
 
       if (debouncedSearch) {
         if (entityType === 'product') {
@@ -353,6 +357,7 @@ export default function CouponForm() {
                       <TextField
                         {...params}
                         label="Entity Name"
+                        placeholder={`Search ${entityType}`}
                         fullWidth
                         className='h-10'
                         error={!!errors.entity_id}

@@ -221,7 +221,11 @@ export default function EditCouponForm() {
 
       let response: any;
       let fetchedEntities: any[] = [];
-      const params: any = { limit: 50 };
+      const params: any = { 
+        limit: 50,
+        sort_by: 'id',
+        order: 'DESC'
+      };
 
       if (debouncedSearch) {
         if (entityType === 'product') {
@@ -388,6 +392,7 @@ export default function EditCouponForm() {
                       <TextField
                         {...params}
                         label="Entity Name"
+                        placeholder={`Search ${entityType}`}
                         className='h-10'
                         fullWidth
                         error={!!errors.entity_id}
