@@ -9,6 +9,7 @@ import {
 import InventoryHeader from './InventoryHeader';
 import InventoryTable from './InventoryTable';
 import FuseLoading from '@fuse/core/FuseLoading';
+import PageBreadcrumbs from '@/components/PageBreadcrumb';
 
 function InventoryApp() {
     const [data, setData] = useState<InventoryDashboardResponse['data'] | null>(null);
@@ -60,12 +61,8 @@ function InventoryApp() {
     
     return (
         <Box className="w-full p-4 md:p-12">
-            <Typography variant="h4" component="h1" className="mb-4 font-bold">
-                Inventory Management
-            </Typography>
-
-            {data?.summary && <InventoryHeader summary={data.summary} onRefresh={fetchInventory} />}
-            
+          <PageBreadcrumbs/>
+            {data?.summary && <InventoryHeader summary={data.summary} onRefresh={fetchInventory} />}  
             {data && (
                  <InventoryTable
                     inventory={data.inventory}

@@ -57,13 +57,19 @@ const dealSchema = z.object({
     })).optional().nullable(),
     bundle_product_ids_json: z.array(z.number()).optional().nullable(),
     image: z.any().optional()
-        .refine((file) => !file || file.size <= MAX_FILE_SIZE, `Max image size is 5MB.`)
+        .refine((file) => {
+            if (typeof file === 'string' || !file) return true;
+            return file.size <= MAX_FILE_SIZE;
+        }, `Max image size is 5MB.`)
         .refine(
-            (file) => !file || ACCEPTED_IMAGE_TYPES.includes(file?.type),
+            (file) => {
+                if (typeof file === 'string' || !file) return true;
+                return ACCEPTED_IMAGE_TYPES.includes(file?.type);
+            },
             "Only .jpg, .jpeg, .png and .webp formats are supported."
         )
         .refine(async (file) => {
-            if (!file) return true;
+            if (typeof file === 'string' || !file) return true;
             const dimensions = await validateImageDimensions(file, 312, 258);
             return dimensions.valid;
         }, "Image must be 312x258px."),
@@ -83,7 +89,7 @@ const DealForm: React.FC<DealFormProps> = ({ deal }) => {
     const {
         control,
         handleSubmit,
-        formState: { errors, isValid },
+        formState: { errors, isValid, isDirty },
         watch,
         reset
     } = useForm<DealFormData>({
@@ -258,7 +264,7 @@ const DealForm: React.FC<DealFormProps> = ({ deal }) => {
 
                             <div className="flex justify-end gap-2 mt-10">
                                 <Button variant="outlined" onClick={() => router.push('/apps/deals')}>Cancel</Button>
-                                <AppButton type="submit" label={deal ? "Save Changes" : "Create"} loading={isSubmitting} disabled={!isValid || isSubmitting} />
+                                <AppButton type="submit" label={deal ? "Save Changes" : "Create"} loading={isSubmitting} disabled={!isValid || isSubmitting || (deal && !isDirty)} />
                             </div>
                         </form>
                     </Paper>

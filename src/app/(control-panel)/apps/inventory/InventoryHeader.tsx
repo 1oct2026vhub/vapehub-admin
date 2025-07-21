@@ -28,7 +28,9 @@ const InventoryHeader: React.FC<InventoryHeaderProps> = ({ summary, onRefresh })
     return (
         <div className="mb-8">
             <div className="flex justify-between items-center mb-4">
-            <Typography variant="h5" component="h1" className="text-xl font-semibold">Inventory Dashboard</Typography>
+                <Typography variant="h4" component="h1" className="mb-4 font-bold">
+                Inventory Management
+                </Typography>
                 <AppButton
                     label="Bulk Upload"
                     onClick={() => setIsModalOpen(true)}
