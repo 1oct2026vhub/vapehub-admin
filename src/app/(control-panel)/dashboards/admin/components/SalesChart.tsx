@@ -35,7 +35,8 @@ const SalesChart = ({ data, period }: SalesChartProps) => {
   };
 
   const formatYearlyDate = (dateRange: string) => {
-    return dayjs(dateRange).format('YYYY');
+    if (!dateRange) return "";
+    return dateRange.substring(0, 4);
   }
 
   // Format date range to display in a more readable format for weekly data

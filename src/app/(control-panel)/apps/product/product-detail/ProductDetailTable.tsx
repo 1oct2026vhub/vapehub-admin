@@ -96,8 +96,8 @@ interface Variant {
   product_id: number;
   slug: string;
   price: string;
-  discount_price: string;
-  purchase_price: string;
+  discount_price: string | null;
+  purchase_price: string | null;
   weight: string;
   length: string;
   width: string;
@@ -158,6 +158,14 @@ export default function ProductDetailTable() {
   const { data, error, isLoading } = useFetch(["getProduct", id], () =>
     getProduct(id)
   );
+
+  const formatStockStatus = (status: string) => {
+    if (!status) return "";
+    return status
+      .split("_")
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(" ");
+  };
 
   useEffect(() => {
     if (data?.data) {
@@ -739,7 +747,7 @@ export default function ProductDetailTable() {
                                               Discount Price
                                             </TableCell>
                                             <TableCell>
-                                              {formatPounds(variant.discount_price)}
+                                              {formatPounds(variant.discount_price ?? "0.00")}
                                             </TableCell>
                                           </TableRow>
                                           <TableRow>
@@ -747,7 +755,7 @@ export default function ProductDetailTable() {
                                               Purchase Price
                                             </TableCell>
                                             <TableCell>
-                                              {formatPounds(variant.purchase_price)}
+                                              {formatPounds(variant.purchase_price ?? "0.00")}
                                             </TableCell>
                                           </TableRow>
                                           <TableRow>
@@ -764,7 +772,7 @@ export default function ProductDetailTable() {
                                               >
                                                 {variant.stock}
                                                 <Chip
-                                                  label={variant.stock_status}
+                                                  label={formatStockStatus(variant.stock_status)}
                                                   size="small"
                                                   color={
                                                     variant.stock_status ===

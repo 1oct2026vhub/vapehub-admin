@@ -129,7 +129,11 @@ const ReviewCreateModal: React.FC<ReviewCreateModalProps> = ({
   const fetchProducts = async () => {
     setProductsLoading(true);
     try {
-      const params: any = { limit: 50 };
+      const params: any = { 
+        limit: 50,
+        sort_by: 'id',
+        order: 'DESC' 
+      };
       if (debouncedSearch) {
         params.keyword = debouncedSearch;
       }
@@ -238,7 +242,8 @@ const ReviewCreateModal: React.FC<ReviewCreateModalProps> = ({
                     renderInput={(params) => (
                         <TextField
                         {...params}
-                        label="Product"
+                        label="Search product"
+                        placeholder="Search product"
                         error={!!formState.errors.product_id}
                         helperText={formState.errors.product_id?.message}
                         required

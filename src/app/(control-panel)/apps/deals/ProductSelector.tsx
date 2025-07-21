@@ -24,7 +24,7 @@ const ProductSelector: React.FC<ProductSelectorProps> = ({ dealId, onProductAdde
 
     const { data: response, isLoading: loading } = useFetch(
         ['products', debouncedInputValue],
-        () => listProducts({ search: debouncedInputValue, limit: 10 })
+        () => listProducts({ search: debouncedInputValue, limit: 50, sort_by: 'id', order: 'DESC' })
     );
     
     const options = response?.data?.products || [];

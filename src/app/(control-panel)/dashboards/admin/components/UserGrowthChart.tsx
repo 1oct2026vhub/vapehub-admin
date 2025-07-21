@@ -34,7 +34,8 @@ const UserGrowthChart = ({ data, period }: UserGrowthChartProps) => {
   };
 
   const formatYearlyDate = (dateRange: string) => {
-    return dayjs(dateRange).format('YYYY');
+    if (!dateRange) return "";
+    return dateRange.substring(0, 4);
   }
 
   // Format the dateRange for better display for weekly data
