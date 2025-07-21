@@ -21,6 +21,7 @@ import Link from 'next/link';
 import EditIcon from '@mui/icons-material/Edit';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import Image from 'next/image'; // Using Next.js Image for optimization
+import PageBreadcrumb from '@/components/PageBreadcrumb';
 
 const BannerDetailPage: React.FC = () => {
   const router = useRouter();
@@ -104,7 +105,15 @@ const BannerDetailPage: React.FC = () => {
 
   return (
     <Container maxWidth="lg" sx={{ py: 3 }}>
-      {/* <PageBreadcrumb items={breadcrumbItems} /> */}
+      <PageBreadcrumb />
+      {/* <Button
+                    variant="outlined"
+                    startIcon={<ArrowBackIcon />}
+                    onClick={() => router.push('/apps/banner')}
+                    sx={{ mr: 1}}
+                >
+                    Back to List
+        </Button> */}
       <Paper elevation={3} sx={{ p: { xs: 2, md: 4 }, mt: 2, bgcolor: 'white' }}>
         <Grid container spacing={3} alignItems="center" justifyContent="center">
           <Grid item xs={12} display="flex" justifyContent="space-between" alignItems="center">
@@ -112,14 +121,7 @@ const BannerDetailPage: React.FC = () => {
               {banner.title}
             </Typography>
             <Box>
-                <Button
-                    variant="outlined"
-                    startIcon={<ArrowBackIcon />}
-                    onClick={() => router.push('/apps/banner')}
-                    sx={{ mr: 1}}
-                >
-                    Back to List
-                </Button>
+                
                 <Button
                     variant="contained"
                     component={Link}
