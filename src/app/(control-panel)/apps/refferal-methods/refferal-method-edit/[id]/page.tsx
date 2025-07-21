@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { getReferralMethodById, ReferralMethod } from '@/services/apiRefferalMethods';
 import RefferalMethodEditForm from './RefferalMethodEditForm';
 import { useParams } from 'next/navigation';
+import PageBreadcrumb from '@/components/PageBreadcrumb';
 
 function EditRefferalMethodPage() {
 	const params = useParams();
@@ -30,6 +31,7 @@ function EditRefferalMethodPage() {
 
 	return (
 		<div className="p-4">
+      <PageBreadcrumb />
 			<RefferalMethodEditForm referralMethod={referralMethod} />
 		</div>
 	);

@@ -1,5 +1,6 @@
 import { Metadata } from "next";
 import TransactionListApp from "./TransactionListApp";
+import PageBreadcrumb from "@/components/PageBreadcrumb";
 
 export const metadata: Metadata = {
   title: "Transactions | VapeHub",
@@ -7,7 +8,12 @@ export const metadata: Metadata = {
 };
 
 function TransactionListPage() {
-  return <TransactionListApp />;
+  return (
+    <div>
+      <PageBreadcrumb />
+      <TransactionListApp />
+    </div>
+  );
 }
 
 export default TransactionListPage; 

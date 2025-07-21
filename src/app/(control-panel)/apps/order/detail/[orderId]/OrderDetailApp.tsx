@@ -492,16 +492,32 @@ const OrderDetailApp = () => {
                   {formatPounds(order?.sub_total || 0)}
                 </Typography>
               </div>
-              {order?.discount_price && (
+              {order?.discount_price && parseFloat(order.discount_price) > 0 && (
                 <div className="flex justify-between">
                   <Typography variant="body2">Discount</Typography>
                   <Typography variant="body2" color="error">
                     {/* Conditional discount display */}
                     {order.discount_type === 'percentage'
-                      ? `-${formatPounds(order.discount_price)}%` // Assumes discount_price holds the percentage rate
+                    ? `-${formatPounds(order.discount_price)}%` // Assumes discount_price holds the percentage rate
                       : `-${formatPounds(order.discount_price || 0)}`}
                   </Typography>
                 </div>
+              )}
+              {order?.deals_discount && parseFloat(order.deals_discount) > 0 && (
+                <div className="flex justify-between">
+                    <Typography variant="body2">Deals Discount</Typography>
+                    <Typography variant="body2" color="error">
+                        -{formatPounds(parseFloat(order.deals_discount))}
+                    </Typography>
+                </div>
+              )}
+              {order?.loyalty_discount && parseFloat(order.loyalty_discount) > 0 && (
+                  <div className="flex justify-between">
+                      <Typography variant="body2">Loyalty Discount</Typography>
+                      <Typography variant="body2" color="error">
+                          -{formatPounds(parseFloat(order.loyalty_discount))}
+                      </Typography>
+                  </div>
               )}
               <div className="flex justify-between">
                 <Typography variant="body2">Shipping Cost</Typography>

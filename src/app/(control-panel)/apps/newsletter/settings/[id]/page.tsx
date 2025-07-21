@@ -6,6 +6,7 @@ import MailSubscriptionSettingForm from '../_components/MailSubscriptionSettingF
 import { Typography } from '@mui/material';
 import FuseLoading from '@fuse/core/FuseLoading';
 import { useParams, notFound } from 'next/navigation';
+import PageBreadcrumb from '@/components/PageBreadcrumb';
 
 function EditMailSubscriptionSettingPage() {
     const [setting, setSetting] = useState<MailSubscriptionSetting | null>(null);
@@ -40,6 +41,7 @@ function EditMailSubscriptionSettingPage() {
 
     return (
         <div className="w-full flex flex-col min-h-full p-8">
+            <PageBreadcrumb />      
             <Typography variant="h4" className="font-semibold mb-4">
                 Edit Mail Subscription Setting
             </Typography>

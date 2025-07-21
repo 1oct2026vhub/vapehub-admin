@@ -21,6 +21,7 @@ import { getBlogCategory, type BlogCategory } from "@/services/apiBlog";
 import { useSnackbar } from "@/contexts/SnackbarContext";
 import { formatDate } from "@/utils/actions";
 import FuseSvgIcon from "@fuse/core/FuseSvgIcon";
+import PageBreadcrumb from "@/components/PageBreadcrumb";
 
 // Define the category structure for both children and parent
 interface CategoryReference {
@@ -93,6 +94,7 @@ export default function CategoryDetailPage() {
 
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
+      <PageBreadcrumb />
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}

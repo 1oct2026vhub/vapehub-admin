@@ -49,6 +49,7 @@ import debounce from "lodash/debounce";
 import AddCategoryModal from "@/components/Shared/AddCategoryModal";
 import { Button as MuiButton, Box as MuiBox } from "@mui/material";
 import SeoForm from "@/app/(control-panel)/apps/seo/components/SeoForm";
+import PageBreadcrumb from "@/components/PageBreadcrumb";
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB in bytes
 const MIN_IMAGE_WIDTH = 1091;
@@ -362,6 +363,7 @@ export default function EditBlogPost() {
 
   return (
       <div className="md:px-14 p-4">
+        <PageBreadcrumb />
    {/* <Container maxWidth="lg" sx={{ py: 4 }}> */}
       {/* <motion.div
         initial={{ opacity: 0, y: 20 }}

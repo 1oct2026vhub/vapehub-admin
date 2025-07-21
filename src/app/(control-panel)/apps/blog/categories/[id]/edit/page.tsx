@@ -31,6 +31,7 @@ import { useSnackbar } from "@/contexts/SnackbarContext";
 import { getBlogCategory, updateBlogCategory, getBlogCategories, type BlogCategory } from "@/services/apiBlog";
 import FormFileUploadField from "@/components/Shared/FormFileUploadField";
 import SeoForm from "@/app/(control-panel)/apps/seo/components/SeoForm";
+import PageBreadcrumb from "@/components/PageBreadcrumb";
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB in bytes
 const MAX_IMAGE_WIDTH = 322;
@@ -290,6 +291,7 @@ export default function EditBlogCategory() {
 
   return (
     <div className="md:px-14 p-4">
+      <PageBreadcrumb />
     {/* // <Container maxWidth="lg" sx={{ py: 4 }}>
     //   <motion.div
     //     initial={{ opacity: 0, y: 20 }}

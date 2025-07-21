@@ -60,6 +60,7 @@ import {
   reorderFooterLink,
 } from "@/services/apiFooter";
 import FooterLinksDialog from "./components/FooterLinksDialog";
+import PageBreadcrumb from "@/components/PageBreadcrumb";
 
 // dnd-kit imports
 import {
@@ -408,6 +409,7 @@ export default function FooterSectionsApp() {
       className="w-full"
     >
       <Container maxWidth={false} sx={{ pl: 3, pr: 3 }}>
+        <PageBreadcrumb />
         <Box className="sm:py-12 py-8">
           <Box
             display="flex"

@@ -21,6 +21,7 @@ import AppButton from "@/components/Shared/AppButton";
 import { useSnackbar } from "@/contexts/SnackbarContext";
 import { BlogTag, getBlogTagById } from "@/services/apiBlog";
 import { formatDate } from "@/utils/actions";
+import PageBreadcrumb from "@/components/PageBreadcrumb";
 
 export default function BlogTagDetail() {
   const params = useParams();
@@ -69,6 +70,7 @@ export default function BlogTagDetail() {
 
   return (
     <Container maxWidth={false} sx={{ py: 3 }}>
+      <PageBreadcrumb />  
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}

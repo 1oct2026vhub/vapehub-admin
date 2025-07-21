@@ -27,6 +27,7 @@ import OrderFilters from "../components/OrderFilters";
 import OrderStatistics from "../components/OrderStatistics";
 import GenerateReportButton from "../components/GenerateReportButton";
 import { OrderStatus, PaymentStatus } from "@/services/apiOrder";
+import PageBreadcrumb from "@/components/PageBreadcrumb";
 
 function OrderListApp() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -67,6 +68,7 @@ function OrderListApp() {
 
   return (
     <Container maxWidth={false} sx={{ py: 3 }}>
+      <PageBreadcrumb />
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
