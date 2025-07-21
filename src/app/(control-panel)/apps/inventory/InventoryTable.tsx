@@ -80,6 +80,9 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
             {
                 accessorKey: 'name',
                 header: 'Product variant name',
+                size: 300,
+                enableSorting: false,
+                enableColumnActions: false,
                 Cell: ({ row }) => (
                     <Box sx={{ display: 'flex', alignItems: 'center' }}>
                         <Avatar src={row.original.image || undefined} sx={{ mr: 2 }}>{row.original.name?.charAt(0)}</Avatar>
@@ -87,13 +90,38 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
                     </Box>
                 ),
             },
-            { accessorKey: 'currentStock', header: 'Current Stock' },
-            { accessorKey: 'lowStockThreshold', header: 'Low Stock Threshold' },
-            { accessorKey: 'totalSales', header: 'Total Sales' },
+            { 
+                accessorKey: 'currentStock', 
+                header: 'Current Stock',
+                muiTableHeadCellProps: { align: 'center' },
+                muiTableBodyCellProps: { align: 'center' },
+                enableSorting: false,
+                enableColumnActions: false,
+            },
+            { 
+                accessorKey: 'lowStockThreshold', 
+                header: 'Low Stock Threshold',
+                muiTableHeadCellProps: { align: 'center' },
+                muiTableBodyCellProps: { align: 'center' },
+                enableSorting: false,
+                enableColumnActions: false,
+            },
+            { 
+                accessorKey: 'totalSales', 
+                header: 'Total Sales',
+                muiTableHeadCellProps: { align: 'center' },
+                muiTableBodyCellProps: { align: 'center' },
+                enableSorting: false,
+                enableColumnActions: false,
+            },
 
             {
                 accessorKey: 'isOutOfStock',
                 header: 'Stock Status',
+                muiTableHeadCellProps: { align: 'center' },
+                muiTableBodyCellProps: { align: 'center' },
+                enableSorting: false,
+                enableColumnActions: false,
                 Cell: ({ row }) =>
                     row.original.isOutOfStock ? (
                         <Chip label="Out of Stock" color="error" size="small" />
@@ -103,7 +131,14 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
                         <Chip label="In Stock" color="success" size="small" />
                     )
             },
-            { accessorKey: 'salesLast28Days', header: 'Sales (Last 28 days)' },
+            { 
+                accessorKey: 'salesLast28Days', 
+                header: 'Sales (Last 28 days)',
+                muiTableHeadCellProps: { align: 'center' },
+                muiTableBodyCellProps: { align: 'center' },
+                enableSorting: false,
+                enableColumnActions: false,
+            },
         ],
         []
       );
@@ -174,6 +209,7 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
                 data={inventory}
                 columns={columns}
                 state={{ isLoading: loading }}
+                enableColumnDragging={false}
                 renderRowActionMenuItems={({ closeMenu, row }) => [
                     <MenuItem
                       key="view"
