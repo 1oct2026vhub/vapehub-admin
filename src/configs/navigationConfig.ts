@@ -263,6 +263,13 @@ const navigationConfig: FuseNavItemType[] = [
       // },
     ],
   },
+  {
+    id: "contact-us",
+    title: "Contact Us",
+    type: "item",
+    icon: "heroicons-outline:phone",
+    url: "/apps/contact-us"
+  },
   
 ];
 
