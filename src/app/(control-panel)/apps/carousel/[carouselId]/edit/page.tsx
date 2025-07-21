@@ -6,6 +6,7 @@ import EditCarouselForm from './EditCarouselForm';
 import { Box, CircularProgress, Typography } from '@mui/material';
 import { getCarousel } from '@/services/apiCarousel';
 import { Carousel } from '@/types/carousel';
+import PageBreadcrumb from '@/components/PageBreadcrumb';
 
 const EditCarouselPage = () => {
   const params = useParams();
@@ -38,6 +39,7 @@ const EditCarouselPage = () => {
 
   return (
     <Box sx={{ p: 3 }}>
+      <PageBreadcrumb />
       <Typography variant="h5" component="h2" gutterBottom sx={{ mb: 3, fontWeight: 'bold' }}>
         Edit Carousel
       </Typography>

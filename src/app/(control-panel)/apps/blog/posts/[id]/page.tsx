@@ -23,6 +23,7 @@ import { useSnackbar } from "@/contexts/SnackbarContext";
 import { formatDate } from "@/utils/actions";
 import FuseSvgIcon from "@fuse/core/FuseSvgIcon";
 import { ckEditorStyles, ckEditorBoxStyles } from "@/styles/ckEditorStyles";
+import PageBreadcrumb from "@/components/PageBreadcrumb";
 
 export default function BlogPostDetailPage() {
   const { id } = useParams();
@@ -81,6 +82,7 @@ export default function BlogPostDetailPage() {
 
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
+      <PageBreadcrumb />
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
