@@ -147,7 +147,7 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
         <Paper sx={{ width: '100%', overflow: 'hidden', p:2, backgroundColor: 'white' }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', p: 2, flexWrap: 'wrap', gap: 2 }}>
                 <TextField
-                    label="Search by barcode or slug"
+                    label="Search by product variant"
                     variant="outlined"
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
