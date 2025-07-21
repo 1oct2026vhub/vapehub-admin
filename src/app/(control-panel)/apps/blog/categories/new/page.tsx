@@ -28,6 +28,7 @@ import FormCKEditor from "@/components/Shared/FormCKEditor";
 import { useSnackbar } from "@/contexts/SnackbarContext";
 import { createBlogCategory, getBlogCategories, type BlogCategory } from "@/services/apiBlog";
 import FormFileUploadField from "@/components/Shared/FormFileUploadField";
+import PageBreadcrumb from "@/components/PageBreadcrumb";
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB in bytes
 const MAX_IMAGE_WIDTH = 322;
@@ -231,6 +232,7 @@ export default function CreateBlogCategory() {
 
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
+      <PageBreadcrumb />
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}

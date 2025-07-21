@@ -119,7 +119,38 @@ export const updateDeal = (id: number, data: Partial<DealFormData>): Promise<Dea
     return updater(`/api/admin/deals/${id}`, formData);
 };
 
-export const addProductsToDeal = (id: number, product_ids: number[]): Promise<void> => {
+interface StockWarningDetails {
+    variant_id: number;
+    variant_slug: string;
+    stock: number;
+    low_stock_threshold: number;
+    message: string;
+}
+
+interface StockIssue {
+    product_id: number;
+    product_name: string;
+    issue: string;
+    out_of_stock_variants: number;
+    total_variants: number;
+    out_of_stock_variant_details: StockWarningDetails[];
+}
+
+interface Warnings {
+    stock_issues: StockIssue[];
+    message: string;
+    has_low_stock: boolean;
+    has_out_of_stock: boolean;
+}
+
+export interface AddProductsToDealResponse {
+    status: string;
+    message: string;
+    data: Deal;
+    warnings?: Warnings;
+}
+
+export const addProductsToDeal = (id: number, product_ids: number[]): Promise<AddProductsToDealResponse> => {
     return poster(`/api/admin/deals/${id}/products`, { product_ids });
 };
 

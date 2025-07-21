@@ -41,8 +41,12 @@ const ProductSelector: React.FC<ProductSelectorProps> = ({ dealId, onProductAdde
 
         setIsAdding(true);
         try {
-            await addProductsToDeal(dealId, [selectedProduct.id]);
-            showSnackbar('Product added successfully!', 'success');
+            const response = await addProductsToDeal(dealId, [selectedProduct.id]);
+            if(response.warnings && response.warnings.message) {
+                showSnackbar(response.warnings.message, 'warning');
+            } else {
+                showSnackbar('Product added successfully!', 'success');
+            }
             onProductAdded(selectedProduct);
             setSelectedProduct(null);
         } catch (error: any) {

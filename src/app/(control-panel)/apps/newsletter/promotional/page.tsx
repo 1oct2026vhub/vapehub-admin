@@ -1,9 +1,13 @@
 'use client'
 import PromotionalEmailForm from './_components/PromotionalEmailForm';
+import PageBreadcrumb from '@/components/PageBreadcrumb';
 
 const PromotionalEmailPage = () => {
     return (
-        <PromotionalEmailForm />
+        <div>
+            <PageBreadcrumb />        
+            <PromotionalEmailForm />
+        </div>
     )
 }
 

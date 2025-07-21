@@ -250,5 +250,27 @@ export const shuffleBannerDisplayOrder = async (id: number, new_display_order: n
   }
 };
 
+/**
+ * Restores a soft-deleted banner.
+ * POST /api/admin/banners/{id}/restore
+ */
+export const restoreBanner = async (id: number): Promise<{ success: boolean; message: string }> => {
+  try {
+    interface RestoreResponse {
+      success: boolean;
+      message: string;
+    }
+    const response = await axiosInstance.post<RestoreResponse>(`/api/admin/banners/${id}/restore`);
+    if (response.data && response.data.success) {
+      return { success: true, message: response.data.message || 'Banner restored successfully' };
+    }
+    throw new Error(response.data?.message || `Failed to restore banner ID ${id}`);
+  } catch (error: any) {
+    console.error(`Error restoring banner ID ${id}:`, error);
+    const errorMessage = error.response?.data?.message || error.message || 'An unexpected error occurred during restoration.';
+    throw new Error(errorMessage);
+  }
+};
+
 // Placeholder for future CRUD operations:
 // export const restoreBanner = async (bannerId: number) => { /* ... */ };

@@ -19,6 +19,7 @@ import Link from 'next/link';
 import EditIcon from '@mui/icons-material/Edit';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import Image from 'next/image';
+import PageBreadcrumb from '@/components/PageBreadcrumb';
 
 const CarouselDetailPage: React.FC = () => {
   const router = useRouter();
@@ -94,6 +95,7 @@ const CarouselDetailPage: React.FC = () => {
 
   return (
     <Container maxWidth="lg" sx={{ py: 3 }}>
+      <PageBreadcrumb />
       <Paper elevation={3} sx={{ p: { xs: 2, md: 4 }, mt: 2, bgcolor: 'white' }}>
         <Grid container spacing={3} alignItems="center" justifyContent="center">
           <Grid item xs={12} display="flex" justifyContent="space-between" alignItems="center">
@@ -101,14 +103,14 @@ const CarouselDetailPage: React.FC = () => {
               {carousel.title}
             </Typography>
             <Box>
-              <Button
+              {/* <Button
                 variant="outlined"
                 startIcon={<ArrowBackIcon />}
                 onClick={() => router.push('/apps/carousel')}
                 sx={{ mr: 1 }}
               >
                 Back to List
-              </Button>
+              </Button> */}
               <Button
                 variant="contained"
                 component={Link}
@@ -158,14 +160,14 @@ const CarouselDetailPage: React.FC = () => {
                       <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap' }}>{carousel.description}</Typography>
                     </div>
                   )}
-                  <div className='flex gap-2 items-center'>
+                  {/* <div className='flex gap-2 items-center'>
                     <Typography variant="subtitle2" color="text.secondary">Status:</Typography>
                     <Chip
                       label={carousel.status ? 'Active' : 'Inactive'}
                       color={carousel.status === 'active' ? 'success' : 'error'}
                       size="small"
                     />
-                  </div>
+                  </div> */}
                   {/* <div>
                     <Typography variant="subtitle2" color="text.secondary">Display Order:</Typography>
                     <Typography variant="body1">{carousel.display_order}</Typography>

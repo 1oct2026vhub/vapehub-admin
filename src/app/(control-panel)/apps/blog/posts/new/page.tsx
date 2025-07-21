@@ -45,6 +45,7 @@ import { Button as MuiButton, Box as MuiBox } from "@mui/material";
 import AddCategoryModal from "@/components/Shared/AddCategoryModal";
 import debounce from "lodash/debounce";
 import AddIcon from '@mui/icons-material/Add';
+import PageBreadcrumb from "@/components/PageBreadcrumb";
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB in bytes
 const MIN_IMAGE_WIDTH = 1091;
@@ -305,6 +306,7 @@ export default function CreateBlogPost() {
 
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
+      <PageBreadcrumb />
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}

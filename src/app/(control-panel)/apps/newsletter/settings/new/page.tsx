@@ -2,10 +2,12 @@
 
 import { Typography } from '@mui/material';
 import MailSubscriptionSettingForm from '../_components/MailSubscriptionSettingForm';
+import PageBreadcrumb from '@/components/PageBreadcrumb';
 
 function NewMailSubscriptionSettingPage() {
 	return (
 		<div className="w-full flex flex-col min-h-full p-8">
+      <PageBreadcrumb />
 			<Typography variant="h4" className="font-semibold mb-4">
 				New Mail Subscription Setting
 			</Typography>

@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   getBanners,
   deleteBanner,
+  restoreBanner,
   shuffleBannerDisplayOrder,
   type BannerItem,
   type FetchBannersParams,
@@ -86,6 +87,10 @@ const BannerList: React.FC = () => {
   // State for delete confirmation
   const [isConfirmDeleteDialogOpen, setIsConfirmDeleteDialogOpen] = useState<boolean>(false);
   const [bannerToDelete, setBannerToDelete] = useState<BannerItem | null>(null);
+
+  // State for restore confirmation
+  const [isConfirmRestoreDialogOpen, setIsConfirmRestoreDialogOpen] = useState<boolean>(false);
+  const [bannerToRestore, setBannerToRestore] = useState<BannerItem | null>(null);
 
   // Sensors for dnd-kit
   const sensors = useSensors(
@@ -218,6 +223,28 @@ const BannerList: React.FC = () => {
       showSnackbar(err.message || 'Failed to delete banner', 'error');
     }
     handleCloseDeleteDialog();
+  };
+
+  const handleOpenRestoreDialog = (banner: BannerItem) => {
+    setBannerToRestore(banner);
+    setIsConfirmRestoreDialogOpen(true);
+  };
+
+  const handleCloseRestoreDialog = () => {
+    setBannerToRestore(null);
+    setIsConfirmRestoreDialogOpen(false);
+  };
+
+  const handleConfirmRestore = async () => {
+    if (!bannerToRestore) return;
+    try {
+      await restoreBanner(bannerToRestore.id);
+      showSnackbar(`Banner "${bannerToRestore.title}" restored successfully!`, 'success');
+      fetchBannersCallback(); // Refresh the list
+    } catch (err: any) {
+      showSnackbar(err.message || 'Failed to restore banner', 'error');
+    }
+    handleCloseRestoreDialog();
   };
 
   const handleDragEnd = async (event: DragEndEvent) => {
@@ -362,6 +389,7 @@ const BannerList: React.FC = () => {
                   <DraggableBannerCard
                     banner={banner}
                     onDelete={handleOpenDeleteDialog}
+                    onRestore={handleOpenRestoreDialog}
                   />
                 </Grid>
               ))}
@@ -393,6 +421,18 @@ const BannerList: React.FC = () => {
           actionButtonColorClass="bg-red-600 hover:bg-red-700"
         />
       )}
+
+      {/* Restore Confirmation Dialog */}
+        {bannerToRestore && (
+            <ConfirmActionDialog
+                open={isConfirmRestoreDialogOpen}
+                onClose={handleCloseRestoreDialog}
+                onConfirm={handleConfirmRestore}
+                title="Confirm Restore"
+                itemName={bannerToRestore.title}
+                actionButtonText="Restore"
+            />
+        )}
     </Box>
   );
 };

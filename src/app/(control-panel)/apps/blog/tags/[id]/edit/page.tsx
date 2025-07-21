@@ -21,6 +21,7 @@ import AppButton from "@/components/Shared/AppButton";
 import FormInputField from "@/components/Shared/FormInputField";
 import { useSnackbar } from "@/contexts/SnackbarContext";
 import { BlogTag, createBlogTag, getBlogTagById, updateBlogTag } from "@/services/apiBlog";
+import PageBreadcrumb from "@/components/PageBreadcrumb";
 
 // Define validation schema using Zod
 const tagSchema = z.object({
@@ -147,6 +148,7 @@ export default function EditBlogTag() {
 
   return (
     <Container maxWidth={false} sx={{ py: 3 }}>
+      <PageBreadcrumb />
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
