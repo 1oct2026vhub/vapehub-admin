@@ -137,7 +137,7 @@ interface ManualVariantData {
   id: number; 
   product_id: number;
   slug: string;
-  price: string; 
+  regular_price: string; 
   discount_price: string | null;
   purchase_price: string | null;
   weight: string | null;
@@ -160,25 +160,25 @@ const variantEditSchema = z.object({
     .min(1, "Slug is required")
     .max(100, "Slug cannot exceed 100 characters")
     .regex(/^[a-z0-9-]+$/, "Slug must contain only lowercase letters, numbers, and hyphens"),
-  price: z.preprocess(
+  regular_price: z.preprocess(
     (val) => {
       if (val === "" || val === null || val === undefined) return null;
       const parsed = Number(val);
       return isNaN(parsed) ? "NaN" : parsed;
     },
     z.union([
-      z.literal("NaN").refine(() => false, "Please enter a valid number for price"),
+      z.literal("NaN").refine(() => false, "Please enter a valid number for regular price"),
       z.number()
-        .positive("Price must be greater than zero")
-        .max(9999999.99, "Price exceeds maximum limit")
+        .positive("Regular price must be greater than zero")
+        .max(9999999.99, "Regular price exceeds maximum limit")
         .refine(
           (val) => {
             const str = val.toString();
             return !str.includes(".") || str.split(".")[1].length <= 2;
           },
-          { message: "Price can have at most 2 decimal places" }
+          { message: "Regular price can have at most 2 decimal places" }
         ),
-      z.null().refine(() => false, "Price is required"),
+      z.null().refine(() => false, "Regular price is required"),
     ])
   ),
   stock: z.preprocess(
@@ -345,7 +345,7 @@ const mergeFormValuesWithVariantData = (
     ...variantData, // Start with existing variant data (ID, product_id, attributes, etc.)
     slug: formValues.slug,
     // Ensure types match ManualVariantData
-    price: String(formValues.price), // ManualVariantData.price is string
+    regular_price: String(formValues.regular_price), // ManualVariantData.regular_price is string
     stock: formValues.stock,         // ManualVariantData.stock is number
     status: formValues.status,       // 'active' | 'inactive'
     stock_status: mappedStockStatus, // e.g., "In Stock"
@@ -515,7 +515,7 @@ const deleteManualVariantImageAPI = async (productId: string | number, variantId
 const mapManualVariantForDisplayCard = (variant: ManualVariantData) => ({
   id: variant.id,
   slug: variant.slug,
-  price: variant.price, // Card might expect string or number
+  price: variant.regular_price,
   stock: variant.stock,
   status: variant.status, // 'active' or 'inactive'
   variantImages: variant.variantImages?.map(img => ({ id: img.id, image_url: img.image_url, is_primary: img.is_primary })),
@@ -610,7 +610,7 @@ const ManualVariantView: React.FC<ManualVariantViewProps> = ({
     resolver: zodResolver(variantEditSchema),
     mode: "all", // Or "onChange"
     defaultValues: { // Sensible defaults
-      slug: "", price: 0, stock: 0, status: "active", stockStatus: "In Stock",
+      slug: "", regular_price: 0, stock: 0, status: "active", stockStatus: "In Stock",
       depositPrice: null, purchasePrice: null, lowStockThreshold: null,
       weight: null, length: null, width: null, height: null,
       barcode: null, description: null,
@@ -758,7 +758,7 @@ const ManualVariantView: React.FC<ManualVariantViewProps> = ({
     if (selectedManualVariant) {
       resetEditForm({
         slug: getEditFieldValue(selectedManualVariant.slug),
-        price: getEditNumericValue(selectedManualVariant.price),
+        regular_price: getEditNumericValue(selectedManualVariant.regular_price),
         stock: getEditNumericValue(selectedManualVariant.stock),
         status: (selectedManualVariant.status?.toLowerCase() === 'active' ? 'active' : 'inactive') as 'active' | 'inactive',
         stockStatus: getEditValidStockStatus(selectedManualVariant.stock_status, selectedManualVariant.stock),
@@ -779,7 +779,7 @@ const ManualVariantView: React.FC<ManualVariantViewProps> = ({
       prevSelectedManualVariantIdRef.current = selectedManualVariant.id;
     } else {
       resetEditForm({ // Reset to defaults if no variant selected
-        slug: "", price: 0, stock: 0, status: "active", stockStatus: "In Stock",
+        slug: "", regular_price: 0, stock: 0, status: "active", stockStatus: "In Stock",
         depositPrice: null, purchasePrice: null, lowStockThreshold: null,
         weight: null, length: null, width: null, height: null,
         barcode: null, description: null,
@@ -797,7 +797,7 @@ const ManualVariantView: React.FC<ManualVariantViewProps> = ({
     const formValues = getEditValues();
 
     if (formValues.slug !== originalVariant.slug) return true;
-    if (getEditNumericValue(formValues.price) !== getEditNumericValue(originalVariant.price)) return true;
+    if (getEditNumericValue(formValues.regular_price) !== getEditNumericValue(originalVariant.regular_price)) return true;
     if (getEditNumericValue(formValues.stock) !== getEditNumericValue(originalVariant.stock)) return true; // originalVariant.stock is already a number
     if (formValues.status !== originalVariant.status?.toLowerCase()) return true;
     // For stockStatus, compare against the original value, not a re-derived one, unless it needs re-deriving based on new stock for some logic
@@ -856,7 +856,7 @@ const ManualVariantView: React.FC<ManualVariantViewProps> = ({
 
     setIsUpdatingManualVariant(true);
     
-    const priceValue = data.price; 
+    const priceValue = data.regular_price; 
     const depositPriceValue = data.depositPrice; 
     const purchasePriceValue = data.purchasePrice; 
     
@@ -868,7 +868,7 @@ const ManualVariantView: React.FC<ManualVariantViewProps> = ({
 
     const updateRequestData: any = {
       slug: data.slug,
-      price: priceValue,
+      regular_price: priceValue,
       stock: data.stock, 
       status: data.status,
       stock_status: data.stockStatus === "In Stock" ? "in_stock" :
@@ -1147,7 +1147,7 @@ const ManualVariantView: React.FC<ManualVariantViewProps> = ({
               />
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
-              <FormTextField name="price" control={createControl} label="Regular Price" required type="number" />
+              <FormTextField name="regular_price" control={createControl} label="Regular Price" required type="number" />
               <FormTextField name="depositPrice" control={createControl} label="Sale Price" type="number" />
               <FormTextField name="purchasePrice" control={createControl} label="Purchase Price" type="number" />
             </div>

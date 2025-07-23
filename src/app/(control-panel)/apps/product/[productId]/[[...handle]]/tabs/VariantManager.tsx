@@ -126,7 +126,7 @@ interface Variant {
   id: number; // Changed from string
   product_id: number; // Added
   slug: string;
-  price: string; // Changed from number | null, API often returns string
+  regular_price: string; // Changed from number | null, API often returns string
   stock: number; // Changed from number | null
   status: string; // Changed from 'Active' | 'Inactive' to e.g., "active"
   stock_status: string; // Changed from UI enum to API string e.g., "in_stock", MADE REQUIRED
@@ -161,25 +161,25 @@ const variantSchema = z.object({
     .min(1, "Slug is required")
     .max(100, "Slug cannot exceed 100 characters") 
     .regex(/^[a-z0-9-]+$/, "Slug must contain only lowercase letters, numbers, and hyphens"), 
-  price: z.preprocess(
+  regular_price: z.preprocess(
     (val) => {
       if (val === "" || val === null || val === undefined) return null;
       const parsed = Number(val);
       return isNaN(parsed) ? "NaN" : parsed;
     },
     z.union([
-      z.literal("NaN").refine(() => false, "Please enter a valid number for price"),
+      z.literal("NaN").refine(() => false, "Please enter a valid number for Regular Price"),
       z.number()
-        .positive("Price must be greater than zero")
-        .max(9999999.99, "Price exceeds maximum limit")
+        .positive("Regular Price must be greater than zero")
+        .max(9999999.99, "Regular Price exceeds maximum limit")
         .refine(
           (val) => {
             const str = val.toString();
             return !str.includes(".") || str.split(".")[1].length <= 2;
           },
-          { message: "Price can have at most 2 decimal places" }
+          { message: "Regular Price can have at most 2 decimal places" }
         ),
-      z.null().refine(() => false, "Price is required"), // Enforce non-null
+      z.null().refine(() => false, "Regular Price is required"), // Enforce non-null
     ])
   ),
   stock: z.preprocess(
@@ -320,7 +320,7 @@ type VariantFormData = z.infer<typeof variantSchema>;
 // --- Add Schema for Bulk Update --- 
 const bulkUpdateSchema = z.object({
   // Make all fields optional for bulk update
-  price: z.object({
+  regular_price: z.object({
       type: z.enum(["set", "increase", "decrease"]).optional(),
       value: z.preprocess(
         (val) => {
@@ -699,7 +699,7 @@ const mapVariantForDisplayCard = (variant: Variant) => {
   return {
     id: variant.id,
     slug: variant.slug,
-    price: String(variant.price), // Ensure price is a string for the card
+    price: String(variant.regular_price), // Ensure price is a string for the card
     stock: Number(variant.stock),   // Ensure stock is a number for the card
     status: displayCardStatus,    // Pass the normalized lowercase status
     variantImages: variant.variantImages || [],
@@ -807,7 +807,7 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
     // --- EDIT: Use simple null/defaults matching simplified schema ---
     defaultValues: { 
       slug: "",
-      price: null as any, // Required, but start as null for RHF
+      regular_price: null as any, // Required, but start as null for RHF
       stock: null as any, // Required, but start as null for RHF
       status: "active", 
       depositPrice: null,
@@ -839,7 +839,7 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
     // --- EDIT: Use simple null/defaults matching simplified schema ---
     defaultValues: { 
       slug: "",
-      price: null as any, 
+      regular_price: null as any, 
       stock: null as any, 
       status: "active", 
       depositPrice: null,
@@ -872,7 +872,7 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
     resolver: zodResolver(bulkUpdateSchema),
     mode: "onChange", // Validate on change for immediate feedback
     defaultValues: { // Default to empty/undefined indicating no change
-      price: undefined,
+      regular_price: undefined,
       stock: undefined,
       status: undefined,
       stockStatus: undefined,
@@ -1277,7 +1277,7 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
             id: Number(apiVariant.id), // Store as number
             product_id: Number(productId), // Populate product_id
             slug: apiVariant.slug,
-            price: String(apiVariant.price), // Store as string
+            regular_price: String(apiVariant.regular_price), // Store as string
             stock: Number(apiVariant.stock),   // Store as number
             status: apiVariant.status, // Store API string (e.g., "active")
             stock_status: apiVariant.stock_status, 
@@ -1523,7 +1523,7 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
           return {
             id: apiVariant.id.toString(),
             slug: apiVariant.slug,
-            price: apiVariant.price,
+            regular_price: apiVariant.regular_price,
             stock: apiVariant.stock,
             status: apiVariant.status === 'active' ? 'Active' : 'Inactive',
             stock_status: mapApiStockStatusToForm(apiVariant.stock_status),
@@ -1594,7 +1594,7 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
     // Reset the CREATE form
     resetCreateForm({ 
       slug: "",
-      price: null as any,
+      regular_price: null as any,
       stock: null as any, 
       status: "active", 
       depositPrice: null,
@@ -1759,6 +1759,7 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
       };
       
       // --- EDIT: Build API payload only with non-null values --- 
+      // Type for the variant payload to be sent to the API
       interface ProductVariant {
         slug: string;
         price: number;
@@ -1768,12 +1769,12 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
         [key: string]: any; // Allow additional optional properties
       }
 
+      // Base payload with required fields
       const variantPayload: ProductVariant = {
-        // Always include required fields
         slug: data.slug,
-        price: transformOptionalNumber(data.price) || 0, // Ensure non-null
-        stock: transformOptionalNumber(data.stock) || 0, // Ensure non-null
-        status: data.status as 'active' | 'inactive',
+        price: Number(data.regular_price),
+        stock: Number(data.stock),
+        status: data.status,
         attributes: Object.values(pendingCombination)
           .filter(value => typeof value === 'object' && value.attribute_id && value.term_id)
           .map(value => ({
@@ -1782,7 +1783,7 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
           }))
       };
 
-      // Add optional fields only if they have values
+      // Define optional fields separately
       const optionalFields = {
         discount_price: transformOptionalNumber(data.depositPrice),
         purchase_price: transformOptionalNumber(data.purchasePrice),
@@ -1833,7 +1834,7 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
         id: createdVariantId ? Number(createdVariantId) : 0,
         product_id: Number(formData.productId),
         slug: data.slug,
-        price: String(transformOptionalNumber(data.price)),
+        regular_price: String(transformOptionalNumber(data.regular_price)),
         stock: Number(transformOptionalNumber(data.stock)),
         status: data.status === 'active' ? 'Active' : 'Inactive',
         stock_status: data.stockStatus === 'In Stock' ? 'in_stock' : data.stockStatus === 'Out of Stock' ? 'out_of_stock' : 'back_order',
@@ -1933,7 +1934,7 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
     }
 
     // Search in Price (convert to string)
-    const priceMatch = !match && variant.price?.toString().includes(searchLower);
+    const priceMatch = !match && variant.regular_price?.toString().includes(searchLower);
     if (priceMatch) {
       match = true;
     }
@@ -2066,7 +2067,7 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
         id: 0,
         product_id: Number(formData.productId),
         slug: generateSlugFromAttributes(attributes),
-        price: String(null),
+        regular_price: String(null),
         stock: Number(null),
         status: 'Active',
         stock_status: 'in_stock',
@@ -2214,7 +2215,7 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
     // Check if all attributes in combo1 match in combo2
     for (const [key, value] of Object.entries(combo1)) {
       // Skip non-attribute keys
-      if (key === 'id' || key === 'slug' || key === 'price' || key === 'stock') continue;
+      if (key === 'id' || key === 'slug' || key === 'regular_price' || key === 'stock') continue;
       
       // For attribute fields
       const combo1Value = typeof value === 'object' ? value.term_id : value;
@@ -2257,7 +2258,7 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
     // Reset the CREATE form with default values and the generated slug
     resetCreateForm({ // <-- CORRECTED: Use resetCreateForm
       slug: slug,
-      price: null as any,
+      regular_price: null as any,
       // --- EDIT: Reset complex fields to undefined for create --- 
       stock: null as any,
       status: "active",
@@ -2548,7 +2549,7 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
 
       // Required fields (compare simple types)
       if (data.slug !== originalVariant.slug) { apiPayload.slug = data.slug; hasChanges = true; }
-      if (transformOptionalNumber(data.price) !== transformOptionalNumber(originalVariant.price)) { apiPayload.price = transformOptionalNumber(data.price); hasChanges = true; }
+      if (transformOptionalNumber(data.regular_price) !== transformOptionalNumber(originalVariant.regular_price)) { apiPayload.regular_price = transformOptionalNumber(data.regular_price); hasChanges = true; }
       if (transformOptionalNumber(data.stock) !== transformOptionalNumber(originalVariant.stock)) { apiPayload.stock = transformOptionalNumber(data.stock); hasChanges = true; }
       
       // --- EDIT: Check and include status if changed --- 
@@ -2633,7 +2634,7 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
             const updatedVariant: Variant = { 
               ...v, 
               slug: data.slug,
-              price: String(transformOptionalNumber(data.price)), 
+              regular_price: String(transformOptionalNumber(data.regular_price)), 
               stock: Number(transformOptionalNumber(data.stock)), 
               // Ensure status is properly set in the correct format for display
               status: displayStatus, 
@@ -2742,10 +2743,10 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
     // Explicitly type the accumulator and the final result
     const changes = Object.entries(data).reduce<Partial<BulkUpdateFormData>>((acc, [key, value]) => {
       // --- Start Edit: Handle complex price object --- 
-      if (key === 'price' || key === 'depositPrice' || key === 'purchasePrice') {
+      if (key === 'regular_price' || key === 'depositPrice' || key === 'purchasePrice') {
         // Type guard to ensure value is the price object or undefined
         // Use a more specific type assertion for the price-like objects
-        const complexValue = value as BulkUpdateFormData['price'] | BulkUpdateFormData['depositPrice'] | BulkUpdateFormData['purchasePrice'];
+        const complexValue = value as BulkUpdateFormData['regular_price'] | BulkUpdateFormData['depositPrice'] | BulkUpdateFormData['purchasePrice'];
         // Only include price if type AND value are provided
         if (complexValue && complexValue.type && (complexValue.value !== undefined && complexValue.value !== null)) {
           acc[key] = {
@@ -2797,10 +2798,10 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
           const updatedFields: Partial<Variant> = {};
           // Map the changes back to the Variant state structure
           // Ensure type consistency when updating state
-          if (changes.price && changes.price.type === 'set') { 
+          if (changes.regular_price && changes.regular_price.type === 'set') { 
             // This is a simplified example for local state update.
             // A real implementation would need to handle increase/decrease/percentage logic.
-            updatedFields.price = String(changes.price.value); 
+            updatedFields.regular_price = String(changes.regular_price.value); 
           } 
           if (changes.stock !== undefined) updatedFields.stock = Number(changes.stock);
           if (changes.status !== undefined) updatedFields.status = changes.status === 'active' ? 'Active' : 'Inactive'; // Ensure capitalized
@@ -2876,7 +2877,7 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
 
         const resetData = {
           slug: currentSelectedVariant.slug ?? '',
-          price: currentSelectedVariant.price ? Number(currentSelectedVariant.price) : null,
+          regular_price: currentSelectedVariant.regular_price ? Number(currentSelectedVariant.regular_price) : null,
           stock: currentSelectedVariant.stock ?? 0,
           status: formStatus as 'active' | 'inactive', // Use the derived lowercase formStatus
           stockStatus: getDisplayStockStatusManager(currentSelectedVariant.stock_status, currentSelectedVariant.stock),
@@ -2898,7 +2899,7 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
       }
     } else {
       resetEditForm({ 
-        slug: "", price: null as any, stock: null as any, status: "active",
+        slug: "", regular_price: null as any, stock: null as any, status: "active",
         depositPrice: null, purchasePrice: null, stockStatus: "In Stock", 
         lowStockThreshold: null, weight: null, length: null, width: null, height: null, 
         barcode: null, description: null
@@ -2934,7 +2935,7 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
     return {
       ...variant,
       slug: formValues.slug || variant.slug,
-      price: formValues.price !== null ? String(formValues.price) : variant.price,
+      regular_price: formValues.regular_price !== null ? String(formValues.regular_price) : variant.regular_price,
       stock: formValues.stock !== null ? Number(formValues.stock) : variant.stock,
       status: formValues.status === 'active' ? 'Active' : 'Inactive',
       stock_status: formValues.stockStatus === 'In Stock' ? 'in_stock' : 
@@ -3014,7 +3015,7 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
       id: variant.id,
       product_id: variant.product_id,
       slug: variant.slug,
-      price: String(variant.price),
+      regular_price: String(variant.regular_price),
       discount_price: variant.discount_price,
       purchase_price: variant.purchase_price,
       weight: variant.weight,
@@ -3043,7 +3044,7 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
       id: variant.id,
       product_id: variant.product_id,
       slug: variant.slug,
-      price: String(variant.price),
+      regular_price: String(variant.regular_price),
       discount_price: variant.discount_price,
       purchase_price: variant.purchase_price,
       weight: variant.weight,

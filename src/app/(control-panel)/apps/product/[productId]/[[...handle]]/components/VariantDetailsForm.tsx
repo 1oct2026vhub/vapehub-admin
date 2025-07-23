@@ -89,7 +89,7 @@ export const validateFile = async (file: File): Promise<string | null> => {
 
 export interface VariantFormData {
   slug: string;
-  price: number;
+  regular_price: number;
   stock: number;
   status: 'active' | 'inactive';
   stockStatus: 'In Stock' | 'Out of Stock' | 'Back Order';
@@ -204,7 +204,7 @@ const VariantDetailsForm: React.FC<VariantDetailsFormProps> = ({
       </div>
 
       <div className="grid grid-cols-3 gap-4 mb-4">
-        <FormTextField name="price" control={control} label="Regular Price" required type="number" inputProps={{ step: "0.01" }} />
+        <FormTextField name="regular_price" control={control} label="Regular Price" required type="number" inputProps={{ step: "0.01" }} />
         <FormTextField name="depositPrice" control={control} label="Sale Price" type="number" inputProps={{ step: "0.01" }} />
         <FormTextField name="purchasePrice" control={control} label="Purchase Price" type="number" inputProps={{ step: "0.01" }} />
       </div>

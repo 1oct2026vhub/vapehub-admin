@@ -128,7 +128,7 @@ interface EditableVariantData {
   id: number;
   product_id: number;
   slug: string;
-  price: string; // API often returns strings for prices
+  regular_price: string; // API often returns strings for prices
   discount_price: string | null;
   purchase_price: string | null;
   weight: string | null;
@@ -150,17 +150,17 @@ interface EditableVariantData {
 // --- END: Local Detailed Types ---
 
 const bulkUpdateSchema = z.object({
-    price: z.object({
+    regular_price: z.object({
         type: z.enum(['set', 'increase', 'decrease']).optional(),
         value: z.preprocess(
             (val) => (val === "" || val === null || val === undefined ? undefined : Number(val)),
-            z.number({ invalid_type_error: "Price value must be a number" })
-             .min(0, "Price value cannot be negative")
+            z.number({ invalid_type_error: "Regular price value must be a number" })
+             .min(0, "Regular price value cannot be negative")
              .refine((val) => {
                 if (val === undefined) return true;
                 const str = val.toString();
                 return !str.includes('.') || str.split('.')[1].length <= 2;
-             }, { message: "Price value can have at most 2 decimal places" })
+             }, { message: "Regular price value can have at most 2 decimal places" })
              .optional()
         ),
         is_percentage: z.boolean().optional(),
@@ -241,12 +241,12 @@ const individualVariantEditSchema = z.object({
     .min(1, "Slug is required")
     .max(100, "Slug cannot exceed 100 characters")
     .regex(/^[a-z0-9-]+$/, "Slug must contain only lowercase letters, numbers, and hyphens"),
-  price: z.preprocess(
+  regular_price: z.preprocess(
     (val) => (val === "" || val === null || val === undefined ? null : Number(val)),
-    z.number({ required_error: "Price is required", invalid_type_error: "Please enter a valid number for price" })
-      .positive("Price must be greater than zero")
-      .max(9999999.99, "Price exceeds maximum limit")
-      .refine((val) => !val.toString().includes('.') || val.toString().split('.')[1].length <= 2, { message: "Price can have at most 2 decimal places" })
+    z.number({ required_error: "Regular price is required", invalid_type_error: "Please enter a valid number for regular price" })
+      .positive("Regular price must be greater than zero")
+      .max(9999999.99, "Regular price exceeds maximum limit")
+      .refine((val) => !val.toString().includes('.') || val.toString().split('.')[1].length <= 2, { message: "Regular price can have at most 2 decimal places" })
   ),
   stock: z.preprocess(
     (val) => (val === "" || val === null || val === undefined ? null : Number(val)),
@@ -345,7 +345,7 @@ const mergeFormValuesWithVariantData = (
   return {
     ...variantData,
     slug: formValues.slug,
-    price: String(formValues.price),
+    regular_price: String(formValues.regular_price),
     stock: formValues.stock, // formValues.stock is already a number or null from schema
     status: formValues.status, // formValues.status is 'active' | 'inactive'
     stock_status: apiStockStatusFromForm, // Use the converted status from the form
@@ -365,11 +365,13 @@ const mergeFormValuesWithVariantData = (
 };
 
 const mapVariantForDisplayCardBulk = (variant: EditableVariantData | null) => {
-  if (!variant) return null;
+  if (!variant) {
+    return null;
+  }
   return {
     id: variant.id,
     slug: variant.slug,
-    price: variant.price, 
+    price: variant.regular_price,
     stock: variant.stock,
     status: variant.status, 
     variantImages: variant.variantImages?.map(img => ({ id: img.id, image_url: img.image_url, is_primary: img.is_primary })),
@@ -480,7 +482,7 @@ const BulkUpdateView: React.FC<BulkUpdateViewProps> = ({
   } = useForm<BulkUpdateFormData>({
     resolver: zodResolver(bulkUpdateSchema),
     defaultValues: {
-        price: { type: undefined, value: undefined, is_percentage: undefined },
+        regular_price: { type: undefined, value: undefined, is_percentage: undefined },
         depositPrice: { type: undefined, value: undefined, is_percentage: undefined },
         purchasePrice: { type: undefined, value: undefined, is_percentage: undefined },
         stock: undefined,
@@ -514,7 +516,7 @@ const BulkUpdateView: React.FC<BulkUpdateViewProps> = ({
     resolver: zodResolver(individualVariantEditSchema),
     mode: "all",
     defaultValues: {
-      slug: "", price: 0, stock: 0, status: "active", stockStatus: "In Stock",
+      slug: "", regular_price: 0, stock: 0, status: "active", stockStatus: "In Stock",
       depositPrice: null, purchasePrice: null, lowStockThreshold: null,
       weight: null, length: null, width: null, height: null,
       barcode: null, description: null,
@@ -643,7 +645,7 @@ const BulkUpdateView: React.FC<BulkUpdateViewProps> = ({
     if (selectedVariantForEdit) {
       resetEditDetailForm({
         slug: getEditFieldValue(selectedVariantForEdit.slug),
-        price: getEditNumericValue(selectedVariantForEdit.price),
+        regular_price: getEditNumericValue(selectedVariantForEdit.regular_price),
         stock: getEditNumericValue(selectedVariantForEdit.stock),
         status: (selectedVariantForEdit.status?.toLowerCase() === 'active' ? 'active' : 'inactive') as 'active' | 'inactive',
         stockStatus: getDisplayStockStatus(selectedVariantForEdit.stock_status, selectedVariantForEdit.stock),
@@ -663,7 +665,7 @@ const BulkUpdateView: React.FC<BulkUpdateViewProps> = ({
       prevSelectedVariantIdRef.current = selectedVariantForEdit.id;
     } else {
       resetEditDetailForm({
-        slug: "", price: 0, stock: 0, status: "active", stockStatus: "In Stock",
+        slug: "", regular_price: 0, stock: 0, status: "active", stockStatus: "In Stock",
         depositPrice: null, purchasePrice: null, lowStockThreshold: null,
         weight: null, length: null, width: null, height: null,
         barcode: null, description: null,
@@ -689,7 +691,7 @@ const BulkUpdateView: React.FC<BulkUpdateViewProps> = ({
     try {
       const updateRequestData: Partial<UpdateProductVariantRequest> = {
         slug: data.slug,
-        price: getEditNumericValue(data.price),
+        price: getEditNumericValue(data.regular_price),
         stock: getEditNumericValue(data.stock), // Ensure this is a number
         status: data.status,
         // stock_status will be mapped below
@@ -741,7 +743,7 @@ const BulkUpdateView: React.FC<BulkUpdateViewProps> = ({
           ...selectedVariantForEdit, // Keep existing fields like product_id
           id: updatedVariantFromApi.id,
           slug: updatedVariantFromApi.slug,
-          price: String(updatedVariantFromApi.price), 
+          regular_price: String(updatedVariantFromApi.regular_price), 
           stock: updatedVariantFromApi.stock,
           status: updatedVariantFromApi.status,
           stock_status: updatedVariantFromApi.stock_status, // API version
@@ -1017,8 +1019,8 @@ const BulkUpdateView: React.FC<BulkUpdateViewProps> = ({
     try {
       const updates: BulkUpdateProductVariantsPayload['updates'] = {};
 
-      if (data.price?.type && data.price.value !== undefined) {
-          updates.price = { type: data.price.type, value: data.price.value, is_percentage: data.price.is_percentage };
+      if (data.regular_price?.type && data.regular_price.value !== undefined) {
+          updates.price = { type: data.regular_price.type, value: data.regular_price.value, is_percentage: data.regular_price.is_percentage };
       }
       if (data.depositPrice?.type && data.depositPrice.value !== undefined) {
           updates.discount_price = { type: data.depositPrice.type, value: data.depositPrice.value, is_percentage: data.depositPrice.is_percentage };
@@ -1156,7 +1158,7 @@ const BulkUpdateView: React.FC<BulkUpdateViewProps> = ({
                   <label className="absolute -top-2.5 left-2 bg-white px-1 text-xs text-gray-500 font-bold text-base">Regular Price</label>
                   <div className="col-span-6">
                     <Controller
-                      name="price.type"
+                      name="regular_price.type"
                       control={bulkControl}
                       render={({ field }) => (
                         <FormControl fullWidth variant="outlined">
@@ -1169,9 +1171,9 @@ const BulkUpdateView: React.FC<BulkUpdateViewProps> = ({
                               const newType = e.target.value || undefined;
                               field.onChange(newType);
                               if (newType === 'set' || newType === undefined) {
-                                setBulkValue('price.is_percentage', false);
+                                setBulkValue('regular_price.is_percentage', false);
                               } else if (newType === 'increase' || newType === 'decrease') {
-                                setBulkValue('price.is_percentage', true);
+                                setBulkValue('regular_price.is_percentage', true);
                               }
                             }}
                             className="w-full bg-white rounded-lg border-gray-300 focus:border-green-600 focus:ring-1 focus:ring-green-600"
@@ -1187,7 +1189,7 @@ const BulkUpdateView: React.FC<BulkUpdateViewProps> = ({
                   </div>
                   <div className="col-span-6">
                     <Controller
-                      name="price.value"
+                      name="regular_price.value"
                       control={bulkControl}
                       render={({ field }) => (
                         <StyledTextField
@@ -1199,23 +1201,23 @@ const BulkUpdateView: React.FC<BulkUpdateViewProps> = ({
                           placeholder="Value"
                           label="Value"
                           InputLabelProps={{ shrink: true }}
-                          error={!!(bulkFormState.errors.price as any)?.value || !!bulkFormState.errors.price?.root}
+                          error={!!(bulkFormState.errors.regular_price as any)?.value || !!bulkFormState.errors.regular_price?.root}
                           inputProps={{ step: "0.01" }}
                           sx={{ "& .MuiOutlinedInput-root": { height: '40px' } }}
                         />
                       )}
                     />
                   </div>
-                  {(bulkFormState.errors.price?.root?.message || (bulkFormState.errors.price as any)?.value?.message) && (
+                  {(bulkFormState.errors.regular_price?.root?.message || (bulkFormState.errors.regular_price as any)?.value?.message) && (
                     <div className="col-span-12 mt-1 mx-auto">
                         <p className="text-xs text-red-500">
-                            {bulkFormState.errors.price?.root?.message || (bulkFormState.errors.price as any)?.value?.message}
+                            {bulkFormState.errors.regular_price?.root?.message || (bulkFormState.errors.regular_price as any)?.value?.message}
                         </p>
                     </div>
                   )}
                   <div className="col-span-12 mt-1">
                     <Controller
-                      name="price.is_percentage"
+                      name="regular_price.is_percentage"
                       control={bulkControl}
                       render={({ field }) => (
                         <FormControlLabel
@@ -1223,7 +1225,7 @@ const BulkUpdateView: React.FC<BulkUpdateViewProps> = ({
                             <Checkbox
                               checked={!!field.value}
                               onChange={(e) => field.onChange(e.target.checked)}
-                              disabled={!watchBulk('price.type') || (watchBulk('price.type') === 'set')}
+                              disabled={!watchBulk('regular_price.type') || (watchBulk('regular_price.type') === 'set')}
                               sx={{ '&.Mui-checked': { color: '#2E9970' } }}
                             />
                           }
