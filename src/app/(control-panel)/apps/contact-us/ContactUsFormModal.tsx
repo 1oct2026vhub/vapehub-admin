@@ -21,7 +21,11 @@ import FormCKEditor from '@/components/Shared/FormCKEditor';
 const contactUsSchema = z.object({
   send_us_a_message: z.string().min(1, 'Message is required'),
   call_us: z.string().min(1, 'Call us information is required'),
-  social_media: z.string().min(1, 'Social media link is required'),
+  social_media: z.string().min(1, 'Social media link is required'),  facebook: z.string().url('Enter a valid Facebook URL').optional().or(z.literal('')),
+  whatsapp: z.string().url('Enter a valid WhatsApp URL').optional().or(z.literal('')),
+  instagram: z.string().url('Enter a valid Instagram URL').optional().or(z.literal('')),
+  email: z.string().email('Enter a valid email').optional().or(z.literal('')),
+  phone_number: z.string().min(1, 'Phone number is required').optional().or(z.literal('')),
 });
 
 type ContactUsFormType = z.infer<typeof contactUsSchema>;
@@ -51,6 +55,11 @@ function ContactUsFormModal({ open, onClose, onSaved, initialData }: ContactUsFo
           send_us_a_message: '',
           call_us: '',
           social_media: '',
+          facebook: '',
+          whatsapp: '',
+          instagram: '',
+          email: '',
+          phone_number: '',
         });
       }
     }
@@ -62,6 +71,11 @@ function ContactUsFormModal({ open, onClose, onSaved, initialData }: ContactUsFo
             send_us_a_message: data.send_us_a_message,
             call_us: data.call_us,
             social_media: data.social_media,
+            facebook: data.facebook,
+            whatsapp: data.whatsapp,
+            instagram: data.instagram,
+            email: data.email,
+            phone_number: data.phone_number,
         };
 
         if (isEditMode && initialData) {
@@ -114,7 +128,21 @@ function ContactUsFormModal({ open, onClose, onSaved, initialData }: ContactUsFo
               <FormCKEditor name="call_us" control={control} label="Call Us" required />
             </Grid>
             <Grid item xs={12}>
-              <FormCKEditor name="social_media" control={control} label="Social Media" required />
+              <FormCKEditor name="social_media" control={control} label="Social Media" required />            </Grid>
+            <Grid item xs={12} md={6}>
+              <FormTextField name="facebook" control={control} label="Facebook" type="url" />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <FormTextField name="whatsapp" control={control} label="WhatsApp" type="url" />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <FormTextField name="instagram" control={control} label="Instagram" type="url" />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <FormTextField name="email" control={control} label="Email" type="email" />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <FormTextField name="phone_number" control={control} label="Phone Number" />
             </Grid>
           </Grid>
         </DialogContent>
