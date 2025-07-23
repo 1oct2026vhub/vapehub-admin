@@ -1153,7 +1153,7 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
 
       // Dynamically add fields to payload ONLY if they are dirty
       if (dirtyFields.slug) apiPayload.slug = data.slug;
-      if (dirtyFields.regular_price) apiPayload.price = transformOptionalNumber(data.regular_price);
+      if (dirtyFields.regular_price) apiPayload.regular_price = transformOptionalNumber(data.regular_price);
       if (dirtyFields.stock) apiPayload.stock = transformOptionalNumber(data.stock);
       if (dirtyFields.depositPrice) apiPayload.discount_price = transformOptionalNumber(data.depositPrice);
       if (dirtyFields.purchasePrice) apiPayload.purchase_price = transformOptionalNumber(data.purchasePrice);
@@ -1185,7 +1185,7 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
 
       // --- Safety check: Include required fields if they weren't dirty ---
       if (apiPayload.slug === undefined && data.slug !== undefined) apiPayload.slug = data.slug;
-      if (apiPayload.price === undefined && data.regular_price !== undefined) apiPayload.price = transformOptionalNumber(data.regular_price);
+      if (apiPayload.regular_price === undefined && data.regular_price !== undefined) apiPayload.regular_price = transformOptionalNumber(data.regular_price);
       if (apiPayload.stock === undefined && data.stock !== undefined) apiPayload.stock = transformOptionalNumber(data.stock);
 
       // Check if there are any actual changes being sent (besides attributes/required fields)

@@ -691,7 +691,7 @@ const BulkUpdateView: React.FC<BulkUpdateViewProps> = ({
     try {
       const updateRequestData: Partial<UpdateProductVariantRequest> = {
         slug: data.slug,
-        price: getEditNumericValue(data.regular_price),
+        regular_price: getEditNumericValue(data.regular_price),
         stock: getEditNumericValue(data.stock), // Ensure this is a number
         status: data.status,
         // stock_status will be mapped below
