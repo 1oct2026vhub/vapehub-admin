@@ -45,6 +45,9 @@ const BulkUpdateStockModal: React.FC<BulkUpdateStockModalProps> = ({ open, onClo
 	const [inputValue, setInputValue] = useState('');
 	const debouncedInputValue = useDebounce(inputValue, 500);
 
+	// New: Keep a master list of all variants ever shown
+	const [allVariants, setAllVariants] = useState<ProductVariant[]>([]);
+
 	// Fetch initial variants when modal opens
 	const { data: initialResponse } = useFetch(
 		['product-variants-initial'],
@@ -66,10 +69,22 @@ const BulkUpdateStockModal: React.FC<BulkUpdateStockModalProps> = ({ open, onClo
 	// Use search results if available, otherwise use initial results
 	const variants = (debouncedInputValue.length >= 1 ? searchResponse?.data?.variants : initialResponse?.data?.variants) || [];
 
+	// Merge new variants into allVariants (by unique id)
+	React.useEffect(() => {
+		if (variants.length > 0) {
+			setAllVariants(prev => {
+				const existingIds = new Set(prev.map(v => v.id));
+				const newOnes = variants.filter(v => !existingIds.has(v.id));
+				return [...prev, ...newOnes];
+			});
+		}
+	}, [variants]);
+
 	const {
 		control,
 		handleSubmit,
 		watch,
+    setError,
 		formState: { errors, isSubmitting },
 		reset,
 	} = useForm<IFormInput>({
@@ -103,18 +118,13 @@ const BulkUpdateStockModal: React.FC<BulkUpdateStockModalProps> = ({ open, onClo
 
 	const onSubmit = async (data: IFormInput) => {
 		try {
-			// Map variant slugs to IDs
+			// Map variant slugs to IDs using allVariants
 			const variantIds = data.selectedVariants
 				.map(slug => {
-					const variant = variants.find(v => v.slug === slug);
+					const variant = allVariants.find(v => v.slug === slug);
 					return variant?.id;
 				})
 				.filter(id => id !== undefined) as number[];
-
-			if (variantIds.length === 0) {
-				showSnackbar('No valid variants found', 'error');
-				return;
-			}
 
 			const response = await bulkUpdateByQuantity({
 				variant_ids: variantIds,
@@ -125,8 +135,25 @@ const BulkUpdateStockModal: React.FC<BulkUpdateStockModalProps> = ({ open, onClo
 			showSnackbar(response.message, 'success');
 			onClose();
 		} catch (error: any) {
-			showSnackbar(error.message, 'error');
-			console.error('Bulk update failed', error);
+if (error?.error) {
+        showSnackbar(error?.error[0]?.msg || error?.error[0]?.message, "error");
+      }
+      else if (error?.errors) {
+        showSnackbar(error?.errors[0]?.msg || error?.errors[0]?.message, "error");
+      }
+       else {
+        const errorMessage = error?.message || "An unexpected error occurred";
+        showSnackbar(errorMessage, "error");
+      }
+      const errorData = error || error;
+      if (errorData?.error && typeof errorData.error === "object") {
+        Object.entries(errorData.error).forEach(([field, message]) => {
+          if (typeof message === "string") {
+            setError(field as any, { type: "manual", message });
+            showSnackbar(message, "error");
+          }
+        });
+      }			console.error('Bulk update failed', error);
 		}
 	};
 
