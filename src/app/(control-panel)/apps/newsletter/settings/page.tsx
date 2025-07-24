@@ -13,9 +13,9 @@ function MailSubscriptionSettingsPage() {
 		<div className="w-full flex flex-col min-h-full p-6">
       <PageBreadcrumb />
 			<div className="flex items-center justify-between">
-				<Typography variant="h4" className="font-semibold mb-4">
+        <Typography className="text-4xl font-extrabold leading-none tracking-tight mb-4">
 					Mail Subscription Settings
-				</Typography>
+          </Typography>
 				<AppButton
 					label="Add Setting"
 					startIcon={<FuseSvgIcon>heroicons-outline:plus</FuseSvgIcon>}

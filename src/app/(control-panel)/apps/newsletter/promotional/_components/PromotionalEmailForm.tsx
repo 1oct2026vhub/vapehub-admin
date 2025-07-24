@@ -72,7 +72,9 @@ const PromotionalEmailForm = () => {
 
   return (
     <div className='mt-4'>
-      <Typography variant="h4" className="font-semibold mb-4">Send Promotional Email</Typography>
+      <Typography className="text-4xl font-extrabold leading-none tracking-tight mb-4">
+        Send Promotional Email
+      </Typography>
       {/* <PageHeader title="Send Promotional Email" /> */}
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 bg-white rounded-lg p-6">
         <FormTextField name="subject" control={control} label="Subject" required />

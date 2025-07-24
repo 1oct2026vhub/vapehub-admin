@@ -41,8 +41,8 @@ function EditMailSubscriptionSettingPage() {
 
     return (
         <div className="w-full flex flex-col min-h-full p-8">
-            <PageBreadcrumb />      
-            <Typography variant="h4" className="font-semibold mb-4">
+            <PageBreadcrumb /> 
+            <Typography className="text-4xl font-extrabold leading-none tracking-tight mb-4 mt-4">
                 Edit Mail Subscription Setting
             </Typography>
             <MailSubscriptionSettingForm initialData={setting} />

@@ -74,6 +74,7 @@ const SubscribersTable: React.FC = () => {
           data={subscribers}
           columns={columns}
           enableColumnOrdering
+          enableRowActions={false}
         />
         <div className="flex justify-center p-4">
           <Pagination
