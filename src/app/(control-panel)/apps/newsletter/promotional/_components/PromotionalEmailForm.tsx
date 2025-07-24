@@ -5,12 +5,13 @@ import { useForm, useFieldArray } from 'react-hook-form';
 import * as z from 'zod';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-
+import { useSnackbar } from '@/contexts/SnackbarContext';
 // import PageHeader from '@/components/Shared/PageHeader';
 import FormTextField from '@/components/Shared/FormTextField';
 import FormCKEditor from '@/components/Shared/FormCKEditor';
 import { PromotionalEmailData, sendPromotionalEmail } from '@/services/apiMailSubscriptionSettings';
 import AppButton from '@/components/Shared/AppButton';
+import { Typography } from '@mui/material';
 // import FormCheckbox from '@/app/(control-panel)/apps/coupon/_components/FormCheckbox';
 
 const promotionalEmailSchema = z.object({
@@ -51,17 +52,17 @@ const PromotionalEmailForm = () => {
     control,
     name: "images",
   });
-
+  const { showSnackbar } = useSnackbar();
   const onSubmit = async (data: PromotionalEmailFormValues) => {
     setIsLoading(true);
     try {
-        console.log(data);
-        await sendPromotionalEmail(data as PromotionalEmailData);
-        // Add success message here
-        // router.push('/apps/newsletter');
+        const response = await sendPromotionalEmail(data as PromotionalEmailData);
+        if (response.success) {
+            showSnackbar('Promotional emails sent successfully', 'success');
+        } 
     } catch (error) {
+      showSnackbar(error.message || 'Failed to send email','error');
         console.error('Failed to send email', error);
-        // Add error message here
     } finally {
         setIsLoading(false);
     }
@@ -70,7 +71,8 @@ const PromotionalEmailForm = () => {
   const images = watch("images");
 
   return (
-    <div className="p-6">
+    <div className='mt-4'>
+      <Typography variant="h4" className="font-semibold mb-4">Send Promotional Email</Typography>
       {/* <PageHeader title="Send Promotional Email" /> */}
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 bg-white rounded-lg p-6">
         <FormTextField name="subject" control={control} label="Subject" required />
