@@ -90,6 +90,7 @@ const MailSubscriptionSettingForm: React.FC<MailSubscriptionSettingFormProps> = 
             if (isEditMode) {
                 await updateSetting(initialData.id, apiData);
                 showSnackbar('Setting updated successfully!', 'success');
+                  router.push('/apps/newsletter/subscriber');
             } else {
                 await createSetting(apiData);
                 showSnackbar('Setting created successfully!', 'success');

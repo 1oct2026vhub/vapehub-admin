@@ -1757,6 +1757,13 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
         const num = Number(value);
         return isNaN(num) ? null : num; // Return null if not a valid number
       };
+
+      // Helper function for price fields - returns 0 instead of null for empty values
+      const transformPriceNumber = (value: number | string | null | undefined): number => {
+        if (value === null || value === undefined || value === '') return 0;
+        const num = Number(value);
+        return isNaN(num) ? 0 : num; // Return 0 if not a valid number
+      };
       
       // --- EDIT: Build API payload only with non-null values --- 
       // Type for the variant payload to be sent to the API
@@ -1783,10 +1790,10 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
           }))
       };
 
-      // Define optional fields separately
+      // Define optional fields separately - use transformPriceNumber for price fields
       const optionalFields = {
-        discount_price: transformOptionalNumber(data.depositPrice),
-        purchase_price: transformOptionalNumber(data.purchasePrice),
+        discount_price: transformPriceNumber(data.depositPrice),
+        purchase_price: transformPriceNumber(data.purchasePrice),
         low_stock_threshold: transformOptionalNumber(data.lowStockThreshold),
         weight: transformOptionalNumber(data.weight),
         length: transformOptionalNumber(data.length),
@@ -1838,8 +1845,8 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
         stock: Number(transformOptionalNumber(data.stock)),
         status: data.status === 'active' ? 'Active' : 'Inactive',
         stock_status: data.stockStatus === 'In Stock' ? 'in_stock' : data.stockStatus === 'Out of Stock' ? 'out_of_stock' : 'back_order',
-        discount_price: String(transformOptionalNumber(data.depositPrice)),
-        purchase_price: String(transformOptionalNumber(data.purchasePrice)),
+        discount_price: String(transformPriceNumber(data.depositPrice)),
+        purchase_price: String(transformPriceNumber(data.purchasePrice)),
         low_stock_threshold: transformOptionalNumber(data.lowStockThreshold),
         weight: String(transformOptionalNumber(data.weight)),
         length: String(transformOptionalNumber(data.length)),
@@ -2536,7 +2543,15 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
         const num = Number(value);
         return isNaN(num) ? null : num; // Return null if not a valid number
       };
-       const transformOptionalBarcode = (value: string | null | undefined): string | null => {
+
+      // Helper function for price fields - returns 0 instead of null for empty values
+      const transformPriceNumber = (value: number | string | null | undefined): number => {
+        if (value === null || value === undefined || value === '') return 0;
+        const num = Number(value);
+        return isNaN(num) ? 0 : num; // Return 0 if not a valid number
+      };
+
+      const transformOptionalBarcode = (value: string | null | undefined): string | null => {
           const trimmedValue = typeof value === 'string' ? value.trim() : null;
           if (!trimmedValue) return null;
           // Return null if validation fails, otherwise the trimmed value
@@ -2577,11 +2592,11 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
       // --- END EDIT --- 
 
       // Optional fields (compare simple types, use API names)
-      const currentDeposit = transformOptionalNumber(data.depositPrice);
-      if (currentDeposit !== transformOptionalNumber(originalVariant.discount_price)) { apiPayload.discount_price = currentDeposit; hasChanges = true; }
+      const currentDeposit = transformPriceNumber(data.depositPrice);
+      if (currentDeposit !== transformPriceNumber(originalVariant.discount_price)) { apiPayload.discount_price = currentDeposit; hasChanges = true; }
 
-      const currentPurchase = transformOptionalNumber(data.purchasePrice);
-      if (currentPurchase !== transformOptionalNumber(originalVariant.purchase_price)) { apiPayload.purchase_price = currentPurchase; hasChanges = true; }
+      const currentPurchase = transformPriceNumber(data.purchasePrice);
+      if (currentPurchase !== transformPriceNumber(originalVariant.purchase_price)) { apiPayload.purchase_price = currentPurchase; hasChanges = true; }
 
       const currentLowStock = transformOptionalNumber(data.lowStockThreshold); // Use correct casing for form data
       if (currentLowStock !== transformOptionalNumber(originalVariant.low_stock_threshold)) { apiPayload.low_stock_threshold = currentLowStock; hasChanges = true; } // API uses snake_case

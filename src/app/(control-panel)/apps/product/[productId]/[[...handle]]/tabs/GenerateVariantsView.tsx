@@ -1145,6 +1145,13 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
         return isNaN(num) ? null : num;
       };
 
+      // Helper function for price fields - returns 0 instead of null for empty values
+      const transformPriceNumber = (value: number | string | null | undefined): number => {
+        if (value === null || value === undefined || value === '') return 0;
+        const num = Number(value);
+        return isNaN(num) ? 0 : num; // Return 0 if not a valid number
+      };
+
       // Start with an empty payload, explicitly typed
       const apiPayload: Partial<UpdateProductVariantRequest> = {};
 
