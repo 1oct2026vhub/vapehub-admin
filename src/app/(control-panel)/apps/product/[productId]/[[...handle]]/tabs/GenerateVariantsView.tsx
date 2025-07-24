@@ -59,7 +59,7 @@ interface GeneratedVariant {
   id: number;
   product_id: number;
   slug: string;
-  price: string;
+  regular_price: string;
   discount_price: string;
   purchase_price: string;
   weight: string;
@@ -80,7 +80,7 @@ interface GeneratedVariant {
 const mapVariantForDisplayCard = (variant: GeneratedVariant) => ({
   id: variant.id,
   slug: variant.slug,
-  price: variant.price,
+  price: variant.regular_price,
   stock: variant.stock,
   status: variant.status,
   variantImages: variant.variantImages?.map(img => ({ id: img.id, image_url: img.image_url, is_primary: img.is_primary })),
@@ -128,25 +128,25 @@ const variantSchema = z.object({
     .min(1, "Slug is required")
     .max(100, "Slug cannot exceed 100 characters")
     .regex(/^[a-z0-9-]+$/, "Slug must contain only lowercase letters, numbers, and hyphens"),
-  price: z.preprocess(
+  regular_price: z.preprocess(
     (val) => {
       if (val === "" || val === null || val === undefined) return null;
       const parsed = Number(val);
       return isNaN(parsed) ? "NaN" : parsed;
     },
     z.union([
-      z.literal("NaN").refine(() => false, "Please enter a valid number for price"),
+      z.literal("NaN").refine(() => false, "Please enter a valid number for regular price"),
       z.number()
-        .positive("Price must be greater than zero")
-        .max(9999999.99, "Price exceeds maximum limit")
+        .positive("Regular price must be greater than zero")
+        .max(9999999.99, "Regular price exceeds maximum limit")
         .refine(
           (val) => {
             const str = val.toString();
             return !str.includes(".") || str.split(".")[1].length <= 2;
           },
-          { message: "Price can have at most 2 decimal places" }
+          { message: "Regular price can have at most 2 decimal places" }
         ),
-      z.null().refine(() => false, "Price is required"),
+      z.null().refine(() => false, "Regular price is required"),
     ])
   ),
   stock: z.preprocess(
@@ -385,7 +385,7 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
     mode: "all",
     defaultValues: {
       slug: "",
-      price: 1,
+      regular_price: 1,
       stock: 0,
       status: "active",
       depositPrice: null,
@@ -635,7 +635,7 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
           return {
             ...variant,
             ...currentFormValues,
-            price: String(getNumericValue(currentFormValues.price) ?? variant.price ?? 0),
+            regular_price: String(getNumericValue(currentFormValues.regular_price) ?? variant.regular_price ?? null),
             stock: getNumericValue(currentFormValues.stock) ?? variant.stock ?? 0,
             slug: String(currentFormValues.slug || variant.slug || ''),
             discount_price: String(getNumericValue(currentFormValues.depositPrice) ?? variant.discount_price ?? null),
@@ -750,7 +750,7 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
               ...variant, // Start with the existing variant from state
               // Overwrite with potentially unsaved form values, applying correct typing/mapping
               slug: String(currentFormValues.slug || variant.slug || ''),
-              price: String(getNumericValue(currentFormValues.price) ?? variant.price ?? 0),
+              regular_price: String(getNumericValue(currentFormValues.regular_price) ?? variant.regular_price ?? null),
               stock: getNumericValue(currentFormValues.stock) ?? variant.stock ?? 0,
               status: String(currentFormValues.status || variant.status || 'inactive') as 'active' | 'inactive',
               discount_price: String(getNumericValue(currentFormValues.depositPrice) ?? variant.discount_price ?? null),
@@ -838,7 +838,7 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
           ...variant,
           // (Merge with form values as before)
           slug: String(currentFormValues.slug || variant.slug || ''),
-          price: String(getNumericValue(currentFormValues.price) ?? getNumericValue(variant.price) ?? 0),
+          regular_price: String(getNumericValue(currentFormValues.regular_price) ?? getNumericValue(variant.regular_price) ?? 0),
           stock: getNumericValue(currentFormValues.stock) ?? getNumericValue(variant.stock) ?? 0,
           status: String(currentFormValues.status || variant.status || 'inactive') as 'active' | 'inactive',
           discount_price: String(getNumericValue(currentFormValues.depositPrice) ?? getNumericValue(variant.discount_price) ?? 0),
@@ -894,7 +894,7 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
         return {
           ...variant,
           slug: String(currentFormValues.slug || variant.slug || ''),
-          price: String(getNumericValue(currentFormValues.price) ?? variant.price ?? 0),
+          regular_price: String(getNumericValue(currentFormValues.regular_price) ?? variant.regular_price ?? null),
           stock: getNumericValue(currentFormValues.stock) ?? variant.stock ?? 0,
           status: String(currentFormValues.status || variant.status || 'inactive') as 'active' | 'inactive',
           discount_price: String(getNumericValue(currentFormValues.depositPrice) ?? variant.discount_price ?? null),
@@ -1027,7 +1027,7 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
         console.log(`[useEffect resetEditForm GVW] Variant ID changed from ${prevSelectedVariantIdRef.current} to ${selectedVariant.id}. Resetting form.`);
         const resetValues = {
           slug: getFieldValue(selectedVariant.slug),
-          price: getNumericValue(selectedVariant.price),
+          regular_price: getNumericValue(selectedVariant.regular_price),
           stock: getNumericValue(selectedVariant.stock),
           status: (selectedVariant.status?.toLowerCase() === 'active' ? 'active' : 'inactive') as 'active' | 'inactive',
           depositPrice: getNumericValue(selectedVariant.discount_price),
@@ -1055,7 +1055,7 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
       console.log('[useEffect resetEditForm GVW] No variant selected, resetting to defaults.');
       resetForm({
         slug: '',
-        price: null,
+        regular_price: null,
         stock: null,
         status: 'active',
         depositPrice: null,
@@ -1093,7 +1093,7 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
 
         // Fields from the form (obtained via getValues())
         slug: formValues.slug,
-        price: String(getNumericValue(formValues.price) ?? originalSelectedVariantRef.current.price), // Fallback to original for comparison consistency
+        regular_price: String(getNumericValue(formValues.regular_price) ?? originalSelectedVariantRef.current.regular_price), // Fallback to original for comparison consistency
         stock: getNumericValue(formValues.stock) ?? originalSelectedVariantRef.current.stock,
         status: formValues.status, // 'active' | 'inactive'
         discount_price: String(getNumericValue(formValues.depositPrice) ?? originalSelectedVariantRef.current.discount_price),
@@ -1153,7 +1153,7 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
 
       // Dynamically add fields to payload ONLY if they are dirty
       if (dirtyFields.slug) apiPayload.slug = data.slug;
-      if (dirtyFields.price) apiPayload.price = transformOptionalNumber(data.price);
+      if (dirtyFields.regular_price) apiPayload.regular_price = transformOptionalNumber(data.regular_price);
       if (dirtyFields.stock) apiPayload.stock = transformOptionalNumber(data.stock);
       if (dirtyFields.depositPrice) apiPayload.discount_price = transformOptionalNumber(data.depositPrice);
       if (dirtyFields.purchasePrice) apiPayload.purchase_price = transformOptionalNumber(data.purchasePrice);
@@ -1185,7 +1185,7 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
 
       // --- Safety check: Include required fields if they weren't dirty ---
       if (apiPayload.slug === undefined && data.slug !== undefined) apiPayload.slug = data.slug;
-      if (apiPayload.price === undefined && data.price !== undefined) apiPayload.price = transformOptionalNumber(data.price);
+      if (apiPayload.regular_price === undefined && data.regular_price !== undefined) apiPayload.regular_price = transformOptionalNumber(data.regular_price);
       if (apiPayload.stock === undefined && data.stock !== undefined) apiPayload.stock = transformOptionalNumber(data.stock);
 
       // Check if there are any actual changes being sent (besides attributes/required fields)
@@ -1207,7 +1207,7 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
             return {
               ...variant,
               slug: data.slug,
-              price: String(data.price || 0),
+              regular_price: String(data.regular_price || 0),
               stock: Number(data.stock || 0),
               discount_price: String(data.depositPrice || 0),
               purchase_price: String(data.purchasePrice || 0),

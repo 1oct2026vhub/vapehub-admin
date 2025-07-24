@@ -172,8 +172,21 @@ const DealForm: React.FC<DealFormProps> = ({ deal }) => {
             }
             router.push('/apps/deals');
         } catch (error: any) {
-            showSnackbar(error.message || 'An error occurred', 'error');
-        } finally {
+if (error?.errors) {
+        showSnackbar(error?.errors[0]?.msg, "error");
+      } else {
+        const errorMessage = error?.message || "An unexpected error occurred";
+        showSnackbar(errorMessage, "error");
+      }
+
+      const errorData = error || error;
+      if (errorData?.error && typeof errorData.error === "object") {
+        Object.entries(errorData.error).forEach(([field, message]) => {
+          if (typeof message === "string") {
+            showSnackbar(message, "error");
+          }
+        });
+      }        } finally {
             setIsSubmitting(false);
         }
     };

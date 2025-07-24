@@ -5,7 +5,7 @@ import { ProductVariant, listProductVariants } from '@/services/apiProductVarian
 import { bulkUpdateByQuantity } from '@/services/apiInventory';
 import AppButton from '@/components/Shared/AppButton';
 import FormTextField from '@/components/Shared/FormTextField';
-import FormSearchableSelectField from '@/components/Shared/FormSearchableSelectField';
+import FormMultiTextField from '@/components/Shared/FormMultiTextField';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useFetch } from '@/hooks/useFetch';
 import { useSnackbar } from '@/contexts/SnackbarContext';
@@ -30,7 +30,7 @@ const style = {
 };
 
 const schema = z.object({
-	selectedVariants: z.array(z.number()).min(1, 'Please select at least one variant.'),
+	selectedVariants: z.array(z.string()).min(1, 'Please select at least one variant.'),
 	quantity: z.coerce
 		.number({ invalid_type_error: 'Quantity is required.' })
 		.int('Quantity must be a whole number.')
@@ -47,9 +47,9 @@ const BulkUpdateStockModal: React.FC<BulkUpdateStockModalProps> = ({ open, onClo
 
 	const { data: response, isLoading: loading } = useFetch(
 		['product-variants', debouncedInputValue],
-		() => listProductVariants({ keyword: debouncedInputValue, limit: 20 }),
+		() => listProductVariants({ keyword: debouncedInputValue, limit: 50 }),
 		{
-			enabled: debouncedInputValue.length >= 2,
+			enabled: debouncedInputValue.length >= 1,
 		},
 	);
 	const variants = response?.data?.variants || [];
@@ -62,7 +62,7 @@ const BulkUpdateStockModal: React.FC<BulkUpdateStockModalProps> = ({ open, onClo
 		reset,
 	} = useForm<IFormInput>({
 		resolver: zodResolver(schema),
-		mode: 'all',
+		mode: 'onChange',
 		defaultValues: {
 			selectedVariants: [],
 			quantity: undefined,
@@ -84,10 +84,28 @@ const BulkUpdateStockModal: React.FC<BulkUpdateStockModalProps> = ({ open, onClo
 	const selectedVariants = watch('selectedVariants');
 	const quantity = watch('quantity');
 
+	// Validate that selected variants exist in the current variants list
+	const validSelectedVariants = selectedVariants?.filter(slug => 
+		variants.some(variant => variant.slug === slug)
+	) || [];
+
 	const onSubmit = async (data: IFormInput) => {
 		try {
+			// Map variant slugs to IDs
+			const variantIds = data.selectedVariants
+				.map(slug => {
+					const variant = variants.find(v => v.slug === slug);
+					return variant?.id;
+				})
+				.filter(id => id !== undefined) as number[];
+
+			if (variantIds.length === 0) {
+				showSnackbar('No valid variants found', 'error');
+				return;
+			}
+
 			const response = await bulkUpdateByQuantity({
-				variant_ids: data.selectedVariants,
+				variant_ids: variantIds,
 				quantity: Number(data.quantity),
 				reference: data.reference,
 			});
@@ -116,20 +134,18 @@ const BulkUpdateStockModal: React.FC<BulkUpdateStockModalProps> = ({ open, onClo
 				<form
 					onSubmit={handleSubmit(onSubmit)}
 					className="space-y-4"
+					noValidate
 				>
-					<FormSearchableSelectField
+					<FormMultiTextField
 						name="selectedVariants"
 						control={control}
 						label="Select Variants"
-						options={variants.map((variant: ProductVariant) => ({
-							value: variant.id,
-							label: `${variant.slug}`,
-						}))}
-						loading={loading}
-						onInputChange={setInputValue}
-						multiple
+						placeholder="Type variant slugs..."
+						suggestions={variants.map((variant: ProductVariant) => variant.slug)}
 						required
+						error={!!errors.selectedVariants}
 						errorMessage={errors.selectedVariants?.message}
+						helperText="Type or select variant slugs from the suggestions"
 					/>
 
 					<FormTextField
@@ -139,6 +155,10 @@ const BulkUpdateStockModal: React.FC<BulkUpdateStockModalProps> = ({ open, onClo
 						type="number"
 						required
 						error={!!errors.quantity}
+						inputProps={{
+							min: 1,
+							step: 1,
+						}}
 					/>
 					<FormTextField
 						name="reference"
