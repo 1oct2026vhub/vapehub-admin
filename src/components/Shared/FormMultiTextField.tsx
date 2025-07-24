@@ -12,6 +12,8 @@ interface FormMultiTextFieldProps {
   required?: boolean;
   error?: boolean;
   errorMessage?: string;
+  onInputChange?: (value: string) => void;
+  loading?: boolean;
 }
 
 const FormMultiTextField: React.FC<FormMultiTextFieldProps> = ({
@@ -24,6 +26,8 @@ const FormMultiTextField: React.FC<FormMultiTextFieldProps> = ({
   required = false,
   error = false,
   errorMessage,
+  onInputChange,
+  loading = false,
 }) => {
   return (
     <Controller
@@ -36,12 +40,16 @@ const FormMultiTextField: React.FC<FormMultiTextFieldProps> = ({
           freeSolo
           options={suggestions}
           value={Array.isArray(value) ? value : []}
+          loading={loading}
           onChange={(_, newValue) => {
             // Ensure we're always passing an array of strings
             const cleanedValues = newValue.map(item => 
               typeof item === 'string' ? item.trim() : item
             ).filter(Boolean);
             onChange(cleanedValues);
+          }}
+          onInputChange={(_, inputValue) => {
+            onInputChange?.(inputValue);
           }}
           renderInput={(params) => (
             <TextField
