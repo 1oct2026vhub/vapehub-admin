@@ -4,7 +4,7 @@ import PageBreadcrumb from '@/components/PageBreadcrumb';
 
 const PromotionalEmailPage = () => {
     return (
-        <div>
+        <div className="p-6">
             <PageBreadcrumb />        
             <PromotionalEmailForm />
         </div>

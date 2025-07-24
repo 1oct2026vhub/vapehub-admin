@@ -11,6 +11,11 @@ export interface ContactInfo {
     send_us_a_message: string;
     call_us: string;
     social_media: string;
+    facebook?: string;
+    whatsapp?: string;
+    instagram?: string;
+    email?: string;
+    phone_number?: string;
     created_at: string;
     updated_at: string;
     deleted_at: string | null;
@@ -49,6 +54,11 @@ export interface ContactUsPayload {
     send_us_a_message: string;
     call_us: string;
     social_media: string;
+    facebook?: string;
+    whatsapp?: string;
+    instagram?: string;
+    email?: string;
+    phone_number?: string;
 }
 
 export const createContactUs = async (data: ContactUsPayload): Promise<ApiResponse<ContactInfo>> => {

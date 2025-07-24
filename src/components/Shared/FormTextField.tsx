@@ -61,6 +61,10 @@ const FormTextField = <T extends FieldValues>({
           size="small" // Optional: Adjust size if needed
           value={field.value ?? ""} // Handle null/undefined from react-hook-form
           InputLabelProps={{ shrink: true }} // <-- Keep label always shrunk
+          inputProps={{
+            ...rest.inputProps,
+            'aria-invalid': !!error,
+          }}
           InputProps={{
             endAdornment: isPassword && (
               <InputAdornment position="end">

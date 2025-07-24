@@ -10,9 +10,9 @@ import PageBreadcrumb from '@/components/PageBreadcrumb';
 function MailSubscriptionSettingsPage() {
 	const router = useRouter();
 	return (
-		<div className="w-full flex flex-col min-h-full">
+		<div className="w-full flex flex-col min-h-full p-6">
       <PageBreadcrumb />
-			<div className="flex items-center justify-between p-8">
+			<div className="flex items-center justify-between">
 				<Typography variant="h4" className="font-semibold mb-4">
 					Mail Subscription Settings
 				</Typography>
@@ -22,7 +22,7 @@ function MailSubscriptionSettingsPage() {
 					onClick={() => router.push('/apps/newsletter/settings/new')}
 				/>
 			</div>
-			<div className="p-8">
+			<div>
 				<MailSubscriptionSettingsTable />
 			</div>
 		</div>
