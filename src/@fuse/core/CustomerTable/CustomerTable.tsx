@@ -283,8 +283,12 @@ const CustomerTable = () => {
 
   const customerData: UserType[] = customers?.map((user: any) => ({
     id: user.id,
-    first_name: user.first_name || "N/A",
-    last_name: user.last_name || "N/A",
+    first_name: user.first_name 
+      ? user.first_name.charAt(0).toUpperCase() + user.first_name.slice(1).toLowerCase()
+      : "N/A",
+    last_name: user.last_name 
+      ? user.last_name.charAt(0).toUpperCase() + user.last_name.slice(1).toLowerCase()
+      : "N/A",
     email: user.email || "N/A",
     createdAt: user.createdAt,
     phone: user.phone ?? "N/A",
