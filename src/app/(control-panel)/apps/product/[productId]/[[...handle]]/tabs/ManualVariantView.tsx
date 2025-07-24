@@ -544,6 +544,12 @@ const transformOptionalNumber = (value: number | string | null | undefined): num
   return isNaN(num) ? null : num;
 };
 
+const transformPriceNumber = (value: number | string | null | undefined): number => {
+  if (value === null || value === undefined || value === '') return 0;
+  const num = Number(value);
+  return isNaN(num) ? 0 : num;
+};
+
 const transformDimensionValue = (value: number | string | null | undefined): number | undefined => {
   const num = transformOptionalNumber(value);
   return num && num > 0 ? num : undefined;
@@ -874,8 +880,8 @@ const ManualVariantView: React.FC<ManualVariantViewProps> = ({
       stock_status: data.stockStatus === "In Stock" ? "in_stock" :
                     data.stockStatus === "Out of Stock" ? "out_of_stock" :
                     "back_to_order",
-      discount_price: depositPriceValue, 
-      purchase_price: purchasePriceValue, 
+      discount_price: transformPriceNumber(data.depositPrice), 
+      purchase_price: transformPriceNumber(data.purchasePrice), 
       low_stock_threshold: data.lowStockThreshold,
       weight: weightValue, // Pass as number or null
       length: lengthValue, // Pass as number or null

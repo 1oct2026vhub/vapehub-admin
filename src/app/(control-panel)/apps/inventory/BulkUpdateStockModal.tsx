@@ -45,14 +45,26 @@ const BulkUpdateStockModal: React.FC<BulkUpdateStockModalProps> = ({ open, onClo
 	const [inputValue, setInputValue] = useState('');
 	const debouncedInputValue = useDebounce(inputValue, 500);
 
-	const { data: response, isLoading: loading } = useFetch(
+	// Fetch initial variants when modal opens
+	const { data: initialResponse } = useFetch(
+		['product-variants-initial'],
+		() => listProductVariants({ keyword: '', limit: 50 }),
+		{
+			enabled: open && debouncedInputValue.length === 0,
+		},
+	);
+
+	// Fetch search results
+	const { data: searchResponse, isLoading: loading } = useFetch(
 		['product-variants', debouncedInputValue],
 		() => listProductVariants({ keyword: debouncedInputValue, limit: 50 }),
 		{
 			enabled: debouncedInputValue.length >= 1,
 		},
 	);
-	const variants = response?.data?.variants || [];
+
+	// Use search results if available, otherwise use initial results
+	const variants = (debouncedInputValue.length >= 1 ? searchResponse?.data?.variants : initialResponse?.data?.variants) || [];
 
 	const {
 		control,
@@ -146,6 +158,8 @@ const BulkUpdateStockModal: React.FC<BulkUpdateStockModalProps> = ({ open, onClo
 						error={!!errors.selectedVariants}
 						errorMessage={errors.selectedVariants?.message}
 						helperText="Type or select variant slugs from the suggestions"
+						onInputChange={setInputValue}
+						loading={loading}
 					/>
 
 					<FormTextField

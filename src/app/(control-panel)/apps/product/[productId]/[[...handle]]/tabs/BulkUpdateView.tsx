@@ -313,6 +313,12 @@ const getEditNumericValue = (value: any): number | null => {
   return isNaN(num) ? null : num;
 };
 
+const transformPriceNumber = (value: number | string | null | undefined): number => {
+  if (value === null || value === undefined || value === '') return 0;
+  const num = Number(value);
+  return isNaN(num) ? 0 : num;
+};
+
 const getDisplayStockStatus = (apiStockStatus: string | null | undefined, currentStockVal?: number): "In Stock" | "Out of Stock" | "Back Order" => {
   const stock = currentStockVal ?? 0;
   switch (apiStockStatus?.toLowerCase()) {
@@ -649,8 +655,8 @@ const BulkUpdateView: React.FC<BulkUpdateViewProps> = ({
         stock: getEditNumericValue(selectedVariantForEdit.stock),
         status: (selectedVariantForEdit.status?.toLowerCase() === 'active' ? 'active' : 'inactive') as 'active' | 'inactive',
         stockStatus: getDisplayStockStatus(selectedVariantForEdit.stock_status, selectedVariantForEdit.stock),
-        depositPrice: getEditNumericValue(selectedVariantForEdit.discount_price),
-        purchasePrice: getEditNumericValue(selectedVariantForEdit.purchase_price),
+        depositPrice: transformPriceNumber(selectedVariantForEdit.discount_price),
+        purchasePrice: transformPriceNumber(selectedVariantForEdit.purchase_price),
         lowStockThreshold: getEditNumericValue(selectedVariantForEdit.low_stock_threshold),
         weight: getEditNumericValue(selectedVariantForEdit.weight),
         length: getEditNumericValue(selectedVariantForEdit.length),
@@ -695,8 +701,8 @@ const BulkUpdateView: React.FC<BulkUpdateViewProps> = ({
         stock: getEditNumericValue(data.stock), // Ensure this is a number
         status: data.status,
         // stock_status will be mapped below
-        discount_price: getEditNumericValue(data.depositPrice),
-        purchase_price: getEditNumericValue(data.purchasePrice),
+        discount_price: transformPriceNumber(data.depositPrice),
+        purchase_price: transformPriceNumber(data.purchasePrice),
         low_stock_threshold: getEditNumericValue(data.lowStockThreshold),
         weight: getEditNumericValue(data.weight),
         length: getEditNumericValue(data.length),
