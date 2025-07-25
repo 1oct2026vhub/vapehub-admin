@@ -40,7 +40,12 @@ const RecentOrdersTable = ({ orders }: RecentOrdersTableProps) => {
     const lastName = order.userId.lastName || "";
 
     if (!firstName && !lastName) return "Unknown User";
-    return `${firstName} ${lastName}`.trim();
+    
+    const capitalize = (str: string) => str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+    const formattedFirstName = firstName ? capitalize(firstName) : "";
+    const formattedLastName = lastName ? capitalize(lastName) : "";
+    
+    return `${formattedFirstName} ${formattedLastName}`.trim();
   };
 
   const getEmail = (order: RecentOrder) => {
@@ -113,7 +118,12 @@ const RecentOrdersTable = ({ orders }: RecentOrdersTableProps) => {
                 </TableCell>
                 <TableCell>
                   {order?.user?.first_name && order?.user?.last_name 
-                    ? `${order.user.first_name} ${order.user.last_name}`
+                    ? (() => {
+                        const capitalize = (str: string) => str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+                        const formattedFirstName = capitalize(order.user.first_name);
+                        const formattedLastName = capitalize(order.user.last_name);
+                        return `${formattedFirstName} ${formattedLastName}`;
+                      })()
                     : order?.user?.email || "N/A"}
                 </TableCell>
                 <TableCell>
