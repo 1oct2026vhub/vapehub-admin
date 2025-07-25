@@ -10,20 +10,14 @@ function SubscribersPage() {
 		<div className="w-full flex flex-col min-h-full p-12">
       <PageBreadcrumb />
 			<div className='pb-12'>
-				<Typography
-					variant="h4"
-					className="mb-4 font-semibold leading-tight"
-				>
+				<Typography className="text-4xl font-extrabold leading-none tracking-tight mb-4 mt-4">
 					Subscriber Analytics
 				</Typography>
 				<SubscriberStats />
 			</div>
 
 			<div>
-				<Typography
-					variant="h4"
-					className="mb-4 font-semibold leading-tight"
-				>
+				<Typography className="text-4xl font-extrabold leading-none tracking-tight mb-4">
 					Subscribers
 				</Typography>
 				{/* <Typography

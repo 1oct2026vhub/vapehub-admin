@@ -497,12 +497,23 @@ const OrderDetailApp = () => {
                   <Typography variant="body2">Discount</Typography>
                   <Typography variant="body2" color="error">
                     {/* Conditional discount display */}
-                    {order.discount_type === 'percentage'
+                    -{formatPounds(parseFloat(order.discount_price))}
+                    {/* {order.discount_type === 'percentage'
                     ? `-${formatPounds(order.discount_price)}%` // Assumes discount_price holds the percentage rate
-                      : `-${formatPounds(order.discount_price || 0)}`}
-                  </Typography>
+                      : `-${formatPounds(order.discount_price || 0)}`} */}
+                  </Typography>        
                 </div>
-              )}
+                  )}
+                <div className="flex justify-between">
+                    <Typography variant="body2" color="error">
+                  {order?.mailSubscription_discount && parseFloat(order.mailSubscription_discount) > 0 && (
+                    <Typography variant="body2" color="error">
+                      -{formatPounds(parseFloat(order.mailSubscription_discount))}
+                    </Typography>
+                  )}
+                  </Typography>
+                  </div>
+            
               {order?.deals_discount && parseFloat(order.deals_discount) > 0 && (
                 <div className="flex justify-between">
                     <Typography variant="body2">Deals Discount</Typography>

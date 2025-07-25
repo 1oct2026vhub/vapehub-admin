@@ -164,9 +164,13 @@ export const formatCustomerNameSafely = (customerData: any): string => {
     const firstName = customerData.firstName || customerData.first_name;
     const lastName = customerData.lastName || customerData.last_name;
 
+    // Helper to capitalize first letter
+    const capitalize = (str: string | null | undefined) =>
+      str ? str.charAt(0).toUpperCase() + str.slice(1).toLowerCase() : "";
+
     if (typeof firstName === 'string' && typeof lastName === 'string') {
-      const fName = firstName.trim();
-      const lName = lastName.trim();
+      const fName = capitalize(firstName.trim());
+      const lName = capitalize(lastName.trim());
       if (fName && lName) {
         return `${fName} ${lName}`;
       }
@@ -176,8 +180,8 @@ export const formatCustomerNameSafely = (customerData: any): string => {
     }
     
     // If only one part is available as a string (and the other wasn't a string or was empty)
-    if (typeof firstName === 'string' && firstName.trim() !== '') return firstName.trim();
-    if (typeof lastName === 'string' && lastName.trim() !== '') return lastName.trim();
+    if (typeof firstName === 'string' && firstName.trim() !== '') return capitalize(firstName.trim());
+    if (typeof lastName === 'string' && lastName.trim() !== '') return capitalize(lastName.trim());
 
     // Fallback for other object structures: log a warning and return a placeholder
     console.warn("Unformattable customer data object:", customerData);

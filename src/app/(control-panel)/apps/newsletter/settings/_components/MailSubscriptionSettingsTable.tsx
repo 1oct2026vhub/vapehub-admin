@@ -23,7 +23,11 @@ import FuseSvgIcon from '@fuse/core/FuseSvgIcon';
 import { useSnackbar } from '@/contexts/SnackbarContext';
 import { useRouter } from 'next/navigation';
 
-const MailSubscriptionSettingsTable: React.FC = () => {
+interface MailSubscriptionSettingsTableProps {
+  onSettingsUpdate?: (settingsCount: number) => void;
+}
+
+const MailSubscriptionSettingsTable: React.FC<MailSubscriptionSettingsTableProps> = ({ onSettingsUpdate }) => {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
   const [settings, setSettings] = useState<MailSubscriptionSetting[]>([]);
@@ -39,17 +43,23 @@ const MailSubscriptionSettingsTable: React.FC = () => {
     try {
       const params: FetchSettingsParams = { page, limit };
       const res = await getMailSubscriptionSettings(params);
-      setSettings(res.data?.settings || []);
+      const settingsData = res.data?.settings || [];
+      setSettings(settingsData);
       setTotal(res.data?.pagination?.total || 0);
       setPage(res.data?.pagination?.page || 1);
       setLimit(res.data?.pagination?.limit || 10);
+      
+      // Notify parent component about settings count
+      if (onSettingsUpdate) {
+        onSettingsUpdate(settingsData.length);
+      }
     } catch (error) {
         showSnackbar('Failed to fetch settings', 'error');
     }
     finally {
       setIsLoading(false);
     }
-  }, [page, limit, showSnackbar]);
+  }, [page, limit, showSnackbar, onSettingsUpdate]);
 
   useEffect(() => {
     fetchData();

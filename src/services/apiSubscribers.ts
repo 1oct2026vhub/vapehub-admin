@@ -5,6 +5,7 @@ export interface Subscriber {
   email: string;
   user_id: number | null;
   createdAt: string;
+  is_subscribed?: boolean; // Add subscription status
 }
 
 export interface SubscribersApiResponse {
@@ -29,5 +30,11 @@ export interface FetchSubscribersParams {
 
 export async function getSubscribers(params: FetchSubscribersParams = {}): Promise<SubscribersApiResponse> {
   const response = await axiosInstance.get('/api/admin/mail-subscription-settings/subscribers', { params });
+  return response.data;
+}
+
+// Toggle subscription status
+export async function toggleSubscription(email: string): Promise<any> {
+  const response = await axiosInstance.post('/api/mailSubscription/toggle', { email });
   return response.data;
 } 
