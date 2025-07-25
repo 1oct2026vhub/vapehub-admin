@@ -66,19 +66,29 @@ const BulkUpdateStockModal: React.FC<BulkUpdateStockModalProps> = ({ open, onClo
 		},
 	);
 
+	// Check if search was performed but returned no results
+	const hasSearched = debouncedInputValue.length >= 1;
+	const searchReturnedEmpty = hasSearched && searchResponse?.data?.variants?.length === 0;
+
 	// Use search results if available, otherwise use initial results
 	const variants = (debouncedInputValue.length >= 1 ? searchResponse?.data?.variants : initialResponse?.data?.variants) || [];
+	
+	// Filter out any null or undefined variants
+	const validVariants = variants.filter((variant: ProductVariant) => variant && variant.id && variant.slug);
+
+	// If search returned empty results, show "No variant found" message
+	const suggestions = searchReturnedEmpty ? [] : validVariants.map((variant: ProductVariant) => variant.slug);
 
 	// Merge new variants into allVariants (by unique id)
 	React.useEffect(() => {
-		if (variants.length > 0) {
+		if (validVariants.length > 0) {
 			setAllVariants(prev => {
 				const existingIds = new Set(prev.map(v => v.id));
-				const newOnes = variants.filter(v => !existingIds.has(v.id));
+				const newOnes = validVariants.filter(v => !existingIds.has(v.id));
 				return [...prev, ...newOnes];
 			});
 		}
-	}, [variants]);
+	}, [validVariants]);
 
 	const {
 		control,
@@ -113,7 +123,7 @@ const BulkUpdateStockModal: React.FC<BulkUpdateStockModalProps> = ({ open, onClo
 
 	// Validate that selected variants exist in the current variants list
 	const validSelectedVariants = selectedVariants?.filter(slug => 
-		variants.some(variant => variant.slug === slug)
+		validVariants.some(variant => variant.slug === slug)
 	) || [];
 
 	const onSubmit = async (data: IFormInput) => {
@@ -162,7 +172,7 @@ if (error?.error) {
 			open={open}
 			onClose={onClose}
 		>
-			<Box sx={style}>
+			<Box sx={style} className='bg-white'>
 				<Typography
 					variant="h6"
 					component="h2"
@@ -180,11 +190,11 @@ if (error?.error) {
 						control={control}
 						label="Select Variants"
 						placeholder="Type variant slugs..."
-						suggestions={variants.map((variant: ProductVariant) => variant.slug)}
+						suggestions={suggestions}
 						required
 						error={!!errors.selectedVariants}
 						errorMessage={errors.selectedVariants?.message}
-						helperText="Type or select variant slugs from the suggestions"
+						helperText={searchReturnedEmpty ? "No variant found" : "Type or select variant slugs from the suggestions"}
 						onInputChange={setInputValue}
 						loading={loading}
 					/>
