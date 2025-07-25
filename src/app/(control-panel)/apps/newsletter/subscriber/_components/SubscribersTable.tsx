@@ -12,7 +12,7 @@ import {
   ListItemIcon,
   Chip,
 } from '@mui/material';
-import { getSubscribers, Subscriber, FetchSubscribersParams, toggleSubscription } from '@/services/apiSubscribers';
+import { getSubscribers, Subscriber, FetchSubscribersParams } from '@/services/apiSubscribers';
 import { useSnackbar } from '@/contexts/SnackbarContext';
 import FuseSvgIcon from '@fuse/core/FuseSvgIcon';
 
@@ -46,32 +46,14 @@ const SubscribersTable: React.FC = () => {
 
   const totalPages = Math.ceil(total / limit);
 
-  const handleToggleSubscription = async (subscriber: Subscriber) => {
-    try {
-      await toggleSubscription(subscriber.email);
-      showSnackbar(
-        subscriber.is_subscribed 
-          ? 'Subscriber unsubscribed successfully!' 
-          : 'Subscriber subscribed successfully!', 
-        'success'
-      );
-      // Refresh data to get updated subscription status
-      fetchData();
-    } catch (error: any) {
-      showSnackbar(error?.message || 'Failed to toggle subscription', 'error');
-    }
-  };
-
+  
   const columns = useMemo<MRT_ColumnDef<Subscriber>[]>(
     () => [
       { 
         accessorKey: 'id', 
         header: 'ID'
       },
-      { 
-        accessorKey: 'email', 
-        header: 'Email',
-      },
+    
       { 
         accessorKey: 'user_id', 
         header: 'User ID',
@@ -93,11 +75,6 @@ const SubscribersTable: React.FC = () => {
         header: "Subscribed At",
         Cell: ({ row }) => formatDate(row.original.createdAt),
       },
-      // Add this to hide the Actions label
-      {
-        id: "mrt-row-actions",
-        header: "",
-      },
     ],
     []
   );
@@ -110,25 +87,7 @@ const SubscribersTable: React.FC = () => {
           data={subscribers}
           columns={columns}
           enableColumnOrdering
-          renderRowActionMenuItems={({ closeMenu, row }) => [
-            <MenuItem
-              key="toggle"
-              onClick={() => {
-                handleToggleSubscription(row.original);
-                closeMenu();
-              }}
-            >
-              <ListItemIcon>
-                <FuseSvgIcon>
-                  {row.original.is_subscribed 
-                    ? "heroicons-outline:envelope-open" 
-                    : "heroicons-outline:envelope"
-                  }
-                </FuseSvgIcon>
-              </ListItemIcon>
-              {row.original.is_subscribed ? 'Unsubscribe' : 'Subscribe'}
-            </MenuItem>,
-          ]}
+          enableRowActions={false}
         />
         <div className="flex justify-center p-4">
           <Pagination
