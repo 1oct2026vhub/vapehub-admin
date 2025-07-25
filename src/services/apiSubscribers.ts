@@ -33,8 +33,3 @@ export async function getSubscribers(params: FetchSubscribersParams = {}): Promi
   return response.data;
 }
 
-// Toggle subscription status
-export async function toggleSubscription(email: string): Promise<any> {
-  const response = await axiosInstance.post('/api/mailSubscription/toggle', { email });
-  return response.data;
-} 
