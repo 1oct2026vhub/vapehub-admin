@@ -147,6 +147,7 @@ export interface Order {
   discount_price: string | null;
   deals_discount?: string | null;
   loyalty_discount?: string | null;
+  mailSubscription_discount?: string | null;
   sub_total?: string | null;
   discount_type?: 'percentage' | 'fixed_amount' | 'referral' | string | null;
   shipping_cost?: string | null;

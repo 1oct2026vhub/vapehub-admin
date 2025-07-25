@@ -25,7 +25,11 @@ import FuseSvgIcon from '@fuse/core/FuseSvgIcon';
 import { useRouter } from 'next/navigation';
 import { useSnackbar } from '@/contexts/SnackbarContext';
 
-const LoyaltyPointsTable: React.FC = () => {
+interface LoyaltyPointsTableProps {
+  onSettingsUpdate?: (settingsCount: number) => void;
+}
+
+const LoyaltyPointsTable: React.FC<LoyaltyPointsTableProps> = ({ onSettingsUpdate }) => {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
   const [settings, setSettings] = useState<LoyaltyPointSetting[]>([]);
@@ -53,10 +57,16 @@ const LoyaltyPointsTable: React.FC = () => {
         status: status || undefined,
       };
       const res = await getLoyaltyPointsSettings(params);
-      setSettings(res.data?.settings || []);
+      const settingsData = res.data?.settings || [];
+      setSettings(settingsData);
       setTotal(res.data?.pagination?.total || 0);
       setPage(res.data?.pagination?.page || 1);
       setLimit(res.data?.pagination?.limit || 10);
+      
+      // Notify parent component about settings count
+      if (onSettingsUpdate) {
+        onSettingsUpdate(settingsData.length);
+      }
     } catch(e) {
         console.error(e);
         showSnackbar('Failed to fetch loyalty point settings.', 'error')
@@ -64,7 +74,7 @@ const LoyaltyPointsTable: React.FC = () => {
     finally {
       setIsLoading(false);
     }
-  }, [page, limit, status, showSnackbar]);
+  }, [page, limit, status, showSnackbar, onSettingsUpdate]);
 
   useEffect(() => {
     fetchData();

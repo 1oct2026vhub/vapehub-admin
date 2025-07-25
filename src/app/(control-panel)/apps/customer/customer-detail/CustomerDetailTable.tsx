@@ -1,13 +1,18 @@
 "use client";
 import { useParams } from "next/navigation";
-import { Paper, Typography } from "@mui/material";
-import { type MRT_ColumnDef } from "material-react-table";
-import DataTable from "@/components/data-table/DataTable";
+import { Paper, Typography, Grid, Box, Avatar, Chip } from "@mui/material";
 import { customerDetails } from "@/services/apiService";
 import { useFetch } from "@/hooks/useFetch";
 import FuseLoading from "@fuse/core/FuseLoading";
 import { useEffect, useState } from "react";
 import PageBreadcrumb from "@/components/PageBreadcrumb";
+import { formatDate } from "@/utils/actions";
+import PersonIcon from "@mui/icons-material/Person";
+import EmailIcon from "@mui/icons-material/Email";
+import PhoneIcon from "@mui/icons-material/Phone";
+import CakeIcon from "@mui/icons-material/Cake";
+import WcIcon from "@mui/icons-material/Wc";
+import CalendarTodayIcon from "@mui/icons-material/CalendarToday";
 
 export type UserType = {
   id: number;
@@ -47,49 +52,16 @@ export default function CustomerDetailsPage() {
     );
   }
 
-  const columns: MRT_ColumnDef<UserType>[] = [
-    {
-      accessorKey: "first_name",
-      header: "First Name",
-      Cell: ({ row }) => row.original.first_name || "N/A",
-    },
-    {
-      accessorKey: "last_name",
-      header: "Last Name",
-      Cell: ({ row }) => row.original.last_name || "N/A",
-    },
-    {
-      accessorKey: "email",
-      header: "Email",
-      Cell: ({ row }) => row.original.email || "N/A",
-    },
-    {
-      accessorKey: "createdAt",
-      header: "Created At",
-      Cell: ({ row }) => 
-        row.original.createdAt 
-          ? new Date(row.original.createdAt).toLocaleDateString("en-GB").replace(/\//g, "-") 
-          : "N/A",
-    },
-    {
-      accessorKey: "phone",
-      header: "Contact",
-      Cell: ({ row }) => (row.original.phone != null ? String(row.original.phone) : "N/A"),
-    },
-    {
-      accessorKey: "gender",
-      header: "Gender",
-      Cell: ({ row }) => row.original.gender || "N/A",
-    },
-    {
-      accessorKey: "dob",
-      header: "Date of Birth",
-      Cell: ({ row }) => 
-        row.original.dob 
-          ? new Date(row.original.dob).toISOString().split("T")[0] 
-          : "N/A",
-    },
-  ];
+  const getInitials = (firstName: string | null, lastName: string | null) => {
+    const first = firstName?.charAt(0) || '';
+    const last = lastName?.charAt(0) || '';
+    return (first + last).toUpperCase();
+  };
+
+  const formatGender = (gender: string | null) => {
+    if (!gender) return "N/A";
+    return gender.charAt(0).toUpperCase() + gender.slice(1).toLowerCase();
+  };
 
   return (
     <div className="mt-10">
@@ -101,15 +73,126 @@ export default function CustomerDetailsPage() {
       </div>
 
       <Paper
-        className="flex flex-col flex-auto shadow-1 rounded-lg overflow-hidden w-full h-full p-4"
+        className="flex flex-col flex-auto shadow-1 rounded-lg overflow-hidden w-full h-full p-6"
         elevation={1}
       >
-        <DataTable 
-          data={[customerDetail]} 
-          columns={columns} 
-          // enableRowSelection={false}
-          enableRowActions={false}
-        />
+        {/* Customer Profile Header */}
+        <Box className="flex items-center gap-4 mb-6 pb-6 border-b border-gray-200">
+          <Avatar
+            sx={{
+              width: 80,
+              height: 80,
+              bgcolor: '#2E9970',
+              fontSize: '24px',
+              fontWeight: 'bold'
+            }}
+          >
+            {getInitials(customerDetail.first_name, customerDetail.last_name)}
+          </Avatar>
+          <Box>
+            <Typography variant="h4" className="font-bold text-gray-800">
+              {customerDetail.first_name} {customerDetail.last_name}
+            </Typography>
+            <Typography variant="body1" color="text.secondary" className="mt-1">
+              Customer ID: {customerDetail.id}
+            </Typography>
+            {customerDetail.blocked && (
+              <Chip
+                label="Blocked"
+                color="error"
+                size="small"
+                className="mt-2"
+              />
+            )}
+          </Box>
+        </Box>
+
+        {/* Customer Details Grid */}
+        <Grid container spacing={3}>
+          <Grid item xs={12} md={6}>
+            <Box className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg">
+              <EmailIcon color="action" />
+              <Box>
+                <Typography variant="body2" color="text.secondary">
+                  Email Address
+                </Typography>
+                <Typography variant="body1" className="font-medium">
+                  {customerDetail.email}
+                </Typography>
+              </Box>
+            </Box>
+          </Grid>
+
+          <Grid item xs={12} md={6}>
+            <Box className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg">
+              <PhoneIcon color="action" />
+              <Box>
+                <Typography variant="body2" color="text.secondary">
+                  Phone Number
+                </Typography>
+                <Typography variant="body1" className="font-medium">
+                  {customerDetail.phone || "N/A"}
+                </Typography>
+              </Box>
+            </Box>
+          </Grid>
+
+          <Grid item xs={12} md={6}>
+            <Box className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg">
+              <WcIcon color="action" />
+              <Box>
+                <Typography variant="body2" color="text.secondary">
+                  Gender
+                </Typography>
+                <Typography variant="body1" className="font-medium">
+                  {formatGender(customerDetail.gender)}
+                </Typography>
+              </Box>
+            </Box>
+          </Grid>
+
+          <Grid item xs={12} md={6}>
+            <Box className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg">
+              <CakeIcon color="action" />
+              <Box>
+                <Typography variant="body2" color="text.secondary">
+                  Date of Birth
+                </Typography>
+                <Typography variant="body1" className="font-medium">
+                  {customerDetail.dob ? formatDate(customerDetail.dob) : "N/A"}
+                </Typography>
+              </Box>
+            </Box>
+          </Grid>
+
+          <Grid item xs={12} md={6}>
+            <Box className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg">
+              <CalendarTodayIcon color="action" />
+              <Box>
+                <Typography variant="body2" color="text.secondary">
+                  Member Since
+                </Typography>
+                <Typography variant="body1" className="font-medium">
+                  {customerDetail.createdAt ? formatDate(customerDetail.createdAt) : "N/A"}
+                </Typography>
+              </Box>
+            </Box>
+          </Grid>
+
+          <Grid item xs={12} md={6}>
+            <Box className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg">
+              <PersonIcon color="action" />
+              <Box>
+                <Typography variant="body2" color="text.secondary">
+                  Account Status
+                </Typography>
+                <Typography variant="body1" className="font-medium">
+                  {customerDetail.blocked ? "Blocked" : "Active"}
+                </Typography>
+              </Box>
+            </Box>
+          </Grid>
+        </Grid>
       </Paper>
     </div>
   );
