@@ -41,6 +41,7 @@ const FormMultiTextField: React.FC<FormMultiTextFieldProps> = ({
           options={suggestions}
           value={Array.isArray(value) ? value : []}
           loading={loading}
+          noOptionsText="No variant found"
           onChange={(_, newValue) => {
             // Ensure we're always passing an array of strings
             const cleanedValues = newValue.map(item => 
@@ -60,7 +61,12 @@ const FormMultiTextField: React.FC<FormMultiTextFieldProps> = ({
               required={required}
               error={error}
               helperText={error ? errorMessage : helperText}
-              sx={{ mt: 2 }}
+              sx={{ 
+                mt: 2,
+                '& .MuiOutlinedInput-root': {
+                  backgroundColor: 'white'
+                }
+              }}
             />
           )}
           renderTags={(value: string[], getTagProps) =>
