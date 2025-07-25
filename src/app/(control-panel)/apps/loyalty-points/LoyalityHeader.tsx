@@ -11,9 +11,10 @@ import AppButton from "@/components/Shared/AppButton";
 interface LoyaltyHeaderProps {
   queryParams?: Record<string, any>;
   refreshData?: () => void;
+  showCreateButton?: boolean;
 }
 
-function LoyaltyHeader({ queryParams = {}, refreshData }: LoyaltyHeaderProps) {
+function LoyaltyHeader({ queryParams = {}, refreshData, showCreateButton = true }: LoyaltyHeaderProps) {
   const isMobile = useThemeMediaQuery((theme) => theme.breakpoints.down("lg"));
 
   return (
@@ -36,20 +37,22 @@ function LoyaltyHeader({ queryParams = {}, refreshData }: LoyaltyHeaderProps) {
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0, transition: { delay: 0.2 } }}
         >
-          <AppButton
-            label={
-              <>
-                <FuseSvgIcon size={20}>heroicons-outline:plus</FuseSvgIcon>
-                <span className="">Create</span>
-              </>
-            }
-            type="submit"
-            className=""
-            variant="contained"
-            component={NavLinkAdapter}
-              to="/apps/loyalty-points/loyalty-point-new"
-            size={isMobile ? "small" : "medium"}
-          />
+          {showCreateButton && (
+            <AppButton
+              label={
+                <>
+                  <FuseSvgIcon size={20}>heroicons-outline:plus</FuseSvgIcon>
+                  <span className="">Create</span>
+                </>
+              }
+              type="submit"
+              className=""
+              variant="contained"
+              component={NavLinkAdapter}
+                to="/apps/loyalty-points/loyalty-point-new"
+              size={isMobile ? "small" : "medium"}
+            />
+          )}
         </motion.div>
       </div>
     </div>
