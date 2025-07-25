@@ -196,8 +196,13 @@ export default function EditCouponForm() {
           entity_id: coupon.entity_id ? String(coupon.entity_id) : null,
         });
 
-        if (coupon.entity) {
-            setInitialEntity(coupon.entity);
+        // Set initial entity for display if entity data is available
+        if (coupon.entity_type && coupon.entity_type !== 'all' && coupon.entity_id && coupon.entity_name) {
+          setInitialEntity({
+            id: coupon.entity_id,
+            name: coupon.entity_name,
+            slug: coupon.entity_slug
+          });
         }
 
       } catch (error) {
@@ -388,6 +393,9 @@ export default function EditCouponForm() {
                     }}
                     filterOptions={(x) => x}
                     loading={loadingEntities}
+                    isOptionEqualToValue={(option, value) => 
+                      String(option.id) === String(value.id)
+                    }
                     renderInput={(params) => (
                       <TextField
                         {...params}
