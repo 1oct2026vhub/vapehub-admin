@@ -40,25 +40,27 @@ interface SeoFormModalProps {
   initialData?: SeoListItem | null;
 }
 
-const seoSchema = z.object({
-  entityType: z.enum(['page', 'product', 'category', 'brand', 'blog_post', 'blog_category']),
-  entityId: z.string(),
-  title: z.string().min(1, 'Title is required'),
-  description: z.string().optional(),
-  focusKeyword: z.string().min(1, 'Focus Keyword is required'),
-  slug: z.string().min(1, 'Slug is required'),
-  canonicalUrl: z.string().url({ message: 'Invalid URL' }).optional().or(z.literal('')),
-  ogImage: z.string().url({ message: 'Invalid URL' }).optional().or(z.literal('')),
-  noIndex: z.boolean().default(false),
-}).refine((data) => {
+const seoSchema = z
+  .object({
+    entityType: z.enum(['page', 'product', 'category', 'brand', 'blog_post', 'blog_category']),
+    entityId: z.string().optional(),
+    title: z.string().min(1, 'Title is required'),
+    description: z.string().optional(),
+    focusKeyword: z.string().min(1, 'Focus Keyword is required'),
+    slug: z.string().min(1, 'Slug is required'),
+    canonicalUrl: z.string().url({ message: 'Invalid URL' }).optional().or(z.literal('')),
+    ogImage: z.string().url({ message: 'Invalid URL' }).optional().or(z.literal('')),
+    noIndex: z.boolean().default(false),
+  })
+  .refine((data) => {
     if (data.entityType !== 'page') {
-        return data.entityId && data.entityId.length > 0;
+      return !!data.entityId;
     }
     return true;
-}, {
+  }, {
     message: 'Entity Name is required',
     path: ['entityId'],
-});
+  });
 
 type SeoFormType = z.infer<typeof seoSchema>;
 
@@ -82,7 +84,19 @@ function SeoFormModal({ open, onClose, onSaved, initialData }: SeoFormModalProps
   useEffect(() => {
     if (open) {
       if (isEditMode && initialData) {
-        reset(initialData);
+        // Carefully select only the form-relevant fields
+        const editData: SeoFormType = {
+          entityType: initialData.entityType as SeoFormType['entityType'],
+          entityId: initialData.entityId ? String(initialData.entityId) : '',
+          title: initialData.title,
+          description: initialData.description || '',
+          focusKeyword: initialData.focusKeyword,
+          slug: initialData.slug,
+          canonicalUrl: initialData.canonicalUrl || '',
+          ogImage: initialData.ogImage || '',
+          noIndex: initialData.noIndex,
+        };
+        reset(editData);
       } else {
         reset({
           entityType: 'page',
@@ -92,7 +106,7 @@ function SeoFormModal({ open, onClose, onSaved, initialData }: SeoFormModalProps
           focusKeyword: '',
           slug: '',
           canonicalUrl: '',
-          ogImage: '',
+          ogImage: '', 
           noIndex: false,
         });
       }
@@ -103,42 +117,30 @@ function SeoFormModal({ open, onClose, onSaved, initialData }: SeoFormModalProps
     if (open && isEditMode && initialData && !initialData.entity) {
       const fetchEntityDetails = async () => {
         if (!initialData.entityType || initialData.entityType === 'page' || !initialData.entityId) return;
-  
+
         let entityData: any = null;
         try {
           const entityIdNum = parseInt(initialData.entityId, 10);
           if (isNaN(entityIdNum)) return;
 
           switch (initialData.entityType) {
-            case 'product': {
-              const response = await getProduct(entityIdNum);
-              entityData = response?.data;
+            case 'product':
+              entityData = (await getProduct(entityIdNum))?.data;
               break;
-            }
-            case 'brand': {
-              const response = await listProductBrand({ limit: 1000 });
-              entityData = response?.data?.brands.find((b: any) => b.id === entityIdNum);
+            case 'brand':
+              entityData = (await listProductBrand({ limit: 1000 }))?.data?.brands.find((b: any) => b.id === entityIdNum);
               break;
-            }
-            case 'category': {
-              const response = await listProductCategory({ limit: 1000 });
-              entityData = response?.data?.categories.find((c: any) => c.id === entityIdNum);
+            case 'category':
+              entityData = (await listProductCategory({ limit: 1000 }))?.data?.categories.find((c: any) => c.id === entityIdNum);
               break;
-            }
-            case 'blog_post': {
-              const response = await getBlogPosts({ limit: 1000 });
-              entityData = response?.data?.blogs.find((p: any) => p.id === entityIdNum);
+            case 'blog_post':
+              entityData = (await getBlogPosts({ limit: 1000 }))?.data?.blogs.find((p: any) => p.id === entityIdNum);
               break;
-            }
-            case 'blog_category': {
-              const response = await getBlogCategories({ limit: 1000 });
-              entityData = response?.data?.categories.find((c: any) => c.id === entityIdNum);
+            case 'blog_category':
+              entityData = (await getBlogCategories({ limit: 1000 }))?.data?.categories.find((c: any) => c.id === entityIdNum);
               break;
-            }
-            default:
-              return;
           }
-  
+
           if (entityData) {
             const updatedInitialData = { ...initialData, entity: entityData };
             reset(updatedInitialData);
@@ -163,7 +165,6 @@ function SeoFormModal({ open, onClose, onSaved, initialData }: SeoFormModalProps
       }
 
       setLoadingEntities(true);
-
       let response: any;
       let fetchedEntities: any[] = [];
       const params: any = { limit: 50 };
@@ -201,14 +202,10 @@ function SeoFormModal({ open, onClose, onSaved, initialData }: SeoFormModalProps
             response = await getBlogCategories(params);
             fetchedEntities = response?.data?.categories || [];
             break;
-          default:
-            fetchedEntities = [];
-            break;
         }
         setEntities(fetchedEntities);
       } catch (error) {
         console.error('Failed to fetch entities:', error);
-        // showSnackbar('Failed to fetch entities', 'error');
         setEntities([]);
       } finally {
         setLoadingEntities(false);
@@ -219,44 +216,38 @@ function SeoFormModal({ open, onClose, onSaved, initialData }: SeoFormModalProps
   }, [entityType, debouncedSearch, showSnackbar, isEditMode]);
 
   useEffect(() => {
-    if (!slug || formState.dirtyFields.canonicalUrl) {
-      return;
-    }
+    if (!slug || formState.dirtyFields.canonicalUrl) return;
 
     if (isEditMode && initialData) {
       const originalCanonical = initialData.canonicalUrl;
-      if (originalCanonical && originalCanonical !== `${process.env.NEXT_PUBLIC_WEB_URL}/${initialData.slug}`) {
-        return;
-      }
+      if (originalCanonical && originalCanonical !== `${process.env.NEXT_PUBLIC_WEB_URL}/${initialData.slug}`) return;
     }
-    
+
     const newCanonicalUrl = `${process.env.NEXT_PUBLIC_WEB_URL}/${slug}`;
     setValue('canonicalUrl', newCanonicalUrl, { shouldValidate: true });
-
   }, [slug, setValue, formState.dirtyFields.canonicalUrl, isEditMode, initialData]);
 
   const onSubmit = async (data: SeoFormType) => {
     try {
+      // Log the entire initial data and current form data for debugging
+      console.log('Initial SEO Data:', initialData);
+      console.log('Current Form Data:', data);
+
       const payload: Partial<SeoData> = {
-        entityType: data.entityType,
+        entityType: initialData?.entityType || data.entityType,
         title: data.title,
         description: data.description,
         focusKeyword: data.focusKeyword,
         slug: data.slug,
         canonicalUrl: data.canonicalUrl,
         noIndex: data.noIndex,
+        ogImage: data.ogImage || '', // Always include ogImage, even if empty
       };
 
-      if (data.entityType !== 'page') {
-        payload.entityId = data.entityId;
-        payload.ogImage = data.ogImage;
-      }
-
-      if (isEditMode && initialData) {
-        payload.entityType = initialData.entityType;
-        payload.entityId = String(initialData.entityId);
-      }
-      
+      // Add entityId for non-page types
+      if (initialData?.entityType !== 'page') {
+        payload.entityId = initialData?.entityId ? String(initialData.entityId) : undefined;
+      }  
       const response = await createOrUpdateSeo(payload);
       showSnackbar(response.message, 'success');
       onSaved();
@@ -279,11 +270,7 @@ function SeoFormModal({ open, onClose, onSaved, initialData }: SeoFormModalProps
       onClose={handleClose}
       maxWidth={isEditMode ? 'lg' : 'md'}
       fullWidth={isEditMode}
-      PaperProps={{
-        sx: {
-          backgroundColor: 'white',
-        },
-      }}
+      PaperProps={{ sx: { backgroundColor: 'white' } }}
     >
       <DialogTitle>{isEditMode ? 'Edit SEO Entry' : 'Create New SEO Entry'}</DialogTitle>
       <form onSubmit={handleSubmit(onSubmit)}>
@@ -300,7 +287,7 @@ function SeoFormModal({ open, onClose, onSaved, initialData }: SeoFormModalProps
                         render={({ field }) => (
                           <FormControl fullWidth>
                             <InputLabel>Entity Type</InputLabel>
-                            <Select {...field} label="Entity Type" sx={{ backgroundColor: 'white' }} disabled={isEditMode}>
+                            <Select {...field} label="Entity Type" sx={{ backgroundColor: 'white' }}>
                               <MenuItem value="page">Page</MenuItem>
                               <MenuItem value="product">Product</MenuItem>
                               <MenuItem value="category">Category</MenuItem>
@@ -314,16 +301,6 @@ function SeoFormModal({ open, onClose, onSaved, initialData }: SeoFormModalProps
                     </Grid>
                     {entityType !== 'page' && (
                       <Grid item xs={12} sm={6}>
-                        {isEditMode ? (
-                            <TextField
-                                label="Entity Name"
-                                value={initialData?.entity?.name || ''}
-                                fullWidth
-                                disabled
-                                size="small"
-                                sx={{ backgroundColor: 'white' }}
-                            />
-                        ) : (
                         <Controller
                           name="entityId"
                           control={control}
@@ -362,19 +339,14 @@ function SeoFormModal({ open, onClose, onSaved, initialData }: SeoFormModalProps
                                       break;
                                   }
                                 } catch (e) {
-                                  console.error(`Failed to get details for ${entityType} ID ${newValue.id}`, e);
-                                  showSnackbar(`Could not fetch image for the selected ${entityType}.`, 'error');
+                                  showSnackbar(`Could not fetch image for ${entityType}`, 'error');
                                 }
                                 setValue('ogImage', imageUrl, { shouldValidate: true });
                               }}
                               onInputChange={(event, newInputValue) => {
                                 setSearch(newInputValue);
                               }}
-                              sx={{
-                                '& .MuiOutlinedInput-root': {
-                                  backgroundColor: 'white',
-                                },
-                              }}
+                              sx={{ '& .MuiOutlinedInput-root': { backgroundColor: 'white' } }}
                               filterOptions={(x) => x}
                               loading={loadingEntities}
                               renderInput={(params) => (
@@ -384,7 +356,7 @@ function SeoFormModal({ open, onClose, onSaved, initialData }: SeoFormModalProps
                                   fullWidth
                                   size="small"
                                   error={!!formState.errors.entityId}
-                                  helperText={formState.errors.entityId?.message as string}
+                                  helperText={formState.errors.entityId?.message}
                                   InputProps={{
                                     ...params.InputProps,
                                     endAdornment: (
@@ -399,7 +371,6 @@ function SeoFormModal({ open, onClose, onSaved, initialData }: SeoFormModalProps
                             />
                           )}
                         />
-                        )}
                       </Grid>
                     )}
                   </>
@@ -434,14 +405,7 @@ function SeoFormModal({ open, onClose, onSaved, initialData }: SeoFormModalProps
             </Grid>
             {isEditMode && initialData?.health && (
               <Grid item xs={12} md={5}>
-                <Box
-                  sx={{
-                    p: 3,
-                    bgcolor: 'grey.100',
-                    borderRadius: 2,
-                    height: '100%',
-                  }}
-                >
+                <Box sx={{ p: 3, bgcolor: 'grey.100', borderRadius: 2, height: '100%' }}>
                   <SeoHealthIndicator health={initialData.health} />
                 </Box>
               </Grid>
@@ -462,4 +426,4 @@ function SeoFormModal({ open, onClose, onSaved, initialData }: SeoFormModalProps
   );
 }
 
-export default SeoFormModal; 
+export default SeoFormModal;
