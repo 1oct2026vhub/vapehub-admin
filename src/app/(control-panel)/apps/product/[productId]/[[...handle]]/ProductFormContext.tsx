@@ -9,7 +9,9 @@ export interface ProductFormData {
   slug: string;
   description: string;
   category_id: number[];
+  category_id_display: string[];
   brand_id: number[];
+  brand_id_display: string[];
   is_new: boolean;
 
   // Pricing Info
@@ -87,7 +89,9 @@ const initialFormData: ProductFormData = {
   slug: "",
   description: "",
   category_id: [],
+  category_id_display: [],
   brand_id: [],
+  brand_id_display: [],
   is_new: true,
 
   price: "",
