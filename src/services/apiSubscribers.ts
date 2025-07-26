@@ -5,7 +5,7 @@ export interface Subscriber {
   email: string;
   user_id: number | null;
   createdAt: string;
-  is_subscribed?: boolean; // Add subscription status
+  subscribed?: boolean; // Add subscription status
 }
 
 export interface SubscribersApiResponse {
