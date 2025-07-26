@@ -24,9 +24,9 @@ import { useSnackbar } from '@/contexts/SnackbarContext';
 import { listProducts } from '@/services/apiProduct';
 import { listProductBrand } from '@/services/apiProductBrand';
 import { listProductCategory } from '@/services/apiProductCategory';
-import { getBlogPosts } from '@/services/apiBlog';
+import { getBlogPosts, type BlogPost } from '@/services/apiBlog';
 import { useDebounce } from '@/hooks/useDebounce';
-import { getDeals } from '@/services/apiDeals';
+import { getDeals, type Deal } from '@/services/apiDeals';
 import AppButton from '@/components/Shared/AppButton';
 
 const menuSchema = z
@@ -186,6 +186,117 @@ const MenuDialog: React.FC<MenuDialogProps> = ({ open, onClose, onSave, menuItem
         }
     }
   }, [entityType, setValue, dirtyFields.entity_type]);
+
+  // Fetch entity data when editing
+  useEffect(() => {
+    const fetchEntityData = async () => {
+      if (!menuItem || !menuItem.entity_id || !menuItem.entity_type || menuItem.entity_type === 'page') {
+        return;
+      }
+
+      setLoading(true);
+      let fetchedEntity: any = null;
+
+      try {
+        // First, try to fetch with default parameters (first 10 results)
+        switch (menuItem.entity_type) {
+          case 'brand': {
+            const defaultResponse = await listProductBrand({});
+            fetchedEntity = defaultResponse?.data?.brands?.find((brand: any) => brand.id === menuItem.entity_id) || null;
+            
+            // If not found, try searching by name
+            if (!fetchedEntity) {
+              const searchResponse = await listProductBrand({ 
+                search: menuItem.label, 
+                search_only_name: true 
+              });
+              fetchedEntity = searchResponse?.data?.brands?.find((brand: any) => brand.id === menuItem.entity_id) || null;
+            }
+            break;
+          }
+          case 'category': {
+            const defaultResponse = await listProductCategory({});
+            fetchedEntity = defaultResponse?.data?.categories?.find((category: any) => category.id === menuItem.entity_id) || null;
+            
+            // If not found, try searching by name
+            if (!fetchedEntity) {
+              const searchResponse = await listProductCategory({ 
+                search: menuItem.label, 
+                search_only_name: true 
+              });
+              fetchedEntity = searchResponse?.data?.categories?.find((category: any) => category.id === menuItem.entity_id) || null;
+            }
+            break;
+          }
+          case 'product': {
+            const defaultResponse = await listProducts({});
+            fetchedEntity = defaultResponse?.data?.products?.find((product: any) => product.id === menuItem.entity_id) || null;
+            
+            // If not found, try searching by name
+            if (!fetchedEntity) {
+              const searchResponse = await listProducts({ 
+                keyword: menuItem.label 
+              });
+              fetchedEntity = searchResponse?.data?.products?.find((product: any) => product.id === menuItem.entity_id) || null;
+            }
+            
+            // If still not found, fetch specifically by ID
+            if (!fetchedEntity) {
+              const specificResponse = await listProducts({ ids: [menuItem.entity_id] });
+              fetchedEntity = specificResponse?.data?.products?.[0] || null;
+            }
+            break;
+          }
+          case 'blog': {
+            const defaultResponse = await getBlogPosts({});
+            fetchedEntity = defaultResponse?.data?.blogs?.find((blog: BlogPost) => blog.id === menuItem.entity_id) || null;
+            
+            // If not found, try searching by name/title
+            if (!fetchedEntity) {
+              const searchResponse = await getBlogPosts({ 
+                search: menuItem.label 
+              });
+              fetchedEntity = searchResponse?.data?.blogs?.find((blog: BlogPost) => blog.id === menuItem.entity_id) || null;
+            }
+            break;
+          }
+          case 'deal': {
+            const defaultResponse = await getDeals({});
+            fetchedEntity = defaultResponse?.data?.deals?.find((deal: Deal) => deal.id === menuItem.entity_id) || null;
+            
+            // If not found, try searching by name
+            if (!fetchedEntity) {
+              const searchResponse = await getDeals({ 
+                search: menuItem.label 
+              });
+              fetchedEntity = searchResponse?.data?.deals?.find((deal: Deal) => deal.id === menuItem.entity_id) || null;
+            }
+            break;
+          }
+          default:
+            fetchedEntity = null;
+        }
+
+        if (fetchedEntity) {
+          setEntities([fetchedEntity]);
+          // Ensure the entity ID is set correctly
+          setValue('entity_id', fetchedEntity.id, { shouldValidate: true });
+        } else {
+          // If no entity found, show an error
+          showSnackbar(`Could not find ${menuItem.entity_type} with ID ${menuItem.entity_id}`, 'error');
+        }
+      } catch (error) {
+        console.error('Failed to fetch entity data:', error);
+        showSnackbar('Failed to fetch entity data', 'error');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (open && menuItem) {
+      fetchEntityData();
+    }
+  }, [menuItem, open, showSnackbar, setValue]);
 
   useEffect(() => {
     if (open) {

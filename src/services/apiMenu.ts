@@ -4,7 +4,7 @@ export interface MenuItem {
   id: number;
   label: string;
   status: 'active' | 'inactive';
-  entity_type?: 'brand' | 'category' | 'product' | 'blog' | 'page';
+  entity_type?: 'brand' | 'category' | 'product' | 'blog' | 'page' | 'deal';
   parent_id?: number | null;
   children?: MenuItem[];
   menu_parent?: number | null;
@@ -21,7 +21,7 @@ export interface MenuItem {
 
 export interface FetchMenusParams {
   status?: boolean;
-  entity_type?: 'brand' | 'category' | 'product' | 'blog' | 'page';
+  entity_type?: 'brand' | 'category' | 'product' | 'blog' | 'page' | 'deal';
   label?: string;
 }
 
