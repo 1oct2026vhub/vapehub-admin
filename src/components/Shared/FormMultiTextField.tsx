@@ -14,6 +14,8 @@ interface FormMultiTextFieldProps {
   errorMessage?: string;
   onInputChange?: (value: string) => void;
   loading?: boolean;
+  noOptionsText?: string;
+  searchTerm?: string;
 }
 
 const FormMultiTextField: React.FC<FormMultiTextFieldProps> = ({
@@ -28,7 +30,12 @@ const FormMultiTextField: React.FC<FormMultiTextFieldProps> = ({
   errorMessage,
   onInputChange,
   loading = false,
+  noOptionsText = "No data found",
+  searchTerm = '',
 }) => {
+  // Explicitly determine if no options should be shown
+  const shouldShowNoOptions = searchTerm.trim().length > 0 && suggestions.length === 0;
+
   return (
     <Controller
       name={name}
@@ -41,7 +48,8 @@ const FormMultiTextField: React.FC<FormMultiTextFieldProps> = ({
           options={suggestions}
           value={Array.isArray(value) ? value : []}
           loading={loading}
-          noOptionsText="No variant found"
+          loadingText="Loading..."
+          noOptionsText={shouldShowNoOptions ? noOptionsText : "No options"}
           onChange={(_, newValue) => {
             // Ensure we're always passing an array of strings
             const cleanedValues = newValue.map(item => 
