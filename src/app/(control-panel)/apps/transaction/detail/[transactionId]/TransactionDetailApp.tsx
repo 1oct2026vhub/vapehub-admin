@@ -52,7 +52,7 @@ import TransactionStatusChip from "../../components/TransactionStatusChip";
 import TransactionTypeChip from "../../components/TransactionTypeChip";
 import { useSnackbar } from "@/contexts/SnackbarContext";
 import RefundModal from "./RefundModal";
-import { formatDate, formatCurrency, formatPounds } from "@/utils/actions";
+import { formatDate, formatCurrency, formatCustomerNameSafely } from "@/utils/actions";
 
 const TransactionDetailApp = () => {
   const params = useParams();
@@ -199,6 +199,11 @@ const TransactionDetailApp = () => {
       </Box>
     );
   }
+
+  // Ensure safe name display with "N/A" fallback
+  const customerName = transaction.user 
+    ? formatCustomerNameSafely(`${transaction.user.first_name || "N/A"} ${transaction.user.last_name || ""}`) 
+    : "N/A";
 
   return (
     <div className="flex flex-col gap-4 p-4 bg-gray-50 min-h-screen">
@@ -508,13 +513,13 @@ const TransactionDetailApp = () => {
                               {item.quantity}
                             </TableCell>
                             <TableCell align="right" className="font-medium">
-                              {formatPounds(item.unit_price)}
+                              {formatCurrency(item.unit_price)}
                             </TableCell>
                             <TableCell
                               align="right"
                               className="font-medium text-gray-800"
                             >
-                              {formatPounds(item.total)}
+                              {formatCurrency(item.total)}
                             </TableCell>
                           </TableRow>
                         ))}
@@ -535,7 +540,7 @@ const TransactionDetailApp = () => {
                             Total:
                           </TableCell>
                           <TableCell align="right" className="font-semibold">
-                            {formatPounds(transaction.order.total)}
+                            {formatCurrency(transaction.order.total)}
                           </TableCell>
                         </TableRow>
                       </TableBody>
@@ -550,7 +555,7 @@ const TransactionDetailApp = () => {
                     Shipping Method:
                   </Typography>
                   <Typography variant="body2">
-                    {transaction.order.shippingMethod.shipping_method} - {formatPounds(transaction.order.shippingMethod.shipping_cost)}
+                    {transaction.order.shippingMethod.shipping_method} - {formatCurrency(transaction.order.shippingMethod.shipping_cost)}
                   </Typography>
                 </Box>
               )}
@@ -597,10 +602,10 @@ const TransactionDetailApp = () => {
                   </div>
                   <div>
                     <Typography variant="h6" className="font-medium">
-                      {transaction.user.first_name} {transaction.user.last_name}
+                      {customerName}
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
-                      Customer ID: {transaction.user.id}
+                      Customer ID: {transaction.user?.id || "N/A"}
                     </Typography>
                   </div>
                 </div>

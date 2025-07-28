@@ -24,7 +24,7 @@ import { useFetch } from "@/hooks/useFetch";
 import { mutate } from "swr";
 import { useRouter } from "next/navigation";
 import FuseSvgIcon from "@fuse/core/FuseSvgIcon";
-import { formatDate, formatCurrency } from "@/utils/actions";
+import { formatDate, formatCurrency, formatCustomerNameSafely } from "@/utils/actions";
 import TransactionStatusChip from "./TransactionStatusChip";
 import TransactionTypeChip from "./TransactionTypeChip";
 import TransactionFilters from "./TransactionFilters";
@@ -218,7 +218,9 @@ const TransactionsTable = ({
       header: "Customer",
       Cell: ({ row }) => {
         const user = row.original.user;
-        return user ? `${user.first_name || ""} ${user.last_name || ""}`.trim() || "N/A" : "N/A";
+        return user 
+          ? formatCustomerNameSafely(`${user.first_name || ""} ${user.last_name || "N/A"}`)
+          : "N/A";
       },
     },
     {

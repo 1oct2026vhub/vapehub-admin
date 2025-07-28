@@ -13,6 +13,7 @@ import PhoneIcon from "@mui/icons-material/Phone";
 import CakeIcon from "@mui/icons-material/Cake";
 import WcIcon from "@mui/icons-material/Wc";
 import CalendarTodayIcon from "@mui/icons-material/CalendarToday";
+import { formatCustomerNameSafely } from "@/utils/actions";
 
 export type UserType = {
   id: number;
@@ -52,9 +53,15 @@ export default function CustomerDetailsPage() {
     );
   }
 
+  // Capitalize first letter of a name
+  const capitalizeFirstLetter = (name: string | null) => {
+    if (!name) return '';
+    return name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
+  };
+
   const getInitials = (firstName: string | null, lastName: string | null) => {
-    const first = firstName?.charAt(0) || '';
-    const last = lastName?.charAt(0) || '';
+    const first = capitalizeFirstLetter(firstName)?.charAt(0) || '';
+    const last = capitalizeFirstLetter(lastName)?.charAt(0) || '';
     return (first + last).toUpperCase();
   };
 
@@ -91,7 +98,7 @@ export default function CustomerDetailsPage() {
           </Avatar>
           <Box>
             <Typography variant="h4" className="font-bold text-gray-800">
-              {customerDetail.first_name} {customerDetail.last_name}
+              {formatCustomerNameSafely(`${customerDetail.first_name} ${customerDetail.last_name}`)}
             </Typography>
             <Typography variant="body1" color="text.secondary" className="mt-1">
               Customer ID: {customerDetail.id}

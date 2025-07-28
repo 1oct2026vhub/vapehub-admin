@@ -143,34 +143,42 @@ export const formatStatusText = (status: string): string => {
     .join(' ');
 };
 
+export const capitalize = (str: string | null | undefined): string => {
+  if (!str) return '';
+  return str
+    .trim()
+    .split(' ')
+    .map(word => 
+      word.charAt(0).toUpperCase() + 
+      word.slice(1).toLowerCase()
+    )
+    .join(' ');
+};
+
 export const formatCustomerNameSafely = (customerData: any): string => {
   if (!customerData) {
-    return "N/A"; // Or an empty string, depending on display preference
+    return "N/A";
   }
 
-  // If it's already a string, return it
+  // If it's already a string, capitalize and return
   if (typeof customerData === 'string') {
-    return customerData.trim();
+    return capitalize(customerData);
   }
 
   // If it's an object, try common patterns
   if (typeof customerData === 'object' && customerData !== null) {
     // Check for a direct 'name' property
     if (typeof customerData.name === 'string' && customerData.name.trim() !== '') {
-      return customerData.name.trim();
+      return capitalize(customerData.name);
     }
 
     // Check for firstName/lastName or first_name/last_name patterns
     const firstName = customerData.firstName || customerData.first_name;
     const lastName = customerData.lastName || customerData.last_name;
 
-    // Helper to capitalize first letter
-    const capitalize = (str: string | null | undefined) =>
-      str ? str.charAt(0).toUpperCase() + str.slice(1).toLowerCase() : "";
-
     if (typeof firstName === 'string' && typeof lastName === 'string') {
-      const fName = capitalize(firstName.trim());
-      const lName = capitalize(lastName.trim());
+      const fName = capitalize(firstName);
+      const lName = capitalize(lastName);
       if (fName && lName) {
         return `${fName} ${lName}`;
       }
@@ -180,8 +188,8 @@ export const formatCustomerNameSafely = (customerData: any): string => {
     }
     
     // If only one part is available as a string (and the other wasn't a string or was empty)
-    if (typeof firstName === 'string' && firstName.trim() !== '') return capitalize(firstName.trim());
-    if (typeof lastName === 'string' && lastName.trim() !== '') return capitalize(lastName.trim());
+    if (typeof firstName === 'string' && firstName.trim() !== '') return capitalize(firstName);
+    if (typeof lastName === 'string' && lastName.trim() !== '') return capitalize(lastName);
 
     // Fallback for other object structures: log a warning and return a placeholder
     console.warn("Unformattable customer data object:", customerData);
@@ -190,6 +198,6 @@ export const formatCustomerNameSafely = (customerData: any): string => {
 
   // For other types (e.g., number, boolean), convert to string or handle as an error/placeholder
   console.warn("Unexpected customer data type:", typeof customerData, customerData);
-  return String(customerData); // Or "Invalid Customer Data"
+  return String(customerData);
 }; 
   

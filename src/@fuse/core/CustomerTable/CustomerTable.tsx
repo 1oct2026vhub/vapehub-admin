@@ -40,6 +40,7 @@ import AppButton from "@/components/Shared/AppButton";
 import { useSnackbar } from "@/contexts/SnackbarContext";
 import { formatDate } from "@/utils/actions";
 import ClearFiltersButton from "@/components/Shared/ClearFiltersButton";
+import { formatCustomerNameSafely } from "@/utils/actions";
 
 export type UserType = {
   id: number;
@@ -282,23 +283,10 @@ const CustomerTable = () => {
   if (error) return <p>Failed to load customers</p>;
 
   const customerData: UserType[] = customers?.map((user: any) => ({
-    id: user.id,
-    first_name: user.first_name 
-      ? user.first_name.charAt(0).toUpperCase() + user.first_name.slice(1).toLowerCase()
-      : "N/A",
-    last_name: user.last_name 
-      ? user.last_name.charAt(0).toUpperCase() + user.last_name.slice(1).toLowerCase()
-      : "N/A",
-    email: user.email || "N/A",
-    createdAt: user.createdAt,
-    phone: user.phone ?? "N/A",
-    gender: user.gender
-      ? user.gender.charAt(0).toUpperCase() + user.gender.slice(1)
-      : "N/A",
-    dob: user.dob,
-    blocked: user.blocked,
-    deletedAt: user.deletedAt,
-    email_verified_at: user.email_verified_at,
+    ...user,
+    first_name: formatCustomerNameSafely(user.first_name),
+    last_name: formatCustomerNameSafely(user.last_name),
+    name: formatCustomerNameSafely(`${user.first_name} ${user.last_name}`),
   }));
 
   console.log("customers", customers);
