@@ -47,7 +47,7 @@ import PhoneIcon from "@mui/icons-material/Phone";
 import LocationOnIcon from "@mui/icons-material/LocationOn";
 import OrderStatusTimeline from "./OrderStatusTimeline";
 import { useSnackbar } from "@/contexts/SnackbarContext";
-import { formatDate, formatPounds, formatStatusText } from "@/utils/actions";
+import { formatDate, formatPounds, formatStatusText, formatCustomerNameSafely } from "@/utils/actions";
 
 const OrderDetailApp = () => {
   const params = useParams();
@@ -178,6 +178,11 @@ const OrderDetailApp = () => {
     
     return colors[status.toLowerCase()] || { bg: "#EEEEEE", text: "#616161" };
   };
+
+  // Ensure safe name display with "N/A" fallback
+  const customerName = order?.user 
+    ? formatCustomerNameSafely(`${order.user.first_name || "N/A"} ${order.user.last_name || ""}`) 
+    : "N/A";
 
   return (
     <div className="flex flex-col gap-4 p-4 bg-gray-50 min-h-screen">
@@ -504,16 +509,15 @@ const OrderDetailApp = () => {
                   </Typography>        
                 </div>
                   )}
+              {order?.mailSubscription_discount && parseFloat(order.mailSubscription_discount) > 0 && (
                 <div className="flex justify-between">
-                    <Typography variant="body2" color="error">
-                  {order?.mailSubscription_discount && parseFloat(order.mailSubscription_discount) > 0 && (
+                      <Typography variant="body2">Mail Subscription Discount</Typography>      
                     <Typography variant="body2" color="error">
                       -{formatPounds(parseFloat(order.mailSubscription_discount))}
                     </Typography>
-                  )}
-                  </Typography>
                   </div>
-            
+                )}
+                  
               {order?.deals_discount && parseFloat(order.deals_discount) > 0 && (
                 <div className="flex justify-between">
                     <Typography variant="body2">Deals Discount</Typography>
@@ -635,10 +639,10 @@ const OrderDetailApp = () => {
                 </div>
                 <div>
                   <Typography variant="h6" className="font-medium">
-                    {order?.user?.first_name} {order?.user?.last_name}
+                    {customerName}
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
-                    Customer ID: {order?.user?.id}
+                    Customer ID: {order?.user?.id || "N/A"}
                   </Typography>
                 </div>
               </div>
