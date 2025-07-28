@@ -60,12 +60,17 @@ const SubscribersTable: React.FC = () => {
         Cell: ({ row }) => row.original.user_id || 'N/A',
       },
       {
-        accessorKey: 'is_subscribed',
+        accessorKey: 'email',
+        header: 'Email',
+        Cell: ({ row }) => row.original.email || 'N/A',
+      },
+      {
+        accessorKey: 'subscribed',
         header: 'Status',
         Cell: ({ row }) => (
           <Chip
-            label={row.original.is_subscribed ? 'Subscribed' : 'Unsubscribed'}
-            color={row.original.is_subscribed ? 'success' : 'default'}
+            label={row.original.subscribed ? 'Subscribed' : 'Unsubscribed'}
+            color={row.original.subscribed ? 'success' : 'default'}
             size="small"
           />
         ),

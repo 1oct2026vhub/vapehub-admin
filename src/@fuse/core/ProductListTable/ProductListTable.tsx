@@ -510,9 +510,20 @@ const ProductListTable = ({
 
   const columns = useMemo<MRT_ColumnDef<ProductType>[]>(
     () => [
-      { accessorKey: "id", header: "ID" },
-      { accessorKey: "name", header: "Product Name" },
-      { accessorKey: "slug", header: "Slug" },
+      { 
+        accessorKey: "id", 
+        header: "ID" 
+      },
+      { 
+        accessorKey: "name", 
+        header: "Product Name",
+        // Ensure the name is displayed exactly as received from API
+        Cell: ({ row }) => row.original.name 
+      },
+      { 
+        accessorKey: "slug", 
+        header: "Slug" 
+      },
       // {
       //   accessorKey: "price",
       //   header: "Price",

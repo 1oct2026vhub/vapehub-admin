@@ -25,6 +25,7 @@ import debounce from 'lodash/debounce';
 import { Grid, Stack, Button as MuiButton, Box as MuiBox } from "@mui/material";
 import AddNewCategoryModal from "../components/AddNewCategoryModal";
 import AddNewBrandModal from "../components/AddNewBrandModal";
+import FormMultiTextField from '@/components/Shared/FormMultiTextField';
 
 const schema = z.object({
   name: z
@@ -40,8 +41,10 @@ const schema = z.object({
       "Slug must be a valid URL-friendly string (lowercase letters, numbers, and hyphens only)"
     ),
   description: z.string().optional().default(""),
-  category_id: z.array(z.number()).min(1, "At least one category is required"),
-  brand_id: z.array(z.number()).min(1, "At least one brand is required"),
+  category_id: z.array(z.number()).optional(),
+  category_id_display: z.array(z.string()).min(1, "At least one category is required"),
+  brand_id: z.array(z.number()).optional(),
+  brand_id_display: z.array(z.string()).min(1, "At least one brand is required"),
   is_new: z.boolean().optional(),
 });
 
@@ -51,6 +54,51 @@ interface Option {
   value: number | string;
   label: string;
 }
+
+// Custom component to handle ID-to-name mapping for categories and brands
+const FormMultiSelectWithMapping = ({ 
+  name, 
+  control, 
+  label, 
+  options, 
+  error, 
+  errorMessage, 
+  onInputChange, 
+  loading, 
+  required, 
+  placeholder,
+  searchTerm,
+}: {
+  name: string;
+  control: any;
+  label: string;
+  options: Option[];
+  error: boolean;
+  errorMessage?: string;
+  onInputChange: (query: string) => void;
+  loading: boolean;
+  required: boolean;
+  placeholder: string;
+  searchTerm: string;
+}) => {
+  return (
+    <FormMultiTextField
+      name={`${name}_display`}
+      control={control}
+      label={label}
+      suggestions={options.map(option => option.label)}
+      error={error}
+      errorMessage={errorMessage}
+      onInputChange={onInputChange}
+      loading={loading}
+      required={required}
+      placeholder={placeholder}
+      helperText={searchTerm && options.length === 0 ? "No data found!" : undefined}
+      noOptionsText={searchTerm && options.length === 0 ? "No data found" : undefined}
+      searchTerm={searchTerm}
+    />
+  );
+};
 
 function BasicInfoTab() {
   const router = useRouter();
@@ -70,11 +118,13 @@ function BasicInfoTab() {
   const [categoryOptions, setCategoryOptions] = useState<Option[]>([]);
   const [categoryError, setCategoryError] = useState("");
   const [categorySearchInput, setCategorySearchInput] = useState("");
+  const [selectedCategoryNames, setSelectedCategoryNames] = useState<string[]>([]);
 
   const [brandLoading, setBrandLoading] = useState(false);
   const [brandOptions, setBrandOptions] = useState<Option[]>([]);
   const [brandError, setBrandError] = useState("");
   const [brandSearchInput, setBrandSearchInput] = useState("");
+  const [selectedBrandNames, setSelectedBrandNames] = useState<string[]>([]);
 
   // Determine if we're in edit mode
   const isEditMode = Boolean(productId && productId > 0);
@@ -94,7 +144,9 @@ function BasicInfoTab() {
       slug: formData.slug || "",
       description: formData.description || "",
       category_id: formData.category_id || [],
+      category_id_display: formData.category_id_display || [],
       brand_id: formData.brand_id || [],
+      brand_id_display: formData.brand_id_display || [],
       // is_new: formData.is_new ?? true,
     },
     resolver: zodResolver(schema),
@@ -110,43 +162,46 @@ function BasicInfoTab() {
   const fetchCategories = useMemo(
     () =>
       debounce(async (query: string) => {
-        // Only search if query is empty or has at least 2 chars
-        if (query.length === 0 || query.length >= 2) {
-          try {
-            setCategoryLoading(query.length > 0);
-            setCategoryError("");
+        try {
+          // Always set loading to true when search starts
+          setCategoryLoading(true);
+          setCategoryError("");
+          
+          // Use same parameters as in ProductListTable
+          const response = await listProductCategory({
+            search: query,
+            search_only_name: true,
+            limit: 1000
+          });
+          
+          // If no categories found, set options to empty array
+          if (response?.data?.categories && response.data.categories.length > 0) {
+            // Deduplicate categories based on ID first
+            const uniqueCategories = deduplicateById(response.data.categories);
             
-            // Use same parameters as in ProductListTable
-            const response = await listProductCategory({
-              search: query,
-              search_only_name: true,
-              limit: 1000
-            });
-            
-            if (response?.data?.categories) {
-              // Deduplicate categories based on ID first
-              const uniqueCategories = deduplicateById(response.data.categories);
-              
-              // Sort the categories intelligently based on search query
-              let sortedCategories = [...uniqueCategories];
-              if (query && query.length >= 1) {
-                sortedCategories = sortSearchResults(sortedCategories, query, 'name');
-              }
-              
-              // Map the categories from the API response
-              const options = sortedCategories.map((category: any) => ({
-                value: category.id,
-                label: category.name,
-              }));
-              
-              setCategoryOptions(options);
-            } else {
-              setCategoryOptions([]);
+            // Sort the categories intelligently based on search query
+            let sortedCategories = [...uniqueCategories];
+            if (query && query.length >= 1) {
+              sortedCategories = sortSearchResults(sortedCategories, query, 'name');
             }
-          } catch (error) {
-            console.error("Error fetching categories:", error);
+            
+            // Map the categories from the API response
+            const options = sortedCategories.map((category: any) => ({
+              value: category.id,
+              label: category.name,
+            }));
+            
+            setCategoryOptions(options);
+          } else {
+            // Explicitly set to empty array when no results
             setCategoryOptions([]);
           }
+        } catch (error) {
+          console.error("Error fetching categories:", error);
+          setCategoryOptions([]);
+        } finally {
+          // Always set loading to false
+          setCategoryLoading(false);
         }
       }, 400),
     []
@@ -156,43 +211,46 @@ function BasicInfoTab() {
   const fetchBrands = useMemo(
     () =>
       debounce(async (query: string) => {
-        // Only search if query is empty or has at least 2 chars
-        if (query.length === 0 || query.length >= 2) {
-          try {
-            setBrandLoading(query.length > 0);
-            setBrandError("");
+        try {
+          // Always set loading to true when search starts
+          setBrandLoading(true);
+          setBrandError("");
+          
+          // Use same parameters as in ProductListTable
+          const response = await listProductBrand({
+            search: query,
+            search_only_name: true,
+            limit: 1000
+          });
+          
+          // If no brands found, set options to empty array
+          if (response?.data?.brands && response.data.brands.length > 0) {
+            // Deduplicate brands based on ID first
+            const uniqueBrands = deduplicateById(response.data.brands);
             
-            // Use same parameters as in ProductListTable
-            const response = await listProductBrand({
-              search: query,
-              search_only_name: true,
-              limit: 1000
-            });
-            
-            if (response?.data?.brands) {
-              // Deduplicate brands based on ID first
-              const uniqueBrands = deduplicateById(response.data.brands);
-              
-              // Sort the brands intelligently based on search query
-              let sortedBrands = [...uniqueBrands];
-              if (query && query.length >= 1) {
-                sortedBrands = sortSearchResults(sortedBrands, query, 'name');
-              }
-              
-              // Map the brands from the API response
-              const options = sortedBrands.map((brand: any) => ({
-                value: brand.id,
-                label: brand.name,
-              }));
-              
-              setBrandOptions(options);
-            } else {
-              setBrandOptions([]);
+            // Sort the brands intelligently based on search query
+            let sortedBrands = [...uniqueBrands];
+            if (query && query.length >= 1) {
+              sortedBrands = sortSearchResults(sortedBrands, query, 'name');
             }
-          } catch (error) {
-            console.error("Error fetching brands:", error);
+            
+            // Map the brands from the API response
+            const options = sortedBrands.map((brand: any) => ({
+              value: brand.id,
+              label: brand.name,
+            }));
+            
+            setBrandOptions(options);
+          } else {
+            // Explicitly set to empty array when no results
             setBrandOptions([]);
           }
+        } catch (error) {
+          console.error("Error fetching brands:", error);
+          setBrandOptions([]);
+        } finally {
+          // Always set loading to false
+          setBrandLoading(false);
         }
       }, 400),
     []
@@ -208,14 +266,18 @@ function BasicInfoTab() {
         });
         
         if (response?.data?.categories && response.data.categories.length > 0) {
-          const category = response.data.categories[0];
+          const categoryNames = response.data.categories.map(cat => cat.name);
+          setSelectedCategoryNames(categoryNames);
+          
           // Add to options if not already present
           setCategoryOptions(prev => {
-            // First check if this category is already in the options
-            if (!prev.some(option => option.value === category.id)) {
-              return [...prev, { value: category.id, label: category.name }];
-            }
-            return prev;
+            const newOptions = [...prev];
+            response.data.categories.forEach(category => {
+              if (!newOptions.some(option => option.value === category.id)) {
+                newOptions.push({ value: category.id, label: category.name });
+              }
+            });
+            return newOptions;
           });
         }
       } catch (error) {
@@ -232,14 +294,18 @@ function BasicInfoTab() {
         });
         
         if (response?.data?.brands && response.data.brands.length > 0) {
-          const brand = response.data.brands[0];
+          const brandNames = response.data.brands.map(brand => brand.name);
+          setSelectedBrandNames(brandNames);
+          
           // Add to options if not already present
           setBrandOptions(prev => {
-            // First check if this brand is already in the options
-            if (!prev.some(option => option.value === brand.id)) {
-              return [...prev, { value: brand.id, label: brand.name }];
-            }
-            return prev;
+            const newOptions = [...prev];
+            response.data.brands.forEach(brand => {
+              if (!newOptions.some(option => option.value === brand.id)) {
+                newOptions.push({ value: brand.id, label: brand.name });
+              }
+            });
+            return newOptions;
           });
         }
       } catch (error) {
@@ -268,6 +334,8 @@ function BasicInfoTab() {
             setValue("description", productData.description || "");
             setValue("category_id", productData.Categories?.map(c => c.id) || []);
             setValue("brand_id", productData.Brands?.map(b => b.id) || []);
+            setValue("category_id_display", productData.Categories?.map(c => c.name) || []);
+            setValue("brand_id_display", productData.Brands?.map(b => b.name) || []);
             setValue("is_new", productData.is_new ?? true);
 
             // Fetch selected category and brand details
@@ -280,6 +348,8 @@ function BasicInfoTab() {
               description: productData.description || "",
               category_id: productData.Categories?.map(c => c.id) || [],
               brand_id: productData.Brands?.map(b => b.id) || [],
+              category_id_display: productData.Categories?.map(c => c.name) || [],
+              brand_id_display: productData.Brands?.map(b => b.name) || [],
               is_new: productData.is_new ?? true,
               productId: Number(finalProductId),
             });
@@ -302,8 +372,22 @@ function BasicInfoTab() {
     setIsLoading(true);
     try {
   
+      // Get display values and convert back to IDs
+      const categoryDisplayNames = data.category_id_display || [];
+      const brandDisplayNames = data.brand_id_display || [];
+      
+      const categoryIds = categoryDisplayNames.map(name => {
+        const option = categoryOptions.find(opt => opt.label === name);
+        return option ? option.value : null;
+      }).filter((id): id is number => id !== null);
+      
+      const brandIds = brandDisplayNames.map(name => {
+        const option = brandOptions.find(opt => opt.label === name);
+        return option ? option.value : null;
+      }).filter((id): id is number => id !== null);
+
       // Validate required fields
-      if (!data.name || !data.slug || !data.category_id || !data.brand_id) {
+      if (!data.name || !data.slug || categoryIds.length === 0 || brandIds.length === 0) {
         throw new Error("Please fill in all required fields");
       }
 
@@ -312,8 +396,8 @@ function BasicInfoTab() {
         name: data.name.trim(),
         slug: data.slug.trim(),
         description: data.description || "",
-        category_ids: data.category_id,
-        brand_ids: data.brand_id,
+        category_ids: categoryIds,
+        brand_ids: brandIds,
         is_new: Boolean(data.is_new),
       };
 
@@ -503,29 +587,21 @@ function BasicInfoTab() {
         
         <Grid item xs={12} md={6}>
           <MuiBox sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-            <FormSearchableSelectField
+            <FormMultiSelectWithMapping
               name="category_id"
               control={control}
               label="Category"
               options={categoryOptions}
-              loading={false}
+              error={!!errors.category_id}
               errorMessage={categoryError || errors.category_id?.message?.toString()}
               onInputChange={(query) => {
                 setCategorySearchInput(query);
                 fetchCategories(query);
               }}
-              searchTerm={categorySearchInput}
+              loading={categoryLoading}
               required
-              multiple
-              loadingText="Searching categories..."
-              noOptionsText={
-                categorySearchInput.length < 2 && categorySearchInput.length > 0
-                  ? "Please enter at least 2 characters"
-                  : categoryOptions.length === 0 
-                    ? "No categories found" 
-                    : "No matching categories"
-              }
               placeholder="Search for a category..."
+              searchTerm={categorySearchInput}
             />
             <MuiButton 
               variant="text" 
@@ -539,29 +615,21 @@ function BasicInfoTab() {
         </Grid>
         <Grid item xs={12} md={6}>
           <MuiBox sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-            <FormSearchableSelectField
+            <FormMultiSelectWithMapping
               name="brand_id"
               control={control}
               label="Brand"
               options={brandOptions}
-              loading={false}
+              error={!!errors.brand_id}
               errorMessage={brandError || errors.brand_id?.message?.toString()}
               onInputChange={(query) => {
                 setBrandSearchInput(query);
                 fetchBrands(query);
               }}
-              searchTerm={brandSearchInput}
+              loading={brandLoading}
               required
-              multiple
-              loadingText="Searching brands..."
-              noOptionsText={
-                brandSearchInput.length < 2 && brandSearchInput.length > 0
-                  ? "Please enter at least 2 characters"
-                  : brandOptions.length === 0 
-                    ? "No brands found" 
-                    : "No matching brands"
-              }
               placeholder="Search for a brand..."
+              searchTerm={brandSearchInput}
             />
             <MuiButton 
               variant="text" 
