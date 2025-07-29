@@ -22,7 +22,7 @@ const contactUsSchema = z.object({
   send_us_a_message: z.string().min(1, 'Message is required'),
   call_us: z.string().min(1, 'Call us information is required'),
   social_media: z.string().min(1, 'Social media link is required'),  facebook: z.string().url('Enter a valid Facebook URL').optional().or(z.literal('')),
-  whatsapp: z.string().url('Enter a valid WhatsApp URL').optional().or(z.literal('')),
+  twitter: z.string().url('Enter a valid Twitter URL').optional().or(z.literal('')),
   instagram: z.string().url('Enter a valid Instagram URL').optional().or(z.literal('')),
   email: z.string().email('Enter a valid email').optional().or(z.literal('')),
   phone_number: z.string().min(1, 'Phone number is required').optional().or(z.literal('')),
@@ -56,7 +56,7 @@ function ContactUsFormModal({ open, onClose, onSaved, initialData }: ContactUsFo
           call_us: '',
           social_media: '',
           facebook: '',
-          whatsapp: '',
+          twitter: '',
           instagram: '',
           email: '',
           phone_number: '',
@@ -72,7 +72,7 @@ function ContactUsFormModal({ open, onClose, onSaved, initialData }: ContactUsFo
             call_us: data.call_us,
             social_media: data.social_media,
             facebook: data.facebook,
-            whatsapp: data.whatsapp,
+            twitter: data.twitter,
             instagram: data.instagram,
             email: data.email,
             phone_number: data.phone_number,
@@ -133,7 +133,7 @@ function ContactUsFormModal({ open, onClose, onSaved, initialData }: ContactUsFo
               <FormTextField name="facebook" control={control} label="Facebook" type="url" />
             </Grid>
             <Grid item xs={12} md={6}>
-              <FormTextField name="whatsapp" control={control} label="WhatsApp" type="url" />
+              <FormTextField name="twitter" control={control} label="Twitter" type="url" />
             </Grid>
             <Grid item xs={12} md={6}>
               <FormTextField name="instagram" control={control} label="Instagram" type="url" />
