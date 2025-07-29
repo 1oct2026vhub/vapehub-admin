@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { Modal, Box, Typography, Button } from '@mui/material';
 import { ProductVariant, listProductVariants } from '@/services/apiProductVariant';
@@ -73,13 +73,15 @@ const BulkUpdateStockModal: React.FC<BulkUpdateStockModalProps> = ({ open, onClo
 	// Use search results if available, otherwise use initial results
 	const variants = (debouncedInputValue.length >= 1 ? searchResponse?.data?.variants : initialResponse?.data?.variants) || [];
 	
-	// Filter out any null or undefined variants
-	const validVariants = variants.filter((variant: ProductVariant) => variant && variant.id && variant.slug);
+	// Memoize validVariants to prevent infinite re-renders
+	const validVariants = useMemo(() => {
+		return variants.filter((variant: ProductVariant) => variant && variant.id && variant.slug);
+	}, [variants]);
 
 	// If search returned empty results, show "No variant found" message
 	const suggestions = searchReturnedEmpty ? [] : validVariants.map((variant: ProductVariant) => variant.slug);
 
-	// Merge new variants into allVariants (by unique id)
+	// Merge new variants into allVariants (by unique id) - Fixed dependency array
 	React.useEffect(() => {
 		if (validVariants.length > 0) {
 			setAllVariants(prev => {
@@ -88,7 +90,7 @@ const BulkUpdateStockModal: React.FC<BulkUpdateStockModalProps> = ({ open, onClo
 				return [...prev, ...newOnes];
 			});
 		}
-	}, [validVariants]);
+	}, [validVariants]); // Now validVariants is memoized, so this won't cause infinite loops
 
 	const {
 		control,
