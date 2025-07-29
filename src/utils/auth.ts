@@ -111,5 +111,9 @@ export const getUser = (): any | null => {
 export const logoutUser = () => {
   deleteCookie("auth_token", { path: "/" });
   deleteCookie("user_info", { path: "/" });
-  redirect("/sign-in"); // Redirect in App Router
+  
+  // Use window.location for client-side redirect to avoid Next.js redirect issues
+  if (typeof window !== "undefined") {
+    window.location.href = "/sign-in";
+  }
 };

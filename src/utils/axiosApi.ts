@@ -144,6 +144,7 @@
 
 import axios from "axios";
 import { getAuthToken, logoutUser } from "@/utils/auth";
+import { deleteCookie } from "cookies-next";
 
 const axiosApi = axios.create({
   baseURL: process.env.NEXT_PUBLIC_BASE_URL,
@@ -184,30 +185,25 @@ axiosApi.interceptors.request.use(
 // Response Interceptor - Handle Expired Tokens & Errors
 axiosApi.interceptors.response.use(
   (response) => {
-    // console.log(`Response: ${response.status} ${response.config.method?.toUpperCase()} ${response.config.url}`, {
-    //   data: response.data,
-    // });
     return response;
   },
   (error) => {
-    console.error("Response error:", {
-      url: error.config?.url,
-      method: error.config?.method,
-      status: error.response?.status,
-      data: error.response?.data,
-      message: error.message,
-    });
-    
     if (error.response) {
       const { status, data } = error.response;
 
       // Handle Unauthorized (401) - Token Expired
       if (status === 401) {
-        logoutUser(); // Remove token from storage
-        window.location.href = "/sign-in"; // Redirect manually
-        return Promise.reject({
-          message: "Session expired. Please login again.",
-        });
+        // Clear tokens and redirect without showing error
+        deleteCookie("auth_token", { path: "/" });
+        deleteCookie("user_info", { path: "/" });
+        
+        // Use window.location for immediate redirect
+        if (typeof window !== "undefined") {
+          window.location.href = "/sign-in";
+        }
+        
+        // Return a resolved promise to prevent error handling
+        return Promise.resolve({ data: { success: false } });
       }
 
       return Promise.reject(data || { message: "Something went wrong!" });
