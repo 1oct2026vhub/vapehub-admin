@@ -106,7 +106,7 @@ const ProductListTable = ({
   const [order, setOrder] = useState<"ASC" | "DESC">("DESC");
   const [sortBy, setSortBy] = useState<string>("id");
   const [deleted, setDeleted] = useState<boolean | null>(null);
-  const [status, setStatus] = useState<string | null>(null);
+  const [status, setStatus] = useState<string>("all");
   const [isNew, setIsNew] = useState<boolean | null>(null);
   const [priceRange, setPriceRange] = useState<string>("");
   const [categories, setCategories] = useState<string>("");
@@ -146,7 +146,7 @@ const ProductListTable = ({
       sortBy !== "id" ||
       order !== "DESC" ||
       deleted !== null ||
-      status !== null ||
+      (status !== "all" && status !== null) ||
       isNew !== null ||
       priceRange !== "" ||
       categories !== "" ||
@@ -328,21 +328,21 @@ const ProductListTable = ({
       keyword: debouncedSearch,
       sort_by: sortBy,
       order,
+      status,
       limit,
       offset: (page - 1) * limit,
       ...(priceRange && { price_range: priceRange }),
       ...(categories && { categories }),
       ...(brands && { brands }),
       ...(deleted !== null && { deleted }),
-      ...(status && { status }),
       ...(isNew !== null && { is_new: isNew }),
     }),
     [
       debouncedSearch,
       sortBy,
       order,
-      deleted,
       status,
+      deleted,
       isNew,
       priceRange,
       categories,
@@ -643,7 +643,7 @@ const ProductListTable = ({
     setOrder("DESC");
     setSortBy("id");
     setDeleted(null);
-    setStatus(null);
+    setStatus("all");
     setIsNew(null);
     setPriceRange("");
     setCategories("");
@@ -767,7 +767,7 @@ const ProductListTable = ({
               onChange={(e) =>
                 setStatus(
                   e.target.value === "all"
-                    ? null
+                    ? "all"
                     : (e.target.value as string)
                 )
               }
@@ -1136,7 +1136,7 @@ const ProductListTable = ({
               onChange={(e) =>
                 setStatus(
                   e.target.value === "all"
-                    ? null
+                    ? "all"
                     : (e.target.value as string)
                 )
               }
