@@ -55,7 +55,7 @@ export interface ContactUsPayload {
     call_us: string;
     social_media: string;
     facebook?: string;
-    whatsapp?: string;
+    twitter?: string;
     instagram?: string;
     email?: string;
     phone_number?: string;
