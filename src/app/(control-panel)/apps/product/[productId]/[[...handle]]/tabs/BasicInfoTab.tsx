@@ -11,7 +11,7 @@ import {
   type CreateProductData,
   updateProduct,
 } from "@/services/apiProduct";
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useEffect, useState, useCallback, useMemo } from "react";
@@ -19,7 +19,7 @@ import AppButton from "@/components/Shared/AppButton";
 import FormInputField from "@/components/Shared/FormInputField";
 import { useProductForm } from "../ProductFormContext";
 import { getAuthToken } from "@/utils/auth";
-import FormSearchableSelectField from "@/components/Shared/FormSearchableSelectField";
+import { Autocomplete, TextField, Chip } from "@mui/material";
 import FormCKEditor from "@/components/Shared/FormCKEditor";
 import debounce from 'lodash/debounce';
 import { Grid, Stack, Button as MuiButton, Box as MuiBox } from "@mui/material";
@@ -41,10 +41,8 @@ const schema = z.object({
       "Slug must be a valid URL-friendly string (lowercase letters, numbers, and hyphens only)"
     ),
   description: z.string().optional().default(""),
-  category_id: z.array(z.number()).optional(),
-  category_id_display: z.array(z.string()).min(1, "At least one category is required"),
-  brand_id: z.array(z.number()).optional(),
-  brand_id_display: z.array(z.string()).min(1, "At least one brand is required"),
+  category_ids: z.array(z.number()).min(1, "At least one category is required"),
+  brand_ids: z.array(z.number()).min(1, "At least one brand is required"),
   is_new: z.boolean().optional(),
 });
 
@@ -65,7 +63,6 @@ const FormMultiSelectWithMapping = ({
   errorMessage, 
   onInputChange, 
   loading, 
-  required, 
   placeholder,
   searchTerm,
 }: {
@@ -77,25 +74,73 @@ const FormMultiSelectWithMapping = ({
   errorMessage?: string;
   onInputChange: (query: string) => void;
   loading: boolean;
-  required: boolean;
   placeholder: string;
   searchTerm: string;
 }) => {
   return (
-    <FormMultiTextField
-      name={`${name}_display`}
+    <Controller
+      name={name}
       control={control}
-      label={label}
-      suggestions={options.map(option => option.label)}
-      error={error}
-      errorMessage={errorMessage}
-      onInputChange={onInputChange}
-      loading={loading}
-      required={required}
-      placeholder={placeholder}
-      helperText={searchTerm && options.length === 0 ? "No data found!" : undefined}
-      noOptionsText={searchTerm && options.length === 0 ? "No data found" : undefined}
-      searchTerm={searchTerm}
+      defaultValue={[]}
+      render={({ field: { onChange, value } }) => {
+        // Convert IDs to display names for the Autocomplete
+        const displayValues = Array.isArray(value) 
+          ? value.map(id => {
+              const option = options.find(opt => opt.value === id);
+              return option ? option.label : '';
+            }).filter(Boolean)
+          : [];
+
+        return (
+          <Autocomplete
+            multiple
+            freeSolo
+            options={options.map(option => option.label)}
+            value={displayValues}
+            loading={loading}
+            loadingText="Loading..."
+            noOptionsText={searchTerm && options.length === 0 ? "No data found" : "No options"}
+            onChange={(_, newValue) => {
+              // Convert display names back to IDs
+              const ids = newValue.map(displayName => {
+                const option = options.find(opt => opt.label === displayName);
+                return option ? option.value : null;
+              }).filter((id): id is number => id !== null);
+              
+              onChange(ids);
+            }}
+            onInputChange={(_, inputValue) => {
+              onInputChange?.(inputValue);
+            }}
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                label={label}
+                variant="outlined"
+                placeholder={placeholder}
+                error={error}
+                helperText={error ? errorMessage : (searchTerm && options.length === 0 ? "No data found!" : undefined)}
+                sx={{ 
+                  mt: 2,
+                  '& .MuiOutlinedInput-root': {
+                    backgroundColor: 'white'
+                  }
+                }}
+              />
+            )}
+            renderTags={(value: string[], getTagProps) =>
+              value.map((option: string, index: number) => (
+                <Chip
+                  variant="outlined"
+                  label={option}
+                  {...getTagProps({ index })}
+                  key={`${option}-${index}`}
+                />
+              ))
+            }
+          />
+        );
+      }}
     />
   );
 };
@@ -138,15 +183,13 @@ function BasicInfoTab() {
     handleSubmit,
     watch,
   } = useForm<FormData>({
-    mode: "all",
+    mode: "onChange",
     defaultValues: {
       name: formData.name || "",
       slug: formData.slug || "",
       description: formData.description || "",
-      category_id: formData.category_id || [],
-      category_id_display: formData.category_id_display || [],
-      brand_id: formData.brand_id || [],
-      brand_id_display: formData.brand_id_display || [],
+      category_ids: formData.category_ids || [],
+      brand_ids: formData.brand_ids || [],
       // is_new: formData.is_new ?? true,
     },
     resolver: zodResolver(schema),
@@ -157,6 +200,29 @@ function BasicInfoTab() {
     fetchCategories("");
     fetchBrands("");
   }, []);
+
+  // Watch form values and trigger validation when category_ids or brand_ids change
+  const watchedCategoryIds = watch("category_ids");
+  const watchedBrandIds = watch("brand_ids");
+
+  useEffect(() => {
+    console.log("Category IDs changed:", watchedCategoryIds);
+    if (watchedCategoryIds && watchedCategoryIds.length > 0) {
+      trigger("category_ids");
+    }
+  }, [watchedCategoryIds, trigger]);
+
+  useEffect(() => {
+    console.log("Brand IDs changed:", watchedBrandIds);
+    if (watchedBrandIds && watchedBrandIds.length > 0) {
+      trigger("brand_ids");
+    }
+  }, [watchedBrandIds, trigger]);
+
+  // Debug: Log form state and errors
+  useEffect(() => {
+    console.log("Form state:", { isValid, errors, watchedCategoryIds, watchedBrandIds });
+  }, [isValid, errors, watchedCategoryIds, watchedBrandIds]);
 
   // Fetch categories based on search query
   const fetchCategories = useMemo(
@@ -329,30 +395,26 @@ function BasicInfoTab() {
             const productData = response.data;
 
             // Update form with fetched data
-            setValue("name", productData.name || "");
-            setValue("slug", productData.slug || "");
-            setValue("description", productData.description || "");
-            setValue("category_id", productData.Categories?.map(c => c.id) || []);
-            setValue("brand_id", productData.Brands?.map(b => b.id) || []);
-            setValue("category_id_display", productData.Categories?.map(c => c.name) || []);
-            setValue("brand_id_display", productData.Brands?.map(b => b.name) || []);
-            setValue("is_new", productData.is_new ?? true);
+                         setValue("name", productData.name || "");
+             setValue("slug", productData.slug || "");
+             setValue("description", productData.description || "");
+             setValue("category_ids", productData.Categories?.map(c => c.id) || []);
+             setValue("brand_ids", productData.Brands?.map(b => b.id) || []);
+             setValue("is_new", productData.is_new ?? true);
 
             // Fetch selected category and brand details
             await fetchSelectedOptions(productData.Categories?.map(c => c.id), productData.Brands?.map(b => b.id));
 
-            // Update form context
-            updateFormData({
-              name: productData.name || "",
-              slug: productData.slug || "",
-              description: productData.description || "",
-              category_id: productData.Categories?.map(c => c.id) || [],
-              brand_id: productData.Brands?.map(b => b.id) || [],
-              category_id_display: productData.Categories?.map(c => c.name) || [],
-              brand_id_display: productData.Brands?.map(b => b.name) || [],
-              is_new: productData.is_new ?? true,
-              productId: Number(finalProductId),
-            });
+                         // Update form context
+             updateFormData({
+               name: productData.name || "",
+               slug: productData.slug || "",
+               description: productData.description || "",
+               category_ids: productData.Categories?.map(c => c.id) || [],
+               brand_ids: productData.Brands?.map(b => b.id) || [],
+               is_new: productData.is_new ?? true,
+               productId: Number(finalProductId),
+             });
           }
         } catch (error) {
           console.error("Error fetching product:", error);
@@ -368,38 +430,24 @@ function BasicInfoTab() {
     fetchProductData();
   }, [searchParams, setValue]);
 
-  const onSubmit = async (data: FormData) => {
-    setIsLoading(true);
-    try {
-  
-      // Get display values and convert back to IDs
-      const categoryDisplayNames = data.category_id_display || [];
-      const brandDisplayNames = data.brand_id_display || [];
-      
-      const categoryIds = categoryDisplayNames.map(name => {
-        const option = categoryOptions.find(opt => opt.label === name);
-        return option ? option.value : null;
-      }).filter((id): id is number => id !== null);
-      
-      const brandIds = brandDisplayNames.map(name => {
-        const option = brandOptions.find(opt => opt.label === name);
-        return option ? option.value : null;
-      }).filter((id): id is number => id !== null);
+     const onSubmit = async (data: FormData) => {
+     setIsLoading(true);
+     try {
+   
+       // Validate required fields
+       if (!data.name || !data.slug || data.category_ids.length === 0 || data.brand_ids.length === 0) {
+         throw new Error("Please fill in all required fields");
+       }
 
-      // Validate required fields
-      if (!data.name || !data.slug || categoryIds.length === 0 || brandIds.length === 0) {
-        throw new Error("Please fill in all required fields");
-      }
-
-      // Format the data according to the API requirements
-      const productData: CreateProductData = {
-        name: data.name.trim(),
-        slug: data.slug.trim(),
-        description: data.description || "",
-        category_ids: categoryIds,
-        brand_ids: brandIds,
-        is_new: Boolean(data.is_new),
-      };
+       // Format the data according to the API requirements
+       const productData: CreateProductData = {
+         name: data.name.trim(),
+         slug: data.slug.trim(),
+         description: data.description || "",
+         category_ids: data.category_ids,
+         brand_ids: data.brand_ids,
+         is_new: Boolean(data.is_new),
+       };
 
 
       // Check if we have a valid token
@@ -553,6 +601,7 @@ function BasicInfoTab() {
   return (
     <form
       onSubmit={handleSubmit(onSubmit)}
+      noValidate
       className="flex max-w-5xl flex-col justify-center"
       onKeyDown={(e) => {
         // Prevent form submission on Enter key unless it's inside a button
@@ -588,18 +637,17 @@ function BasicInfoTab() {
         <Grid item xs={12} md={6}>
           <MuiBox sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
             <FormMultiSelectWithMapping
-              name="category_id"
+              name="category_ids"
               control={control}
               label="Category"
               options={categoryOptions}
-              error={!!errors.category_id}
-              errorMessage={categoryError || errors.category_id?.message?.toString()}
+              error={!!errors.category_ids}
+              errorMessage={categoryError || errors.category_ids?.message?.toString()}
               onInputChange={(query) => {
                 setCategorySearchInput(query);
                 fetchCategories(query);
               }}
               loading={categoryLoading}
-              required
               placeholder="Search for a category..."
               searchTerm={categorySearchInput}
             />
@@ -616,18 +664,17 @@ function BasicInfoTab() {
         <Grid item xs={12} md={6}>
           <MuiBox sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
             <FormMultiSelectWithMapping
-              name="brand_id"
+              name="brand_ids"
               control={control}
               label="Brand"
               options={brandOptions}
-              error={!!errors.brand_id}
-              errorMessage={brandError || errors.brand_id?.message?.toString()}
+              error={!!errors.brand_ids}
+              errorMessage={brandError || errors.brand_ids?.message?.toString()}
               onInputChange={(query) => {
                 setBrandSearchInput(query);
                 fetchBrands(query);
               }}
               loading={brandLoading}
-              required
               placeholder="Search for a brand..."
               searchTerm={brandSearchInput}
             />
