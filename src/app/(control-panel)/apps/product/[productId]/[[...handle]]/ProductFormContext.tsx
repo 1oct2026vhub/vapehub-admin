@@ -8,10 +8,8 @@ export interface ProductFormData {
   name: string;
   slug: string;
   description: string;
-  category_id: number[];
-  category_id_display: string[];
-  brand_id: number[];
-  brand_id_display: string[];
+  category_ids: number[];
+  brand_ids: number[];
   is_new: boolean;
 
   // Pricing Info
@@ -88,10 +86,8 @@ const initialFormData: ProductFormData = {
   name: "",
   slug: "",
   description: "",
-  category_id: [],
-  category_id_display: [],
-  brand_id: [],
-  brand_id_display: [],
+  category_ids: [],
+  brand_ids: [],
   is_new: true,
 
   price: "",
