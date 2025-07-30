@@ -48,8 +48,8 @@ function ProductContent() {
             name: productData.name,
             slug: productData.slug,
             description: productData.description,
-            category_id: productData.category_id,
-            brand_id: productData.brand_id,
+            category_ids: productData.category_id,
+            brand_ids: productData.brand_id,
             is_new: productData.is_new,
             productId: Number(productId),
             // Add other fields as needed
