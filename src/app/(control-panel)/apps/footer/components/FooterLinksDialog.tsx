@@ -65,7 +65,7 @@ const linkSchema = z.object({
   url: z.string()
     .min(1, "URL is required")
     .max(200, "URL must not exceed 200 characters")
-    .regex(/^\/[a-z0-9\-\/]*$|^https?:\/\/.+$/i, "URL must start with a slash (/) for internal links or be a valid URL for external links"),
+    .regex(/^\/[a-z0-9\-\/_]*$|^https?:\/\/.+$/i, "URL must start with a slash (/) for internal links or be a valid URL for external links"),
   
   order: z.coerce.number()
     .int("Order must be an integer")
