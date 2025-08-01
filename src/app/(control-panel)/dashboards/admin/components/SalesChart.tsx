@@ -59,6 +59,12 @@ const SalesChart = ({ data, period }: SalesChartProps) => {
     return `${startDate.format('MMM D, YYYY')} - ${endDate.format('MMM D, YYYY')}`;
   };
 
+  // Format date for custom period (daily data within a custom range)
+  const formatCustomDate = (dateString: string) => {
+    const date = dayjs(dateString);
+    return date.format('MMM D, YYYY');
+  };
+
   // Choose the appropriate label formatting based on the period
   const getFormattedLabels = () => {
     return data.map(item => {
@@ -68,6 +74,9 @@ const SalesChart = ({ data, period }: SalesChartProps) => {
         return formatMonthlyDate(item.dateRange);
       } else if (period === 'yearly') {
         return formatYearlyDate(item.dateRange);
+      } else if (period === 'custom') {
+        // For custom period, treat each item as a daily date
+        return formatCustomDate(item.dateRange);
       } else {
         return formatDateRange(item.dateRange);
       }
