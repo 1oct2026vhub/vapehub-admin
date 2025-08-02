@@ -650,13 +650,21 @@ const mapFormStockStatusToApi = (formStatus?: 'In Stock' | 'Out of Stock' | 'Bac
 // --- End Add: Stock Status Mapping Helpers ---
 
 // Helper function to convert API stock status to display format for the edit form
-const getDisplayStockStatusManager = (apiStockStatus?: string | null, currentStockVal?: number): "In Stock" | "Out of Stock" | "Back Order" => {
-  const stock = currentStockVal ?? 0;
-  switch (apiStockStatus?.toLowerCase()) {
-    case "in_stock": return "In Stock";
-    case "out_of_stock": return "Out of Stock";
-    case "back_to_order": case "back_order": return "Back Order";
-    default: return stock > 0 ? "In Stock" : "Out of Stock";
+const getValidStockStatus = (status: string | null | undefined): "In Stock" | "Out of Stock" | "Back Order" => {
+  const lowerStatus = status?.toLowerCase();
+  switch (lowerStatus) {
+    case "in_stock":
+    case "in stock":
+      return "In Stock";
+    case "out_of_stock":
+    case "out of stock":
+      return "Out of Stock";
+    case "back_order":
+    case "back order":
+    case "back_to_order":
+      return "Back Order";
+    default:
+      return "In Stock"; // Default fallback
   }
 };
 
@@ -2654,7 +2662,7 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
               // Ensure status is properly set in the correct format for display
               status: displayStatus, 
               // --- Add stockStatus update here --- 
-              stock_status: data.stockStatus === 'In Stock' ? 'in_stock' : data.stockStatus === 'Out of Stock' ? 'out_of_stock' : 'back_order', 
+              stock_status: mapFormStockStatusToApi(data.stockStatus), 
               // --- End Add --- 
               discount_price: String(transformOptionalNumber(data.depositPrice)),
               purchase_price: String(transformOptionalNumber(data.purchasePrice)),
@@ -2669,6 +2677,29 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
               variantAttributes: v.variantAttributes, 
               variantImages: v.variantImages,       
             }; 
+            
+            // Reset the form with the updated values to reflect the changes
+            const resetData = {
+              slug: updatedVariant.slug ?? '',
+              regular_price: updatedVariant.regular_price ? Number(updatedVariant.regular_price) : null,
+              stock: updatedVariant.stock ?? 0,
+              status: displayStatus.toLowerCase() as 'active' | 'inactive',
+              stockStatus: getValidStockStatus(updatedVariant.stock_status),
+              depositPrice: updatedVariant.discount_price ? Number(updatedVariant.discount_price) : null,
+              purchasePrice: updatedVariant.purchase_price ? Number(updatedVariant.purchase_price) : null,
+              lowStockThreshold: updatedVariant.low_stock_threshold ?? null,
+              weight: updatedVariant.weight ? Number(updatedVariant.weight) : null,
+              length: updatedVariant.length ? Number(updatedVariant.length) : null,
+              width: updatedVariant.width ? Number(updatedVariant.width) : null,
+              height: updatedVariant.height ? Number(updatedVariant.height) : null,
+              barcode: updatedVariant.barcode ?? '',
+              description: updatedVariant.description ?? '',
+            };
+            resetEditForm(resetData);
+            
+            // Update the original variant ref to reflect the new state
+            originalSelectedVariantRef.current = JSON.parse(JSON.stringify(updatedVariant));
+            
             return updatedVariant;
           } else {
             return v; 
@@ -2895,7 +2926,7 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
           regular_price: currentSelectedVariant.regular_price ? Number(currentSelectedVariant.regular_price) : null,
           stock: currentSelectedVariant.stock ?? 0,
           status: formStatus as 'active' | 'inactive', // Use the derived lowercase formStatus
-          stockStatus: getDisplayStockStatusManager(currentSelectedVariant.stock_status, currentSelectedVariant.stock),
+          stockStatus: getValidStockStatus(currentSelectedVariant.stock_status),
           depositPrice: currentSelectedVariant.discount_price ? Number(currentSelectedVariant.discount_price) : null,
           purchasePrice: currentSelectedVariant.purchase_price ? Number(currentSelectedVariant.purchase_price) : null,
           lowStockThreshold: currentSelectedVariant.low_stock_threshold ?? null,
