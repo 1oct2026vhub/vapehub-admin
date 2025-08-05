@@ -407,7 +407,18 @@ const MenuDialog: React.FC<MenuDialogProps> = ({ open, onClose, onSave, menuItem
                         setValue('entity_id', newValue ? newValue.id : null, { shouldValidate: true });
                         if (newValue && newValue.slug) {
                           const baseUrl = process.env.NEXT_PUBLIC_WEB_URL || '';
-                          setValue('original', `${baseUrl}/${newValue.slug}`, { shouldValidate: true });
+                          let urlPath = '';
+                          
+                          // Set different URL paths based on entity type
+                          if (entityType === 'brand') {
+                            urlPath = `${baseUrl}/brand/${newValue.slug}`;
+                          } else if (entityType === 'deal') {
+                            urlPath = `${baseUrl}/product-deals/${newValue.slug}`;
+                          } else {
+                            urlPath = `${baseUrl}/${newValue.slug}`;
+                          }
+                          
+                          setValue('original', urlPath, { shouldValidate: true });
                         } else if (!newValue) {
                           setValue('original', '', { shouldValidate: true });
                         }
