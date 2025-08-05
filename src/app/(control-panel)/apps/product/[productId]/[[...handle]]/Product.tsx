@@ -19,9 +19,10 @@ import { useSnackbar } from "@/contexts/SnackbarContext";
 import VariantManager from "./tabs/VariantManager";
 import FaqAccordion from "../../../faq/FaqAccordion";
 import SeoTab from "./tabs/SeoTab";
+import DealsTab from "./tabs/DealsTab";
 // import FaqTab from "./tabs/FaqTab"; // You will need to create and import this later
 
-const steps = ["basic-info", "product-images", "attributes", "variants", "faq", "seo"];
+const steps = ["basic-info", "product-images", "attributes", "variants", "faq", "deals", "seo"];
 
 function ProductContent() {
   const isMobile = useThemeMediaQuery((theme) => theme.breakpoints.down("lg"));
@@ -42,7 +43,6 @@ function ProductContent() {
         try {
           const response = await getProduct(Number(productId));
           const productData = response.data;
-          console.log("productData", productData);
           // Update form data with fetched product information
           updateFormData({
             name: productData.name,
@@ -102,9 +102,14 @@ function ProductContent() {
               className={isStepCompleted(4) ? "text-primary" : ""} // Assuming step 4 is FAQ
             />
             <FuseTab
+              value="deals"
+              label="Deals"
+              className={isStepCompleted(5) ? "text-primary" : ""}
+            />
+            <FuseTab
               value="seo"
               label="SEO"
-              className={isStepCompleted(5) ? "text-primary" : ""}
+              className={isStepCompleted(6) ? "text-primary" : ""}
             />
           </FuseTabs>
           <div className="mt-4">
@@ -128,6 +133,9 @@ function ProductContent() {
               <FaqAccordion entityId={formData.productId} entityType="product" />
             </div>
             <div className={formData.currentStep !== 5 ? "hidden" : ""}>
+              <DealsTab />
+            </div>
+            <div className={formData.currentStep !== 6 ? "hidden" : ""}>
               <SeoTab />
             </div>
           </div>

@@ -77,9 +77,11 @@ const dealSchema = z.object({
 
 interface DealFormProps {
     deal?: Deal;
+    onDealCreated?: () => void;
+    hideButtons?: boolean;
 }
 
-const DealForm: React.FC<DealFormProps> = ({ deal }) => {
+const DealForm: React.FC<DealFormProps> = ({ deal, onDealCreated, hideButtons = false }) => {
     const router = useRouter();
     const { showSnackbar } = useSnackbar();
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -166,11 +168,16 @@ const DealForm: React.FC<DealFormProps> = ({ deal }) => {
             if (deal) {
                 await updateDeal(deal.id, payload as DealFormData);
                 showSnackbar('Deal updated successfully!', 'success');
+                router.push('/apps/deals');
             } else {
                 await createDeal(payload as DealFormData);
                 showSnackbar('Deal created successfully!', 'success');
+                if (onDealCreated) {
+                    onDealCreated();
+                } else {
+                    router.push('/apps/deals');
+                }
             }
-            router.push('/apps/deals');
         } catch (error: any) {
 if (error?.errors) {
         showSnackbar(error?.errors[0]?.msg, "error");
@@ -275,10 +282,12 @@ if (error?.errors) {
                                 </Grid>
                             </Grid>
 
-                            <div className="flex justify-end gap-2 mt-10">
-                                <Button variant="outlined" onClick={() => router.push('/apps/deals')}>Cancel</Button>
-                                <AppButton type="submit" label={deal ? "Save Changes" : "Create"} loading={isSubmitting} disabled={!isValid || isSubmitting || (deal && !isDirty)} />
-                            </div>
+                            {/* {!hideButtons && ( */}
+                                <div className="flex justify-end gap-2 mt-10">
+                                    <Button variant="outlined" onClick={() => router.push('/apps/deals')}>Cancel</Button>
+                                    <AppButton type="submit" label={deal ? "Save Changes" : "Create"} loading={isSubmitting} disabled={!isValid || isSubmitting || (deal && !isDirty)} />
+                                </div>
+                            {/* )} */}
                         </form>
                     </Paper>
                 </Grid>
