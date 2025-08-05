@@ -9,6 +9,7 @@ export interface LoyaltyPointSetting {
   minimum_points_redemption: number;
   minimum_purchase_amount: string | number;
   min_amount_for_loyalty_points?: number | string;
+  amount_divisor?: number | string;
   status: boolean;
   updated_by: number;
   createdAt: string;
@@ -30,6 +31,7 @@ export interface CreateLoyaltyPointSettingData {
     minimum_points_redemption: number;
     minimum_purchase_amount: number;
     min_amount_for_loyalty_points?: number;
+    amount_divisor: number;
     status: boolean;
 }
 

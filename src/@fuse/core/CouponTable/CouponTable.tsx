@@ -19,10 +19,15 @@ import {
   Pagination,
   PaginationItem,
   ListItemIcon,
+  Autocomplete,
+  CircularProgress,
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import ClearFiltersButton from '@/components/Shared/ClearFiltersButton';
 import { getCoupons, Coupon, FetchCouponsParams, deleteCoupon, restoreCoupon } from '@/services/apiCoupon';
+import { listProducts } from '@/services/apiProduct';
+import { listProductBrand } from '@/services/apiProductBrand';
+import { listProductCategory } from '@/services/apiProductCategory';
 import FuseSvgIcon from '@fuse/core/FuseSvgIcon';
 import { useRouter } from 'next/navigation';
 import { useSnackbar } from '@/contexts/SnackbarContext';
@@ -41,15 +46,19 @@ const CouponTable: React.FC = () => {
   const [status, setStatus] = useState<string>('');
   const [discountType, setDiscountType] = useState<string>('');
   const [entityType, setEntityType] = useState<string>('');
+  const [entityId, setEntityId] = useState<number | null>(null);
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
+  const [entities, setEntities] = useState<any[]>([]);
+  const [entitiesLoading, setEntitiesLoading] = useState(false);
+  const [entitySearchKeyword, setEntitySearchKeyword] = useState('');
   const router = useRouter();
   const { showSnackbar } = useSnackbar();
 
   // --- START: Are Filters Active ---
   const areFiltersActive = useMemo(() => {
-    return search !== '' || deleted !== null || status !== '' || discountType !== '' || entityType !== '' || startDate !== '' || endDate !== '';
-  }, [search, deleted, status, discountType, entityType, startDate, endDate]);
+    return search !== '' || deleted !== null || status !== '' || discountType !== '' || entityType !== '' || entityId !== null || startDate !== '' || endDate !== '';
+  }, [search, deleted, status, discountType, entityType, entityId, startDate, endDate]);
   // --- END ---
 
   // --- START: Clear Filters ---
@@ -59,10 +68,12 @@ const CouponTable: React.FC = () => {
     setStatus('');
     setDiscountType('');
     setEntityType('');
+    setEntityId(null);
     setStartDate('');
     setEndDate('');
     setDeleted(null);
     setPage(1);
+    setEntitySearchKeyword('');
   };
   // --- END ---
 
@@ -73,6 +84,73 @@ const CouponTable: React.FC = () => {
     }, 500);
     return () => clearTimeout(timer);
   }, [search]);
+
+  // Fetch entities based on entity type
+  const fetchEntities = useCallback(async (type: string, keyword: string = '') => {
+    if (!type) {
+      setEntities([]);
+      return;
+    }
+
+    setEntitiesLoading(true);
+    try {
+      let response;
+      const params: any = { 
+        limit: 50,
+        sort_by: 'id',
+        order: 'DESC'
+      };
+
+      if (keyword) {
+        if (type === 'product') {
+          params.keyword = keyword;
+        } else {
+          params.search = keyword;
+          params.search_only_name = true;
+        }
+      }
+
+      switch (type) {
+        case 'product':
+          response = await listProducts(params);
+          setEntities(response.data?.products || []);
+          break;
+        case 'brand':
+          response = await listProductBrand(params);
+          setEntities(response.data?.brands || []);
+          break;
+        case 'category':
+          response = await listProductCategory(params);
+          setEntities(response.data?.categories || []);
+          break;
+        default:
+          setEntities([]);
+      }
+    } catch (error) {
+      console.error('Error fetching entities:', error);
+      setEntities([]);
+    } finally {
+      setEntitiesLoading(false);
+    }
+  }, []);
+
+  // Fetch entities when entity type changes
+  useEffect(() => {
+    fetchEntities(entityType);
+    setEntityId(null); // Reset entity ID when entity type changes
+    setEntitySearchKeyword('');
+  }, [entityType, fetchEntities]);
+
+  // Fetch entities when search keyword changes (debounced)
+  useEffect(() => {
+    if (!entityType) return;
+    
+    const timer = setTimeout(() => {
+      fetchEntities(entityType, entitySearchKeyword);
+    }, 500);
+    
+    return () => clearTimeout(timer);
+  }, [entitySearchKeyword, entityType, fetchEntities]);
 
   // Fetch coupons
   const fetchData = useCallback(async () => {
@@ -85,6 +163,7 @@ const CouponTable: React.FC = () => {
         status: status ? status as 'active' | 'inactive' | 'expired' : undefined,
         discount_type: discountType ? discountType as 'percentage' | 'fixed_amount' : undefined,
         entity_type: entityType ? entityType as 'product' | 'category' | 'brand' : undefined,
+        entity_id: entityId || undefined,
         start_date: startDate || undefined,
         end_date: endDate || undefined,
       };
@@ -96,7 +175,7 @@ const CouponTable: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [page, limit, debouncedSearch, status, discountType, entityType, startDate, endDate]);
+  }, [page, limit, debouncedSearch, status, discountType, entityType, entityId, startDate, endDate]);
 
   useEffect(() => {
     fetchData();
@@ -247,6 +326,54 @@ const CouponTable: React.FC = () => {
             <MenuItem value="category">Category</MenuItem>
             <MenuItem value="brand">Brand</MenuItem>
           </Select>
+          {entityType && (
+            <div className="flex items-center">
+              <Autocomplete
+                options={entities}
+                getOptionLabel={(option) => option.name || option.title || ''}
+                value={entities.find((e) => e.id === entityId) || null}
+                onChange={(event, newValue) => {
+                  setEntityId(newValue ? newValue.id : null);
+                }}
+                onInputChange={(event, newInputValue) => {
+                  setEntitySearchKeyword(newInputValue);
+                }}
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    backgroundColor: 'white',
+                  },
+                  minWidth: 200,
+                }}
+                filterOptions={(x) => x}
+                loading={entitiesLoading}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label={`Select ${entityType.charAt(0).toUpperCase() + entityType.slice(1)}`}
+                    placeholder={`Search ${entityType}s...`}
+                    size="small"
+                    error={false}
+                    helperText={
+                      entitiesLoading 
+                        ? 'Loading...' 
+                        : entities.length < 0 
+                          ? `No ${entityType}s available`
+                          : ""
+                    }
+                    InputProps={{
+                      ...params.InputProps,
+                      endAdornment: (
+                        <>
+                          {entitiesLoading ? <CircularProgress color="inherit" size={20} /> : null}
+                          {params.InputProps.endAdornment}
+                        </>
+                      ),
+                    }}
+                  />
+                )}
+              />
+            </div>
+          )}
           <TextField
             type="date"
             value={startDate}
