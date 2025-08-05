@@ -33,6 +33,7 @@ export interface FetchCouponsParams {
   status?: 'active' | 'inactive' | 'expired';
   discount_type?: 'percentage' | 'fixed_amount';
   entity_type?: 'product' | 'brand' | 'category';
+  entity_id?: number;
   start_date?: string;
   end_date?: string;
 }
