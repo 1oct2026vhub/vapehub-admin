@@ -12,12 +12,20 @@ import {
   MenuItem,
   Select,
   Pagination,
+  PaginationItem,
   ListItemIcon,
   Box,
+  Autocomplete,
+  CircularProgress,
+  Button,
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import ClearFiltersButton from '@/components/Shared/ClearFiltersButton';
 import { listSeo, SeoListItem, ListSeoParams } from '@/services/apiSeo';
+import { listProducts } from '@/services/apiProduct';
+import { listProductBrand } from '@/services/apiProductBrand';
+import { listProductCategory } from '@/services/apiProductCategory';
+import { getBlogPosts, getBlogCategories } from '@/services/apiBlog';
 import FuseSvgIcon from '@fuse/core/FuseSvgIcon';
 import { useRouter } from 'next/navigation';
 import { useSnackbar } from '@/contexts/SnackbarContext';
@@ -50,20 +58,26 @@ const SeoListTable: React.FC<{ refreshTrigger: number, onEdit: (data: SeoListIte
     const [isLoading, setIsLoading] = useState(false);
     const [entityType, setEntityType] = useState<string>('');
     const [noIndex, setNoIndex] = useState<string>('');
+    const [entityId, setEntityId] = useState<string | null>(null);
+    const [entities, setEntities] = useState<any[]>([]);
+    const [entitiesLoading, setEntitiesLoading] = useState(false);
+    const [entitySearchKeyword, setEntitySearchKeyword] = useState('');
 
     const router = useRouter();
     const { showSnackbar } = useSnackbar();
 
     const areFiltersActive = useMemo(() => {
-        return keyword !== '' || entityType !== '' || noIndex !== '';
-    }, [keyword, entityType, noIndex]);
+        return keyword !== '' || entityType !== '' || noIndex !== '' || entityId !== null;
+    }, [keyword, entityType, noIndex, entityId]);
 
     const clearFilters = () => {
         setKeyword('');
         setDebouncedKeyword('');
         setEntityType('');
         setNoIndex('');
+        setEntityId(null);
         setPage(1);
+        setEntitySearchKeyword('');
     };
 
     useEffect(() => {
@@ -73,6 +87,83 @@ const SeoListTable: React.FC<{ refreshTrigger: number, onEdit: (data: SeoListIte
         return () => clearTimeout(timer);
     }, [keyword]);
 
+    // Fetch entities based on entity type
+    const fetchEntities = useCallback(async (type: string, keyword: string = '') => {
+        if (!type) {
+            setEntities([]);
+            return;
+        }
+
+        setEntitiesLoading(true);
+        try {
+            let response;
+            const params: any = { 
+                limit: 50,
+                sort_by: 'id',
+                order: 'DESC'
+            };
+
+            if (keyword) {
+                if (type === 'product') {
+                    params.keyword = keyword;
+                } else if (type === 'blog_post' || type === 'blog_category') {
+                    params.search = keyword;
+                } else {
+                    params.search = keyword;
+                    params.search_only_name = true;
+                }
+            }
+
+            switch (type) {
+                case 'product':
+                    response = await listProducts(params);
+                    setEntities(response.data?.products || []);
+                    break;
+                case 'brand':
+                    response = await listProductBrand(params);
+                    setEntities(response.data?.brands || []);
+                    break;
+                case 'category':
+                    response = await listProductCategory(params);
+                    setEntities(response.data?.categories || []);
+                    break;
+                case 'blog_post':
+                    response = await getBlogPosts(params);
+                    setEntities(response.data?.blogs || []);
+                    break;
+                case 'blog_category':
+                    response = await getBlogCategories(params);
+                    setEntities(response.data?.categories || []);
+                    break;
+                default:
+                    setEntities([]);
+            }
+        } catch (error) {
+            console.error('Error fetching entities:', error);
+            setEntities([]);
+        } finally {
+            setEntitiesLoading(false);
+        }
+    }, []);
+
+    // Fetch entities when entity type changes
+    useEffect(() => {
+        fetchEntities(entityType);
+        setEntityId(null); // Reset entity ID when entity type changes
+        setEntitySearchKeyword('');
+    }, [entityType, fetchEntities]);
+
+    // Fetch entities when search keyword changes (debounced)
+    useEffect(() => {
+        if (!entityType) return;
+        
+        const timer = setTimeout(() => {
+            fetchEntities(entityType, entitySearchKeyword);
+        }, 500);
+        
+        return () => clearTimeout(timer);
+    }, [entitySearchKeyword, entityType, fetchEntities]);
+
     const fetchData = useCallback(async () => {
         setIsLoading(true);
         try {
@@ -81,6 +172,7 @@ const SeoListTable: React.FC<{ refreshTrigger: number, onEdit: (data: SeoListIte
                 limit,
                 keyword: debouncedKeyword || undefined,
                 entityType: entityType ? (entityType as ListSeoParams['entityType']) : undefined,
+                entityId: entityId || undefined,
                 noIndex: noIndex ? noIndex === 'true' : undefined,
             };
             const res = await listSeo(params);
@@ -91,7 +183,7 @@ const SeoListTable: React.FC<{ refreshTrigger: number, onEdit: (data: SeoListIte
         } finally {
             setIsLoading(false);
         }
-    }, [page, limit, debouncedKeyword, entityType, noIndex, showSnackbar]);
+    }, [page, limit, debouncedKeyword, entityType, entityId, noIndex, showSnackbar]);
 
     useEffect(() => {
         fetchData();
@@ -141,16 +233,34 @@ const SeoListTable: React.FC<{ refreshTrigger: number, onEdit: (data: SeoListIte
                         value={keyword}
                         onChange={(e) => setKeyword(e.target.value)}
                         size="small"
-                        InputProps={{ endAdornment: <InputAdornment position="start"><SearchIcon /></InputAdornment> }}
+                        InputProps={{
+                            endAdornment: (
+                                <InputAdornment position="start">
+                                    <SearchIcon />
+                                </InputAdornment>
+                            ),
+                        }}
+                        sx={{
+                            '& .MuiOutlinedInput-root': {
+                                '&.Mui-focused fieldset': {
+                                    borderColor: '#2E9970',
+                                    borderWidth: '2px',
+                                },
+                            },
+                            '& .MuiInputLabel-root.Mui-focused': {
+                                color: '#2E9970',
+                            },
+                            minWidth: 180,
+                        }}
                     />
                     <Select
                         value={entityType}
                         onChange={e => setEntityType(e.target.value)}
                         displayEmpty
                         size="small"
+                        sx={{ minWidth: 140, mx: 1 }}
                     >
                         <MenuItem value="">All Entity Types</MenuItem>
-                        <MenuItem value="page">Page</MenuItem>
                         <MenuItem value="product">Product</MenuItem>
                         <MenuItem value="category">Category</MenuItem>
                         <MenuItem value="brand">Brand</MenuItem>
@@ -162,11 +272,60 @@ const SeoListTable: React.FC<{ refreshTrigger: number, onEdit: (data: SeoListIte
                         onChange={e => setNoIndex(e.target.value)}
                         displayEmpty
                         size="small"
+                        sx={{ minWidth: 120, mx: 1 }}
                     >
                         <MenuItem value="">All</MenuItem>
                         <MenuItem value="true">Indexed</MenuItem>
                         <MenuItem value="false">Not Indexed</MenuItem>
                     </Select>
+                    {entityType && (
+                        <div className="flex items-center">
+                            <Autocomplete
+                                options={entities}
+                                getOptionLabel={(option) => option.name || option.title || ''}
+                                value={entities.find((e) => e.id === entityId) || null}
+                                onChange={(event, newValue) => {
+                                    setEntityId(newValue ? newValue.id : null);
+                                }}
+                                onInputChange={(event, newInputValue) => {
+                                    setEntitySearchKeyword(newInputValue);
+                                }}
+                                sx={{
+                                    '& .MuiOutlinedInput-root': {
+                                        backgroundColor: 'white',
+                                    },
+                                    minWidth: 200,
+                                }}
+                                filterOptions={(x) => x}
+                                loading={entitiesLoading}
+                                renderInput={(params) => (
+                                    <TextField
+                                        {...params}
+                                        label={`Select ${entityType.charAt(0).toUpperCase() + entityType.slice(1)}`}
+                                        placeholder={`Search ${entityType}s...`}
+                                        size="small"
+                                        error={false}
+                                        helperText={
+                                            entitiesLoading 
+                                                ? 'Loading...' 
+                                                : entities.length < 0 
+                                                    ? `No ${entityType}s available`
+                                                    : ""
+                                        }
+                                        InputProps={{
+                                            ...params.InputProps,
+                                            endAdornment: (
+                                                <>
+                                                    {entitiesLoading ? <CircularProgress color="inherit" size={20} /> : null}
+                                                    {params.InputProps.endAdornment}
+                                                </>
+                                            ),
+                                        }}
+                                    />
+                                )}
+                            />
+                        </div>
+                    )}
                     {areFiltersActive && <ClearFiltersButton onClick={clearFilters} />}
                 </div>
                 <DataTable
@@ -206,6 +365,22 @@ const SeoListTable: React.FC<{ refreshTrigger: number, onEdit: (data: SeoListIte
                         page={page}
                         onChange={(_, newPage) => setPage(newPage)}
                         shape="rounded"
+                        color="primary"
+                        renderItem={(item) => (
+                            <PaginationItem
+                                {...item}
+                                className="text-gray-600 hover:text-[#2E9970]"
+                                sx={{
+                                    '&.Mui-selected': {
+                                        backgroundColor: '#2E9970',
+                                        color: '#fff',
+                                        '&:hover': {
+                                            backgroundColor: '#247C5C',
+                                        },
+                                    },
+                                }}
+                            />
+                        )}
                     />
                 </div>
             </Paper>

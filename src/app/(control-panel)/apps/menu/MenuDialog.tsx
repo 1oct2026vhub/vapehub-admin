@@ -98,7 +98,7 @@ const MenuDialog: React.FC<MenuDialogProps> = ({ open, onClose, onSave, menuItem
       original: '',
       menu_parent: parentId || undefined,
       show_image: false,
-      hide_text: true,
+      hide_text: false,
       hide_mobile_view: false,
       hide_desktop_view: false,
       // icon_position: 'left',
@@ -322,7 +322,7 @@ const MenuDialog: React.FC<MenuDialogProps> = ({ open, onClose, onSave, menuItem
           original: '',
           menu_parent: parentId || null,
           show_image: false,
-          hide_text: true,
+          hide_text: false,
           hide_mobile_view: false,
           hide_desktop_view: false,
           // icon_position: 'left',
@@ -477,7 +477,7 @@ const MenuDialog: React.FC<MenuDialogProps> = ({ open, onClose, onSave, menuItem
                   control={
                     <Controller name="hide_text" control={control} render={({ field }) => <Switch {...field} checked={field.value} />} />
                   }
-                  label="Show Text"
+                  label="Hide Text"
                 />
             </Grid>
              <Grid item xs={12} sm={6}>

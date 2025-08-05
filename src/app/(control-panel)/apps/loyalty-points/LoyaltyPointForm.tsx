@@ -72,6 +72,18 @@ const loyaltyPointSchema = z.object({
         message: 'Minimum amount for loyalty points can have at most 2 decimal places.',
       }
     ),
+  amount_divisor: z.coerce
+    .number({ invalid_type_error: 'Amount divisor is required' })
+    .nonnegative('Amount divisor must be a non-negative number')
+    .refine(
+      (value) => {
+        const parts = String(value).split('.');
+        return parts.length === 1 || (parts.length === 2 && parts[1].length <= 2);
+      },
+      {
+        message: 'Amount divisor can have at most 2 decimal places.',
+      }
+    ),
   status: z.boolean(),
 });
 
@@ -97,6 +109,7 @@ export default function LoyaltyPointForm({ initialData = null }: LoyaltyPointFor
       minimum_points_redemption: initialData?.minimum_points_redemption || undefined,
       minimum_purchase_amount: initialData ? Number(initialData.minimum_purchase_amount) : undefined,
       min_amount_for_loyalty_points: initialData ? Number(initialData.min_amount_for_loyalty_points) : undefined,
+      amount_divisor: initialData ? Number(initialData.amount_divisor) : undefined,
       status: initialData?.status ?? true,
     },
   });
@@ -110,6 +123,7 @@ export default function LoyaltyPointForm({ initialData = null }: LoyaltyPointFor
             loyalty_amount_type: initialData.loyalty_amount_type as 'percentage' | 'fixed',
             minimum_purchase_amount: Number(initialData.minimum_purchase_amount),
             min_amount_for_loyalty_points: Number(initialData.min_amount_for_loyalty_points),
+            amount_divisor: Number(initialData.amount_divisor),
         });
     }
   }, [initialData, reset]);
@@ -207,16 +221,27 @@ export default function LoyaltyPointForm({ initialData = null }: LoyaltyPointFor
               helperText={errors.minimum_purchase_amount?.message}
             />
           </Grid>
-          <Grid item xs={12} md={6}>
-            <FormTextField
-                name="min_amount_for_loyalty_points"
-                control={control}
-                label="Minimum Amount for Loyalty Points"
-                type="number"
-                error={!!errors.min_amount_for_loyalty_points}
-                helperText={errors.min_amount_for_loyalty_points?.message}
-                required
-            />
+                      <Grid item xs={12} md={6}>
+                <FormTextField
+                    name="min_amount_for_loyalty_points"
+                    control={control}
+                    label="Minimum Amount for Loyalty Points"
+                    type="number"
+                    error={!!errors.min_amount_for_loyalty_points}
+                    helperText={errors.min_amount_for_loyalty_points?.message}
+                    required
+                />
+            </Grid>
+            <Grid item xs={12} md={6}>
+                <FormTextField
+                    name="amount_divisor"
+                    control={control}
+                    label="Amount Divisor"
+                    type="number"
+                    required
+                    error={!!errors.amount_divisor}
+                    helperText={errors.amount_divisor?.message}
+                />
             </Grid>
           <Grid item xs={12}>
             <Controller

@@ -112,6 +112,11 @@ const LoyaltyPointsTable: React.FC<LoyaltyPointsTableProps> = ({ onSettingsUpdat
         Cell: ({ row }) => <span>{parseFloat(String(row.original.loyalty_amount))}</span>,
       },
       {
+        accessorKey: 'amount_divisor',
+        header: 'Amount Divisor',
+        Cell: ({ row }) => <span>{parseFloat(String(row.original.amount_divisor))}</span>,
+      },
+      {
         accessorKey: 'loyalty_amount_type',
         header: 'Amount Type',
         Cell: ({ row }) => (row.original.loyalty_amount_type.charAt(0).toUpperCase() + row.original.loyalty_amount_type.slice(1)),
