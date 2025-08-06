@@ -198,7 +198,7 @@ const RefferalMethodEditForm: React.FC<RefferalMethodEditFormProps> = ({ referra
 								type="number"
 							/>
 						</Grid>
-						<Grid item xs={12}>
+						{/* <Grid item xs={12}>
 							<Controller
 								name="primary"
 								control={control}
@@ -214,7 +214,7 @@ const RefferalMethodEditForm: React.FC<RefferalMethodEditFormProps> = ({ referra
 									/>
 								)}
 							/>
-						</Grid>
+						</Grid> */}
 					</Grid>
 					<div className="flex justify-end gap-2 mt-10">
 						<Button
