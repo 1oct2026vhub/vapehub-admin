@@ -40,6 +40,7 @@ import ProductSelector from './ProductSelector';
 import FormFileUploadField from '@/components/Shared/FormFileUploadField';
 import { ACCEPTED_IMAGE_TYPES, MAX_FILE_SIZE } from '@/utils/fileValidation';
 import { validateImageDimensions } from '@/utils/imageUtils';
+import { id } from 'date-fns/locale';
 
 const dealSchema = z.object({
     name: z.string().min(1, 'Name is required'),
@@ -170,12 +171,24 @@ const DealForm: React.FC<DealFormProps> = ({ deal, onDealCreated, hideButtons = 
                 showSnackbar('Deal updated successfully!', 'success');
                 router.push('/apps/deals');
             } else {
-                await createDeal(payload as DealFormData);
+                const createdDeal = await createDeal(payload as DealFormData);
                 showSnackbar('Deal created successfully!', 'success');
+                
+                // Debug: Log the response to see the structure
+                console.log('Created deal response:', createdDeal);
+                
                 if (onDealCreated) {
                     onDealCreated();
                 } else {
-                    router.push('/apps/deals');
+                    // Handle different possible response structures
+                    const dealId = createdDeal?.id || (createdDeal as any)?.data?.id || (createdDeal as any)?.deal?.id;
+                    if (dealId) {
+                        router.push(`/apps/deals/deal-edit/${dealId}`);
+                    } else {
+                        // Fallback: redirect to deals list if we can't get the ID
+                        console.error('Could not get deal ID from response:', createdDeal);
+                        router.push('/apps/deals');
+                    }
                 }
             }
         } catch (error: any) {
