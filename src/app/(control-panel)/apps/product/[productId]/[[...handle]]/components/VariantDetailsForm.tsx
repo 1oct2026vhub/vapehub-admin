@@ -135,7 +135,7 @@ interface VariantDetailsFormProps {
   onSubmit: SubmitHandler<VariantFormData>; // The actual save/update function logic passed from parent
   selectedVariant: SelectedVariantForForm | null; 
   isSaving: boolean; 
-  isSaveDisabled: boolean; 
+  isSaveDisabled?: boolean; // Made optional since it's no longer used
 
   // Image handling props
   imageGetRootProps: (props?: any) => DropzoneRootProps;
@@ -152,7 +152,6 @@ const VariantDetailsForm: React.FC<VariantDetailsFormProps> = ({
   onSubmit,
   selectedVariant,
   isSaving,
-  isSaveDisabled,
   imageGetRootProps,
   imageGetInputProps,
   isImageDragActive,
@@ -169,7 +168,7 @@ const VariantDetailsForm: React.FC<VariantDetailsFormProps> = ({
         <AppButton 
           label="Save" 
           onClick={handleSubmit(onSubmit)} // RHF handleSubmit wraps your onSubmit
-          disabled={isSaveDisabled || isSaving}
+          disabled={isSaving}
           loading={isSaving}
         />
       </div>
