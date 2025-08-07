@@ -66,8 +66,31 @@ function PageBreadcrumb(props: PageBreadcrumbProps) {
       const title = navItem?.title || part;
 
       // Check if this is a detail page or has an ID
-      const isDetailPage = part.includes('-detail') || Boolean(part.match(/^\d+$/));
-      const crumbUrl = isDetailPage ? pathname : url;
+      const isDetailPage = part.includes('-detail') || part.includes('-edit') || Boolean(part.match(/^\d+$/));
+      
+      // For detail pages, the breadcrumb should navigate to the parent list page
+      let crumbUrl = url;
+      if (isDetailPage) {
+        // Handle specific cases for proper navigation
+        if (part === 'coupon-edit') {
+          crumbUrl = '/apps/coupon';
+        } else if (part.includes('-edit')) {
+          // For other edit pages, navigate to the parent section
+          const parentPart = part.replace('-edit', '');
+          crumbUrl = `/apps/${parentPart}`;
+        } else if (part.includes('-detail')) {
+          // For detail pages, navigate to the parent section
+          const parentPart = part.replace('-detail', '');
+          crumbUrl = `/apps/${parentPart}`;
+        } else {
+          // For ID-based pages, navigate to the parent section
+          const parentIndex = index - 1;
+          if (parentIndex >= 0) {
+            const parentUrlParts = pathParts.slice(0, parentIndex + 1);
+            crumbUrl = `/${parentUrlParts.join("/")}`;
+          }
+        }
+      }
 
       acc.push({
         title,

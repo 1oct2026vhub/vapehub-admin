@@ -44,6 +44,7 @@ export interface FetchDealsParams {
   validNow?: boolean;
   search?: string;
   deleted?: boolean;
+  product_id?: number;
 }
 
 export interface DealsApiResponse {
