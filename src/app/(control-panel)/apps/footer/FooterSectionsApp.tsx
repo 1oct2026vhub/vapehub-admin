@@ -409,7 +409,9 @@ export default function FooterSectionsApp() {
       className="w-full"
     >
       <Container maxWidth={false} sx={{ pl: 3, pr: 3 }}>
+        <div className="mt-6">
         <PageBreadcrumb />
+        </div>
         <Box className="sm:py-12 py-8">
           <Box
             display="flex"

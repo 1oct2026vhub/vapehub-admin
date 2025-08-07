@@ -1,21 +1,17 @@
-import { Metadata } from 'next';
+'use client';
+
 import { Box, Typography } from '@mui/material';
-import EditCouponForm from '../EditCouponForm';
+import CouponForm from './CouponForm';
 import PageBreadcrumb from '@/components/PageBreadcrumb';
 
-// metadata is a server-side export
-export const metadata: Metadata = {
-  title: 'Edit Coupon | VapeHub',
-};
-
-export default function EditCouponPage() {
+export default function CreateCouponPageClient() {
   return (
       <Box sx={{ p: 3 }}>
         <PageBreadcrumb />
       <Typography variant="h5" component="h2" gutterBottom sx={{ mb: 3, fontWeight: 'bold' }}>
-      Edit Coupon      
+        Create New Coupon
       </Typography>
-      <EditCouponForm />
+      <CouponForm />
       </Box>
   );
 } 

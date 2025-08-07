@@ -1,19 +1,12 @@
-'use client';
+import { Metadata } from 'next';
+import NewDealPageClient from './NewDealPageClient';
 
-import { Typography } from "@mui/material";
-import DealForm from "../DealForm";
-import PageBreadcrumb from "@/components/PageBreadcrumb";
+// metadata is a server-side export
+export const metadata: Metadata = {
+  title: 'Create Deal | VapeHub',
+};
 
-function NewDealPage() {
-    return (
-        <div className="p-4">
-          <PageBreadcrumb />
-            <Typography variant="h4" component="h1" className="mb-4 font-bold">
-                Create New Deal
-            </Typography>
-            <DealForm />
-        </div>
-    );
-}
-
-export default NewDealPage; 
+// This page.tsx is now a Server Component
+export default function NewDealPage() {
+  return <NewDealPageClient />;
+} 
