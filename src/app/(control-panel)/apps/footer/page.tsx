@@ -1,13 +1,12 @@
-"use client";
+import { Metadata } from 'next';
+import FooterClientWrapper from './FooterClientWrapper';
 
-import FooterSectionsApp from "./FooterSectionsApp";
-import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
-import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
+// metadata is a server-side export
+export const metadata: Metadata = {
+  title: 'Footer | VapeHub',
+};
 
+// This page.tsx is now a Server Component
 export default function FooterPage() {
-  return (
-    <LocalizationProvider dateAdapter={AdapterDayjs}>
-      <FooterSectionsApp />
-    </LocalizationProvider>
-  );
+  return <FooterClientWrapper />;
 } 

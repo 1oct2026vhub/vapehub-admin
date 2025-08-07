@@ -1,27 +1,12 @@
-'use client';
+import { Metadata } from 'next';
+import CreateBannerPageClient from './CreateBannerPageClient';
 
-import React from 'react';
-import CreateBannerForm from './CreateBannerForm';
-import PageBreadcrumb from '@/components/PageBreadcrumb';
-import { Box, Typography } from '@mui/material';
-
-const CreateBannerPage: React.FC = () => {
-  // const breadcrumbItems = [
-  //   { title: 'Dashboard', url: '/' }, 
-  //   { title: 'Banners', url: '/apps/banner' },
-  //   { title: 'Create Banner' },
-  // ];
-
-  return (
-    <Box sx={{ p: { xs: 2, md: 3 } }}>
-      {/* Updated to a simpler usage based on other examples */}
-      <PageBreadcrumb /> 
-      {/* <Typography variant="h3" component="h1" sx={{ my: 3, fontWeight: 'bold' }}>
-        Add New Banner
-      </Typography> */}
-      <CreateBannerForm />
-    </Box>
-  );
+// metadata is a server-side export
+export const metadata: Metadata = {
+  title: 'Create Banner | VapeHub',
 };
 
-export default CreateBannerPage; 
+// This page.tsx is now a Server Component
+export default function CreateBannerPage() {
+  return <CreateBannerPageClient />;
+} 

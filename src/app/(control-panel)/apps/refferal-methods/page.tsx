@@ -1,15 +1,12 @@
-'use client';
-import RefferalMethodTable from 'src/@fuse/core/RefferalMethodTable/RefferalMethodTable';
-import RefferalHeader from './RefferalHeader';
+import { Metadata } from 'next';
+import RefferalMethodsPageClient from './RefferalMethodsPageClient';
 
-function RefferalMethodsPage() {
+// metadata is a server-side export
+export const metadata: Metadata = {
+  title: 'Referral Methods | VapeHub',
+};
 
-	return (
-		<div className="p-4">
-			<RefferalHeader />
-			<RefferalMethodTable />
-		</div>
-	);
-}
-
-export default RefferalMethodsPage; 
+// This page.tsx is now a Server Component
+export default function RefferalMethodsPage() {
+  return <RefferalMethodsPageClient />;
+} 

@@ -1,7 +1,13 @@
+import { Metadata } from 'next';
 import React from 'react';
 import EditFlashNewsForm from './EditFlashNewsForm';
 import { Box, Typography } from '@mui/material';
 import PageBreadcrumb from '@/components/PageBreadcrumb';
+
+// metadata is a server-side export
+export const metadata: Metadata = {
+  title: 'Edit Flash News | VapeHub',
+};
 
 const FlashNewsEditPage = () => {
   return ( 
@@ -12,7 +18,6 @@ const FlashNewsEditPage = () => {
       <EditFlashNewsForm  />
       </div>
       </Box>
-  
   )
 };
 export default FlashNewsEditPage; 

@@ -1,17 +1,12 @@
-'use client';
+import { Metadata } from 'next';
+import NewRefferalMethodPageClient from './NewRefferalMethodPageClient';
 
-import { Box, Typography } from "@mui/material";
-import RefferalMethodForm from "./RefferalMethodForm";
+// metadata is a server-side export
+export const metadata: Metadata = {
+  title: 'Create Referral Method | VapeHub',
+};
 
-function NewRefferalMethodPage() {
-	return (
-      <Box sx={{ p: 3 }}>
-      <Typography variant="h5" component="h2" gutterBottom sx={{ mb: 3, fontWeight: 'bold' }}>
-        Create New Refferal Method
-      </Typography>
-      <RefferalMethodForm />
-      </Box>
-	);
-}
-
-export default NewRefferalMethodPage; 
+// This page.tsx is now a Server Component
+export default function NewRefferalMethodPage() {
+  return <NewRefferalMethodPageClient />;
+} 
