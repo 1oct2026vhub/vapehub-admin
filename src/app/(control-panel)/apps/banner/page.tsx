@@ -1,20 +1,12 @@
-'use client';
+import { Metadata } from 'next';
+import BannerPageClient from './BannerPageClient';
 
-import React from 'react';
-import BannerList from './BannerList';
-import PageBreadcrumb from '@/components/PageBreadcrumb'; // Assuming you have this for consistency
-import { Box, Typography } from '@mui/material';
-
-const BannerPage: React.FC = () => {
-  return (
-    <Box sx={{ p: 3 }}>
-      {/* You can add a PageBreadcrumb component here if you use it elsewhere */}
-      {/* <PageBreadcrumb title="Banners" /> */}
-      {/* The Typography for the main title is now inside BannerList for better layout control with the Add button */}
-      <PageBreadcrumb />  
-      <BannerList />
-    </Box>
-  );
+// metadata is a server-side export
+export const metadata: Metadata = {
+  title: 'Banners | VapeHub',
 };
 
-export default BannerPage; 
+// This page.tsx is now a Server Component
+export default function BannerPage() {
+  return <BannerPageClient />;
+} 

@@ -1,6 +1,12 @@
+import { Metadata } from 'next';
 import React from 'react';
 import CreateCarouselForm from './CreateCarouselForm';
 import { Box, Typography } from '@mui/material';
+
+// metadata is a server-side export
+export const metadata: Metadata = {
+  title: 'Create Carousel | VapeHub',
+};
 
 const CreateCarouselPage = () => {
   return (

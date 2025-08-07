@@ -1,17 +1,12 @@
-'use client';
+import { Metadata } from 'next';
+import CreateCouponPageClient from './CreateCouponPageClient';
 
-import { Box, Typography } from '@mui/material';
-import CouponForm from './CouponForm';
-import PageBreadcrumb from '@/components/PageBreadcrumb';
+// metadata is a server-side export
+export const metadata: Metadata = {
+  title: 'Create Coupon | VapeHub',
+};
 
+// This page.tsx is now a Server Component
 export default function CreateCouponPage() {
-  return (
-      <Box sx={{ p: 3 }}>
-        <PageBreadcrumb />
-      <Typography variant="h5" component="h2" gutterBottom sx={{ mb: 3, fontWeight: 'bold' }}>
-        Create New Coupon
-      </Typography>
-      <CouponForm />
-      </Box>
-  );
+  return <CreateCouponPageClient />;
 } 

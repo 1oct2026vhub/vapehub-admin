@@ -1,22 +1,12 @@
-'use client';
-import { useState, useCallback } from 'react';
-import RefferalMethodTable from 'src/@fuse/core/RefferalMethodTable/RefferalMethodTable';
-import LoyaltyHeader from './LoyalityHeader';
-import LoyaltyPointsTable from '@fuse/core/LoyaltyPointsTable/LoyaltyPointsTable';
+import { Metadata } from 'next';
+import LoyaltyPointsPageClient from './LoyaltyPointsPageClient';
 
-function RefferalMethodsPage() {
-	const [hasSettings, setHasSettings] = useState(false);
+// metadata is a server-side export
+export const metadata: Metadata = {
+  title: 'Loyalty Points | VapeHub',
+};
 
-	const handleSettingsUpdate = useCallback((settingsCount: number) => {
-		setHasSettings(settingsCount > 0);
-	}, []);
-
-	return (
-		<div className="p-4">
-			<LoyaltyHeader showCreateButton={!hasSettings} />
-      <LoyaltyPointsTable onSettingsUpdate={handleSettingsUpdate} />
-		</div>
-	);
-}
-
-export default RefferalMethodsPage; 
+// This page.tsx is now a Server Component
+export default function LoyaltyPointsPage() {
+  return <LoyaltyPointsPageClient />;
+} 

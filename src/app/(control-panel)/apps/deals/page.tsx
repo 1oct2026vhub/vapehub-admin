@@ -1,21 +1,12 @@
-'use client'
-import DealsTable from "@fuse/core/DealsTable";
-import DealsHeader from "./DealsHeader";
-import { useRouter } from "next/navigation";
+import { Metadata } from 'next';
+import DealsPageClient from './DealsPageClient';
 
-function DealsPage() {
-    const router = useRouter();
-    
-    const handleCreateClick = () => {
-        router.push('/apps/deals/deal-new');
-    };
+// metadata is a server-side export
+export const metadata: Metadata = {
+  title: 'Deals | VapeHub',
+};
 
-    return (
-        <div className="p-4">
-            <DealsHeader onCreateClick={handleCreateClick} />
-            <DealsTable />
-        </div>
-    );
-}
-
-export default DealsPage; 
+// This page.tsx is now a Server Component - deals list page
+export default function DealsPage() {
+  return <DealsPageClient />;
+} 

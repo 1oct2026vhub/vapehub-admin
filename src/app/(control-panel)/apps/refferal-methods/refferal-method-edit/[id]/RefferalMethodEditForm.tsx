@@ -130,9 +130,9 @@ const RefferalMethodEditForm: React.FC<RefferalMethodEditFormProps> = ({ referra
 
 	return (
 		<div>
-      <Typography variant="h5" component="h2" gutterBottom sx={{ mb: 3, fontWeight: 'bold' }}>
+      {/* <Typography variant="h5" component="h2" gutterBottom sx={{ mb: 3, fontWeight: 'bold' }}>
         Edit Referral Method
-      </Typography>
+      </Typography> */}
 			<Paper sx={{ p: { xs: 2, md: 4 }, borderRadius: 2, boxShadow: 3, bgcolor: 'white' }}>
 				<form onSubmit={handleSubmit(onSubmit)}>
 					<Grid container spacing={3}>

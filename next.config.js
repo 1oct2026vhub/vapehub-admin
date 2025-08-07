@@ -13,7 +13,7 @@ const nextConfig = {
     domains: ["vapehub-dev.s3.eu-central-1.amazonaws.com", "www.vapehub.co.uk"],
   },
   experimental: {
-    esmExternals: false, // Ensure compatibility with CKEditor
+    esmExternals: true, // Ensure compatibility with CKEditor
   },
 };
 

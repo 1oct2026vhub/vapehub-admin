@@ -1,9 +1,12 @@
-'use client'
-import InventoryApp from "./InventoryApp";
+import { Metadata } from 'next';
+import InventoryPageClient from './InventoryPageClient';
 
+// metadata is a server-side export
+export const metadata: Metadata = {
+  title: 'Inventory | VapeHub',
+};
 
-function InventoryPage() {
-    return <InventoryApp />
-}
-
-export default InventoryPage; 
+// This page.tsx is now a Server Component
+export default function InventoryPage() {
+  return <InventoryPageClient />;
+} 

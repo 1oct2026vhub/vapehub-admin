@@ -1,19 +1,12 @@
-'use client';
+import { Metadata } from 'next';
+import NewMailSubscriptionSettingPageClient from './NewMailSubscriptionSettingPageClient';
 
-import { Typography } from '@mui/material';
-import MailSubscriptionSettingForm from '../_components/MailSubscriptionSettingForm';
-import PageBreadcrumb from '@/components/PageBreadcrumb';
+// metadata is a server-side export
+export const metadata: Metadata = {
+  title: 'New Mail Subscription Setting | VapeHub',
+};
 
-function NewMailSubscriptionSettingPage() {
-	return (
-		<div className="w-full flex flex-col min-h-full p-8">
-      <PageBreadcrumb />
-      <Typography className="text-4xl font-extrabold leading-none tracking-tight mb-4 mt-4">
-        New Mail Subscription Setting
-      </Typography>
-            <MailSubscriptionSettingForm />
-		</div>
-	);
-}
-
-export default NewMailSubscriptionSettingPage; 
+// This page.tsx is now a Server Component
+export default function NewMailSubscriptionSettingPage() {
+  return <NewMailSubscriptionSettingPageClient />;
+} 
