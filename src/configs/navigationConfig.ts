@@ -126,16 +126,17 @@ const navigationConfig: FuseNavItemType[] = [
   {
     id: "seo",
     title: "SEO",
-    type: "collapse",
+    type: "item",
+    url: "/apps/seo",
     icon: "heroicons-outline:globe-alt",
-    children: [
-      {
-        id: "seo.list",
-        title: "SEO List",
-        type: "item",
-        url: "/apps/seo",
-      },
-    ],
+    // children: [
+    //   {
+    //     id: "seo.list",
+    //     title: "SEO List",
+    //     type: "item",
+    //     url: "/apps/seo",
+    //   },
+    // ],
   },
   {
     id: "transaction",
@@ -146,19 +147,20 @@ const navigationConfig: FuseNavItemType[] = [
     url: "/apps/transaction/list",
   },
   {
-    id: "website",
-    title: "Website",
-    type: "collapse",
+    id: "footer",
+    title: "Footer",
+    type: "item",
+    url: "/apps/footer",
     icon: "heroicons-outline:globe-alt",
-    children: [
-      {
-        id: "footer",
-        title: "Footer Management",
-        type: "item",
-        url: "/apps/footer",
-        end: true,
-      },
-    ],
+    // children: [
+    //   {
+    //     id: "footer",
+    //     title: "Footer Management",
+    //     type: "item",
+    //     url: "/apps/footer",
+    //     end: true,
+    //   },
+    // ],
   },
     {
     id: "banner",

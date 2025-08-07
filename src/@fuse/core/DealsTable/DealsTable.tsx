@@ -21,13 +21,24 @@ import {
   ListItemIcon,
   Switch,
   FormControlLabel,
+  Autocomplete,
+  CircularProgress,
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import ClearFiltersButton from '@/components/Shared/ClearFiltersButton';
+import FormTextField from '@/components/Shared/FormTextField';
 import { getDeals, Deal, FetchDealsParams, deleteDeal, restoreDeal } from '@/services/apiDeals';
+import { listProducts } from '@/services/apiProduct';
 import FuseSvgIcon from '@fuse/core/FuseSvgIcon';
 import { useRouter } from 'next/navigation';
 import { useSnackbar } from '@/contexts/SnackbarContext';
+import debounce from 'lodash/debounce';
+
+interface Product {
+  id: number;
+  name: string;
+  description?: string;
+}
 
 const DealsTable: React.FC = () => {
   const [search, setSearch] = useState('');
@@ -43,12 +54,20 @@ const DealsTable: React.FC = () => {
   const [deals, setDeals] = useState<Deal[]>([]);
   const [total, setTotal] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
+  
+  // Product filter states
+  const [productSearch, setProductSearch] = useState('');
+  const [debouncedProductSearch, setDebouncedProductSearch] = useState('');
+  const [products, setProducts] = useState<Product[]>([]);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [isLoadingProducts, setIsLoadingProducts] = useState(false);
+  
   const router = useRouter();
   const { showSnackbar } = useSnackbar();
 
   const areFiltersActive = useMemo(() => {
-    return search !== '' || status !== '' || validNow !== null || isDeleted !== null;
-  }, [search, status, validNow, isDeleted]);
+    return search !== '' || status !== '' || validNow !== null || isDeleted !== null || selectedProduct !== null;
+  }, [search, status, validNow, isDeleted, selectedProduct]);
 
   const clearFilters = () => {
     setSearch('');
@@ -57,15 +76,67 @@ const DealsTable: React.FC = () => {
     setDealType('BUY_N_FOR_FIXED');
     setValidNow(null);
     setIsDeleted(null);
+    setSelectedProduct(null);
+    setProductSearch('');
+    setDebouncedProductSearch('');
     setPage(1);
   };
 
+  // Debounced search for deals
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearch(search);
     }, 500);
     return () => clearTimeout(timer);
   }, [search]);
+
+  // Debounced search for products
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedProductSearch(productSearch);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [productSearch]);
+
+  // Fetch products for autocomplete
+  const fetchProducts = useCallback(async (searchTerm: string) => {
+    if (!searchTerm.trim()) {
+      // Load first 50 products when no search term
+      try {
+        setIsLoadingProducts(true);
+        const response = await listProducts({ limit: 50 });
+        setProducts(response.data?.products || []);
+      } catch (error) {
+        showSnackbar('Failed to fetch products', 'error');
+      } finally {
+        setIsLoadingProducts(false);
+      }
+      return;
+    }
+
+    try {
+      setIsLoadingProducts(true);
+      const response = await listProducts({ 
+        keyword: searchTerm,
+        limit: 20 
+      });
+      setProducts(response.data?.products || []);
+    } catch (error) {
+      showSnackbar('Failed to search products', 'error');
+    } finally {
+      setIsLoadingProducts(false);
+    }
+  }, [showSnackbar]);
+
+  // Load initial products
+  useEffect(() => {
+    fetchProducts('');
+  }, [fetchProducts]);
+
+  // Search products when debounced search changes
+  useEffect(() => {
+    fetchProducts(debouncedProductSearch);
+  }, [debouncedProductSearch, fetchProducts]);
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);
@@ -76,6 +147,7 @@ const DealsTable: React.FC = () => {
       if (dealType) params.type = dealType;
       if (validNow !== null) params.validNow = validNow;
       if (isDeleted !== null) params.deleted = isDeleted;
+      if (selectedProduct) params.product_id = selectedProduct.id;
       
       const res = await getDeals(params);
       setDeals(res.data.deals || []);
@@ -85,7 +157,7 @@ const DealsTable: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [page, limit, debouncedSearch, status, dealType, validNow, isDeleted, showSnackbar]);
+  }, [page, limit, debouncedSearch, status, dealType, validNow, isDeleted, selectedProduct, showSnackbar]);
 
   useEffect(() => {
     fetchData();
@@ -160,7 +232,7 @@ const DealsTable: React.FC = () => {
     <div>
       <Paper className="flex flex-col flex-auto shadow-1 overflow-hidden" elevation={0}>
         <div className="flex items-center p-3 flex-wrap gap-2">
-          {/* <TextField
+          <TextField
             label="Search"
             variant="outlined"
             value={search}
@@ -176,7 +248,43 @@ const DealsTable: React.FC = () => {
             sx={{
               minWidth: 180,
             }}
-          /> */}
+          />
+          <Autocomplete
+            options={products}
+            getOptionLabel={(option) => option.name}
+            value={selectedProduct}
+            onChange={(_, newValue) => setSelectedProduct(newValue)}
+            inputValue={productSearch}
+            onInputChange={(_, newInputValue) => setProductSearch(newInputValue)}
+            loading={isLoadingProducts}
+            size="small"
+            sx={{ minWidth: 250 }}
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                label="Filter by Product"
+                InputProps={{
+                  ...params.InputProps,
+                  endAdornment: (
+                    <>
+                      {isLoadingProducts ? <CircularProgress color="inherit" size={20} /> : null}
+                      {params.InputProps.endAdornment}
+                    </>
+                  ),
+                }}
+              />
+            )}
+            renderOption={(props, option) => (
+              <li {...props}>
+                <div>
+                  <div className="font-medium">{option.name}</div>
+                </div>
+              </li>
+            )}
+            isOptionEqualToValue={(option, value) => option.id === value.id}
+            noOptionsText={productSearch ? "No products found" : "Type to search products"}
+            clearOnBlur={false}
+          />
           <Select
             value={status}
             onChange={e => setStatus(e.target.value)}
