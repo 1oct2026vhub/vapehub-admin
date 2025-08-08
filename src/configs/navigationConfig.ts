@@ -272,6 +272,13 @@ const navigationConfig: FuseNavItemType[] = [
     icon: "heroicons-outline:phone",
     url: "/apps/contact-us"
   },
+  {
+    id: "welcome",
+    title: "Welcome",
+    type: "item",
+    icon: "heroicons-outline:hand-raised",
+    url: "/apps/welcome"
+  },
   
 ];
 
