@@ -30,6 +30,7 @@ const reviewSchema = z.object({
   rating: z.string().min(1, 'Rating is required'),
   comment: z.string().min(1, 'Comment is required').min(10, 'Comment must be at least 10 characters').max(1000, 'Comment must be less than 1000 characters'),
   is_visible: z.boolean().default(true),
+  testimonial: z.boolean().default(false),
 }).refine((data) => {
   const num = parseInt(data.rating);
   return !isNaN(num) && num >= 1 && num <= 5;
@@ -84,6 +85,7 @@ const ReviewCreateModal: React.FC<ReviewCreateModalProps> = ({
           rating: initialData.rating.toString(),
           comment: initialData.comment,
           is_visible: initialData.is_visible,
+          testimonial: initialData.testimonial || false,
         });
 
         if (initialData.product_id) {
@@ -109,6 +111,7 @@ const ReviewCreateModal: React.FC<ReviewCreateModalProps> = ({
           rating: '',
           comment: '',
           is_visible: true,
+          testimonial: false,
         });
         setEditedProduct(null);
       }
@@ -155,6 +158,7 @@ const ReviewCreateModal: React.FC<ReviewCreateModalProps> = ({
         rating: parseInt(data.rating),
         comment: data.comment,
         is_visible: data.is_visible,
+        testimonial: data.testimonial,
       };
       
       if (isEditMode && initialData) {
@@ -299,21 +303,38 @@ const ReviewCreateModal: React.FC<ReviewCreateModalProps> = ({
             />
 
             {/* Visibility Toggle */}
-            <Controller
-              name="is_visible"
-              control={control}
-              render={({ field }) => (
-                <FormControlLabel
-                  control={
-                    <Switch
-                      checked={field.value}
-                      onChange={field.onChange}
-                    />
-                  }
-                  label="Visible to public"
-                />
-              )}
-            />
+            <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+              <Controller
+                name="is_visible"
+                control={control}
+                render={({ field }) => (
+                  <FormControlLabel
+                    control={
+                      <Switch
+                        checked={field.value}
+                        onChange={field.onChange}
+                      />
+                    }
+                    label="Visible to public"
+                  />
+                )}
+              />
+              <Controller
+                name="testimonial"
+                control={control}
+                render={({ field }) => (
+                  <FormControlLabel
+                    control={
+                      <Switch
+                        checked={field.value}
+                        onChange={field.onChange}
+                      />
+                    }
+                    label="Show as testimonial"
+                  />
+                )}
+              />
+            </Box>
           </Box>
         </DialogContent>
         <DialogActions>
