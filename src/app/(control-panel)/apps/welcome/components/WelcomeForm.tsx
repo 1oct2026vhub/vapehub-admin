@@ -15,7 +15,7 @@ import { useSnackbar } from '@/contexts/SnackbarContext';
 const welcomeSchema = z.object({
   title: z.string().min(1, 'Title is required'),
   content: z.string().min(1, 'Content is required'),
-  image: z.any().optional(),
+  image: z.any().refine((value) => value, { message: 'Image is required' }),
 });
 
 type WelcomeFormData = z.infer<typeof welcomeSchema>;
@@ -78,6 +78,7 @@ const WelcomeForm: React.FC<{}> = () => {
             name="image"
             control={control}
             label="Image"
+            required
             defaultImage={control._defaultValues.image}
           />
         </div>

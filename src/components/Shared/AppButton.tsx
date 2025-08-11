@@ -1,3 +1,4 @@
+"use client";
 import React, { ElementType } from "react";
 import Button, { ButtonProps as MuiButtonProps } from "@mui/material/Button";
 import CircularProgress from "@mui/material/CircularProgress";
@@ -29,7 +30,6 @@ interface GradientButtonStyledProps extends MuiButtonProps {
 const GradientButton = styled(Button, {
   shouldForwardProp: (propName) => propName !== 'disableGradient',
 })<GradientButtonStyledProps>(({ theme, disabled, disableGradient, variant }) => {
-  
   if (!disableGradient && (variant === 'contained' || variant === undefined)) {
     const styles: any = {
       background: disabled

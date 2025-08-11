@@ -279,6 +279,13 @@ const navigationConfig: FuseNavItemType[] = [
     icon: "heroicons-outline:hand-raised",
     url: "/apps/welcome"
   },
+  {
+    id: "feature-content",
+    title: "Feature Content",
+    type: "item",
+    icon: "heroicons-outline:sparkles",
+    url: "/apps/feature-content"
+  },
   
 ];
 
