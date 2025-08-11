@@ -36,7 +36,7 @@ interface FeatureContentListProps {
 const FeatureContentList: React.FC<FeatureContentListProps> = ({ openCreate, onCreateClosed }) => {
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [deleted, setDeleted] = useState<boolean | null>(null);
+  const [deleted, setDeleted] = useState<boolean>(false);
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
   const [featureContents, setFeatureContents] = useState<FeatureContent[]>([]);
@@ -54,14 +54,14 @@ const FeatureContentList: React.FC<FeatureContentListProps> = ({ openCreate, onC
   }, [openCreate]);
 
   const areFiltersActive = useMemo(() => {
-    return search !== '' || deleted !== null || status !== '';
+    return search !== '' || deleted || status !== '';
   }, [search, deleted, status]);
 
   const clearFilters = () => {
     setSearch('');
     setDebouncedSearch('');
     setStatus('');
-    setDeleted(null);
+    setDeleted(false);
     setPage(1);
   };
 
@@ -174,14 +174,12 @@ const FeatureContentList: React.FC<FeatureContentListProps> = ({ openCreate, onC
             <MenuItem value="inactive">Inactive</MenuItem>
           </Select>
           <Select
-            value={deleted === null ? '' : deleted ? 'true' : 'false'}
-            onChange={e => setDeleted(e.target.value === '' ? null : e.target.value === 'true')}
-            displayEmpty
+            value={deleted ? 'true' : 'false'}
+            onChange={e => setDeleted(e.target.value === 'true')}
             size="small"
             sx={{ minWidth: 140, mx: 1 }}
           >
-            <MenuItem value="">All</MenuItem>
-            <MenuItem value="false">Not Deleted</MenuItem>
+            <MenuItem value="false">Active</MenuItem>
             <MenuItem value="true">Deleted</MenuItem>
           </Select>
           {areFiltersActive && <ClearFiltersButton onClick={clearFilters} />}
@@ -190,6 +188,7 @@ const FeatureContentList: React.FC<FeatureContentListProps> = ({ openCreate, onC
           data={featureContents}
           columns={columns}
           renderRowActionMenuItems={({ closeMenu, row }) => [
+            !row.original.deletedAt && 
             <MenuItem key="edit" onClick={() => { setEditItem(row.original); setIsCreateOpen(true); closeMenu(); }}>
               <ListItemIcon>
                 <FuseSvgIcon>heroicons-outline:pencil-square</FuseSvgIcon>
