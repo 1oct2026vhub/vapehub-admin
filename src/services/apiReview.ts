@@ -10,6 +10,7 @@ export interface Review {
     rating: number;
     comment: string;
     is_visible: boolean;
+    testimonial?: boolean;
     created_at: string;
     updated_at: string;
     product?: {
@@ -24,6 +25,7 @@ export interface CreateReviewData {
     rating: number;
     comment: string;
     is_visible: boolean;
+    testimonial?: boolean;
 }
 
 export interface FetchReviewsParams {
