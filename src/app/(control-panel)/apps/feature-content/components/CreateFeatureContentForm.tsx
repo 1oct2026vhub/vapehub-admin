@@ -48,7 +48,7 @@ const ConfirmationDialog: React.FC<{
 
 
 const CreateFeatureContentForm: React.FC<Props> = ({ item, onSuccess, onCancel }) => {
-  const { control, handleSubmit, setValue, watch, reset } = useForm<FormValues>({
+  const { control, handleSubmit, setValue, watch, reset, setError, clearErrors } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
       title: item?.title || '',
@@ -190,50 +190,90 @@ const CreateFeatureContentForm: React.FC<Props> = ({ item, onSuccess, onCancel }
           name="icon_id"
           control={control}
           render={({ fieldState }) => (
-            <Stack direction="row" spacing={2} alignItems="center">
-              <Button
-                variant="outlined"
-                onClick={(e) => setIconAnchorEl(e.currentTarget)}
-              >
-                {selectedIconName ? 'Change Icon' : 'Add Icon'}
-              </Button>
-              <input
-                id="new-icon-input"
-                type="file"
-                accept="image/png, image/jpeg, image/gif, image/svg+xml"
-                style={{ display: 'none' }}
-                onChange={async (ev) => {
-                  const file = (ev.target as HTMLInputElement).files?.[0];
-                  if (!file) return;
-                  try {
-                    const res = await addFeatureIcon(file);
-                    if (res?.success && res?.data?.icon) {
-                      const icon = res.data.icon;
-                      setValue('icon_id', icon.id, { shouldValidate: true });
-                      setSelectedIconName(icon.file_name);
-                      setSelectedIconUrl(icon.icon_url);
-                      showSnackbar('Icon added successfully', 'success');
-                    } else {
-                      showSnackbar(res?.message || 'Failed to add icon', 'error');
+            <Stack spacing={1.5}>
+              <Stack direction="row" spacing={2} alignItems="center">
+                <Button
+                  variant="outlined"
+                  onClick={(e) => setIconAnchorEl(e.currentTarget)}
+                >
+                  {selectedIconName ? 'Change Icon' : 'Add Icon'}
+                </Button>
+                <input
+                  id="new-icon-input"
+                  type="file"
+                  accept="image/png, image/jpeg, image/gif, image/svg+xml"
+                  style={{ display: 'none' }}
+                  onChange={async (ev) => {
+                    const inputEl = ev.target as HTMLInputElement;
+                    const file = inputEl.files?.[0];
+                    if (!file) return;
+
+                    // Validate dimensions must be exactly 58x58 px
+                    const validateDimensions = () =>
+                      new Promise<void>((resolve, reject) => {
+                        const img = new Image();
+                        const objectUrl = URL.createObjectURL(file);
+                        img.onload = () => {
+                          const width = (img as any).naturalWidth || img.width;
+                          const height = (img as any).naturalHeight || img.height;
+                          URL.revokeObjectURL(objectUrl);
+                          if (width === 58 && height === 58) {
+                            clearErrors('icon_id');
+                            resolve();
+                          } else {
+                            setError('icon_id', { type: 'validate', message: 'Icon must be exactly 58×58 px.' });
+                            reject(new Error('INVALID_DIMENSIONS'));
+                          }
+                        };
+                        img.onerror = () => {
+                          URL.revokeObjectURL(objectUrl);
+                          setError('icon_id', { type: 'validate', message: 'Failed to read image.' });
+                          reject(new Error('LOAD_ERROR'));
+                        };
+                        img.src = objectUrl;
+                      });
+
+                    try {
+                      await validateDimensions();
+                    } catch (e) {
+                      // showSnackbar('Please upload an icon with exact 58×58 px dimensions.', 'error');
+                      inputEl.value = '';
+                      return;
                     }
-                  } catch (e: any) {
-                    showSnackbar(e?.response?.data?.message || e?.message || 'Failed to add icon', 'error');
-                  } finally {
-                    (ev.target as HTMLInputElement).value = '';
-                  }
-                }}
-              />
-              <Button variant="outlined" onClick={() => document.getElementById('new-icon-input')?.click()}>
-                Add New Icon
-              </Button>
-              {selectedIconUrl ? (
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, border: '1px solid', borderColor: 'divider', borderRadius: '4px', p: 0.5, pl: 1, pr: 1 }}>
-                  <img src={selectedIconUrl} alt={selectedIconName} style={{ width: 24, height: 24, objectFit: 'contain' }} />
-                  <Typography variant="body2" color="textSecondary" noWrap>{selectedIconName}</Typography>
-                </Box>
-              ) : selectedIconName ? (
-                <Typography variant="body2" color="textSecondary">{selectedIconName}</Typography>
-              ) : null}
+
+                    try {
+                      const res = await addFeatureIcon(file);
+                      if (res?.success && res?.data?.icon) {
+                        const icon = res.data.icon;
+                        setValue('icon_id', icon.id, { shouldValidate: true });
+                        setSelectedIconName(icon.file_name);
+                        setSelectedIconUrl(icon.icon_url);
+                        showSnackbar('Icon added successfully', 'success');
+                      } else {
+                        showSnackbar(res?.message || 'Failed to add icon', 'error');
+                      }
+                    } catch (e: any) {
+                      showSnackbar(e?.response?.data?.message || e?.message || 'Failed to add icon', 'error');
+                    } finally {
+                      inputEl.value = '';
+                    }
+                  }}
+                />
+                <Button variant="outlined" onClick={() => document.getElementById('new-icon-input')?.click()}>
+                  Add New Icon
+                </Button>
+                {selectedIconUrl ? (
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, border: '1px solid', borderColor: 'divider', borderRadius: '4px', p: 0.5, pl: 1, pr: 1 }}>
+                    <img src={selectedIconUrl} alt={selectedIconName} style={{ width: 24, height: 24, objectFit: 'contain' }} />
+                    <Typography variant="body2" color="textSecondary" noWrap>{selectedIconName}</Typography>
+                  </Box>
+                ) : selectedIconName ? (
+                  <Typography variant="body2" color="textSecondary">{selectedIconName}</Typography>
+                ) : null}
+              </Stack>
+              <Typography variant="caption" color="textSecondary">
+                Recommended icon size: 58×58 px.
+              </Typography>
               {fieldState.error && (
                 <Typography variant="caption" color="error">{fieldState.error.message}</Typography>
               )}
