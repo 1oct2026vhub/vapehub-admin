@@ -200,7 +200,9 @@ const variantSchema = z.object({
   stockStatus: z.enum(["In Stock", "Out of Stock", "Back Order"]).default("In Stock"), // Keep as is for UI logic
   depositPrice: z.preprocess(
     (val) => {
-      if (val === "" || val === null || val === undefined) return null; // Allow null
+      // Treat cleared input as 0 to avoid triggering other field validations
+      if (val === "") return 0;
+      if (val === null || val === undefined) return null; // Allow null
       const parsed = Number(val);
       return isNaN(parsed) ? "NaN" : parsed;
     },
@@ -242,65 +244,52 @@ const variantSchema = z.object({
   ),
   lowStockThreshold: z.preprocess( // Use correct casing
     (val) => {
-      if (val === "" || val === null || val === undefined) return null; // Allow null
-      const parsed = Number(val);
-      return isNaN(parsed) ? "NaN" : parsed;
+      const v = typeof val === 'string' ? val.trim() : val;
+      if (v === "" || v === null || v === undefined) return undefined; // Return undefined for empty values
+      const parsed = Number(v);
+      return isNaN(parsed) ? undefined : parsed; // Return undefined for invalid numbers
     },
-    z.union([
-      z.literal("NaN").refine(() => false, "Please enter a valid number for low stock threshold"),
-      z.number()
-        .int("Low stock threshold must be a whole number")
-        .min(0, "Low stock threshold cannot be negative"),
-      z.null(), // Allow null
-    ]).optional() // Make the whole field optional
+    z.number()
+      .int("Low stock threshold must be a whole number")
+      .min(0, "Low stock threshold cannot be negative")
+      .optional()
+      .nullable()
   ),
   weight: z.preprocess(
     (val) => {
-      if (val === "" || val === null || val === undefined) return null; // Allow null
-      const parsed = Number(val);
-      return isNaN(parsed) ? "NaN" : parsed;
+      const v = typeof val === 'string' ? val.trim() : val;
+      if (v === "" || v === null || v === undefined) return undefined; // Return undefined for empty values
+      const parsed = Number(v);
+      return isNaN(parsed) ? undefined : parsed; // Return undefined for invalid numbers
     },
-    z.union([
-      z.literal("NaN").refine(() => false, "Please enter a valid number for weight"),
-      z.number().min(0, "Weight cannot be negative"),
-      z.null(), // Allow null
-    ]).optional() // Make the whole field optional
+    z.number().min(0, "Weight cannot be negative").optional().nullable()
   ),
   length: z.preprocess(
     (val) => {
-      if (val === "" || val === null || val === undefined) return null; // Allow null
-      const parsed = Number(val);
-      return isNaN(parsed) ? "NaN" : parsed;
+      const v = typeof val === 'string' ? val.trim() : val;
+      if (v === "" || v === null || v === undefined) return undefined; // Return undefined for empty values
+      const parsed = Number(v);
+      return isNaN(parsed) ? undefined : parsed; // Return undefined for invalid numbers
     },
-    z.union([
-      z.literal("NaN").refine(() => false, "Please enter a valid number for length"),
-      z.number().min(0, "Length cannot be negative"),
-      z.null(), // Allow null
-    ]).optional() // Make the whole field optional
+    z.number().min(0, "Length cannot be negative").optional().nullable()
   ),
   width: z.preprocess(
     (val) => {
-      if (val === "" || val === null || val === undefined) return null; // Allow null
-      const parsed = Number(val);
-      return isNaN(parsed) ? "NaN" : parsed;
+      const v = typeof val === 'string' ? val.trim() : val;
+      if (v === "" || v === null || v === undefined) return undefined; // Return undefined for empty values
+      const parsed = Number(v);
+      return isNaN(parsed) ? undefined : parsed; // Return undefined for invalid numbers
     },
-    z.union([
-      z.literal("NaN").refine(() => false, "Please enter a valid number for width"),
-      z.number().min(0, "Width cannot be negative"),
-      z.null(), // Allow null
-    ]).optional() // Make the whole field optional
+    z.number().min(0, "Width cannot be negative").optional().nullable()
   ),
   height: z.preprocess(
     (val) => {
-      if (val === "" || val === null || val === undefined) return null; // Allow null
-      const parsed = Number(val);
-      return isNaN(parsed) ? "NaN" : parsed;
+      const v = typeof val === 'string' ? val.trim() : val;
+      if (v === "" || v === null || v === undefined) return undefined; // Return undefined for empty values
+      const parsed = Number(v);
+      return isNaN(parsed) ? undefined : parsed; // Return undefined for invalid numbers
     },
-    z.union([
-      z.literal("NaN").refine(() => false, "Please enter a valid number for height"),
-      z.number().min(0, "Height cannot be negative"),
-      z.null(), // Allow null
-    ]).optional() // Make the whole field optional
+    z.number().min(0, "Height cannot be negative").optional().nullable()
   ),
   barcode: z.string()
     .refine(val => !val || (val.length >= 3 && val.length <= 50), { 
@@ -811,12 +800,12 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
     getValues, // Ensure getValues is destructured here
   } = useForm<VariantFormData>({
     resolver: zodResolver(variantSchema),
-    mode: "all",
+    mode: "onSubmit", 
     // --- EDIT: Use simple null/defaults matching simplified schema ---
     defaultValues: { 
       slug: "",
-      regular_price: null as any, // Required, but start as null for RHF
-      stock: null as any, // Required, but start as null for RHF
+      regular_price: null as any, 
+      stock: null as any, 
       status: "active", 
       depositPrice: null,
       purchasePrice: null,
@@ -826,8 +815,8 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
       width: null,
       height: null,
       barcode: null, 
-      description: null, 
-      stockStatus: "In Stock", // UI field
+      description: null,
+      stockStatus: "In Stock",
     },
     // --- END EDIT ---
   });
@@ -843,7 +832,7 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
     trigger: triggerCreate,
   } = useForm<VariantFormData>({
     resolver: zodResolver(variantSchema),
-    mode: "all", 
+    mode: "onSubmit", 
     // --- EDIT: Use simple null/defaults matching simplified schema ---
     defaultValues: { 
       slug: "",
@@ -2533,17 +2522,10 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
           setIsSubmitting(false);
           return;
       }      
-      // Retrieve original attributes from selectedVariant state for API payload
-      const attributePayload = Object.entries(originalVariant.attributes)
-        .map(([attrName, termName]) => {
-          const attribute = productAttributes.find(attr => attr.name === attrName);
-          if (!attribute) return null;
-          const terms = attributeTerms[attribute.id] || [];
-          const term = terms.find(t => t.name === termName);
-          if (!term) return null;
-          return { attribute_id: attribute.id, term_id: term.id };
-        })
-        .filter(item => item !== null) as { attribute_id: number; term_id: number }[];
+      // Use the correct source of truth for attributes to prevent incorrect change detection.
+      const attributePayload = (originalVariant.variantAttributes || []).map(
+        ({ attribute_id, term_id }) => ({ attribute_id, term_id })
+      );
 
       // Helper function (can be moved outside if used elsewhere)
       const transformOptionalNumber = (value: number | string | null | undefined): number | null => {
@@ -2587,24 +2569,58 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
       // Compare attributes (simple JSON comparison)
       const currentAttributePayloadString = JSON.stringify(attributePayload.sort((a,b) => a.attribute_id - b.attribute_id));
       const originalAttributePayloadString = JSON.stringify((originalVariant.variantAttributes || []).map(a => ({attribute_id: a.attribute_id, term_id: a.term_id})).sort((a,b) => a.attribute_id - b.attribute_id));
-      if (currentAttributePayloadString !== originalAttributePayloadString) { apiPayload.attributes = attributePayload; hasChanges = true; }
+      if (attributePayload.length > 0 && currentAttributePayloadString !== originalAttributePayloadString) {
+        apiPayload.attributes = attributePayload;
+        hasChanges = true;
+      }
 
       // --- EDIT: Check and include stock_status if changed --- 
       const formStockStatusApi = mapFormStockStatusToApi(data.stockStatus); // Map form value to API format
-      const originalStockStatusApi = originalVariant.stock_status; // Use API value directly
+      // Normalize original stock status to ensure a consistent comparison format
+      const normalizedOriginalStockStatusApi = mapFormStockStatusToApi(getValidStockStatus(originalVariant.stock_status));
       
-      if (formStockStatusApi !== originalStockStatusApi) {
+      if (formStockStatusApi !== normalizedOriginalStockStatusApi) {
         apiPayload.stock_status = formStockStatusApi; 
-        hasChanges = true;
+        hasChanges = true; 
       }
-      // --- END EDIT --- 
+      // --- END EDIT ---
 
       // Optional fields (compare simple types, use API names)
+      const saleCleared =
+        (data.depositPrice as any) === '' || data.depositPrice === null || data.depositPrice === undefined;
       const currentDeposit = transformPriceNumber(data.depositPrice);
-      if (currentDeposit !== transformPriceNumber(originalVariant.discount_price)) { apiPayload.discount_price = currentDeposit; hasChanges = true; }
+      const originalDeposit = transformPriceNumber(originalVariant.discount_price);
+      
+      // Only include in payload if there's an actual change
+      if (saleCleared && originalDeposit !== 0) {
+        apiPayload.discount_price = 0; // When cleared, send 0 for sale price
+        hasChanges = true;
+        console.log("Sale price cleared - setting to 0");
+      } else if (!saleCleared && currentDeposit !== originalDeposit) {
+        apiPayload.discount_price = currentDeposit;
+        hasChanges = true;
+        console.log("Sale price changed:", { currentDeposit, originalDeposit, formValue: data.depositPrice });
+      } else {
+        console.log("Sale price unchanged:", { currentDeposit, originalDeposit, formValue: data.depositPrice });
+      }
 
+      const purchaseCleared =
+        (data.purchasePrice as any) === '' || data.purchasePrice === null || data.purchasePrice === undefined;
       const currentPurchase = transformPriceNumber(data.purchasePrice);
-      if (currentPurchase !== transformPriceNumber(originalVariant.purchase_price)) { apiPayload.purchase_price = currentPurchase; hasChanges = true; }
+      const originalPurchase = transformPriceNumber(originalVariant.purchase_price);
+      
+      // Only include in payload if there's an actual change
+      if (purchaseCleared && originalPurchase !== 0) {
+        apiPayload.purchase_price = 0; // Explicitly send 0 when user clears the field
+        hasChanges = true;
+        console.log("Purchase price cleared - setting to 0");
+      } else if (!purchaseCleared && currentPurchase !== originalPurchase) {
+        apiPayload.purchase_price = currentPurchase;
+        hasChanges = true;
+        console.log("Purchase price changed:", { currentPurchase, originalPurchase, formValue: data.purchasePrice });
+      } else {
+        console.log("Purchase price unchanged:", { currentPurchase, originalPurchase, formValue: data.purchasePrice });
+      }
 
       const currentLowStock = transformOptionalNumber(data.lowStockThreshold); // Use correct casing for form data
       if (currentLowStock !== transformOptionalNumber(originalVariant.low_stock_threshold)) { apiPayload.low_stock_threshold = currentLowStock; hasChanges = true; } // API uses snake_case
@@ -2633,6 +2649,17 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
           setIsSubmitting(false);
           return;
       }
+
+      // If other fields have changed, we must include the original attributes
+      // in the payload, otherwise the API may remove them.
+      if (hasChanges && attributePayload.length > 0) {
+        apiPayload.attributes = attributePayload;
+      }
+
+      // Debug: Log the payload being sent to API
+      console.log("API Payload being sent:", apiPayload);
+      console.log("Original variant data:", originalVariant);
+      console.log("Form data:", data);
 
       const numericProductId = Number(productId);
       const numericVariantId = Number(variantId);
@@ -2664,8 +2691,8 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
               // --- Add stockStatus update here --- 
               stock_status: mapFormStockStatusToApi(data.stockStatus), 
               // --- End Add --- 
-              discount_price: String(transformOptionalNumber(data.depositPrice)),
-              purchase_price: String(transformOptionalNumber(data.purchasePrice)),
+              discount_price: String(saleCleared ? 0 : transformPriceNumber(data.depositPrice)),
+              purchase_price: String(purchaseCleared ? 0 : transformPriceNumber(data.purchasePrice)),
               low_stock_threshold: transformOptionalNumber(data.lowStockThreshold), // Use correct casing
               weight: String(transformOptionalNumber(data.weight)),
               length: String(transformOptionalNumber(data.length)),
