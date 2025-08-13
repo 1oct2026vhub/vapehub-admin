@@ -1162,8 +1162,14 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
       if (dirtyFields.slug) apiPayload.slug = data.slug;
       if (dirtyFields.regular_price) apiPayload.regular_price = transformOptionalNumber(data.regular_price);
       if (dirtyFields.stock) apiPayload.stock = transformOptionalNumber(data.stock);
-      if (dirtyFields.depositPrice) apiPayload.discount_price = transformOptionalNumber(data.depositPrice);
-      if (dirtyFields.purchasePrice) apiPayload.purchase_price = transformOptionalNumber(data.purchasePrice);
+      if (dirtyFields.depositPrice) {
+        const saleCleared = (data.depositPrice as any) === '' || data.depositPrice === null || data.depositPrice === undefined;
+        apiPayload.discount_price = saleCleared ? 0 : transformOptionalNumber(data.depositPrice);
+      }
+      if (dirtyFields.purchasePrice) {
+        const purchaseCleared = (data.purchasePrice as any) === '' || data.purchasePrice === null || data.purchasePrice === undefined;
+        apiPayload.purchase_price = purchaseCleared ? 0 : transformOptionalNumber(data.purchasePrice);
+      }
       if (dirtyFields.lowStockThreshold) apiPayload.low_stock_threshold = transformOptionalNumber(data.lowStockThreshold);
       if (dirtyFields.weight) apiPayload.weight = transformOptionalNumber(data.weight);
       if (dirtyFields.length) apiPayload.length = transformOptionalNumber(data.length);
