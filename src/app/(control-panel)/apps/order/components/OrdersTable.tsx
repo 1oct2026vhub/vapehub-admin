@@ -31,6 +31,7 @@ import OrderStatistics from "./OrderStatistics";
 import relativeTime from "dayjs/plugin/relativeTime";
 import useColumnOrder from "@/hooks/useColumnOrder";
 import { formatCustomerNameSafely } from "@/utils/actions";
+import { listProducts } from "@/services/apiProduct";
 
 // Initialize dayjs plugins
 dayjs.extend(relativeTime);
@@ -85,6 +86,13 @@ const OrdersTable = ({
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus | "">("");
   const searchDebounceRef = useRef<NodeJS.Timeout | null>(null);
   const [hasUserFiltered, setHasUserFiltered] = useState(false);
+  // Product filter state
+  interface Product { id: number; name: string }
+  const [products, setProducts] = useState<Product[]>([]);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [productSearch, setProductSearch] = useState("");
+  const [debouncedProductSearch, setDebouncedProductSearch] = useState("");
+  const [isLoadingProducts, setIsLoadingProducts] = useState(false);
   
   // Set default date filters - from 1 month ago to today
   const [startDateFilter, setStartDateFilter] = useState<dayjs.Dayjs | null>(
@@ -117,6 +125,7 @@ const OrdersTable = ({
       search !== "" ||
       status !== "" ||
       paymentStatus !== "" ||
+      selectedProduct !== null ||
       startDateFilter !== null || // Check for non-null start date
       endDateFilter !== null || // Check for non-null end date
       // Consider if default dates count as 'active'. Assuming null means 'not set'.
@@ -124,7 +133,7 @@ const OrdersTable = ({
       (initialStartDate && startDateFilter?.format("YYYY-MM-DD") !== initialStartDate) ||
       (initialEndDate && endDateFilter?.format("YYYY-MM-DD") !== initialEndDate)
     );
-  }, [search, status, paymentStatus, startDateFilter, endDateFilter, initialStartDate, initialEndDate]);
+  }, [search, status, paymentStatus, selectedProduct, startDateFilter, endDateFilter, initialStartDate, initialEndDate]);
   // --- END ADD ---
 
   // Clean up the timer when component unmounts
@@ -149,6 +158,7 @@ const OrdersTable = ({
         start_date: startDateFilter.format("YYYY-MM-DD"),
       }),
       ...(endDateFilter && { end_date: endDateFilter.format("YYYY-MM-DD") }),
+      ...(selectedProduct && { product_id: selectedProduct.id }),
     }),
     [
       sortBy,
@@ -158,6 +168,7 @@ const OrdersTable = ({
       search, // This will now only change after debounce
       startDateFilter,
       endDateFilter,
+      selectedProduct,
       page,
       limit,
     ]
@@ -206,6 +217,9 @@ const OrdersTable = ({
     if (searchDebounceRef.current) { // Clear any pending debounce timer
         clearTimeout(searchDebounceRef.current);
     }
+    setSelectedProduct(null);
+    setProductSearch("");
+    setDebouncedProductSearch("");
     setPage(1);
   }, []);
 
@@ -250,6 +264,43 @@ const OrdersTable = ({
       }
     }
   }, [data]);
+
+  // Debounce product search input
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedProductSearch(productSearch);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [productSearch]);
+
+  // Fetch products for product filter
+  const fetchProducts = useCallback(async (keyword: string) => {
+    try {
+      setIsLoadingProducts(true);
+      if (!keyword.trim()) {
+        const response = await listProducts({ limit: 50 });
+        setProducts(response.data?.products || []);
+      } else {
+        const response = await listProducts({ keyword, limit: 20 });
+        setProducts(response.data?.products || []);
+      }
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error('Failed to fetch products', err);
+    } finally {
+      setIsLoadingProducts(false);
+    }
+  }, []);
+
+  // Load initial products
+  useEffect(() => {
+    fetchProducts("");
+  }, [fetchProducts]);
+
+  // Fetch products on debounced search change
+  useEffect(() => {
+    fetchProducts(debouncedProductSearch);
+  }, [debouncedProductSearch, fetchProducts]);
 
   const handleViewDetails = useCallback((orderId: number) => {
     router.push(`/apps/order/detail/${orderId}`);
@@ -359,6 +410,12 @@ const OrdersTable = ({
               onClearFilters={handleClearFiltersWithInteraction}
               areFiltersActive={areFiltersActive}
               hasUserFiltered={hasUserFiltered}
+              products={products}
+              selectedProduct={selectedProduct}
+              productSearch={productSearch}
+              onProductChange={(product) => { setSelectedProduct(product); setHasUserFiltered(true); }}
+              onProductSearchChange={(value) => { setProductSearch(value); setHasUserFiltered(true); }}
+              isLoadingProducts={isLoadingProducts}
               className="hidden md:flex"
             />
 
