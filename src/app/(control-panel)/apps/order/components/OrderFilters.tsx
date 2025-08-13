@@ -9,6 +9,8 @@ import {
   Box,
   Button,
   InputAdornment,
+  Autocomplete,
+  CircularProgress,
 } from "@mui/material";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
@@ -32,6 +34,12 @@ interface OrderFiltersProps {
   onClearFilters: () => void;
   areFiltersActive: boolean;
   hasUserFiltered: boolean;
+  products: { id: number; name: string }[];
+  selectedProduct: { id: number; name: string } | null;
+  productSearch: string;
+  onProductChange: (value: { id: number; name: string } | null) => void;
+  onProductSearchChange: (value: string) => void;
+  isLoadingProducts: boolean;
   className?: string;
 }
 
@@ -49,6 +57,12 @@ const OrderFilters = ({
   onClearFilters,
   areFiltersActive,
   hasUserFiltered,
+  products,
+  selectedProduct,
+  productSearch,
+  onProductChange,
+  onProductSearchChange,
+  isLoadingProducts,
   className,
 }: OrderFiltersProps) => {
   return (
@@ -67,6 +81,43 @@ const OrderFilters = ({
             </InputAdornment>
           ),
         }}
+      />
+
+      <Autocomplete
+        options={products}
+        getOptionLabel={(option) => option.name}
+        value={selectedProduct}
+        onChange={(_, newValue) => onProductChange(newValue)}
+        inputValue={productSearch}
+        onInputChange={(_, newInputValue) => onProductSearchChange(newInputValue)}
+        loading={isLoadingProducts}
+        size="small"
+        sx={{ minWidth: 250 }}
+        renderInput={(params) => (
+          <TextField
+            {...params}
+            label="Filter by Product"
+            InputProps={{
+              ...params.InputProps,
+              endAdornment: (
+                <>
+                  {isLoadingProducts ? <CircularProgress color="inherit" size={20} /> : null}
+                  {params.InputProps.endAdornment}
+                </>
+              ),
+            }}
+          />
+        )}
+        renderOption={(props, option) => (
+          <li {...props}>
+            <div>
+              <div className="font-medium">{option.name}</div>
+            </div>
+          </li>
+        )}
+        isOptionEqualToValue={(option, value) => option.id === value.id}
+        noOptionsText={productSearch ? "No products found" : "Type to search products"}
+        clearOnBlur={false}
       />
 
       <FormControl size="small" sx={{ minWidth: 120 }}>
