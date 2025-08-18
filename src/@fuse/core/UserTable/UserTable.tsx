@@ -1,5 +1,9 @@
 import { useMemo, useState, useEffect } from "react";
-import { type MRT_ColumnDef } from "material-react-table";
+import {
+  type MRT_ColumnDef,
+  type MRT_SortingState,
+  type MRT_Updater,
+} from "material-react-table";
 import DataTable from "@/components/data-table/DataTable";
 import FuseLoading from "@fuse/core/FuseLoading";
 import SearchIcon from "@mui/icons-material/Search";
@@ -66,6 +70,7 @@ const UserTable = () => {
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [roleId, setRoleId] = useState<number | "all">("all");
   const [order, setOrder] = useState<"ASC" | "DESC">("DESC");
+  const [sortBy, setSortBy] = useState("createdAt");
   const [deleted, setDeleted] = useState<boolean | null>(null);
   const [verified, setVerified] = useState<boolean | null>(null);
   const [blocked, setBlocked] = useState<boolean | null>(null);
@@ -76,6 +81,20 @@ const UserTable = () => {
   const [page, setPage] = useState(1);
   const [limit] = useState(10); // Number of records per page
   const { showSnackbar } = useSnackbar();
+
+  const sorting = useMemo<MRT_SortingState>(
+    () => [{ id: sortBy, desc: order === "DESC" }],
+    [sortBy, order],
+  );
+
+  const handleSortingChange = (updater: MRT_Updater<MRT_SortingState>) => {
+    const newSorting = typeof updater === "function" ? updater(sorting) : updater;
+    if (newSorting?.[0]) {
+      const { id, desc } = newSorting[0];
+      setSortBy(id);
+      setOrder(desc ? "DESC" : "ASC");
+    }
+  };
 
   // --- START ADD: Check if Filters are Active ---
   const areFiltersActive = useMemo(() => {
@@ -90,11 +109,12 @@ const UserTable = () => {
       search !== "" ||
       roleId !== defaultRoleId ||
       order !== defaultOrder ||
+      sortBy !== "createdAt" ||
       deleted !== defaultDeleted ||
       verified !== defaultVerified ||
       blocked !== defaultBlocked
     );
-  }, [search, roleId, order, deleted, verified, blocked]);
+  }, [search, roleId, order, sortBy, deleted, verified, blocked]);
   // --- END ADD ---
 
   // --- START ADD: Clear Filters Function ---
@@ -103,6 +123,7 @@ const UserTable = () => {
     setDebouncedSearch("");
     setRoleId("all");
     setOrder("DESC");
+    setSortBy("createdAt");
     setDeleted(null);
     setVerified(null);
     setBlocked(null);
@@ -133,12 +154,13 @@ const UserTable = () => {
       order,
       page,
       limit,
+      sort_by: sortBy,
       ...(verified !== null && { verified }),
       ...(deleted !== null && { deleted }),
       ...(blocked !== null && { blocked }),
       ...(roleId !== "all" && { roleId }),
     }),
-    [debouncedSearch, order, deleted, verified, blocked, roleId, page, limit],
+    [debouncedSearch, order, sortBy, deleted, verified, blocked, roleId, page, limit],
   );
 
   const { data, error, isLoading } = useFetch(
@@ -383,6 +405,24 @@ const UserTable = () => {
           {/* Filters for larger screens */}
           <div className="hidden md:flex gap-2">
             <Select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+              size="small"
+            >
+              <MenuItem value="id">Id</MenuItem>
+              <MenuItem value="first_name">First Name</MenuItem>
+              <MenuItem value="last_name">Last Name</MenuItem>
+              <MenuItem value="email">Email</MenuItem>
+              <MenuItem value="phone">Phone</MenuItem>
+              <MenuItem value="gender">Gender</MenuItem>
+              <MenuItem value="createdAt">Created At</MenuItem>
+              <MenuItem value="updatedAt">Updated At</MenuItem>
+              <MenuItem value="deletedAt">Deleted At</MenuItem>
+              <MenuItem value="email_verified_at">Email Verified At</MenuItem>
+              <MenuItem value="blocked">Blocked</MenuItem>
+              <MenuItem value="dob">Date of Birth</MenuItem>
+            </Select>
+            <Select
               value={roleId}
               onChange={(e) =>
                 setRoleId(
@@ -473,6 +513,11 @@ const UserTable = () => {
         <DataTable
           data={userData}
           columns={columns}
+          manualSorting
+          onSortingChange={handleSortingChange}
+          state={{
+            sorting,
+          }}
           renderRowActionMenuItems={({ closeMenu, row }) => {
             const menuItems = [];
 
@@ -576,6 +621,27 @@ const UserTable = () => {
         <List className="p-4 w-64">
           <ListItem>
             <ListItemText primary="Filters" />
+          </ListItem>
+          <ListItem>
+            <Select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+              size="small"
+              fullWidth
+            >
+              <MenuItem value="id">Id</MenuItem>
+              <MenuItem value="first_name">First Name</MenuItem>
+              <MenuItem value="last_name">Last Name</MenuItem>
+              <MenuItem value="email">Email</MenuItem>
+              <MenuItem value="phone">Phone</MenuItem>
+              <MenuItem value="gender">Gender</MenuItem>
+              <MenuItem value="createdAt">Created At</MenuItem>
+              <MenuItem value="updatedAt">Updated At</MenuItem>
+              <MenuItem value="deletedAt">Deleted At</MenuItem>
+              <MenuItem value="email_verified_at">Email Verified At</MenuItem>
+              <MenuItem value="blocked">Blocked</MenuItem>
+              <MenuItem value="dob">Date of Birth</MenuItem>
+            </Select>
           </ListItem>
           <ListItem>
             <TextField

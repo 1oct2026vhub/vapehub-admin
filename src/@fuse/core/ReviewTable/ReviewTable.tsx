@@ -1,7 +1,11 @@
 'use client';
 import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import DataTable from '@/components/data-table/DataTable';
-import { type MRT_ColumnDef } from 'material-react-table';
+import {
+  type MRT_ColumnDef,
+  type MRT_SortingState,
+  type MRT_Updater,
+} from 'material-react-table';
 import { formatDate } from "@/utils/actions";
 import FuseLoading from '@fuse/core/FuseLoading';
 import {
@@ -49,6 +53,23 @@ const ReviewTable: React.FC<ReviewTableProps> = ({ onEditClick }) => {
   const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC'>('DESC');
 
   const debouncedSearch = useDebounce(search, 500);
+
+  const sorting = useMemo<MRT_SortingState>(
+    () => [{ id: sortBy, desc: sortOrder === 'DESC' }],
+    [sortBy, sortOrder]
+  );
+
+  const handleSortingChange = (updater: MRT_Updater<MRT_SortingState>) => {
+    const newSorting = typeof updater === 'function' ? updater(sorting) : updater;
+    if (newSorting?.[0]) {
+      const { id, desc } = newSorting[0];
+      setSortBy(id);
+      setSortOrder(desc ? 'DESC' : 'ASC');
+    } else {
+      setSortBy('created_at');
+      setSortOrder('DESC');
+    }
+  };
 
   const handleClearFilters = () => {
     setSearch('');
@@ -188,6 +209,7 @@ const ReviewTable: React.FC<ReviewTableProps> = ({ onEditClick }) => {
               <MenuItem value="rating">Rating</MenuItem>
               <MenuItem value="user_name">User Name</MenuItem>
               <MenuItem value="comment">Comment</MenuItem>
+              <MenuItem value="testimonial">Testimonial</MenuItem>
             </Select>
           </FormControl>
           <FormControl variant="outlined" sx={{ minWidth: 150 }}>
@@ -208,7 +230,9 @@ const ReviewTable: React.FC<ReviewTableProps> = ({ onEditClick }) => {
         <DataTable
           data={reviews}
           columns={columns}
-          enableColumnOrdering
+          manualSorting
+          onSortingChange={handleSortingChange}
+          state={{ sorting }}
           renderRowActionMenuItems={({ closeMenu, row }) => {
             const menuItems = [];
             

@@ -1,7 +1,11 @@
 "use client";
 
 import { useMemo, useState, useEffect, useCallback } from "react";
-import { type MRT_ColumnDef } from "material-react-table";
+import {
+  type MRT_ColumnDef,
+  type MRT_SortingState,
+  type MRT_Updater,
+} from "material-react-table";
 import DataTable from "@/components/data-table/DataTable";
 import FuseLoading from "@fuse/core/FuseLoading";
 import useColumnOrder from "@/hooks/useColumnOrder";
@@ -58,6 +62,8 @@ const ProductCategoryTable = ({
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [deleted, setDeleted] = useState<boolean | null>(null);
+  const [order, setOrder] = useState<"ASC" | "DESC">("DESC");
+  const [sortBy, setSortBy] = useState("createdAt");
   const [openDialog, setOpenDialog] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<CategoryType | null>(
     null
@@ -73,9 +79,11 @@ const ProductCategoryTable = ({
   const areFiltersActive = useMemo(() => {
     return (
       search !== "" ||
-      deleted !== null
+      deleted !== null ||
+      sortBy !== "createdAt" ||
+      order !== "DESC"
     );
-  }, [search, deleted]);
+  }, [search, deleted, sortBy, order]);
   // --- END ADD ---
 
   // --- START ADD: Clear Filters Function ---
@@ -83,6 +91,8 @@ const ProductCategoryTable = ({
     setSearch("");
     setDebouncedSearch("");
     setDeleted(null);
+    setSortBy("createdAt");
+    setOrder("DESC");
     setPage(1); // Reset page to 1
     showSnackbar("Filters cleared", "info");
   };
@@ -100,9 +110,11 @@ const ProductCategoryTable = ({
       search: debouncedSearch,
       page,
       limit,
+      sortBy,
+      order,
       ...(deleted !== null && { deleted }),
     }),
-    [debouncedSearch, deleted, page, limit]
+    [debouncedSearch, deleted, page, limit, sortBy, order],
   );
 
   const {
@@ -148,6 +160,23 @@ const ProductCategoryTable = ({
       setExternalRefreshFn(refreshData);
     }
   }, [setExternalRefreshFn, refreshData]);
+
+  const sorting = useMemo<MRT_SortingState>(
+    () => [{ id: sortBy, desc: order === "DESC" }],
+    [sortBy, order],
+  );
+
+  const handleSortingChange = (updater: MRT_Updater<MRT_SortingState>) => {
+    const newSorting = typeof updater === "function" ? updater(sorting) : updater;
+    if (newSorting?.[0]) {
+      const { id, desc } = newSorting[0];
+      setSortBy(id);
+      setOrder(desc ? "DESC" : "ASC");
+    } else {
+      setSortBy("createdAt");
+      setOrder("DESC");
+    }
+  };
 
   useEffect(() => {
     if (data?.data?.categories) {
@@ -316,6 +345,26 @@ const ProductCategoryTable = ({
 
         <div className="flex gap-2">
           <Select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value)}
+            size="small"
+          >
+            <MenuItem value="id">Id</MenuItem>
+            <MenuItem value="name">Name</MenuItem>
+            <MenuItem value="slug">Slug</MenuItem>
+            <MenuItem value="description">Description</MenuItem>
+            <MenuItem value="createdAt">Created At</MenuItem>
+            <MenuItem value="updatedAt">Updated At</MenuItem>
+          </Select>
+          <Select
+            value={order}
+            onChange={(e) => setOrder(e.target.value as "ASC" | "DESC")}
+            size="small"
+          >
+            <MenuItem value="DESC">Descending</MenuItem>
+            <MenuItem value="ASC">Ascending</MenuItem>
+          </Select>
+          <Select
             value={deleted === null ? "active" : deleted ? "deleted" : "active"}
             onChange={(e) =>
               setDeleted(
@@ -344,13 +393,15 @@ const ProductCategoryTable = ({
       <DataTable
         data={localCategories}
         columns={orderedColumns}
-        enableColumnOrdering
+        manualSorting
+        onSortingChange={handleSortingChange}
         onColumnOrderChange={onColumnOrderChange}
         enablePagination
         manualPagination
-        state={{ 
+        state={{
           columnOrder,
-          pagination: { pageIndex: page - 1, pageSize: limit } 
+          sorting,
+          pagination: { pageIndex: page - 1, pageSize: limit },
         }}
         onPaginationChange={(updater: any) => {
           const newPagination = updater({

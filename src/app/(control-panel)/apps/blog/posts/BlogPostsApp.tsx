@@ -21,7 +21,11 @@ import {
   Button,
 } from "@mui/material";
 import { motion } from "motion/react";
-import { MRT_ColumnDef } from "material-react-table";
+import {
+  MRT_ColumnDef,
+  MRT_SortingState,
+  MRT_Updater,
+} from "material-react-table";
 import DataTable from "@/components/data-table/DataTable";
 import FuseLoading from "@fuse/core/FuseLoading";
 import AppButton from "@/components/Shared/AppButton";
@@ -110,6 +114,24 @@ export default function BlogPostsApp() {
   // State for tracking active search vs selection mode
   const [isActivelySearchingCategory, setIsActivelySearchingCategory] = useState(false);
   const [isActivelySearchingTag, setIsActivelySearchingTag] = useState(false);
+
+  const sorting = useMemo<MRT_SortingState>(
+    () => [{ id: sortField, desc: sortOrder === "DESC" }],
+    [sortField, sortOrder],
+  );
+
+  const handleSortingChange = (updater: MRT_Updater<MRT_SortingState>) => {
+    const newSorting =
+      typeof updater === "function" ? updater(sorting) : updater;
+    if (newSorting?.[0]) {
+      const { id, desc } = newSorting[0];
+      setSortField(id as SortField);
+      setSortOrder(desc ? "DESC" : "ASC");
+    } else {
+      setSortField("created_at");
+      setSortOrder("DESC");
+    }
+  };
 
   // --- START ADD: Check if Filters are Active ---
   const areFiltersActive = useMemo(() => {
@@ -622,9 +644,10 @@ export default function BlogPostsApp() {
                     columns={columns}
                     data={posts}
                     enableRowActions
-                    enableColumnOrdering
+                    manualSorting
+                    onSortingChange={handleSortingChange}
                     onColumnOrderChange={onColumnOrderChange}
-                    state={{ columnOrder }}
+                    state={{ columnOrder, sorting }}
                     renderRowActionMenuItems={({ closeMenu, row }) => [
                       ...(row.original.deleted_at ? [
                         <MenuItem
