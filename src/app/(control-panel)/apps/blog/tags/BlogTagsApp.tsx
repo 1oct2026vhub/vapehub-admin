@@ -19,7 +19,11 @@ import {
   Link,
 } from "@mui/material";
 import { motion } from "motion/react";
-import { MRT_ColumnDef } from "material-react-table";
+import {
+  MRT_ColumnDef,
+  MRT_SortingState,
+  MRT_Updater,
+} from "material-react-table";
 import DataTable from "@/components/data-table/DataTable";
 import FuseLoading from "@fuse/core/FuseLoading";
 import AppButton from "@/components/Shared/AppButton";
@@ -73,6 +77,26 @@ export default function BlogTagsApp() {
   const [deleteLoading, setDeleteLoading] = useState(false);
 
   const router = useRouter();
+
+  const sorting = useMemo<MRT_SortingState>(
+    () => [{ id: sortField, desc: sortOrder === "DESC" }],
+    [sortField, sortOrder],
+  );
+
+  const handleSortingChange = (updater: MRT_Updater<MRT_SortingState>) => {
+    const newSorting =
+      typeof updater === "function" ? updater(sorting) : updater;
+    if (newSorting?.[0]) {
+      const { id, desc } = newSorting[0];
+      setSortField(
+        id as "name" | "slug" | "created_at" | "updated_at",
+      );
+      setSortOrder(desc ? "DESC" : "ASC");
+    } else {
+      setSortField("created_at");
+      setSortOrder("DESC");
+    }
+  };
 
   // --- START ADD: Check if Filters are Active ---
   const areFiltersActive = useMemo(() => {
@@ -348,63 +372,65 @@ export default function BlogTagsApp() {
                 columns={columns}
                 data={tags}
                 enableRowActions
-                enableColumnOrdering
+                manualSorting
+                onSortingChange={handleSortingChange}
                 onColumnOrderChange={onColumnOrderChange}
-                state={{ columnOrder }}
+                state={{ columnOrder, sorting }}
                 renderRowActionMenuItems={({ closeMenu, row }) => [
-                  ...(row.original.deleted_at ? [
-                    <MenuItem
-                      key="restore"
-                      onClick={() => {
-                        handleRestoreTag(row.original);
-                        closeMenu();
-                      }}
-                    >
-                      <ListItemIcon>
-                        <FuseSvgIcon>heroicons-outline:arrow-path</FuseSvgIcon>
-                      </ListItemIcon>
-                      Restore
-                    </MenuItem>
-                  ] : [
-                    <MenuItem
-                      key="view"
-                      onClick={() => {
-                        router.push(`/apps/blog/tags/${row.original.id}`);
-                        closeMenu();
-                      }}
-                    >
-                      <ListItemIcon>
-                        <FuseSvgIcon>heroicons-outline:eye</FuseSvgIcon>
-                      </ListItemIcon>
-                      View Details
-                    </MenuItem>,
-                    <MenuItem
-                      key="edit"
-                      onClick={() => {
-                        router.push(`/apps/blog/tags/${row.original.id}/edit`);
-                        closeMenu();
-                      }}
-                    >
-                      <ListItemIcon>
-                        <FuseSvgIcon>heroicons-outline:pencil</FuseSvgIcon>
-                      </ListItemIcon>
-                      Edit
-                    </MenuItem>,
-                    <MenuItem
-                      key="delete"
-                      onClick={() => {
-                        handleDeleteTag(row.original);
-                        closeMenu();
-                      }}
-                    >
-                      <ListItemIcon>
-                        <FuseSvgIcon className="text-red-500">
-                          heroicons-outline:trash
-                        </FuseSvgIcon>
-                      </ListItemIcon>
-                      <Typography color="error">Delete</Typography>
-                    </MenuItem>
-                  ])
+                  ...(row.original.deleted_at
+                    ? [
+                        <MenuItem
+                          key="restore"
+                          onClick={() => {
+                            handleRestoreTag(row.original);
+                            closeMenu();
+                          }}
+                        >
+                          <ListItemIcon>
+                            <FuseSvgIcon>heroicons-outline:arrow-path</FuseSvgIcon>
+                          </ListItemIcon>
+                          Restore
+                        </MenuItem>
+                      ] : [
+                        <MenuItem
+                          key="view"
+                          onClick={() => {
+                            router.push(`/apps/blog/tags/${row.original.id}`);
+                            closeMenu();
+                          }}
+                        >
+                          <ListItemIcon>
+                            <FuseSvgIcon>heroicons-outline:eye</FuseSvgIcon>
+                          </ListItemIcon>
+                          View Details
+                        </MenuItem>,
+                        <MenuItem
+                          key="edit"
+                          onClick={() => {
+                            router.push(`/apps/blog/tags/${row.original.id}/edit`);
+                            closeMenu();
+                          }}
+                        >
+                          <ListItemIcon>
+                            <FuseSvgIcon>heroicons-outline:pencil</FuseSvgIcon>
+                          </ListItemIcon>
+                          Edit
+                        </MenuItem>,
+                        <MenuItem
+                          key="delete"
+                          onClick={() => {
+                            handleDeleteTag(row.original);
+                            closeMenu();
+                          }}
+                        >
+                          <ListItemIcon>
+                            <FuseSvgIcon className="text-red-500">
+                              heroicons-outline:trash
+                            </FuseSvgIcon>
+                          </ListItemIcon>
+                          <Typography color="error">Delete</Typography>
+                        </MenuItem>
+                      ])
                 ]}
               />
 

@@ -1,5 +1,9 @@
 import { useMemo, useState, useEffect } from "react";
-import { type MRT_ColumnDef } from "material-react-table";
+import {
+  type MRT_ColumnDef,
+  type MRT_SortingState,
+  type MRT_Updater,
+} from "material-react-table";
 import DataTable from "@/components/data-table/DataTable";
 import FuseLoading from "@fuse/core/FuseLoading";
 import SearchIcon from "@mui/icons-material/Search";
@@ -61,6 +65,7 @@ const CustomerTable = () => {
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [order, setOrder] = useState<"ASC" | "DESC">("DESC");
+  const [sortBy, setSortBy] = useState("createdAt");
   const [deleted, setDeleted] = useState<boolean | null>(null);
   const [verified, setVerified] = useState<boolean | null>(null);
   const [blocked, setBlocked] = useState<boolean | null>(null);
@@ -78,6 +83,20 @@ const CustomerTable = () => {
   const [openDrawer, setOpenDrawer] = useState(false); // Mobile filter drawer state
   const { showSnackbar } = useSnackbar();
 
+  const sorting = useMemo<MRT_SortingState>(
+    () => [{ id: sortBy, desc: order === "DESC" }],
+    [sortBy, order],
+  );
+
+  const handleSortingChange = (updater: MRT_Updater<MRT_SortingState>) => {
+    const newSorting = typeof updater === "function" ? updater(sorting) : updater;
+    if (newSorting?.[0]) {
+      const { id, desc } = newSorting[0];
+      setSortBy(id);
+      setOrder(desc ? "DESC" : "ASC");
+    }
+  };
+
   // --- START ADD: Check if Filters are Active ---
   const areFiltersActive = useMemo(() => {
     // Define default states for this table
@@ -89,11 +108,12 @@ const CustomerTable = () => {
     return (
       search !== "" ||
       order !== defaultOrder ||
+      sortBy !== "createdAt" ||
       deleted !== defaultDeleted ||
       verified !== defaultVerified ||
       blocked !== defaultBlocked
     );
-  }, [search, order, deleted, verified, blocked]);
+  }, [search, order, sortBy, deleted, verified, blocked]);
   // --- END ADD ---
 
   // --- START ADD: Clear Filters Function ---
@@ -101,6 +121,7 @@ const CustomerTable = () => {
     setSearch("");
     setDebouncedSearch("");
     setOrder("DESC");
+    setSortBy("createdAt");
     setDeleted(null);
     setVerified(null);
     setBlocked(null);
@@ -120,11 +141,12 @@ const CustomerTable = () => {
       order,
       page,
       limit,
+      sort_by: sortBy,
       ...(verified !== null && { verified }),
       ...(deleted !== null && { deleted }),
       ...(blocked !== null && { blocked }),
     }),
-    [debouncedSearch, order, deleted, verified, blocked, page, limit],
+    [debouncedSearch, order, sortBy, deleted, verified, blocked, page, limit],
   );
 
   const { data, error, isLoading } = useFetch(
@@ -284,9 +306,11 @@ const CustomerTable = () => {
 
   const customerData: UserType[] = customers?.map((user: any) => ({
     ...user,
-    first_name: formatCustomerNameSafely(user.first_name),
-    last_name: formatCustomerNameSafely(user.last_name),
-    name: formatCustomerNameSafely(`${user.first_name} ${user.last_name}`),
+    first_name: formatCustomerNameSafely(user.first_name || null),
+    last_name: formatCustomerNameSafely(user.last_name || null),
+    email: user.email || "N/A",
+    phone: user.phone || "N/A",
+    gender: user.gender || "N/A",
   }));
 
   console.log("customers", customers);
@@ -333,6 +357,24 @@ const CustomerTable = () => {
 
           {/* Desktop Filters */}
           <div className="hidden md:flex gap-2">
+            <Select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+              size="small"
+            >
+              <MenuItem value="id">Id</MenuItem>
+              <MenuItem value="first_name">First Name</MenuItem>
+              <MenuItem value="last_name">Last Name</MenuItem>
+              <MenuItem value="email">Email</MenuItem>
+              <MenuItem value="phone">Phone</MenuItem>
+              <MenuItem value="gender">Gender</MenuItem>
+              <MenuItem value="createdAt">Created At</MenuItem>
+              <MenuItem value="updatedAt">Updated At</MenuItem>
+              <MenuItem value="deletedAt">Deleted At</MenuItem>
+              <MenuItem value="email_verified_at">Email Verified At</MenuItem>
+              <MenuItem value="blocked">Blocked</MenuItem>
+              <MenuItem value="dob">Date of Birth</MenuItem>
+            </Select>
             <Select
               value={
                 verified === null ? "all" : verified ? "verified" : "pending"
@@ -402,6 +444,11 @@ const CustomerTable = () => {
         <DataTable
           data={customerData}
           columns={columns}
+          manualSorting
+          onSortingChange={handleSortingChange}
+          state={{
+            sorting,
+          }}
           renderRowActionMenuItems={({ closeMenu, row }) => {
             const isDeleted = row.original.deletedAt !== null;
 
@@ -501,6 +548,24 @@ const CustomerTable = () => {
       >
         <List>
           <ListItem>
+            <Select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+              size="small"
+            >
+              <MenuItem value="id">Id</MenuItem>
+              <MenuItem value="first_name">First Name</MenuItem>
+              <MenuItem value="last_name">Last Name</MenuItem>
+              <MenuItem value="email">Email</MenuItem>
+              <MenuItem value="phone">Phone</MenuItem>
+              <MenuItem value="gender">Gender</MenuItem>
+              <MenuItem value="createdAt">Created At</MenuItem>
+              <MenuItem value="updatedAt">Updated At</MenuItem>
+              <MenuItem value="deletedAt">Deleted At</MenuItem>
+              <MenuItem value="email_verified_at">Email Verified At</MenuItem>
+              <MenuItem value="blocked">Blocked</MenuItem>
+              <MenuItem value="dob">Date of Birth</MenuItem>
+            </Select>
             <Select
               value={
                 verified === null ? "all" : verified ? "verified" : "pending"

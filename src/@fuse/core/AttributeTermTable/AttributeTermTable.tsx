@@ -1,7 +1,11 @@
 "use client";
 
 import { useMemo, useState, useEffect, useCallback } from "react";
-import { type MRT_ColumnDef } from "material-react-table";
+import {
+  type MRT_ColumnDef,
+  type MRT_SortingState,
+  type MRT_Updater,
+} from "material-react-table";
 import DataTable from "@/components/data-table/DataTable";
 import FuseLoading from "@fuse/core/FuseLoading";
 import {
@@ -86,6 +90,24 @@ const AttributeTermTable = ({
   const [localTerms, setLocalTerms] = useState<AttributeTerm[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [manuallyRefreshing, setManuallyRefreshing] = useState(false);
+
+  const sorting = useMemo<MRT_SortingState>(
+    () => [{ id: sortBy, desc: order === "DESC" }],
+    [sortBy, order],
+  );
+
+  const handleSortingChange = (updater: MRT_Updater<MRT_SortingState>) => {
+    const newSorting =
+      typeof updater === "function" ? updater(sorting) : updater;
+    if (newSorting?.[0]) {
+      const { id, desc } = newSorting[0];
+      setSortBy(id as AttributeTermListParams["sort_by"]);
+      setOrder(desc ? "DESC" : "ASC");
+    } else {
+      setSortBy("created_at");
+      setOrder("DESC");
+    }
+  };
 
   // --- START ADD: Check if Filters are Active ---
   const areFiltersActive = useMemo(() => {
@@ -375,13 +397,15 @@ const AttributeTermTable = ({
       <DataTable
         data={localTerms}
         columns={orderedColumns}
-        enableColumnOrdering
+        manualSorting
+        onSortingChange={handleSortingChange}
         onColumnOrderChange={onColumnOrderChange}
         enablePagination
         manualPagination
         state={{
           columnOrder,
-          pagination: { pageIndex: page, pageSize }
+          sorting,
+          pagination: { pageIndex: page, pageSize },
         }}
         onPaginationChange={(updater: any) => {
           const newPagination = updater({ pageIndex: page, pageSize });
