@@ -1,7 +1,11 @@
 "use client";
 
 import { useMemo, useState, useEffect, useCallback } from "react";
-import { type MRT_ColumnDef } from "material-react-table";
+import {
+  type MRT_ColumnDef,
+  type MRT_SortingState,
+  type MRT_Updater,
+} from "material-react-table";
 import DataTable from "@/components/data-table/DataTable";
 import FuseLoading from "@fuse/core/FuseLoading";
 import {
@@ -55,6 +59,8 @@ const ProductBrandTable = ({ refreshData }: ProductBrandTableProps) => {
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [deleted, setDeleted] = useState<boolean | null>(null);
+  const [order, setOrder] = useState<"ASC" | "DESC">("DESC");
+  const [sortBy, setSortBy] = useState("createdAt");
   const [openDialog, setOpenDialog] = useState(false);
   const [selectedBrand, setSelectedBrand] = useState<BrandType | null>(null);
   const [page, setPage] = useState(1);
@@ -67,9 +73,11 @@ const ProductBrandTable = ({ refreshData }: ProductBrandTableProps) => {
   const areFiltersActive = useMemo(() => {
     return (
       search !== "" ||
-      deleted !== null
+      deleted !== null ||
+      sortBy !== "createdAt" ||
+      order !== "DESC"
     );
-  }, [search, deleted]);
+  }, [search, deleted, sortBy, order]);
   // --- END ADD ---
 
   // --- START ADD: Clear Filters Function ---
@@ -77,6 +85,8 @@ const ProductBrandTable = ({ refreshData }: ProductBrandTableProps) => {
     setSearch("");
     setDebouncedSearch("");
     setDeleted(null);
+    setSortBy("createdAt");
+    setOrder("DESC");
     setPage(1); // Reset page to 1
     showSnackbar("Filters cleared", "info");
   };
@@ -95,9 +105,11 @@ const ProductBrandTable = ({ refreshData }: ProductBrandTableProps) => {
       search: debouncedSearch,
       page,
       limit,
+      sortBy,
+      order,
       ...(deleted !== null && { deleted }),
     }),
-    [debouncedSearch, deleted, page, limit]
+    [debouncedSearch, deleted, page, limit, sortBy, order],
   );
 
   const {
@@ -148,6 +160,23 @@ const ProductBrandTable = ({ refreshData }: ProductBrandTableProps) => {
       refreshData(refreshDataFn);
     }
   }, [refreshData, refreshDataFn]);
+
+  const sorting = useMemo<MRT_SortingState>(
+    () => [{ id: sortBy, desc: order === "DESC" }],
+    [sortBy, order],
+  );
+
+  const handleSortingChange = (updater: MRT_Updater<MRT_SortingState>) => {
+    const newSorting = typeof updater === "function" ? updater(sorting) : updater;
+    if (newSorting?.[0]) {
+      const { id, desc } = newSorting[0];
+      setSortBy(id);
+      setOrder(desc ? "DESC" : "ASC");
+    } else {
+      setSortBy("createdAt");
+      setOrder("DESC");
+    }
+  };
 
   const totalRecords = data?.data?.total || 0;
   const totalPages = Math.ceil(totalRecords / limit);
@@ -325,6 +354,26 @@ const ProductBrandTable = ({ refreshData }: ProductBrandTableProps) => {
 
           <div className="flex gap-2">
             <Select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+              size="small"
+            >
+              <MenuItem value="id">Id</MenuItem>
+              <MenuItem value="name">Name</MenuItem>
+              <MenuItem value="slug">Slug</MenuItem>
+              <MenuItem value="description">Description</MenuItem>
+              <MenuItem value="createdAt">Created At</MenuItem>
+              <MenuItem value="updatedAt">Updated At</MenuItem>
+            </Select>
+            <Select
+              value={order}
+              onChange={(e) => setOrder(e.target.value as "ASC" | "DESC")}
+              size="small"
+            >
+              <MenuItem value="DESC">Descending</MenuItem>
+              <MenuItem value="ASC">Ascending</MenuItem>
+            </Select>
+            <Select
               value={
                 deleted === null ? "active" : deleted ? "deleted" : "active"
               }
@@ -355,9 +404,10 @@ const ProductBrandTable = ({ refreshData }: ProductBrandTableProps) => {
         <DataTable
           data={brands}
           columns={orderedColumns}
-          enableColumnOrdering
+          manualSorting
+          onSortingChange={handleSortingChange}
           onColumnOrderChange={onColumnOrderChange}
-          state={{ columnOrder }}
+          state={{ columnOrder, sorting }}
           renderRowActionMenuItems={({ closeMenu, row }) => {
             const menuItems = [
               // View Details MenuItem

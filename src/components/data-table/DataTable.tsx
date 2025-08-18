@@ -87,10 +87,6 @@ function DataTable<TData extends { id: number }>(
   const id = searchParams.get("id");
   const pathname = usePathname();
 
-  console.log("id", data);
-
-  console.log("iddd", id);
-
   const isHidden = pathname === `/apps/customer/customer-detail/${data[0]?.id}`; // Change this to your condition
 
   const defaults = useMemo(
@@ -113,6 +109,7 @@ function DataTable<TData extends { id: number }>(
         enableFullScreenToggle: false,
         enableColumnFilterModes: true,
         enableColumnOrdering: true,
+        enableSortingRemoval: false,
         enableGrouping: true,
         enableColumnPinning: true,
         enableFacetedValues: true,
