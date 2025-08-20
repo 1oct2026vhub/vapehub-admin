@@ -98,7 +98,10 @@ export default function CustomerDetailsPage() {
           </Avatar>
           <Box>
             <Typography variant="h4" className="font-bold text-gray-800">
-              {formatCustomerNameSafely(`${customerDetail.first_name} ${customerDetail.last_name}`)}
+              {formatCustomerNameSafely({
+                first_name: customerDetail.first_name,
+                last_name: customerDetail.last_name
+              })}
             </Typography>
             <Typography variant="body1" color="text.secondary" className="mt-1">
               Customer ID: {customerDetail.id}
@@ -144,7 +147,7 @@ export default function CustomerDetailsPage() {
             </Box>
           </Grid>
 
-          <Grid item xs={12} md={6}>
+          {/* <Grid item xs={12} md={6}>
             <Box className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg">
               <WcIcon color="action" />
               <Box>
@@ -156,9 +159,9 @@ export default function CustomerDetailsPage() {
                 </Typography>
               </Box>
             </Box>
-          </Grid>
+          </Grid> */}
 
-          <Grid item xs={12} md={6}>
+          {/* <Grid item xs={12} md={6}>
             <Box className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg">
               <CakeIcon color="action" />
               <Box>
@@ -170,7 +173,7 @@ export default function CustomerDetailsPage() {
                 </Typography>
               </Box>
             </Box>
-          </Grid>
+          </Grid> */}
 
           <Grid item xs={12} md={6}>
             <Box className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg">
