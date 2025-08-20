@@ -164,7 +164,7 @@ export default function LoyaltyPointForm({ initialData = null }: LoyaltyPointFor
             <FormTextField
               name="points_value"
               control={control}
-              label="Points Value"
+              label="Value per Point (in Currency)"
               type="number"
               required
               error={!!errors.points_value}
@@ -175,7 +175,7 @@ export default function LoyaltyPointForm({ initialData = null }: LoyaltyPointFor
             <FormTextField
               name="loyalty_amount"
               control={control}
-              label="Loyalty Amount"
+              label="Points Earned per Transaction"
               type="number"
               required
               error={!!errors.loyalty_amount}
@@ -186,7 +186,7 @@ export default function LoyaltyPointForm({ initialData = null }: LoyaltyPointFor
             <FormTextField
               name="loyalty_amount_type"
               control={control}
-              label="Loyalty Amount Type"
+              label="Reward Type (Fixed/Percentage)"
               select
               required
             >
@@ -198,7 +198,7 @@ export default function LoyaltyPointForm({ initialData = null }: LoyaltyPointFor
             <FormTextField
               name="minimum_points_redemption"
               control={control}
-              label="Minimum Points Redemption"
+              label="Minimum Points Required to Redeem"
               type="number"
               required
               error={!!errors.minimum_points_redemption}
@@ -214,35 +214,35 @@ export default function LoyaltyPointForm({ initialData = null }: LoyaltyPointFor
             <FormTextField
               name="minimum_purchase_amount"
               control={control}
-              label="Minimum Purchase Amount"
+              label="Minimum Spend to Use Loyalty Points"
               type="number"
               required
               error={!!errors.minimum_purchase_amount}
               helperText={errors.minimum_purchase_amount?.message}
             />
           </Grid>
-                      <Grid item xs={12} md={6}>
-                <FormTextField
-                    name="min_amount_for_loyalty_points"
-                    control={control}
-                    label="Minimum Amount for Loyalty Points"
-                    type="number"
-                    error={!!errors.min_amount_for_loyalty_points}
-                    helperText={errors.min_amount_for_loyalty_points?.message}
-                    required
-                />
-            </Grid>
-            <Grid item xs={12} md={6}>
-                <FormTextField
-                    name="amount_divisor"
-                    control={control}
-                    label="Amount Divisor"
-                    type="number"
-                    required
-                    error={!!errors.amount_divisor}
-                    helperText={errors.amount_divisor?.message}
-                />
-            </Grid>
+          <Grid item xs={12} md={6}>
+            <FormTextField
+              name="min_amount_for_loyalty_points"
+              control={control}
+              label="Minimum Spend to Earn Loyalty Points"
+              type="number"
+              error={!!errors.min_amount_for_loyalty_points}
+              helperText={errors.min_amount_for_loyalty_points?.message}
+              required
+            />
+          </Grid>
+          <Grid item xs={12} md={6}>
+            <FormTextField
+              name="amount_divisor"
+              control={control}
+              label="Spend Per Point Ratio"
+              type="number"
+              required
+              error={!!errors.amount_divisor}
+              helperText={errors.amount_divisor?.message}
+            />
+          </Grid>
           <Grid item xs={12}>
             <Controller
               name="status"
