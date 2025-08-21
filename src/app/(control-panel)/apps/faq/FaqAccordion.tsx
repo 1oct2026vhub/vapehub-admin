@@ -42,6 +42,7 @@ import AppButton from '@/components/Shared/AppButton';
 import ClearFiltersButton from '@/components/Shared/ClearFiltersButton';
 import ClearIcon from '@mui/icons-material/Clear';
 import FuseLoading from '@fuse/core/FuseLoading';
+import { useRouter } from 'next/navigation';
 
 interface FaqAccordionProps {
   entityId: number | null | undefined;
@@ -54,6 +55,7 @@ const defaultLimit = 10;
 const defaultShowDeleted = false;
 
 const FaqAccordion: React.FC<FaqAccordionProps> = ({ entityId, entityType }) => {
+  const router = useRouter();
   const [faqs, setFaqs] = useState<FaqItem[]>([]);
   const [expandedPanel, setExpandedPanel] = useState<string | false>(false);
   const [loading, setLoading] = useState<boolean>(false);
@@ -159,7 +161,15 @@ const FaqAccordion: React.FC<FaqAccordionProps> = ({ entityId, entityType }) => 
     setExpandedPanel(isExpanded ? panel : false);
   };
 
-  const handleOpenAddFaqDialog = () => setIsAddFaqDialogOpen(true);
+  const handleOpenAddFaqDialog = () => {
+    // Navigate to the add FAQ page with entity details
+    const params = new URLSearchParams({
+      entityId: entityId?.toString() || '',
+      entityType: entityType,
+      entityName: 'Product' // You can make this dynamic based on entityType
+    });
+    router.push(`/apps/faq/add?${params.toString()}`);
+  };
   const handleCloseAddFaqDialog = () => setIsAddFaqDialogOpen(false);
 
   const handleOpenEditDialog = (faq: FaqItem) => {
@@ -427,16 +437,6 @@ const FaqAccordion: React.FC<FaqAccordionProps> = ({ entityId, entityType }) => 
             color="primary"
           />
         </Box>
-      )}
-
-      {entityType && (
-        <AddFaqDialog
-          open={isAddFaqDialogOpen}
-          onClose={handleCloseAddFaqDialog}
-          productId={entityId}
-          entityType={entityType}
-          onFaqAdded={fetchProductFaqs}
-        />
       )}
 
       {faqToEdit && entityType && (
