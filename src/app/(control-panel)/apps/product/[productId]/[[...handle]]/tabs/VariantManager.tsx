@@ -696,7 +696,7 @@ const mapVariantForDisplayCard = (variant: Variant) => {
   return {
     id: variant.id,
     slug: variant.slug,
-    price: String(variant.regular_price), // Ensure price is a string for the card
+    regular_price: String(variant.regular_price), // Ensure price is a string for the card
     stock: Number(variant.stock),   // Ensure stock is a number for the card
     status: displayCardStatus,    // Pass the normalized lowercase status
     variantImages: variant.variantImages || [],
@@ -1767,6 +1767,7 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
       interface ProductVariant {
         slug: string;
         price: number;
+        regular_price: number;
         stock: number;
         status: 'active' | 'inactive';
         attributes: Array<{ attribute_id: number; term_id: number; }>;
@@ -1777,6 +1778,7 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
       const variantPayload: ProductVariant = {
         slug: data.slug,
         price: Number(data.regular_price),
+        regular_price: Number(data.regular_price),
         stock: Number(data.stock),
         status: data.status,
         attributes: Object.values(pendingCombination)
