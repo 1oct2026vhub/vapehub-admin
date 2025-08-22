@@ -1026,7 +1026,7 @@ const BulkUpdateView: React.FC<BulkUpdateViewProps> = ({
       const updates: BulkUpdateProductVariantsPayload['updates'] = {};
 
       if (data.regular_price?.type && data.regular_price.value !== undefined) {
-          updates.price = { type: data.regular_price.type, value: data.regular_price.value, is_percentage: data.regular_price.is_percentage };
+          updates.regular_price = { type: data.regular_price.type, value: data.regular_price.value, is_percentage: data.regular_price.is_percentage };
       }
       if (data.depositPrice?.type && data.depositPrice.value !== undefined) {
           updates.discount_price = { type: data.depositPrice.type, value: data.depositPrice.value, is_percentage: data.depositPrice.is_percentage };
