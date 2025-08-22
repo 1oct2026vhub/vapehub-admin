@@ -32,8 +32,6 @@ import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import RestoreFromTrashIcon from '@mui/icons-material/RestoreFromTrash';
-import AddFaqDialog from './AddFaqDialog';
-import EditFaqDialog from './EditFaqDialog';
 import ConfirmActionDialog from './ConfirmActionDialog';
 import { useSnackbar } from '@/contexts/SnackbarContext';
 import { debounce } from 'lodash';
@@ -71,9 +69,6 @@ const FaqAccordion: React.FC<FaqAccordionProps> = ({ entityId, entityType }) => 
   const [showDeleted, setShowDeleted] = useState<boolean>(defaultShowDeleted);
   const [totalFaqs, setTotalFaqs] = useState<number>(0);
 
-  const [isAddFaqDialogOpen, setIsAddFaqDialogOpen] = useState<boolean>(false);
-  const [isEditFaqDialogOpen, setIsEditFaqDialogOpen] = useState<boolean>(false);
-  const [faqToEdit, setFaqToEdit] = useState<FaqItem | null>(null);
   const [isConfirmDeleteDialogOpen, setIsConfirmDeleteDialogOpen] = useState<boolean>(false);
   const [faqToDelete, setFaqToDelete] = useState<FaqItem | null>(null);
   const [isConfirmRestoreDialogOpen, setIsConfirmRestoreDialogOpen] = useState<boolean>(false);
@@ -170,15 +165,16 @@ const FaqAccordion: React.FC<FaqAccordionProps> = ({ entityId, entityType }) => 
     });
     router.push(`/apps/faq/add?${params.toString()}`);
   };
-  const handleCloseAddFaqDialog = () => setIsAddFaqDialogOpen(false);
 
   const handleOpenEditDialog = (faq: FaqItem) => {
-    setFaqToEdit(faq);
-    setIsEditFaqDialogOpen(true);
-  };
-  const handleCloseEditDialog = () => {
-    setIsEditFaqDialogOpen(false);
-    setFaqToEdit(null);
+    // Navigate to the edit FAQ page with FAQ data
+    const params = new URLSearchParams({
+      faqData: encodeURIComponent(JSON.stringify(faq)),
+      entityId: entityId?.toString() || '',
+      entityType: entityType,
+      entityName: 'Product' // You can make this dynamic based on entityType
+    });
+    router.push(`/apps/faq/edit?${params.toString()}`);
   };
 
   const handleOpenConfirmDeleteDialog = (faq: FaqItem) => {
@@ -437,15 +433,6 @@ const FaqAccordion: React.FC<FaqAccordionProps> = ({ entityId, entityType }) => 
             color="primary"
           />
         </Box>
-      )}
-
-      {faqToEdit && entityType && (
-        <EditFaqDialog
-          open={isEditFaqDialogOpen}
-          onClose={handleCloseEditDialog}
-          faqToEdit={faqToEdit}
-          onFaqUpdated={fetchProductFaqs}
-        />
       )}
 
       {faqToDelete && (
