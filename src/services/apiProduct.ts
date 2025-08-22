@@ -450,7 +450,7 @@ export const getProductVariants = async (productId: number) => {
 
 // Interface for the structure within the 'updates' object
 interface BulkVariantUpdateFields {
-  price?: {
+  regular_price?: {
     type: 'set' | 'increase' | 'decrease';
     value: number;
     is_percentage?: boolean;
