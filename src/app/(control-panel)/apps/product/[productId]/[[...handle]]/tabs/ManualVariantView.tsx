@@ -515,7 +515,7 @@ const deleteManualVariantImageAPI = async (productId: string | number, variantId
 const mapManualVariantForDisplayCard = (variant: ManualVariantData) => ({
   id: variant.id,
   slug: variant.slug,
-  price: variant.regular_price,
+  regular_price: variant.regular_price,
   stock: variant.stock,
   status: variant.status, // 'active' or 'inactive'
   variantImages: variant.variantImages?.map(img => ({ id: img.id, image_url: img.image_url, is_primary: img.is_primary })),

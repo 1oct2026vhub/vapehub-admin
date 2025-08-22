@@ -80,7 +80,7 @@ interface GeneratedVariant {
 const mapVariantForDisplayCard = (variant: GeneratedVariant) => ({
   id: variant.id,
   slug: variant.slug,
-  price: variant.regular_price,
+  regular_price: variant.regular_price,
   stock: variant.stock,
   status: variant.status,
   variantImages: variant.variantImages?.map(img => ({ id: img.id, image_url: img.image_url, is_primary: img.is_primary })),

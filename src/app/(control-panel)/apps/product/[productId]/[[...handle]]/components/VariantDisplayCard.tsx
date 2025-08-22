@@ -19,7 +19,7 @@ interface VariantAttributeDisplay {
 interface VariantForCard {
   id: number;
   slug: string; // Used for alt text
-  price: string | number;
+  regular_price: string | number;
   stock: number;
   status: string; // 'active' or 'inactive'
   variantImages?: VariantImage[];
@@ -100,7 +100,7 @@ const VariantDisplayCard: React.FC<VariantDisplayCardProps> = ({
               <div className="flex items-center gap-1 border border-[#005B2F] rounded-md bg-green-50 px-2.5 py-1 cursor-default">
                 <span className="text-[#14854E] text-sm font-medium">Price:</span>
                 <div className="bg-[#14854E] px-1.5 py-0.5 rounded-sm text-white text-sm font-semibold">
-                  ${Number(variant.price).toFixed(2)}
+                  ${Number(variant.regular_price).toFixed(2)}
                 </div>
               </div>
             </div>
