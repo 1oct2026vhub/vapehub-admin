@@ -112,7 +112,9 @@ function PageBreadcrumb(props: PageBreadcrumbProps) {
     >
       {crumbs.map((item, index) => {
         const isLast = index === crumbs.length - 1;
-        const isClickable = !item.isDetailPage && !isLast;
+        // Make "FAQ" breadcrumb non-clickable to avoid navigating to a non-existent page
+        const isFaqCrumb = item.title?.toLowerCase() === "faq" || item.url?.endsWith("/apps/faq");
+        const isClickable = !item.isDetailPage && !isLast && !isFaqCrumb;
 
         return (
           <Typography
