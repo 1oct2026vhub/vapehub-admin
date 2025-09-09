@@ -543,7 +543,7 @@ setStartDate(null);
                         textTransform: 'capitalize'
                       }}
                     >
-                      {userGroup.role.replace('_', ' ')}
+                      {userGroup?.role?.replace('_', ' ')}
                     </Typography>
                     <Typography 
                       variant="h5" 
