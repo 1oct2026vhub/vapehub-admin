@@ -6,7 +6,7 @@ pipeline {
     tools {nodejs "NodeV22"}
 
     parameters {
-        string(name: 'dev_server', defaultValue: '43.204.197.145', description: 'Ateam Development Server')
+        string(name: 'dev_server', defaultValue: '13.61.169.67', description: 'Development Server')
         string(name: 'production_server', defaultValue: '', description: 'Production Server')
 
     }
@@ -33,7 +33,7 @@ pipeline {
                     if (branchName == 'staging') {
                         // Use deployment parameters
                         server = params.dev_server
-                        sshCredentials = 'c18d359d-10fe-41d7-a495-3b84451d1043'
+                        sshCredentials = '5918cce5-91ae-41e6-aa94-bf269093dee1'
                     } else if (branchName == 'main') {
                         // Use production parameters
                         echo "Branch $branchName not configured for deployment."
@@ -49,7 +49,7 @@ pipeline {
                     // Use SSH credentials with sshagent
                     sshagent([sshCredentials]) {
                         // SSH into the server and run commands
-                        sh "ssh ubuntu@${server} \"cd /var/www/vapehub/admin/ && git pull\""
+                        sh "ssh ubuntu@${server} \"cd /var/www/Admin/ && git pull\""
                         // Writes lock-file to cache based on the GIT_COMMIT hash
                         writeFile file: "next-lock.cache", text: "$GIT_COMMIT"
 
@@ -60,7 +60,7 @@ pipeline {
                                 cacheValidityDecidingFile: "package-lock.json"
                             )
                         ]) {
-                            sh "ssh ubuntu@${server} \"cd /var/www/vapehub/admin/ && source ~/.nvm/nvm.sh && nvm use 22.14.0 && npm install\""
+                            sh "ssh ubuntu@${server} \"cd /var/www/Admin/ && source ~/.nvm/nvm.sh && nvm use 22.16.0 && npm install\""
                         }
 
                         cache(caches: [
@@ -71,10 +71,9 @@ pipeline {
                             )
                         ]) {
                             // aka `next build`
-                            sh "ssh ubuntu@${server} \"cd /var/www/vapehub/admin/ && source ~/.nvm/nvm.sh && nvm use 22.14.0 && npm run build\""
+                            sh "ssh ubuntu@${server} \"cd /var/www/Admin/ && source ~/.nvm/nvm.sh && nvm use 22.16.0 && export NODE_OPTIONS=--max-old-space-size=4096 && npm run build\""
                         }
-                        // sh "ssh ubuntu@${server} \"cd /var/www/vapehub/admin/ && source ~/.nvm/nvm.sh && npm install && npm run build\""
-                        sh "ssh ubuntu@${server} \"source ~/.nvm/nvm.sh && export PM2_HOME=/etc/pm2daemon && pm2 restart 'VapeHub Admin' \"" 
+                        sh "ssh ubuntu@${server} \"source ~/.nvm/nvm.sh && pm2 restart 'Admin' \"" 
                     }
 }
             }
