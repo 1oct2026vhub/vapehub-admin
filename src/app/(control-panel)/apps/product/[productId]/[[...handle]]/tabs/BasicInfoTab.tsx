@@ -109,8 +109,11 @@ const FormMultiSelectWithMapping = ({
               
               onChange(ids);
             }}
-            onInputChange={(_, inputValue) => {
-              onInputChange?.(inputValue);
+            onInputChange={(_, inputValue, reason) => {
+              // Only trigger search when user is actually typing (not when clearing or selecting)
+              if (reason === 'input') {
+                onInputChange?.(inputValue);
+              }
             }}
             renderInput={(params) => (
               <TextField
@@ -138,6 +141,8 @@ const FormMultiSelectWithMapping = ({
                 />
               ))
             }
+            // Ensure selected values are always visible in the input
+            filterSelectedOptions={false}
           />
         );
       }}
@@ -257,20 +262,44 @@ function BasicInfoTab() {
               label: category.name,
             }));
             
-            setCategoryOptions(options);
+            // Always include currently selected categories in the options
+            setCategoryOptions(prev => {
+              const currentSelectedIds = watchedCategoryIds || [];
+              const selectedOptions = currentSelectedIds.map(id => {
+                const existingOption = prev.find(opt => opt.value === id);
+                return existingOption || { value: id, label: `Category ${id}` };
+              });
+              
+              // Merge selected options with new options, avoiding duplicates
+              const mergedOptions = [...selectedOptions];
+              options.forEach(newOption => {
+                if (!mergedOptions.some(opt => opt.value === newOption.value)) {
+                  mergedOptions.push(newOption);
+                }
+              });
+              
+              return mergedOptions;
+            });
           } else {
-            // Explicitly set to empty array when no results
-            setCategoryOptions([]);
+            // Even when no search results, keep currently selected options
+            setCategoryOptions(prev => {
+              const currentSelectedIds = watchedCategoryIds || [];
+              return prev.filter(option => currentSelectedIds.includes(Number(option.value)));
+            });
           }
         } catch (error) {
           console.error("Error fetching categories:", error);
-          setCategoryOptions([]);
+          // Keep currently selected options even on error
+          setCategoryOptions(prev => {
+            const currentSelectedIds = watchedCategoryIds || [];
+            return prev.filter(option => currentSelectedIds.includes(Number(option.value)));
+          });
         } finally {
           // Always set loading to false
           setCategoryLoading(false);
         }
       }, 400),
-    []
+    [watchedCategoryIds]
   );
 
   // Fetch brands based on search query
@@ -306,20 +335,44 @@ function BasicInfoTab() {
               label: brand.name,
             }));
             
-            setBrandOptions(options);
+            // Always include currently selected brands in the options
+            setBrandOptions(prev => {
+              const currentSelectedIds = watchedBrandIds || [];
+              const selectedOptions = currentSelectedIds.map(id => {
+                const existingOption = prev.find(opt => opt.value === id);
+                return existingOption || { value: id, label: `Brand ${id}` };
+              });
+              
+              // Merge selected options with new options, avoiding duplicates
+              const mergedOptions = [...selectedOptions];
+              options.forEach(newOption => {
+                if (!mergedOptions.some(opt => opt.value === newOption.value)) {
+                  mergedOptions.push(newOption);
+                }
+              });
+              
+              return mergedOptions;
+            });
           } else {
-            // Explicitly set to empty array when no results
-            setBrandOptions([]);
+            // Even when no search results, keep currently selected options
+            setBrandOptions(prev => {
+              const currentSelectedIds = watchedBrandIds || [];
+              return prev.filter(option => currentSelectedIds.includes(Number(option.value)));
+            });
           }
         } catch (error) {
           console.error("Error fetching brands:", error);
-          setBrandOptions([]);
+          // Keep currently selected options even on error
+          setBrandOptions(prev => {
+            const currentSelectedIds = watchedBrandIds || [];
+            return prev.filter(option => currentSelectedIds.includes(Number(option.value)));
+          });
         } finally {
           // Always set loading to false
           setBrandLoading(false);
         }
       }, 400),
-    []
+    [watchedBrandIds]
   );
 
   // Fetch selected category and brand on edit
