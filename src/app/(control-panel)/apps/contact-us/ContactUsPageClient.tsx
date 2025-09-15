@@ -1,12 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Paper, Typography, CircularProgress, Alert, Box, Divider } from '@mui/material';
-import { ContactInfo, listContactUs, deleteContactUs, getContactUsById } from '@/services/apiContactUs';
+import { ContactInfo, listContactUs, deleteContactUs } from '@/services/apiContactUs';
 import AppButton from '@/components/Shared/AppButton';
 import ConfirmationDialog from './ConfirmationDialog';
 import { useSnackbar } from '@/contexts/SnackbarContext';
-import ContactUsFormModal from './ContactUsFormModal';
 
 export default function ContactUsPageClient() {
     const [contactInfo, setContactInfo] = useState<ContactInfo[]>([]);
@@ -16,8 +16,7 @@ export default function ContactUsPageClient() {
     const [selectedId, setSelectedId] = useState<number | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const { showSnackbar } = useSnackbar();
-    const [formModalOpen, setFormModalOpen] = useState(false);
-    const [editData, setEditData] = useState<ContactInfo | null>(null);
+    const router = useRouter();
 
     useEffect(() => {
         fetchContactInfo();
@@ -40,22 +39,11 @@ export default function ContactUsPageClient() {
     }
 
     const handleCreate = () => {
-        setEditData(null);
-        setFormModalOpen(true);
+        router.push('/apps/contact-us/add');
     };
 
-    const handleEdit = async (id: number) => {
-        try {
-            const response = await getContactUsById(id);
-            if(response.success){
-                setEditData(response.data);
-                setFormModalOpen(true);
-            } else {
-                showSnackbar(response.message, 'error');
-            }
-        } catch (error: any) {
-            showSnackbar(error.message || 'Failed to fetch contact details.', 'error');
-        }
+    const handleEdit = (contactData: ContactInfo) => {
+        router.push(`/apps/contact-us/edit?id=${contactData.id}`);
     };
 
     const handleDelete = (id: number) => {
@@ -83,15 +71,6 @@ export default function ContactUsPageClient() {
         }
     };
 
-    const handleModalClose = () => {
-        setFormModalOpen(false);
-        setEditData(null);
-    };
-
-    const handleModalSave = () => {
-        fetchContactInfo();
-        handleModalClose();
-    };
 
 
     if (loading) {
@@ -120,7 +99,7 @@ export default function ContactUsPageClient() {
                          <Box sx={{ display: 'flex', gap: 1 }}>
                             <AppButton
                                 label="Edit"
-                                onClick={() => handleEdit(info.id)}
+                                onClick={() => handleEdit(info)}
                                 variant="outlined"
                                 size="small"
                             />
@@ -237,7 +216,23 @@ export default function ContactUsPageClient() {
                                         </Typography>
                                     </Box>
                                 )}
-                                
+                                {info.twitter && (
+                                    <Box sx={{ mb: 1 }}>
+                                        <Typography variant="subtitle2" sx={{ fontWeight: 'bold', color: 'grey.700' }}>
+                                            Twitter:
+                                        </Typography>
+                                        <Typography 
+                                            component="a" 
+                                            href={info.twitter} 
+                                            target="_blank" 
+                                            rel="noopener noreferrer"
+                                            sx={{ color: 'primary.main', textDecoration: 'none', '&:hover': { textDecoration: 'underline' } }}
+                                        >
+                                            {info.twitter}
+                                        </Typography>
+                                    </Box>
+                                )}
+
                                 {info.email && (
                                     <Box sx={{ mb: 1 }}>
                                         <Typography variant="subtitle2" sx={{ fontWeight: 'bold', color: 'grey.700' }}>
@@ -281,12 +276,6 @@ export default function ContactUsPageClient() {
                 description="Are you sure you want to delete this contact information? This action cannot be undone."
                 confirmText="Delete"
                 isSubmitting={isSubmitting}
-            />
-            <ContactUsFormModal
-                open={formModalOpen}
-                onClose={handleModalClose}
-                onSaved={handleModalSave}
-                initialData={editData}
             />
         </Paper>
     );
