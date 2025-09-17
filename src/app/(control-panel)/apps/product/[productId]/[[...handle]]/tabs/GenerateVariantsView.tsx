@@ -164,7 +164,7 @@ const variantSchema = z.object({
     ])
   ),
   status: z.enum(["active", "inactive"]).default("active"),
-  stockStatus: z.enum(["In Stock", "Out of Stock", "Back Order"]).default("In Stock"),
+  stockStatus: z.enum(["In Stock", "Out of Stock"]).default("In Stock"),
   depositPrice: z.preprocess(
     (val) => {
       if (val === "" || val === null || val === undefined) return null;
@@ -416,7 +416,7 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
     return isNaN(num) ? null : num; // Return null if NaN, otherwise the number
   };
 
-  const getValidStockStatus = (status: string | null | undefined): "In Stock" | "Out of Stock" | "Back Order" => {
+  const getValidStockStatus = (status: string | null | undefined): "In Stock" | "Out of Stock"  => {
     // Use selectedVariant from component state if needed for fallback
     const currentStock = selectedVariant?.stock ?? 0;
     const lowerStatus = status?.toLowerCase();
@@ -427,9 +427,6 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
       case "out_of_stock":
       case "out of stock":
         return "Out of Stock";
-      case "back_order":
-      case "back order":
-        return "Back Order";
       default:
         // Provide a fallback based on stock value if status is invalid/missing
         return currentStock > 0 ? "In Stock" : "Out of Stock";
@@ -1185,7 +1182,6 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
         switch (data.stockStatus) {
           case 'In Stock': apiPayload.stock_status = 'in_stock'; break;
           case 'Out of Stock': apiPayload.stock_status = 'out_of_stock'; break;
-          case 'Back Order': apiPayload.stock_status = 'back_order'; break;
           default: apiPayload.stock_status = null; // Or handle as error/default
         }
       }
