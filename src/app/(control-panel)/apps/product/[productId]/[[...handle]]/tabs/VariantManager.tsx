@@ -197,7 +197,7 @@ const variantSchema = z.object({
       ])
   ),
   status: z.enum(["active", "inactive"]).default("active"),
-  stockStatus: z.enum(["In Stock", "Out of Stock", "Back Order"]).default("In Stock"), // Keep as is for UI logic
+  stockStatus: z.enum(["In Stock", "Out of Stock"]).default("In Stock"), // Keep as is for UI logic
   depositPrice: z.preprocess(
     (val) => {
       // Treat cleared input as 0 to avoid triggering other field validations
@@ -345,7 +345,7 @@ const bulkUpdateSchema = z.object({
     ]).optional()
   ),
   status: z.enum(["active", "inactive"]).optional(),
-  stockStatus: z.enum(["In Stock", "Out of Stock", "Back Order"]).optional(),
+  stockStatus: z.enum(["In Stock", "Out of Stock"]).optional(),
   depositPrice: z.object({
       type: z.enum(["set", "increase", "decrease"]).optional(),
       value: z.preprocess(
@@ -617,29 +617,27 @@ const AttributeField = ({
 };
 
 // --- Start Add: Stock Status Mapping Helpers ---
-const mapApiStockStatusToForm = (apiStatus?: string | null): 'In Stock' | 'Out of Stock' | 'Back Order' => {
+const mapApiStockStatusToForm = (apiStatus?: string | null): 'In Stock' | 'Out of Stock' => {
   switch (apiStatus?.toLowerCase()) {
     case 'in_stock': return 'In Stock';
     case 'out_of_stock': return 'Out of Stock';
-    case 'back_order': return 'Back Order';
     default: 
       console.warn(`[mapApiStockStatusToForm] Unknown API status: ${apiStatus}, defaulting to 'In Stock'.`);
       return 'In Stock'; // Explicit default return
   }
 };
 
-const mapFormStockStatusToApi = (formStatus?: 'In Stock' | 'Out of Stock' | 'Back Order' | null): 'in_stock' | 'out_of_stock' | 'back_order' | null => {
+const mapFormStockStatusToApi = (formStatus?: 'In Stock' | 'Out of Stock' | null): 'in_stock' | 'out_of_stock' | 'back_order' | null => {
   switch (formStatus) {
     case 'In Stock': return 'in_stock';
     case 'Out of Stock': return 'out_of_stock';
-    case 'Back Order': return 'back_order';
     default: return null; // Return null if mapping fails or input is null/undefined
   }
 };
 // --- End Add: Stock Status Mapping Helpers ---
 
 // Helper function to convert API stock status to display format for the edit form
-const getValidStockStatus = (status: string | null | undefined): "In Stock" | "Out of Stock" | "Back Order" => {
+const getValidStockStatus = (status: string | null | undefined): "In Stock" | "Out of Stock" => {
   const lowerStatus = status?.toLowerCase();
   switch (lowerStatus) {
     case "in_stock":
@@ -648,10 +646,6 @@ const getValidStockStatus = (status: string | null | undefined): "In Stock" | "O
     case "out_of_stock":
     case "out of stock":
       return "Out of Stock";
-    case "back_order":
-    case "back order":
-    case "back_to_order":
-      return "Back Order";
     default:
       return "In Stock"; // Default fallback
   }

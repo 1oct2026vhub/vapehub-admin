@@ -196,7 +196,7 @@ const variantEditSchema = z.object({
     ])
   ),
   status: z.enum(["active", "inactive"]).default("active"),
-  stockStatus: z.enum(["In Stock", "Out of Stock", "Back Order"]).default("In Stock"),
+  stockStatus: z.enum(["In Stock", "Out of Stock"]).default("In Stock"),
   depositPrice: z.preprocess(
     (val) => {
       if (val === "" || val === null || val === undefined) return null;
@@ -330,17 +330,7 @@ const mergeFormValuesWithVariantData = (
   variantData: ManualVariantData,
   formValues: VariantEditFormData
 ): ManualVariantData => {
-  // Map form's stockStatus (e.g., "In Stock") to the format stored in ManualVariantData 
-  // (which should ideally be the API format like "in_stock" if getEditValidStockStatus expects that)
-  // For now, assuming ManualVariantData.stock_status also holds "In Stock", "Out of Stock", etc. based on getEditValidStockStatus logic.
-  // If ManualVariantData.stock_status is meant to be "in_stock", this mapping needs adjustment.
-  // Based on current `getEditValidStockStatus`, it maps API's "in_stock" to form's "In Stock".
-  // So, when merging form back to variant state, we should keep the form's "In Stock" format if ManualVariantData stores it that way.
-  // Let's assume ManualVariantData.stock_status stores the display value for simplicity in this merge,
-  // and rely on onSubmitManualVariantUpdate to convert to API format.
-
-  const mappedStockStatus = formValues.stockStatus; // Keep as "In Stock", "Out of Stock", "Back Order"
-
+  const mappedStockStatus = formValues.stockStatus; // Keep as "In Stock", "Out of Stock"
   return {
     ...variantData, // Start with existing variant data (ID, product_id, attributes, etc.)
     slug: formValues.slug,
@@ -361,8 +351,6 @@ const mergeFormValuesWithVariantData = (
     
     barcode: formValues.barcode || null,
     description: formValues.description || null,
-    // variantImages will be updated by the calling function after this merge
-    // variantAttributes are assumed not to change here
   };
 };
 
@@ -716,12 +704,11 @@ const ManualVariantView: React.FC<ManualVariantViewProps> = ({
     return isNaN(num) ? null : num;
   };
 
-  const getEditValidStockStatus = (apiStockStatus: string | null | undefined, currentStockVal?: number): "In Stock" | "Out of Stock" | "Back Order" => {
+  const getEditValidStockStatus = (apiStockStatus: string | null | undefined, currentStockVal?: number): "In Stock" | "Out of Stock" => {
     const stock = currentStockVal ?? selectedManualVariant?.stock ?? 0;
     switch (apiStockStatus?.toLowerCase()) {
       case "in_stock": case "in stock": return "In Stock";
       case "out_of_stock": case "out of stock": return "Out of Stock";
-      case "back_order": case "back to order": case "back_to_order": return "Back Order";
       default: return stock > 0 ? "In Stock" : "Out of Stock";
     }
   };
@@ -836,15 +823,6 @@ const ManualVariantView: React.FC<ManualVariantViewProps> = ({
     const originalDescription = originalVariant.description || null;
     const formDescription = formValues.description || null;
     if (formDescription !== originalDescription) return true;
-    
-    // Image comparison is complex; react-hook-form's isDirty might not catch changes in image list if not direct form fields.
-    // If variantImages are managed outside typical form values, this comparison needs to be explicit.
-    // For now, relying on other field changes or assuming image changes trigger updates elsewhere.
-    // if (JSON.stringify(selectedManualVariant?.variantImages || []) !== JSON.stringify(originalVariant.variantImages || [])) return true;
-
-
-    // TODO: Add comparison for attributes if they are editable and part of the form
-
     return false;
   };
 
@@ -997,8 +975,6 @@ const ManualVariantView: React.FC<ManualVariantViewProps> = ({
 
   // Add useEffect to clear slug when pendingCombination changes for the CREATE form
   useEffect(() => {
-    // When a new combination is selected (or cleared),
-    // explicitly reset the slug to ensure no default value persists.
     if (setCreateValue) { // Ensure setCreateValue is available
       setCreateValue("slug", "", { shouldDirty: true});
     }
@@ -1173,19 +1149,6 @@ const ManualVariantView: React.FC<ManualVariantViewProps> = ({
               </div>
             </div>
             <FormTextField name="barcode" control={createControl} label="Barcode" />
-            {/* <div className="mt-2">
-              <FormTextField
-                name="description"
-                control={createControl}
-                label="Description"
-                multiline
-                rows={3}
-                fullWidth
-                variant="outlined"
-                placeholder="Enter variant description..."
-              />
-            </div> */}
-
              <div className="mt-2">
             <Controller
               name="description"
