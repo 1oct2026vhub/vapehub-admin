@@ -857,7 +857,7 @@ const ManualVariantView: React.FC<ManualVariantViewProps> = ({
       status: data.status,
       stock_status: data.stockStatus === "In Stock" ? "in_stock" :
                     data.stockStatus === "Out of Stock" ? "out_of_stock" :
-                    "back_to_order",
+                    "",
       discount_price: transformPriceNumber(data.depositPrice), 
       purchase_price: transformPriceNumber(data.purchasePrice), 
       low_stock_threshold: data.lowStockThreshold,
@@ -1102,7 +1102,6 @@ const ManualVariantView: React.FC<ManualVariantViewProps> = ({
                     >
                       <MenuItem value="In Stock">In Stock</MenuItem>
                       <MenuItem value="Out of Stock">Out of Stock</MenuItem>
-                      <MenuItem value="Back to Order">Back to Order</MenuItem>
                     </Select>
                     {fieldState.error && <FormHelperText>{fieldState.error.message}</FormHelperText>}
                   </FormControl>

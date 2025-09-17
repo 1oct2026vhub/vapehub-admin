@@ -281,7 +281,7 @@ export interface UpdateProductVariantRequest {
   barcode?: string | null;
   description?: string | null;
   status?: 'active' | 'inactive';
-  stock_status?: 'in_stock' | 'out_of_stock' | 'back_order' | null;
+  stock_status?: 'in_stock' | 'out_of_stock' | null;
   attributes: Array<{
     attribute_id: number;
     term_id: number;
@@ -471,7 +471,7 @@ interface BulkVariantUpdateFields {
   height?: number;
   stock?: number;
   low_stock_threshold?: number;
-  stock_status?: 'in_stock' | 'out_of_stock' | 'back_order'; // Assuming backend expects snake_case
+  stock_status?: 'in_stock' | 'out_of_stock'; // Assuming backend expects snake_case
   status?: 'active' | 'inactive';
   description?: string;
 }
