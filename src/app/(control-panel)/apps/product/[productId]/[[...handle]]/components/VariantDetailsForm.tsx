@@ -92,7 +92,7 @@ export interface VariantFormData {
   regular_price: number;
   stock: number;
   status: 'active' | 'inactive';
-  stockStatus: 'In Stock' | 'Out of Stock' | 'Back Order';
+  stockStatus: 'In Stock' | 'Out of Stock';
   depositPrice?: number | null;
   purchasePrice?: number | null;
   lowStockThreshold?: number | null;
@@ -183,7 +183,6 @@ const VariantDetailsForm: React.FC<VariantDetailsFormProps> = ({
               <Select {...field} className="w-full rounded-lg p-0 focus:outline-none focus:ring-1 focus:ring-green-500 bg-white h-10 appearance-none text-sm pl-3" displayEmpty>
                 <MenuItem value="In Stock">In Stock</MenuItem>
                 <MenuItem value="Out of Stock">Out of Stock</MenuItem>
-                <MenuItem value="Back Order">Back Order</MenuItem>
               </Select>
             </FormField>
           )}

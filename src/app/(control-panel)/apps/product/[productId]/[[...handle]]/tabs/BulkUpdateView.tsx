@@ -91,10 +91,6 @@ const validateFile = async (file: File): Promise<string | null> => {
   
   return null;
 };
-// --- END: Image Validation Helper Functions ---
-
-// --- START: Local Detailed Types for Variant Structure ---
-// Based on ManualVariantView and common needs for displaying/editing variant details
 interface LocalVariantImage {
   id: number;
   image_url: string;
@@ -121,9 +117,6 @@ interface LocalVariantAttribute {
   attribute: LocalVariantAttributeDefine; // Nested attribute definition details
   term: LocalVariantAttributeTerm;          // Nested attribute term details
 }
-
-// This is the main data structure used for variants within BulkUpdateView state
-// It should be compatible with DetailedProductVariant from the API but may use local types for sub-structures.
 interface EditableVariantData {
   id: number;
   product_id: number;
@@ -212,7 +205,7 @@ const bulkUpdateSchema = z.object({
         (val) => (val === "" || val === null || val === undefined ? undefined : Number(val)),
         z.number({ invalid_type_error: "Low stock threshold must be a whole number" }).int().min(0).optional()
     ),
-    stockStatus: z.enum(['In Stock', 'Out of Stock', 'Back Order']).optional(),
+    stockStatus: z.enum(['In Stock', 'Out of Stock']).optional(),
     status: z.enum(['active', 'inactive']).optional(),
     weight: z.preprocess(
         (val) => (val === "" || val === null || val === undefined ? undefined : Number(val)),
@@ -255,7 +248,7 @@ const individualVariantEditSchema = z.object({
       .min(0, "Stock must be a non-negative number")
   ),
   status: z.enum(["active", "inactive"]).default("active"),
-  stockStatus: z.enum(["In Stock", "Out of Stock", "Back Order"]).default("In Stock"),
+  stockStatus: z.enum(["In Stock", "Out of Stock"]).default("In Stock"),
   depositPrice: z.preprocess(
     (val) => (val === "" || val === null || val === undefined ? null : Number(val)),
     z.number({ invalid_type_error: "Please enter a valid number for sale price" })
@@ -319,12 +312,11 @@ const transformPriceNumber = (value: number | string | null | undefined): number
   return isNaN(num) ? 0 : num;
 };
 
-const getDisplayStockStatus = (apiStockStatus: string | null | undefined, currentStockVal?: number): "In Stock" | "Out of Stock" | "Back Order" => {
+const getDisplayStockStatus = (apiStockStatus: string | null | undefined, currentStockVal?: number): "In Stock" | "Out of Stock"  => {
   const stock = currentStockVal ?? 0;
   switch (apiStockStatus?.toLowerCase()) {
     case "in_stock": return "In Stock";
     case "out_of_stock": return "Out of Stock";
-    case "back_to_order": case "back_order": return "Back Order";
     default: return stock > 0 ? "In Stock" : "Out of Stock";
   }
 };
@@ -341,9 +333,6 @@ const mergeFormValuesWithVariantData = (
       break;
     case "Out of Stock":
       apiStockStatusFromForm = "out_of_stock";
-      break;
-    case "Back Order":
-      apiStockStatusFromForm = "back_order";
       break;
     // No default needed if formValues.stockStatus is always one of the enum values
   }
@@ -721,7 +710,6 @@ const BulkUpdateView: React.FC<BulkUpdateViewProps> = ({
       switch (data.stockStatus) {
         case "In Stock": updateRequestData.stock_status = "in_stock"; break;
         case "Out of Stock": updateRequestData.stock_status = "out_of_stock"; break;
-        case "Back Order": updateRequestData.stock_status = "back_order"; break;
       }
       
       // Filter out null/undefined values from the payload
@@ -812,9 +800,6 @@ const BulkUpdateView: React.FC<BulkUpdateViewProps> = ({
       showSnackbar("No variant or product ID available to set primary image.", "error");
       return;
     }
-    
-    // Consider adding a specific loading state like setIsSettingPrimaryImage if needed
-    // For now, re-using isUpdatingSelectedVariant or assuming it's quick
     // setIsUpdatingSelectedVariant(true); 
 
     try {
@@ -1046,7 +1031,6 @@ const BulkUpdateView: React.FC<BulkUpdateViewProps> = ({
         switch (data.stockStatus) {
           case 'In Stock': updates.stock_status = 'in_stock'; break;
           case 'Out of Stock': updates.stock_status = 'out_of_stock'; break;
-          case 'Back Order': updates.stock_status = 'back_order'; break;
         }
       }
 
@@ -1433,7 +1417,6 @@ const BulkUpdateView: React.FC<BulkUpdateViewProps> = ({
                       >
                         <MenuItem value="In Stock">In Stock</MenuItem>
                         <MenuItem value="Out of Stock">Out of Stock</MenuItem>
-                        <MenuItem value="Back Order">Back Order</MenuItem>
                       </Select>
                       {error && <FormHelperText>{error.message}</FormHelperText>}
                     </FormControl>
