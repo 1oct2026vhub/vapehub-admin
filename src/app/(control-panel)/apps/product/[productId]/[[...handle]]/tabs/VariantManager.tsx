@@ -627,7 +627,7 @@ const mapApiStockStatusToForm = (apiStatus?: string | null): 'In Stock' | 'Out o
   }
 };
 
-const mapFormStockStatusToApi = (formStatus?: 'In Stock' | 'Out of Stock' | null): 'in_stock' | 'out_of_stock' | 'back_order' | null => {
+const mapFormStockStatusToApi = (formStatus?: 'In Stock' | 'Out of Stock' | null): 'in_stock' | 'out_of_stock' | null => {
   switch (formStatus) {
     case 'In Stock': return 'in_stock';
     case 'Out of Stock': return 'out_of_stock';
@@ -1837,7 +1837,7 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
         regular_price: String(transformOptionalNumber(data.regular_price)),
         stock: Number(transformOptionalNumber(data.stock)),
         status: data.status === 'active' ? 'Active' : 'Inactive',
-        stock_status: data.stockStatus === 'In Stock' ? 'in_stock' : data.stockStatus === 'Out of Stock' ? 'out_of_stock' : 'back_order',
+        stock_status: data.stockStatus === 'In Stock' ? 'in_stock' : data.stockStatus === 'Out of Stock' ? 'out_of_stock' : '',
         discount_price: String(transformPriceNumber(data.depositPrice)),
         purchase_price: String(transformPriceNumber(data.purchasePrice)),
         low_stock_threshold: transformOptionalNumber(data.lowStockThreshold),
@@ -3008,7 +3008,7 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
       stock: formValues.stock !== null ? Number(formValues.stock) : variant.stock,
       status: formValues.status === 'active' ? 'Active' : 'Inactive',
       stock_status: formValues.stockStatus === 'In Stock' ? 'in_stock' : 
-                    formValues.stockStatus === 'Out of Stock' ? 'out_of_stock' : 'back_order',
+                    formValues.stockStatus === 'Out of Stock' ? 'out_of_stock' : '',
       discount_price: formValues.depositPrice !== null && formValues.depositPrice !== undefined ? 
                       String(formValues.depositPrice) : variant.discount_price,
       purchase_price: formValues.purchasePrice !== null && formValues.purchasePrice !== undefined ? 
