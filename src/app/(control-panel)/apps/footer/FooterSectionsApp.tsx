@@ -54,9 +54,6 @@ import {
   updateFooterSection,
   deleteFooterSection,
   reorderFooterSection,
-  createFooterLink,
-  updateFooterLink,
-  deleteFooterLink,
   reorderFooterLink,
 } from "@/services/apiFooter";
 import FooterLinksDialog from "./components/FooterLinksDialog";
@@ -452,14 +449,9 @@ export default function FooterSectionsApp() {
               width: '100%'
             }}
           >
-{/* <Paper
-            className="flex flex-col flex-auto p-6 shadow-none rounded"
-            elevation={0}
-          ></Paper> */}
-
             {sections.length === 0 ? (
               <Alert severity="info">
-                Falied to load footer section
+                No footer sections found. Click "Add Section" to create one.
               </Alert>
             ) : (
               <DndContext
