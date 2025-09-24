@@ -192,7 +192,7 @@ const RefferalMethodForm = () => {
 							type="number"
 						/>
 					</Grid>
-					<Grid
+					{/* <Grid
 						item
 						xs={12}
 					>
@@ -211,7 +211,7 @@ const RefferalMethodForm = () => {
 								/>
 							)}
 						/>
-					</Grid>
+					</Grid> */}
 				</Grid>
 				<div className="flex justify-end gap-2 mt-10">
 					<Button
