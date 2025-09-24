@@ -84,20 +84,21 @@ const DraggableBannerCard: React.FC<DraggableBannerCardProps> = ({
           </Box>
         )}
 
-        {banner.deletedAt ? (
+        {/* {banner.deletedAt ? (
             <Box sx={{ height: '100%' }}>
               {banner.image_url && (
                 <CardMedia
                   component="img"
                   sx={{ height: 160, objectFit: 'cover', borderBottom: '1px solid #eee' }}
                   image={banner.image_url_low || banner.image_url}
-                  alt={banner.title}
+                  alt=""
                   onError={(e: React.SyntheticEvent<HTMLImageElement, Event>) => {
                     const target = e.target as HTMLImageElement;
                     if (target.src === banner.image_url_low && banner.image_url) {
                       target.src = banner.image_url;
                     } else {
-                      target.src = '/assets/images/placeholder/16x9.svg';
+                      // Use a data URL with "No Image Found" text instead of external SVG
+                      target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjExMiIgdmlld0JveD0iMCAwIDIwMCAxMTIiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIyMDAiIGhlaWdodD0iMTEyIiBmaWxsPSIjRjBGMEYwIiBzdHJva2U9IiNEOUQ5RDkiIHN0cm9rZS13aWR0aD0iMSIvPgo8dGV4dCB4PSIxMDAiIHk9IjU2IiBmb250LWZhbWlseT0iQXJpYWwsIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTIiIGZpbGw9IiM5OTk5OTkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5ObyBJbWFnZSBGb3VuZDwvdGV4dD4KPC9zdmc+';
                       target.style.objectFit = 'contain';
                     }
                   }}
@@ -114,7 +115,7 @@ const DraggableBannerCard: React.FC<DraggableBannerCardProps> = ({
                 </Typography>
               </CardContent>
             </Box>
-        ) : (
+        ) : ( */}
           <Link 
             href={`/apps/banner/${banner.id}`} 
             passHref 
@@ -126,13 +127,14 @@ const DraggableBannerCard: React.FC<DraggableBannerCardProps> = ({
                   component="img"
                   sx={{ height: 160, objectFit: 'cover', borderBottom: '1px solid #eee' }}
                   image={banner.image_url_low || banner.image_url}
-                  alt={banner.title}
+                  // alt=""
                   onError={(e: React.SyntheticEvent<HTMLImageElement, Event>) => {
                     const target = e.target as HTMLImageElement;
                     if (target.src === banner.image_url_low && banner.image_url) {
                       target.src = banner.image_url;
                     } else {
-                      target.src = '/assets/images/placeholder/16x9.svg';
+                      // Use a data URL with "No Image Found" text instead of external SVG
+                      target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjExMiIgdmlld0JveD0iMCAwIDIwMCAxMTIiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIyMDAiIGhlaWdodD0iMTEyIiBmaWxsPSIjRjBGMEYwIiBzdHJva2U9IiNEOUQ5RDkiIHN0cm9rZS13aWR0aD0iMSIvPgo8dGV4dCB4PSIxMDAiIHk9IjU2IiBmb250LWZhbWlseT0iQXJpYWwsIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTIiIGZpbGw9IiM5OTk5OTkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5ObyBJbWFnZSBGb3VuZDwvdGV4dD4KPC9zdmc+';
                       target.style.objectFit = 'contain';
                     }
                   }}
@@ -155,7 +157,7 @@ const DraggableBannerCard: React.FC<DraggableBannerCardProps> = ({
               </CardContent>
             </Box>
           </Link>
-        )}
+        {/* )} */}
 
         <Stack 
           direction="row" 
