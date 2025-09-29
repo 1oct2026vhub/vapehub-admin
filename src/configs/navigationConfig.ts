@@ -286,6 +286,14 @@ const navigationConfig: FuseNavItemType[] = [
     icon: "heroicons-outline:sparkles",
     url: "/apps/feature-content"
   },
+
+  {
+    id: "shipping-methods",
+    title: "Shipping Methods",
+    type: "item",
+    icon: "heroicons-outline:truck",
+    url: "/apps/shipping-methods"
+  },
   
 ];
 
