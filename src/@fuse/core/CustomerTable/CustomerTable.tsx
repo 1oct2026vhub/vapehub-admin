@@ -65,7 +65,7 @@ const CustomerTable = () => {
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [order, setOrder] = useState<"ASC" | "DESC">("DESC");
-  const [sortBy, setSortBy] = useState("createdAt");
+  const [sortBy, setSortBy] = useState("id");
   const [deleted, setDeleted] = useState<boolean | null>(null);
   const [verified, setVerified] = useState<boolean | null>(null);
   const [blocked, setBlocked] = useState<boolean | null>(null);
