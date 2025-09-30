@@ -19,18 +19,18 @@ import { CreateLoyaltyPointSettingData, createLoyaltyPointSetting, updateLoyalty
 
 const loyaltyPointSchema = z.object({
   program_name: z.string().min(1, 'Program name is required'),
-  points_value: z.coerce
-    .number({ invalid_type_error: 'Points value is required' })
-    .positive('Points value must be a positive number')
-    .refine(
-      (value) => {
-        const parts = String(value).split('.');
-        return parts.length === 1 || (parts.length === 2 && parts[1].length <= 2);
-      },
-      {
-        message: 'Points value can have at most 2 decimal places.',
-      }
-    ),
+  // points_value: z.coerce
+  //   .number({ invalid_type_error: 'Points value is required' })
+  //   .positive('Points value must be a positive number')
+  //   .refine(
+  //     (value) => {
+  //       const parts = String(value).split('.');
+  //       return parts.length === 1 || (parts.length === 2 && parts[1].length <= 2);
+  //     },
+  //     {
+  //       message: 'Points value can have at most 2 decimal places.',
+  //     }
+  //   ),
   loyalty_amount: z.coerce
     .number({ invalid_type_error: 'Loyalty amount is required' })
     .positive('Loyalty amount must be a positive number')
@@ -103,7 +103,7 @@ export default function LoyaltyPointForm({ initialData = null }: LoyaltyPointFor
     mode: 'all',
     defaultValues: {
       program_name: initialData?.program_name || '',
-      points_value: initialData ? Number(initialData.points_value) : undefined,
+      // points_value: initialData ? Number(initialData.points_value) : undefined,
       loyalty_amount: initialData ? Number(initialData.loyalty_amount) : undefined,
       loyalty_amount_type: (initialData?.loyalty_amount_type as 'percentage' | 'fixed') || 'fixed',
       minimum_points_redemption: initialData?.minimum_points_redemption || undefined,
@@ -118,7 +118,7 @@ export default function LoyaltyPointForm({ initialData = null }: LoyaltyPointFor
     if (initialData) {
         reset({
             ...initialData,
-            points_value: Number(initialData.points_value),
+            // points_value: Number(initialData.points_value),
             loyalty_amount: Number(initialData.loyalty_amount),
             loyalty_amount_type: initialData.loyalty_amount_type as 'percentage' | 'fixed',
             minimum_purchase_amount: Number(initialData.minimum_purchase_amount),
@@ -154,13 +154,13 @@ export default function LoyaltyPointForm({ initialData = null }: LoyaltyPointFor
             <FormTextField
               name="program_name"
               control={control}
-              label="Program Name"
+              label="Loyalty Name"
               required
               error={!!errors.program_name}
               helperText={errors.program_name?.message}
             />
           </Grid>
-          <Grid item xs={12} md={6}>
+          {/* <Grid item xs={12} md={6}>
             <FormTextField
               name="points_value"
               control={control}
@@ -170,12 +170,12 @@ export default function LoyaltyPointForm({ initialData = null }: LoyaltyPointFor
               error={!!errors.points_value}
               helperText={errors.points_value?.message}
             />
-          </Grid>
+          </Grid> */}
           <Grid item xs={12} md={6}>
             <FormTextField
               name="loyalty_amount"
               control={control}
-              label="Points Earned per Transaction"
+              label="Loyalty Discount Value"
               type="number"
               required
               error={!!errors.loyalty_amount}
@@ -186,11 +186,11 @@ export default function LoyaltyPointForm({ initialData = null }: LoyaltyPointFor
             <FormTextField
               name="loyalty_amount_type"
               control={control}
-              label="Reward Type (Fixed/Percentage)"
+              label="Loyalty Discount Value (Percentage / Fixed Amount)"
               select
               required
             >
-              <MenuItem value="fixed">Fixed</MenuItem>
+              <MenuItem value="fixed">Fixed Amount</MenuItem>
               <MenuItem value="percentage">Percentage</MenuItem>
             </FormTextField>
           </Grid>
@@ -198,7 +198,7 @@ export default function LoyaltyPointForm({ initialData = null }: LoyaltyPointFor
             <FormTextField
               name="minimum_points_redemption"
               control={control}
-              label="Minimum Points Required to Redeem"
+              label="Eligibility Points for Loyalty Discount"
               type="number"
               required
               error={!!errors.minimum_points_redemption}
@@ -225,7 +225,7 @@ export default function LoyaltyPointForm({ initialData = null }: LoyaltyPointFor
             <FormTextField
               name="min_amount_for_loyalty_points"
               control={control}
-              label="Minimum Spend to Earn Loyalty Points"
+              label="Minimum Points for Getting Loyalty Points"
               type="number"
               error={!!errors.min_amount_for_loyalty_points}
               helperText={errors.min_amount_for_loyalty_points?.message}
@@ -236,7 +236,7 @@ export default function LoyaltyPointForm({ initialData = null }: LoyaltyPointFor
             <FormTextField
               name="amount_divisor"
               control={control}
-              label="Spend Per Point Ratio"
+              label="Amount Value for Getting Each Points"
               type="number"
               required
               error={!!errors.amount_divisor}
