@@ -115,7 +115,7 @@ const ShippingMethodsCard = ({
 
       const response = await listShippingMethods(params);
       if (response.success && response.data) {
-        setLocalShippingMethods(response.data);
+        setLocalShippingMethods(response.data?.shippingMethods || []);
       }
     } catch (error) {
       console.error("Error fetching shipping methods:", error);
@@ -356,11 +356,11 @@ const ShippingMethodsCard = ({
           onDragEnd={handleDragEnd}
         >
           <SortableContext
-            items={localShippingMethods.map(item => item.id.toString())}
+            items={localShippingMethods?.map(item => item.id.toString())}
             strategy={verticalListSortingStrategy}
           >
             <Grid container spacing={3}>
-              {localShippingMethods.map((shippingMethod) => (
+              {localShippingMethods?.map((shippingMethod) => (
                 <Grid item xs={12} sm={6} md={4} lg={3} key={shippingMethod.id}>
                   <DraggableShippingMethodCard
                     shippingMethod={shippingMethod}
@@ -376,7 +376,7 @@ const ShippingMethodsCard = ({
         </DndContext>
       </Box>
 
-      {localShippingMethods.length === 0 && !isLoading && (
+      {localShippingMethods?.length === 0 && !isLoading && (
         <Box sx={{ textAlign: 'center', py: 4 }}>
           <Typography variant="h6" color="text.secondary">
             No shipping methods found

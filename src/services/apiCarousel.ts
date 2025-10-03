@@ -79,13 +79,45 @@ export const createCarousel = async (data: FormData): Promise<Carousel> => {
  * Updates an existing carousel.
  * PUT /api/admin/carousels/:id
  */
-export const updateCarousel = async (id: number, data: CarouselUpdate): Promise<Carousel> => {
+export const updateCarousel = async (id: number, data: any): Promise<Carousel> => {
   try {
-    const response = await axiosInstance.put<CarouselApiResponse>(`/api/admin/carousels/${id}`, data);
-    if (response.data && response.data.success) {
-      return response.data.data;
+    // Check if data contains File objects (indicating file upload)
+    const hasFiles = Object.values(data).some(value => value instanceof File);
+    
+    if (hasFiles) {
+      // Create FormData for file uploads
+      const formData = new FormData();
+      
+      // Append all fields to FormData
+      Object.keys(data).forEach(key => {
+        const value = data[key];
+        if (value !== undefined && value !== null) {
+          if (value instanceof File) {
+            formData.append(key, value);
+          } else {
+            formData.append(key, String(value));
+          }
+        }
+      });
+      
+      const response = await axiosInstance.put<CarouselApiResponse>(`/api/admin/carousels/${id}`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      
+      if (response.data && response.data.success) {
+        return response.data.data;
+      }
+      throw new Error(response.data.message || 'Failed to update carousel');
+    } else {
+      // Regular JSON update for non-file data
+      const response = await axiosInstance.put<CarouselApiResponse>(`/api/admin/carousels/${id}`, data);
+      if (response.data && response.data.success) {
+        return response.data.data;
+      }
+      throw new Error(response.data.message || 'Failed to update carousel');
     }
-    throw new Error(response.data.message || 'Failed to update carousel');
   } catch (error: any) {
     console.error('Error updating carousel:', error);
     const errorMessage = error.response?.data?.message || error.message || 'An unexpected error occurred while updating carousel.';
