@@ -30,14 +30,24 @@ const schema = z.object({
     .max(200, "Display Text must be at most 200 characters"),
 
   shipping_cost: z
-    .number()
-    .min(0, "Shipping Cost must be a positive number")
-    .max(999.99, "Shipping Cost must be less than 1000"),
+    .union([z.string(), z.number()])
+    .transform((val) => {
+      const num = typeof val === 'string' ? parseFloat(val) : val;
+      if (isNaN(num)) throw new Error("Invalid number");
+      return num;
+    })
+    .refine((val) => val >= 0, "Shipping Cost must be a positive number")
+    .refine((val) => val <= 999.99, "Shipping Cost must be less than 1000"),
 
   method_order: z
-    .number()
-    .min(1, "Method Order must be at least 1")
-    .max(999, "Method Order must be less than 1000"),
+    .union([z.string(), z.number()])
+    .transform((val) => {
+      const num = typeof val === 'string' ? parseInt(val, 10) : val;
+      if (isNaN(num)) throw new Error("Invalid number");
+      return num;
+    })
+    .refine((val) => val >= 1, "Method Order must be at least 1")
+    .refine((val) => val <= 999, "Method Order must be less than 1000"),
 
   is_enabled: z.boolean(),
 

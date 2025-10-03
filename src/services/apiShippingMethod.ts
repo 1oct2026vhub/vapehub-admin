@@ -68,7 +68,9 @@ export interface ShippingMethodListParams {
 export interface ShippingMethodListResponse {
   success: boolean;
   message: string;
-  data: ShippingMethod[];
+  data: {
+    shippingMethods: ShippingMethod[];
+  };
 }
 
 export interface ShippingMethodDetailResponse {
