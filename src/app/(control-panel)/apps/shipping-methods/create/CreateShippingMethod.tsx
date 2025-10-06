@@ -31,6 +31,12 @@ const schema = z.object({
 
   shipping_cost: z
     .union([z.string(), z.number()])
+    .refine((val) => {
+      if (val === "" || val === null || val === undefined) {
+        return false;
+      }
+      return true;
+    }, "Shipping Cost is required")
     .transform((val) => {
       const num = typeof val === 'string' ? parseFloat(val) : val;
       if (isNaN(num)) throw new Error("Invalid number");
@@ -41,6 +47,12 @@ const schema = z.object({
 
   method_order: z
     .union([z.string(), z.number()])
+    .refine((val) => {
+      if (val === "" || val === null || val === undefined) {
+        return false;
+      }
+      return true;
+    }, "Method Order is required")
     .transform((val) => {
       const num = typeof val === 'string' ? parseInt(val, 10) : val;
       if (isNaN(num)) throw new Error("Invalid number");
