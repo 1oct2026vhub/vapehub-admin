@@ -14,7 +14,7 @@ import {
 } from '@mui/material';
 import { useRouter } from 'next/navigation';
 import { useSnackbar } from '@/contexts/SnackbarContext';
-import { createReferralMethod, CreateReferralMethodData } from '@/services/apiRefferalMethods';
+import { createReferralMethod, CreateReferralMethodData } from '@/services/apiReferralMethods';
 import FormTextField from '@/components/Shared/FormTextField';
 import AppButton from '@/components/Shared/AppButton';
 
@@ -70,7 +70,7 @@ const referralMethodSchema = z.object({
 	),
 });
 
-const RefferalMethodForm = () => {
+const ReferralMethodForm = () => {
 	const router = useRouter();
 	const { showSnackbar } = useSnackbar();
 	const [isSubmitting, setIsSubmitting] = useState(false);
@@ -96,7 +96,7 @@ const RefferalMethodForm = () => {
 			setIsSubmitting(true);
 			await createReferralMethod(data);
 			showSnackbar('Referral method created successfully!', 'success');
-			router.push('/apps/refferal-methods');
+			router.push('/apps/referral-methods');
 		} catch (error: any) {
 			showSnackbar(error.message || 'Failed to create referral method.', 'error');
 		} finally {
@@ -216,7 +216,7 @@ const RefferalMethodForm = () => {
 				<div className="flex justify-end gap-2 mt-10">
 					<Button
 						variant="outlined"
-						onClick={() => router.push('/apps/refferal-methods')}
+						onClick={() => router.push('/apps/referral-methods')}
 					>
 						Cancel
 					</Button>
@@ -232,4 +232,4 @@ const RefferalMethodForm = () => {
 	);
 };
 
-export default RefferalMethodForm; 
+export default ReferralMethodForm; 

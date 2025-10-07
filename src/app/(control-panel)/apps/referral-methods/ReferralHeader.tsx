@@ -8,12 +8,12 @@ import useThemeMediaQuery from "@fuse/hooks/useThemeMediaQuery";
 import PageBreadcrumb from "src/components/PageBreadcrumb";
 import AppButton from "@/components/Shared/AppButton";
 
-interface RefferalHeaderProps {
+interface ReferralHeaderProps {
   queryParams?: Record<string, any>;
   refreshData?: () => void;
 }
 
-function RefferalHeader({ queryParams = {}, refreshData }: RefferalHeaderProps) {
+function ReferralHeader({ queryParams = {}, refreshData }: ReferralHeaderProps) {
   const isMobile = useThemeMediaQuery((theme) => theme.breakpoints.down("lg"));
 
   return (
@@ -25,7 +25,7 @@ function RefferalHeader({ queryParams = {}, refreshData }: RefferalHeaderProps) 
         <div>
           <PageBreadcrumb className="mb-2" />
           <Typography className="text-4xl font-extrabold leading-none tracking-tight">
-            Refferal Methods
+            Referral Methods
           </Typography>
         </div>
       </motion.span>
@@ -47,7 +47,7 @@ function RefferalHeader({ queryParams = {}, refreshData }: RefferalHeaderProps) 
             className=""
             variant="contained"
             component={NavLinkAdapter}
-              to="/apps/refferal-methods/refferal-method-new"
+              to="/apps/referral-methods/referral-method-new"
             size={isMobile ? "small" : "medium"}
           />
         </motion.div>
@@ -56,4 +56,4 @@ function RefferalHeader({ queryParams = {}, refreshData }: RefferalHeaderProps) 
   );
 }
 
-export default RefferalHeader; 
+export default ReferralHeader; 
