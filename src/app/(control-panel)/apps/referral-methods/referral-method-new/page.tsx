@@ -1,5 +1,5 @@
 import { Metadata } from 'next';
-import NewRefferalMethodPageClient from './NewRefferalMethodPageClient';
+import NewReferralMethodPageClient from './NewReferralMethodPageClient';
 
 // metadata is a server-side export
 export const metadata: Metadata = {
@@ -7,6 +7,6 @@ export const metadata: Metadata = {
 };
 
 // This page.tsx is now a Server Component
-export default function NewRefferalMethodPage() {
-  return <NewRefferalMethodPageClient />;
+export default function NewReferralMethodPage() {
+  return <NewReferralMethodPageClient />;
 } 

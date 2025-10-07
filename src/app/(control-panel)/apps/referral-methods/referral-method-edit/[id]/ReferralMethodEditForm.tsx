@@ -15,7 +15,7 @@ import {
 } from '@mui/material';
 import { useRouter } from 'next/navigation';
 import { useSnackbar } from '@/contexts/SnackbarContext';
-import { updateReferralMethod, CreateReferralMethodData, ReferralMethod } from '@/services/apiRefferalMethods';
+import { updateReferralMethod, CreateReferralMethodData, ReferralMethod } from '@/services/apiReferralMethods';
 import FormTextField from '@/components/Shared/FormTextField';
 import AppButton from '@/components/Shared/AppButton';
 
@@ -71,11 +71,11 @@ const referralMethodSchema = z.object({
 	),
 });
 
-interface RefferalMethodEditFormProps {
+interface ReferralMethodEditFormProps {
 	referralMethod: ReferralMethod;
 }
 
-const RefferalMethodEditForm: React.FC<RefferalMethodEditFormProps> = ({ referralMethod }) => {
+const ReferralMethodEditForm: React.FC<ReferralMethodEditFormProps> = ({ referralMethod }) => {
 	const router = useRouter();
 	const { showSnackbar } = useSnackbar();
 	const [isSubmitting, setIsSubmitting] = useState(false);
@@ -120,7 +120,7 @@ const RefferalMethodEditForm: React.FC<RefferalMethodEditFormProps> = ({ referra
 			setIsSubmitting(true);
 			await updateReferralMethod(referralMethod.id, payload as any);
 			showSnackbar('Referral method updated successfully!', 'success');
-			router.push('/apps/refferal-methods');
+			router.push('/apps/referral-methods');
 		} catch (error: any) {
 			showSnackbar(error.message || 'Failed to update referral method.', 'error');
 		} finally {
@@ -219,7 +219,7 @@ const RefferalMethodEditForm: React.FC<RefferalMethodEditFormProps> = ({ referra
 					<div className="flex justify-end gap-2 mt-10">
 						<Button
 							variant="outlined"
-							onClick={() => router.push('/apps/refferal-methods')}
+							onClick={() => router.push('/apps/referral-methods')}
 						>
 							Cancel
 						</Button>
@@ -236,4 +236,4 @@ const RefferalMethodEditForm: React.FC<RefferalMethodEditFormProps> = ({ referra
 	);
 };
 
-export default RefferalMethodEditForm; 
+export default ReferralMethodEditForm; 

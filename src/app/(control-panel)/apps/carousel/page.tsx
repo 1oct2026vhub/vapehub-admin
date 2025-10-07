@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 
 export default function CarouselPage() {
   return (
-    <div className="mx-auto p-4">
+    <div className="p-4">
       <PageBreadcrumb />
       <CarouselList />
     </div>

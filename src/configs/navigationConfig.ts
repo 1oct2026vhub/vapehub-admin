@@ -191,11 +191,11 @@ const navigationConfig: FuseNavItemType[] = [
     url: "/apps/flash-news"
   },
   {
-    id: "refferal-methods",
-    title: "Refferal Methods",
+    id: "referral-methods",
+    title: "Referral Methods",
     type: "item",
     icon: "heroicons-outline:gift",
-    url: "/apps/refferal-methods"
+    url: "/apps/referral-methods"
   },
   {
     id: "menu",

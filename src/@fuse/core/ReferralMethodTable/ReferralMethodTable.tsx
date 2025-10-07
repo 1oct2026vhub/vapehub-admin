@@ -23,12 +23,12 @@ import {
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import ClearFiltersButton from '@/components/Shared/ClearFiltersButton';
-import { getReferralMethods, ReferralMethod, FetchReferralMethodsParams, deleteReferralMethod, updateReferralMethodPrimary, updateReferralMethodStatus } from '@/services/apiRefferalMethods';
+import { getReferralMethods, ReferralMethod, FetchReferralMethodsParams, deleteReferralMethod, updateReferralMethodPrimary, updateReferralMethodStatus } from '@/services/apiReferralMethods';
 import FuseSvgIcon from '@fuse/core/FuseSvgIcon';
 import { useRouter } from 'next/navigation';
 import { useSnackbar } from '@/contexts/SnackbarContext';
 
-const RefferalMethodTable: React.FC = () => {
+const ReferralMethodTable: React.FC = () => {
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [page, setPage] = useState(1);
@@ -252,7 +252,7 @@ const RefferalMethodTable: React.FC = () => {
           columns={columns}
           enableColumnOrdering
           renderRowActionMenuItems={({ closeMenu, row }) => [
-              <MenuItem key="edit" onClick={() => { router.push(`/apps/refferal-methods/refferal-method-edit/${row.original.id}`); closeMenu(); }}>
+              <MenuItem key="edit" onClick={() => { router.push(`/apps/referral-methods/referral-method-edit/${row.original.id}`); closeMenu(); }}>
                 <ListItemIcon>
                   <FuseSvgIcon>heroicons-outline:pencil-square</FuseSvgIcon>
                 </ListItemIcon>
@@ -323,4 +323,4 @@ const RefferalMethodTable: React.FC = () => {
   );
 };
 
-export default RefferalMethodTable; 
+export default ReferralMethodTable; 
