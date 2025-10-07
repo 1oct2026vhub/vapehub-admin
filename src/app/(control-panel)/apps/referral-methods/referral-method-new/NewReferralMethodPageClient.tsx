@@ -1,19 +1,19 @@
 'use client';
 
 import { Box, Typography } from "@mui/material";
-import RefferalMethodForm from "./RefferalMethodForm";
+import ReferralMethodForm from "./ReferralMethodForm";
 import PageBreadcrumb from '@/components/PageBreadcrumb';
 
-function NewRefferalMethodPageClient() {
+function NewReferralMethodPageClient() {
 	return (
       <Box sx={{ p: 3 }}>
         <PageBreadcrumb />
       <Typography variant="h5" component="h2" gutterBottom sx={{ mb: 3, fontWeight: 'bold' }}>
         Create New Referral Method
       </Typography>
-      <RefferalMethodForm />
+      <ReferralMethodForm />
       </Box>
 	);
 }
 
-export default NewRefferalMethodPageClient; 
+export default NewReferralMethodPageClient; 

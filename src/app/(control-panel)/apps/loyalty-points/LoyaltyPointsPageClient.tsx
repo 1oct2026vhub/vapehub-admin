@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import RefferalMethodTable from 'src/@fuse/core/RefferalMethodTable/RefferalMethodTable';
 import LoyaltyHeader from './LoyalityHeader';
 import LoyaltyPointsTable from '@fuse/core/LoyaltyPointsTable/LoyaltyPointsTable';
 

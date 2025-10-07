@@ -1,13 +1,13 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { getReferralMethodById, ReferralMethod } from '@/services/apiRefferalMethods';
-import RefferalMethodEditForm from './RefferalMethodEditForm';
+import { getReferralMethodById, ReferralMethod } from '@/services/apiReferralMethods';
+import ReferralMethodEditForm from './ReferralMethodEditForm';
 import { useParams } from 'next/navigation';
 import PageBreadcrumb from '@/components/PageBreadcrumb';
 import { Box, Typography, CircularProgress } from '@mui/material';
 
-function EditRefferalMethodPageClient() {
+function EditReferralMethodPageClient() {
 	const params = useParams();
 	const id = params.id as string;
 	const [referralMethod, setReferralMethod] = useState<ReferralMethod | null>(null);
@@ -55,9 +55,9 @@ function EditRefferalMethodPageClient() {
 			<Typography variant="h5" component="h2" gutterBottom sx={{ mb: 3, fontWeight: 'bold' }}>
 				Edit Referral Method
 			</Typography>
-			<RefferalMethodEditForm referralMethod={referralMethod} />
+			<ReferralMethodEditForm referralMethod={referralMethod} />
 		</Box>
 	);
 }
 
-export default EditRefferalMethodPageClient; 
+export default EditReferralMethodPageClient; 
