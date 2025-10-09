@@ -56,7 +56,18 @@ const FormTextField = <T extends FieldValues>({
           type={isPassword ? (showPassword ? "text" : "password") : type}
           multiline={multiline} // Pass multiline prop to TextField
           error={!!error}
-          helperText={error?.message}
+          helperText={
+            rest.helperText || error?.message ? (
+              <>
+                {error?.message && (
+                  <span style={{ display: 'block' }}>{error.message}</span>
+                )}
+                {rest.helperText && (
+                  <span style={{ display: 'block', color: '#6b7280' }}>{rest.helperText}</span>
+                )}
+              </>
+            ) : undefined
+          }
           variant="outlined" // Or "filled" / "standard" based on your design
           size="small" // Optional: Adjust size if needed
           value={field.value ?? ""} // Handle null/undefined from react-hook-form

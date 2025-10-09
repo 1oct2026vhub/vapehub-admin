@@ -9,6 +9,13 @@ import {
   MenuItem,
   FormControlLabel,
   Switch,
+  Typography,
+  Box,
+  FormControl,
+  FormLabel,
+  RadioGroup,
+  Radio,
+  FormControlLabel as MuiFormControlLabel,
 } from '@mui/material';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
@@ -98,7 +105,7 @@ export default function LoyaltyPointForm({ initialData = null }: LoyaltyPointFor
   const { showSnackbar } = useSnackbar();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const isEditMode = initialData !== null;
-  const { control, handleSubmit, reset, formState: { errors, isValid } } = useForm<LoyaltyPointFormType>({
+  const { control, handleSubmit, reset, watch, formState: { errors, isValid } } = useForm<LoyaltyPointFormType>({
     resolver: zodResolver(loyaltyPointSchema),
     mode: 'all',
     defaultValues: {
@@ -128,6 +135,22 @@ export default function LoyaltyPointForm({ initialData = null }: LoyaltyPointFor
     }
   }, [initialData, reset]);
 
+  // Calculate example text reactively based on earning rules
+  const amountDivisor = Number(watch('amount_divisor') || 0);
+  const minAmountForPoint = Number(watch('min_amount_for_loyalty_points') || 0);
+  // Spend value shown in the summary: when user sets a minimum amount, use it; else default to 100
+  const exampleSpendAmount = minAmountForPoint > 0 ? minAmountForPoint : Number(watch('minimum_purchase_amount') || 0);
+  const safePoints = amountDivisor > 0 ? Math.floor(exampleSpendAmount / amountDivisor) : 0;
+  const exampleMinRedeemPoints = watch('minimum_points_redemption');
+  const discountPerPoint = 1; // from the example: 40 pts -> ₹2 => ₹0.05 per point (but example copy shows fixed statement). We'll map 40 -> 2 using loyalty config below if needed.
+  const loyaltyAmount = watch('loyalty_amount');
+  const loyaltyType = watch('loyalty_amount_type');
+  // For the bottom example we stick to the design text using 40 points -> discount value
+  const exampleRedeemPts = exampleMinRedeemPoints || Number(watch('minimum_points_redemption') || 0);
+  const discountForExampleRedeem = loyaltyType === 'percentage'
+    ? `${loyaltyAmount ?? 0}%`
+    : `£${loyaltyAmount ?? 0}`;
+
   const onSubmit = async (data: LoyaltyPointFormType) => {
     try {
       setIsSubmitting(true);
@@ -147,62 +170,75 @@ export default function LoyaltyPointForm({ initialData = null }: LoyaltyPointFor
   };
 
   return (
-    <Paper sx={{ p: { xs: 2, md: 4 }, borderRadius: 2, boxShadow: 3, bgcolor: 'white' }}>
+    <Paper sx={{ p: { xs: 2, md: 4 }, borderRadius: 2, boxShadow: 3, bgcolor: 'white' }}>  
       <form onSubmit={handleSubmit(onSubmit)}>
         <Grid container spacing={3}>
+          {/* Program basics section */}
+          {/* <Grid item xs={12}>
+            <Typography variant="h6" sx={{ mb: 2, fontWeight: 500 }}>
+              1. Program basics:
+            </Typography>
+          </Grid> */}
+          
           <Grid item xs={12} md={6}>
             <FormTextField
               name="program_name"
               control={control}
-              label="Loyalty Name"
+              label="Program name"
               required
-              error={!!errors.program_name}
-              helperText={errors.program_name?.message}
+              helperText="Enter the name of your loyalty program"
             />
           </Grid>
-          {/* <Grid item xs={12} md={6}>
+          
+        
+
+          {/* Earning points section */}
+          {/* <Grid item xs={12}>
+            <Typography variant="h6" sx={{ mb: 2, fontWeight: 500, mt: 2 }}>
+              2. Earning points:
+            </Typography>
+          </Grid>
+           */}
+          <Grid item xs={12} md={6}>
             <FormTextField
-              name="points_value"
+              name="amount_divisor"
               control={control}
-              label="Value per Point (in Currency)"
+              label="Earn 1 point for every"
               type="number"
               required
-              error={!!errors.points_value}
-              helperText={errors.points_value?.message}
+              error={!!errors.amount_divisor}
+              helperText="Enter how much a customer must spend to earn 1 point (e.g. 2 → 1 point per £2)."
             />
+          </Grid>
+          
+          <Grid item xs={12} md={6}>
+            <FormTextField
+              name="min_amount_for_loyalty_points"
+              control={control}
+              label="Minimum amount for getting loyalty point"
+              type="number"
+              error={!!errors.min_amount_for_loyalty_points}
+              helperText="Orders below this amount won't earn any points."
+              required
+            />
+          </Grid>
+
+          {/* Redeeming points section */}
+          {/* <Grid item xs={12}>
+            <Typography variant="h6" sx={{ mb: 2, fontWeight: 500, mt: 2 }}>
+              3. Redeeming points:
+            </Typography>
           </Grid> */}
-          <Grid item xs={12} md={6}>
-            <FormTextField
-              name="loyalty_amount"
-              control={control}
-              label="Loyalty Discount Value"
-              type="number"
-              required
-              error={!!errors.loyalty_amount}
-              helperText={errors.loyalty_amount?.message}
-            />
-          </Grid>
-          <Grid item xs={12} md={6}>
-            <FormTextField
-              name="loyalty_amount_type"
-              control={control}
-              label="Loyalty Discount Value (Percentage / Fixed Amount)"
-              select
-              required
-            >
-              <MenuItem value="fixed">Fixed Amount</MenuItem>
-              <MenuItem value="percentage">Percentage</MenuItem>
-            </FormTextField>
-          </Grid>
+          
           <Grid item xs={12} md={6}>
             <FormTextField
               name="minimum_points_redemption"
               control={control}
-              label="Eligibility Points for Loyalty Discount"
+              label="Minimum points to redeem"
               type="number"
               required
               error={!!errors.minimum_points_redemption}
-              helperText={errors.minimum_points_redemption?.message}
+              helperText="Customers must have at least this number of points to apply them at checkout."
               onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
                 if (e.key === '.') {
                   e.preventDefault();
@@ -210,67 +246,127 @@ export default function LoyaltyPointForm({ initialData = null }: LoyaltyPointFor
               }}
             />
           </Grid>
+          
           <Grid item xs={12} md={6}>
             <FormTextField
               name="minimum_purchase_amount"
               control={control}
-              label="Minimum Spend to Use Loyalty Points"
+              label="Minimum order value to redeem"
               type="number"
               required
               error={!!errors.minimum_purchase_amount}
-              helperText={errors.minimum_purchase_amount?.message}
+              helperText="Only orders above this value can use loyalty points."
             />
           </Grid>
+          
+          <Grid item xs={12} md={6}>
+            <Controller
+              name="loyalty_amount_type"
+              control={control}
+              render={({ field }) => (
+                <FormControl component="fieldset" required>
+                  <FormLabel component="legend" className='text-[#005B2F]'>Discount type</FormLabel>
+                  <RadioGroup
+                    {...field}
+                    row
+                    sx={{ mt: 1 }}
+                  >
+                      <MuiFormControlLabel
+                      value="fixed"
+                      control={<Radio />}
+                      label="Fixed amount"
+                    />
+                    <MuiFormControlLabel
+                      value="percentage"
+                      control={<Radio />}
+                      label="Percentage (%)"
+                    />                
+                  </RadioGroup>
+                </FormControl>
+              )}
+            />
+          </Grid>
+          
           <Grid item xs={12} md={6}>
             <FormTextField
-              name="min_amount_for_loyalty_points"
+              name="loyalty_amount"
               control={control}
-              label="Minimum Points for Getting Loyalty Points"
-              type="number"
-              error={!!errors.min_amount_for_loyalty_points}
-              helperText={errors.min_amount_for_loyalty_points?.message}
-              required
-            />
-          </Grid>
-          <Grid item xs={12} md={6}>
-            <FormTextField
-              name="amount_divisor"
-              control={control}
-              label="Amount Value for Getting Each Points"
+              label="Discount value"
               type="number"
               required
-              error={!!errors.amount_divisor}
-              helperText={errors.amount_divisor?.message}
+              error={!!errors.loyalty_amount}
+              helperText="If maximum dicount per order"
             />
           </Grid>
-          <Grid item xs={12}>
+
+            <Grid item xs={12} md={6}>
             <Controller
               name="status"
               control={control}
               render={({ field }) => (
-                <FormControlLabel
-                  control={<Switch {...field} checked={field.value} />}
-                  label="Status"
-                />
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1 }}>
+                  <Typography variant="body1">Status</Typography>
+                  <FormControlLabel
+                    control={<Switch {...field} checked={field.value} />}
+                    label={field.value ? "Active" : "Inactive"}
+                    labelPlacement="end"
+                  />
+                </Box>
               )}
             />
           </Grid>
+
+          {/* Summary/Example section */}
+          <Grid item xs={12}>
+            <Box sx={{ 
+              mt: 3, 
+              p: 2, 
+              bgcolor: 'grey.50', 
+              borderRadius: 1,
+              border: '1px solid',
+              borderColor: 'grey.200'
+            }}>
+              <Typography variant="body2" color="text.secondary">
+                {`If a customer spends £${exampleSpendAmount}, they earn ${safePoints} points.`}
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                {`With ${exampleRedeemPts} points, they can apply a ${discountForExampleRedeem} discount.`}
+              </Typography>
+            </Box>
+          </Grid>
         </Grid>
-        <div className="flex justify-end gap-2 mt-10">
+        
+        <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2, mt: 4 }}>
           <Button
             variant="outlined"
             onClick={() => router.push('/apps/loyalty-points')}
             disabled={isSubmitting}
+            sx={{ 
+              bgcolor: 'white', 
+              color: 'black',
+              borderColor: 'grey.300',
+              '&:hover': {
+                borderColor: 'grey.400',
+                bgcolor: 'grey.50'
+              }
+            }}
           >
             Cancel
           </Button>
           <AppButton
             type="submit"
-            label={isEditMode ? "Update Setting" : "Create Setting"}
+            label="Save changes"
             loading={isSubmitting}
             disabled={isSubmitting || !isValid}
+            sx={{
+              bgcolor: 'success.main',
+              color: 'white',
+              '&:hover': {
+                bgcolor: 'success.dark'
+              }
+            }}
           />
-        </div>
+        </Box>
       </form>
     </Paper>
   );
