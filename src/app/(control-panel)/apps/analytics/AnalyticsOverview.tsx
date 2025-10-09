@@ -6,7 +6,9 @@ import axios from 'axios';
 
 const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || 'YOUR_CLIENT_ID_HERE'; // Corrected to use NEXT_PUBLIC_ prefix and check against placeholder
 const GOOGLE_REDIRECT_URI = process.env.NEXT_PUBLIC_REDIRECT_URL || 'YOUR_REDIRECT_URI_HERE';
-const GOOGLE_AUTH_SCOPE = 'https://www.googleapis.com/auth/analytics.readonly';
+const GOOGLE_AUTH_SCOPE = process.env.NEXT_PUBLIC_GOOGLE_AUTH_SCOPE || 'YOUR_AUTH_SCOPE_HERE';
+const GOOGLE_AUTH_URL = process.env.NEXT_PUBLIC_AUTH_URL || 'YOUR_AUTH_URL_HERE';
+// const GOOGLE_API_URL = process.env.NEXT_PUBLIC_GOOGLE_API_URL || 'YOUR_GOOGLE_API_URL_HERE';
 
 // --- START TYPE DEFINITIONS ---
 
@@ -73,9 +75,7 @@ function AnalyticsOverview() {
 
 	// Effect to load access token from localStorage on initial mount
 	useEffect(() => {
-		console.log("Attempting to load token from localStorage on mount...");
 		const storedToken = localStorage.getItem('googleAccessToken');
-		console.log("Token retrieved from localStorage:", storedToken); // Log the stored token
 		const storedTokenExpiry = localStorage.getItem('googleTokenExpiry');
 		const storedRefreshToken = localStorage.getItem('googleRefreshToken');
 
@@ -87,7 +87,6 @@ function AnalyticsOverview() {
 					setAccessToken(storedToken);
 					setOauthError(null); 
 				} else {
-					console.log("Token found in localStorage but has expired. Clearing.");
 					localStorage.removeItem('googleAccessToken');
 					localStorage.removeItem('googleTokenExpiry');
 					localStorage.removeItem('googleRefreshToken');
@@ -105,11 +104,8 @@ function AnalyticsOverview() {
 			setInitialAuthAttempted(true);
 		}
 	}, []); // Empty dependency array: runs only once on mount
-
-	// console.log("GOOGLE_CLIENT_ID", GOOGLE_CLIENT_ID);
-	// console.log("GOOGLE_REDIRECT_URI", GOOGLE_REDIRECT_URI);
 	const handleGoogleLogin = () => {
-		const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
+		const authUrl = `${GOOGLE_AUTH_URL}?` +
 			`client_id=${encodeURIComponent(GOOGLE_CLIENT_ID)}&` +
 			`redirect_uri=${encodeURIComponent(GOOGLE_REDIRECT_URI)}&` +
 			`response_type=code&` +
@@ -136,20 +132,13 @@ function AnalyticsOverview() {
 			if (!isExchangingToken) {
 				setIsExchangingToken(true);
 				setOauthError(null); // Clear any previous OAuth error before a new attempt
-
 				const exchangeToken = async () => {
 					console.log("Frontend: Attempting to exchange code with backend API /api/auth/google/token");
 					try {
-						const res = await axios.post('/api/auth/google/token', { code });
-						console.log("res", res);
-						
+						const res = await axios.post('/api/auth/google/token', { code });						
 						const { access_token, refresh_token, expires_in, scope, token_type } = res.data; 
-
 						if (access_token) {
-							console.log("Frontend: Successfully exchanged code for token. Full response:", res.data);
 							setAccessToken(access_token);
-							console.log("Access Token obtained:", access_token);
-
 							const expiresInMs = (expires_in || 3600) * 1000; // Default to 1 hour if not provided
 							const expiryTimestamp = Date.now() + expiresInMs;
 
@@ -160,17 +149,14 @@ function AnalyticsOverview() {
 									localStorage.setItem('googleRefreshToken', refresh_token);
 									console.log("Refresh Token stored in localStorage.");
 								}
-								console.log(`Access Token and expiry (expires in ${expires_in}s) stored in localStorage.`);
 							} catch (storageError) {
 								console.error("Error storing token data in localStorage:", storageError);
 							}
 							window.history.replaceState({}, document.title, window.location.pathname);
 						} else {
-							console.error('Frontend: Token exchange was successful but access_token was not found in response.', res.data);
 							setOauthError('Token exchange succeeded but no access_token received. Check backend logs.');
 						}
 					} catch (err: any) {
-						console.error('Frontend: Token exchange API call failed:', err.response?.data || err.message);
 						let errorMessage = 'Failed to exchange auth code for token via backend.';
 						if (err.response?.data?.details) {
 							errorMessage += ` Server said: ${typeof err.response.data.details === 'object' ? JSON.stringify(err.response.data.details) : err.response.data.details}`;
@@ -185,20 +171,12 @@ function AnalyticsOverview() {
 			} else {
 				console.log("Token exchange already in progress, skipping duplicate attempt with code:", code);
 			}
-			// The return statement here is important if we are processing a code,
-			// to prevent the logic below for automatic login from running in the same effect cycle.
 			return; 
 		}
 		if (!accessToken && !oauthError) {
-			// If no callback parameters (code or error) are being processed from URL,
-			// and we have attempted initial auth, and we don't have an access token,
-			// and no existing oauth error, then attempt login.
 			if (initialAuthAttempted && !accessToken && !oauthError) {
 				// Check if credentials are placeholders before attempting login
 				if (GOOGLE_CLIENT_ID === 'YOUR_CLIENT_ID_HERE' || GOOGLE_REDIRECT_URI === 'YOUR_REDIRECT_URI_HERE') {
-					console.warn("Google API credentials are not configured. Automatic login will not proceed.");
-					// Optionally, set an OAuth error here to inform the user on the UI
-					// setOauthError("Google API credentials are not configured. Please check the setup.");
 				} else {
 					console.log("Auto-login: initialAuthAttempted=true, accessToken is null/empty, no oauthError. Redirecting to Google Auth.");
 					handleGoogleLogin();
@@ -213,16 +191,13 @@ function AnalyticsOverview() {
 			if (!accessToken || analyticsLoading) return; // Prevent fetch if no token or already loading
 
 			setAnalyticsLoading(true);
-			setAnalyticsErrors({}); // Clear previous errors
-			
+			setAnalyticsErrors({}); // Clear previous errors		
 			const propertyId = process.env.NEXT_PUBLIC_GA_PROPERTY_ID;
-			// const propertyId = '487771831';
 			const googleApiUrl = `https://analyticsdata.googleapis.com/v1beta/properties/${propertyId}:runRealtimeReport`;
 			const requestHeaders = {
 				Authorization: `Bearer ${accessToken}`,
 				'Content-Type': 'application/json',
 			};
-
 			// Define API requests
 			const requests = {
 				activeUsers: axios.post(googleApiUrl, {
@@ -288,8 +263,6 @@ function AnalyticsOverview() {
 				// Add requests for activeUsersPerMinute, keyEvents, usersByUserProperty here if needed
 			};
 
-			console.log("--- Starting Batch Realtime Analytics Fetch ---");
-
 			let authErrorOccurred = false; // Declare outside the try block
 
 			try {
@@ -336,10 +309,8 @@ function AnalyticsOverview() {
 						 newErrors[key] = errorMessage;
 					}
 				});
-
 				setAnalyticsRealtimeData(prevData => ({ ...prevData, ...newData })); // Merge new data with previous potentially
 				setAnalyticsErrors(prevErrors => ({ ...prevErrors, ...newErrors }));
-
 				// If an auth error occurred, stop further processing in this cycle
 				if (authErrorOccurred) {
 					console.log("Authentication error occurred during fetch, stopping further actions in this cycle.");
@@ -347,7 +318,6 @@ function AnalyticsOverview() {
 					setAnalyticsLoading(false); 
 					return; // Exit early
 				}
-
 			} catch (generalError: any) {
 				// Less likely with Promise.allSettled, but catch errors during promise setup
 				console.error("General error during analytics fetch setup:", generalError);
@@ -357,7 +327,6 @@ function AnalyticsOverview() {
 				 if (!authErrorOccurred) {
 					setAnalyticsLoading(false);
 				 }
-				 console.log("--- Finished Batch Realtime Analytics Fetch ---");
 			}
 		};
 
