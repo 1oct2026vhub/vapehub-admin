@@ -359,6 +359,7 @@ export default function DraggableFooterSection({
             setLinkToEdit(null);
           }}
           link={linkToEdit}
+          sectionTitle={section.title}
           onSuccess={onSuccess}
           onError={onError}
           onUpdate={handleLinkUpdate}
