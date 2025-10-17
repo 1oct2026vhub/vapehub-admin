@@ -8,6 +8,7 @@ import {
   Switch,
   Button,
   DialogActions,
+  Typography,
 } from '@mui/material';
 import { useForm, FormProvider } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -36,10 +37,55 @@ const linkSchema = z.object({
 
 type LinkFormType = z.infer<typeof linkSchema>;
 
+// Helper function to check if section is brand-related
+const isBrandSection = (sectionTitle: string): boolean => {
+  const brandKeywords = ['brand', 'brands', 'manufacturer', 'manufacturers'];
+  return brandKeywords.some(keyword => 
+    sectionTitle.toLowerCase().includes(keyword.toLowerCase())
+  );
+};
+
+// Helper function to format URL with brand prefix (only for brand sections)
+const formatUrlWithBrand = (url: string, sectionTitle: string): string => {
+  // Only apply brand prefix for brand-related sections
+  if (!isBrandSection(sectionTitle)) {
+    return url; // Keep as is for non-brand sections
+  }
+  
+  // For brand sections: if URL already starts with /brand/, return as is
+  if (url.startsWith('/brand/')) {
+    return url;
+  }
+  
+  // For brand sections: if URL starts with /, add /brand prefix
+  if (url.startsWith('/')) {
+    return `/brand${url}`;
+  }
+  
+  // This shouldn't happen due to validation, but fallback
+  return `/brand/${url}`;
+};
+
+// Helper function to remove brand prefix for display in form (only for brand sections)
+const removeBrandPrefix = (url: string, sectionTitle: string): string => {
+  // Only remove brand prefix for brand-related sections
+  if (!isBrandSection(sectionTitle)) {
+    return url; // Keep as is for non-brand sections
+  }
+  
+  // For brand sections: if URL starts with /brand/, remove /brand prefix
+  if (url.startsWith('/brand/')) {
+    return url.substring(6); // Remove '/brand' (6 characters), keep the '/'
+  }
+  
+  return url;
+};
+
 interface EditLinkDialogProps {
   open: boolean;
   onClose: () => void;
   link: FooterLink;
+  sectionTitle: string;
   onSuccess: (message: string) => void;
   onError: (message: string) => void;
   onUpdate: (updatedLink: FooterLink) => void;
@@ -49,6 +95,7 @@ export default function EditLinkDialog({
   open,
   onClose,
   link,
+  sectionTitle,
   onSuccess,
   onError,
   onUpdate,
@@ -59,7 +106,7 @@ export default function EditLinkDialog({
     mode: "all",
     defaultValues: {
       label: link.label,
-      url: link.url,
+      url: removeBrandPrefix(link.url, sectionTitle), // Remove brand prefix for display
       order: link.order,
       is_active: link.is_active,
     },
@@ -72,7 +119,7 @@ export default function EditLinkDialog({
     if (open) {
       methods.reset({
         label: link.label,
-        url: link.url,
+        url: removeBrandPrefix(link.url, sectionTitle), // Remove brand prefix for display
         order: link.order,
         is_active: link.is_active,
       });
@@ -82,8 +129,15 @@ export default function EditLinkDialog({
   const handleSubmit = async (data: LinkFormType) => {
     try {
       setSubmitting(true);
-      const updatedLink = await updateFooterLink(link.id, {
+      
+      // Format URL with brand prefix (only for brand sections)
+      const formattedData = {
         ...data,
+        url: formatUrlWithBrand(data.url, sectionTitle),
+      };
+      
+      const updatedLink = await updateFooterLink(link.id, {
+        ...formattedData,
         section_id: link.section_id,
       });
       onSuccess("Footer link updated successfully");
@@ -117,6 +171,11 @@ export default function EditLinkDialog({
                   label="URL"
                   required
                 />
+                {isBrandSection(sectionTitle) && (
+                  <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
+                    URL will be automatically prefixed with "/brand" (e.g., "/bar-juice" becomes "/brand/bar-juice")
+                  </Typography>
+                )}
                 <FormInputField
                   name="order"
                   control={methods.control}
