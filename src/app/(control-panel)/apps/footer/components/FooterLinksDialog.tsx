@@ -1,5 +1,4 @@
 "use client";
-
 import React, { useState, useEffect, useMemo } from "react";
 import {
   Dialog,
@@ -76,6 +75,50 @@ const linkSchema = z.object({
 
 // Define the form type
 type LinkFormType = z.infer<typeof linkSchema>;
+
+// Helper function to check if section is brand-related
+const isBrandSection = (sectionTitle: string): boolean => {
+  const brandKeywords = ['brand', 'brands', 'manufacturer', 'manufacturers'];
+  return brandKeywords.some(keyword => 
+    sectionTitle.toLowerCase().includes(keyword.toLowerCase())
+  );
+};
+
+// Helper function to format URL with brand prefix (only for brand sections)
+const formatUrlWithBrand = (url: string, sectionTitle: string): string => {
+  // Only apply brand prefix for brand-related sections
+  if (!isBrandSection(sectionTitle)) {
+    return url; // Keep as is for non-brand sections
+  }
+  
+  // For brand sections: if URL already starts with /brand/, return as is
+  if (url.startsWith('/brand/')) {
+    return url;
+  }
+  
+  // For brand sections: if URL starts with /, add /brand prefix
+  if (url.startsWith('/')) {
+    return `/brand${url}`;
+  }
+  
+  // This shouldn't happen due to validation, but fallback
+  return `/brand/${url}`;
+};
+
+// Helper function to remove brand prefix for display in form (only for brand sections)
+const removeBrandPrefix = (url: string, sectionTitle: string): string => {
+  // Only remove brand prefix for brand-related sections
+  if (!isBrandSection(sectionTitle)) {
+    return url; // Keep as is for non-brand sections
+  }
+  
+  // For brand sections: if URL starts with /brand/, remove /brand prefix
+  if (url.startsWith('/brand/')) {
+    return url.substring(6); // Remove '/brand' (6 characters), keep the '/'
+  }
+  
+  return url;
+};
 
 interface FooterLinksDialogProps {
   open: boolean;
@@ -156,17 +199,24 @@ export default function FooterLinksDialog({
   const handleSubmit = async (data: LinkFormType) => {
     try {
       setSubmitting(true);
+      
+      // Format URL with brand prefix (only for brand sections)
+      const formattedData = {
+        ...data,
+        url: formatUrlWithBrand(data.url, section.title),
+      };
+      
       if (editMode && currentLink?.id) {
         // Update existing link
         await updateFooterLink(currentLink.id, {
-          ...data,
+          ...formattedData,
           section_id: section.id,
         });
         onSuccess("Footer link updated successfully");
       } else {
         // Create new link
         await createFooterLink({
-          ...data,
+          ...formattedData,
           section_id: section.id,
         } as { section_id: number; label: string; url: string; order: number; is_active: boolean });
         onSuccess("Footer link created successfully");
@@ -176,13 +226,13 @@ export default function FooterLinksDialog({
       const updatedLinks = editMode
         ? links.map((link) =>
             link.id === currentLink?.id
-              ? { ...link, ...data }
+              ? { ...link, ...formattedData }
               : link
           )
         : [
             ...links,
             {
-              ...data,
+              ...formattedData,
               section_id: section.id,
               id: Date.now(), // Temporary ID for UI purposes
             } as FooterLink,
@@ -222,7 +272,7 @@ export default function FooterLinksDialog({
     setCurrentLink(link);
     methods.reset({
       label: link.label,
-      url: link.url,
+      url: removeBrandPrefix(link.url, section.title), // Remove brand prefix for display
       order: link.order,
       is_active: link.is_active,
     });
@@ -358,6 +408,11 @@ export default function FooterLinksDialog({
                       label="URL"
                       required
                     />
+                    {isBrandSection(section.title) && (
+                      <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
+                        URL will be automatically prefixed with "/brand" (e.g., "/bar-juice" becomes "/brand/bar-juice")
+                      </Typography>
+                    )}
                   </Box>
                   <Box sx={{ width: { xs: "100%", md: "15%" } }}>
                     <FormInputField
