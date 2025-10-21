@@ -234,7 +234,7 @@ function SeoFormModal({ open, onClose, onSaved, initialData }: SeoFormModalProps
       console.log('Current Form Data:', data);
 
       const payload: Partial<SeoData> = {
-        entityType: initialData?.entityType || data.entityType,
+        entityType: data.entityType,
         title: data.title,
         description: data.description,
         focusKeyword: data.focusKeyword,
@@ -244,9 +244,9 @@ function SeoFormModal({ open, onClose, onSaved, initialData }: SeoFormModalProps
         ogImage: data.ogImage || '', // Always include ogImage, even if empty
       };
 
-      // Add entityId for non-page types
-      if (initialData?.entityType !== 'page') {
-        payload.entityId = initialData?.entityId ? String(initialData.entityId) : undefined;
+      // Add entityId for non-page types (both create and edit modes)
+      if (data.entityType !== 'page' && data.entityId) {
+        payload.entityId = data.entityId;
       }  
       const response = await createOrUpdateSeo(payload);
       showSnackbar(response.message, 'success');
