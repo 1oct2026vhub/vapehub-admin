@@ -286,7 +286,6 @@ const navigationConfig: FuseNavItemType[] = [
     icon: "heroicons-outline:sparkles",
     url: "/apps/feature-content"
   },
-
   {
     id: "shipping-methods",
     title: "Shipping Methods",
@@ -294,7 +293,13 @@ const navigationConfig: FuseNavItemType[] = [
     icon: "heroicons-outline:truck",
     url: "/apps/shipping-methods"
   },
-  
+  {
+    id: "general-settings",
+    title: "Settings",
+    type: "item",
+    icon: "heroicons-outline:cog",
+    url: "/apps/settings"
+  },
 ];
 
 export default navigationConfig;
