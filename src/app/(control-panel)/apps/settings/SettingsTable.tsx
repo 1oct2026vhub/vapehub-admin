@@ -237,10 +237,6 @@ const SettingsTable = ({
     }
   };
 
-  const handleViewDetails = (setting: Setting) => {
-    router.push(`/apps/settings/${setting.id}`);
-  };
-
   const handleEdit = (setting: Setting) => {
     router.push(`/apps/settings/edit/${setting.id}`);
   };
@@ -441,23 +437,6 @@ const SettingsTable = ({
         }}
         rowCount={data?.data?.total || 0}
         renderRowActionMenuItems={({ closeMenu, row }) => [
-          !row.original.deleted_at && (
-            <MenuItem
-              key="view-details"
-              onClick={() => {
-                handleViewDetails(row.original);
-                closeMenu();
-              }}
-            >
-              <ListItemIcon>
-                <FuseSvgIcon>
-                  heroicons-outline:arrow-top-right-on-square
-                </FuseSvgIcon>
-              </ListItemIcon>
-              View Details
-            </MenuItem>
-          ),
-
           !row.original.deleted_at && (
             <MenuItem
               key="edit"
