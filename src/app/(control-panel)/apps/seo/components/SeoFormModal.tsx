@@ -227,43 +227,16 @@ function SeoFormModal({ open, onClose, onSaved, initialData }: SeoFormModalProps
     setValue('canonicalUrl', newCanonicalUrl, { shouldValidate: true });
   }, [slug, setValue, formState.dirtyFields.canonicalUrl, isEditMode, initialData]);
 
-  // Helper function to strip HTML tags and convert to plain text
-  const stripHtmlTags = (html: string): string => {
-    if (!html) return '';
-    
-    // Remove HTML tags
-    let text = html.replace(/<[^>]*>/g, '');
-    
-    // Decode common HTML entities
-    text = text
-      .replace(/&quot;/g, '"')
-      .replace(/&#39;/g, "'")
-      .replace(/&lt;/g, '<')
-      .replace(/&gt;/g, '>')
-      .replace(/&amp;/g, '&')
-      .replace(/&nbsp;/g, ' ')
-      .replace(/\s+/g, ' ') // Replace multiple spaces with single space
-      .trim();
-    
-    return text;
-  };
-
   const onSubmit = async (data: SeoFormType) => {
     try {
       // Log the entire initial data and current form data for debugging
       console.log('🔍 [SEO FORM] Initial SEO Data:', initialData);
       console.log('📝 [SEO FORM] Current Form Data:', data);
 
-      // Convert HTML description to plain text
-      const descriptionText = stripHtmlTags(data.description || '');
-      console.log('🧹 [SEO FORM] Original Description (HTML):', data.description);
-      console.log('✨ [SEO FORM] Plain Text Description:', descriptionText);
-
-      const payload: Partial<SeoData> & { description_text?: string } = {
+      const payload: Partial<SeoData> = {
         entityType: data.entityType,
         title: data.title,
         description: data.description,
-        description_text: descriptionText, // Add plain text version
         focusKeyword: data.focusKeyword,
         slug: data.slug,
         canonicalUrl: data.canonicalUrl,
