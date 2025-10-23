@@ -36,8 +36,6 @@ import {
   type Setting,
   type SettingListParams,
 } from "@/services/apiSetting";
-import { useFetch } from "@/hooks/useFetch";
-import { mutate } from "swr";
 import { useRouter } from "next/navigation";
 import AppButton from "@/components/Shared/AppButton";
 import FuseSvgIcon from "@fuse/core/FuseSvgIcon";
@@ -75,9 +73,9 @@ const SettingsTable = ({
   const [order, setOrder] = useState<"ASC" | "DESC">("DESC");
   const [openDialog, setOpenDialog] = useState(false);
   const [selectedSetting, setSelectedSetting] = useState<Setting | null>(null);
-  const [localSettings, setLocalSettings] = useState<Setting[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [manuallyRefreshing, setManuallyRefreshing] = useState(false);
+  const [settings, setSettings] = useState<Setting[]>([]);
+  const [total, setTotal] = useState(0);
+  const [isLoading, setIsLoading] = useState(false);
 
   const sorting = useMemo<MRT_SortingState>(
     () => [{ id: sortBy, desc: order === "DESC" }],
@@ -132,68 +130,40 @@ const SettingsTable = ({
     return () => clearTimeout(timer);
   }, [search]);
 
-  const queryParams = useMemo<SettingListParams>(
-    () => ({
-      page,
-      limit: pageSize,
-      sort_by: sortBy,
-      order,
-      search: debouncedSearch,
-      deleted: showDeleted,
-      ...(activeFilter !== undefined && { is_active: activeFilter }),
-    }),
-    [page, pageSize, sortBy, order, debouncedSearch, showDeleted, activeFilter]
-  );
-
-  const {
-    data,
-    error,
-    isLoading: fetchLoading,
-  } = useFetch(
-    ["settingsList", queryParams],
-    () => listSettings(queryParams),
-    { keepPreviousData: true }
-  );
-
-  // Update localSettings when data changes
-  useEffect(() => {
-    if (data?.data?.results) {
-      setLocalSettings(data.data.results);
-    }
-    setIsLoading(
-      (fetchLoading && localSettings.length === 0) || manuallyRefreshing
-    );
-  }, [data?.data?.results, fetchLoading, localSettings.length, manuallyRefreshing]);
-
-  // Function to manually refresh data
-  const refreshData = useCallback(async () => {
+  // Fetch settings
+  const fetchData = useCallback(async () => {
+    setIsLoading(true);
     try {
-      setManuallyRefreshing(true);
-      setIsLoading(true);
-      setLocalSettings([]);
-
-      const freshData = await listSettings(queryParams);
-
-      if (freshData?.data?.results) {
-        setLocalSettings(freshData.data.results);
-      }
-
-      await mutate(["settingsList", queryParams]);
+      const params: SettingListParams = {
+        page,
+        limit: pageSize,
+        sort_by: sortBy,
+        order,
+        search: debouncedSearch || undefined,
+        deleted: showDeleted,
+        ...(activeFilter !== undefined && { is_active: activeFilter }),
+      };
+      const res = await listSettings(params);
+      setSettings(res.data?.results || []);
+      setTotal(res.data?.total || 0);
     } catch (error) {
-      console.error("Failed to refresh settings data:", error);
-      showSnackbar("Failed to refresh settings data", "error");
+      console.error("Failed to fetch settings data:", error);
+      showSnackbar("Failed to fetch settings data", "error");
     } finally {
       setIsLoading(false);
-      setManuallyRefreshing(false);
     }
-  }, [queryParams, showSnackbar]);
+  }, [page, pageSize, sortBy, order, debouncedSearch, showDeleted, activeFilter, showSnackbar]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   // Provide the refresh function to the parent component
   useEffect(() => {
     if (setExternalRefreshFn) {
-      setExternalRefreshFn(refreshData);
+      setExternalRefreshFn(fetchData);
     }
-  }, [setExternalRefreshFn, refreshData]);
+  }, [setExternalRefreshFn, fetchData]);
 
   const handleDeleteClick = (setting: Setting) => {
     setSelectedSetting(setting);
@@ -205,24 +175,9 @@ const SettingsTable = ({
     setOpenDialog(false);
 
     try {
-      // Immediately update local state
-      const updatedSettings = localSettings.filter(
-        (item) => item.id !== selectedSetting.id
-      );
-      setLocalSettings(updatedSettings);
-
-      // Update pagination if needed
-      const newTotal = (data?.data?.total || 0) - 1;
-      if (newTotal <= (page - 1) * pageSize && page > 1) {
-        setPage(page - 1);
-      }
-
-      // Perform the actual API call
       await deleteSetting(selectedSetting.id);
       showSnackbar("Setting deleted successfully!", "success");
-
-      // Update the server data
-      await mutate(["settingsList", queryParams]);
+      fetchData();
     } catch (error: any) {
       if (error?.errors) {
         showSnackbar(error?.errors[0]?.msg, "error");
@@ -230,10 +185,6 @@ const SettingsTable = ({
         const errorMessage = error?.message || "An unexpected error occurred";
         showSnackbar(errorMessage, "error");
       }
-
-      // Rollback on error
-      refreshData();
-      return false;
     }
   };
 
@@ -303,8 +254,9 @@ const SettingsTable = ({
   // Use the column order hook
   const { columns: orderedColumns, columnOrder, onColumnOrderChange } = useColumnOrder('settings-table', columns);
 
+  const totalPages = Math.ceil(total / pageSize);
+
   if (isLoading) return <FuseLoading />;
-  if (error) return <p>Failed to load settings</p>;
 
   return (
     <Paper
@@ -418,7 +370,7 @@ const SettingsTable = ({
       </div>
 
       <DataTable
-        data={localSettings}
+        data={settings}
         columns={orderedColumns}
         manualSorting
         onSortingChange={handleSortingChange}
@@ -435,7 +387,7 @@ const SettingsTable = ({
           setPage(newPagination.pageIndex + 1);
           setPageSize(newPagination.pageSize);
         }}
-        rowCount={data?.data?.total || 0}
+        rowCount={total}
         renderRowActionMenuItems={({ closeMenu, row }) => [
           !row.original.deleted_at && (
             <MenuItem
@@ -471,7 +423,7 @@ const SettingsTable = ({
 
       <div className="flex justify-center p-4">
         <Pagination
-          count={Math.ceil((data?.data?.total || 0) / pageSize)}
+          count={totalPages}
           page={page}
           onChange={(_, newPage) => setPage(newPage)}
           shape="rounded"
