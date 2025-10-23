@@ -6,6 +6,7 @@ export interface SeoData {
   entityId: string;
   title: string;
   description: string;
+  description_text?: string; // Plain text version of description (without HTML tags)
   focusKeyword: string;
   slug: string;
   canonicalUrl: string;
