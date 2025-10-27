@@ -26,7 +26,7 @@ import { useDebounce } from '@/hooks/useDebounce';
 const reviewSchema = z.object({
   product_id: z.number().min(1, 'Product Id is required'),
   user_name: z.string().min(1, 'User name is required').max(100, 'User name must be less than 100 characters'),
-  company_name: z.string().max(150, 'Company name must be less than 150 characters').optional(),
+  company_name: z.string().max(150, 'Company name must be less than 150 characters').nullable().optional().or(z.literal('')),
   rating: z.string().min(1, 'Rating is required'),
   comment: z.string().min(1, 'Comment is required').min(10, 'Comment must be at least 10 characters').max(1000, 'Comment must be less than 1000 characters'),
   is_visible: z.boolean().default(true),
@@ -81,7 +81,7 @@ const ReviewCreateModal: React.FC<ReviewCreateModalProps> = ({
         reset({
           product_id: initialData.product_id || 1,
           user_name: initialData.user_name || '',
-          company_name: initialData.company_name,
+          company_name: initialData.company_name || '',
           rating: initialData.rating.toString(),
           comment: initialData.comment,
           is_visible: initialData.is_visible,
@@ -154,7 +154,7 @@ const ReviewCreateModal: React.FC<ReviewCreateModalProps> = ({
       const reviewData: CreateReviewData = {
         product_id: data.product_id,
         user_name: data.user_name,
-        company_name: data.company_name,
+        company_name: data.company_name || undefined,
         rating: parseInt(data.rating),
         comment: data.comment,
         is_visible: data.is_visible,
