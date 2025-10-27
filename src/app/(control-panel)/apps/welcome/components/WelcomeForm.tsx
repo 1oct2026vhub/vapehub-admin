@@ -36,11 +36,11 @@ const welcomeSchema = z.object({
         ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Only .png, .jpg, .jpeg, .webp formats are accepted.' });
         return;
       }
-      const result = await validateImageDimensions(value, 1920, 700);
+      const result = await validateImageDimensions(value, 658, 507);
       if (!result.valid) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
-          message: result.message || 'Image must be exactly 1920 × 700 px',
+          message: result.message || 'Image must be exactly 658 × 507 px',
         });
       }
       return;
@@ -111,9 +111,9 @@ const WelcomeForm: React.FC<{}> = () => {
             control={control}
             label="Image"
             required
-            helperText="Required resolution: 1920 × 700 px (PNG/JPG/WebP, max 5MB)"
-            exactWidth={1920}
-            exactHeight={700}
+            helperText="Required resolution: 658 × 507 px (PNG/JPG/WebP, max 5MB)"
+            exactWidth={658}
+            exactHeight={507}
             defaultImage={control._defaultValues.image}
           />
         </div>
