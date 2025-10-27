@@ -13,6 +13,7 @@ type PageBreadcrumbProps = BreadcrumbsProps & {
   className?: string;
   skipHome?: boolean;
   isDetailPage?: boolean;
+  customLastLabel?: string;
 };
 
 // Function to get the navigation item based on URL
@@ -37,7 +38,7 @@ function getNavigationItem(
 }
 
 function PageBreadcrumb(props: PageBreadcrumbProps) {
-  const { className, skipHome = false, ...rest } = props;
+  const { className, skipHome = false, customLastLabel, ...rest } = props;
   const pathname = usePathname();
   const { navigation } = useNavigation();
 
@@ -115,6 +116,9 @@ function PageBreadcrumb(props: PageBreadcrumbProps) {
         // Make "FAQ" breadcrumb non-clickable to avoid navigating to a non-existent page
         const isFaqCrumb = item.title?.toLowerCase() === "faq" || item.url?.endsWith("/apps/faq");
         const isClickable = !item.isDetailPage && !isLast && !isFaqCrumb;
+        
+        // Use custom label for the last breadcrumb if provided
+        const displayTitle = isLast && customLastLabel ? customLastLabel : item.title;
 
         return (
           <Typography
@@ -128,7 +132,7 @@ function PageBreadcrumb(props: PageBreadcrumbProps) {
             role={isClickable ? "button" : "none"}
             onClick={!isClickable ? (e) => e.preventDefault() : undefined}
           >
-            {item.title}
+            {displayTitle}
           </Typography>
         );
       })}
