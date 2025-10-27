@@ -43,9 +43,10 @@ type SettingsFormType = z.infer<typeof settingsFormSchema>;
 interface SettingsFormProps {
   mode: "create" | "edit";
   settingId?: string;
+  contentKey?: string;
 }
 
-export default function SettingsForm({ mode, settingId }: SettingsFormProps) {
+export default function SettingsForm({ mode, settingId, contentKey }: SettingsFormProps) {
   const router = useRouter();
   const { showSnackbar } = useSnackbar();
   const [isLoading, setIsLoading] = useState(mode === "edit");
@@ -200,7 +201,7 @@ export default function SettingsForm({ mode, settingId }: SettingsFormProps) {
   return (
     <div className="mt-10 px-10 mb-10">
       <div>
-        <PageBreadcrumb className="mt-8" />
+        <PageBreadcrumb className="mt-8" customLastLabel={contentKey} />
         <Typography className="text-4xl font-extrabold leading-none tracking-tight mb-4 mt-8">
           {pageTitle}
         </Typography>

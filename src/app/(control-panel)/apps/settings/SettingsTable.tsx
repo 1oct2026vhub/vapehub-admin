@@ -54,10 +54,12 @@ const SORT_FIELDS = [
 
 interface SettingsTableProps {
   refreshData?: (fn: () => Promise<void>) => void;
+  onSettingsCountUpdate?: (count: number) => void;
 }
 
 const SettingsTable = ({
   refreshData: setExternalRefreshFn,
+  onSettingsCountUpdate,
 }: SettingsTableProps) => {
   const router = useRouter();
   const { showSnackbar } = useSnackbar();
@@ -164,6 +166,13 @@ const SettingsTable = ({
       setExternalRefreshFn(fetchData);
     }
   }, [setExternalRefreshFn, fetchData]);
+
+  // Notify parent about settings count changes
+  useEffect(() => {
+    if (onSettingsCountUpdate) {
+      onSettingsCountUpdate(total);
+    }
+  }, [total, onSettingsCountUpdate]);
 
   const handleDeleteClick = (setting: Setting) => {
     setSelectedSetting(setting);
