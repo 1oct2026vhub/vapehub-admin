@@ -71,9 +71,9 @@ const dealSchema = z.object({
         )
         .refine(async (file) => {
             if (typeof file === 'string' || !file) return true;
-            const dimensions = await validateImageDimensions(file, 312, 258);
+            const dimensions = await validateImageDimensions(file, 660, 250);
             return dimensions.valid;
-        }, "Image must be 312x258px."),
+        }, "Image must be 660x250px."),
 });
 
 interface DealFormProps {
@@ -279,9 +279,9 @@ if (error?.errors) {
                                         control={control}
                                         label="Deal Image"
                                         defaultImage={deal?.image_url}
-                                        exactWidth={312}
-                                        exactHeight={258}
-                                        helperText="Image must be 312x258 px. Supported formats: PNG, JPG, JPEG, WebP (max 5MB)"
+                                        exactWidth={660}
+                                        exactHeight={250}
+                                        helperText="Image must be 660x250 px. Supported formats: PNG, JPG, JPEG, WebP (max 5MB)"
                                     />
                                 </Grid>
                                 <Grid item xs={12}>
