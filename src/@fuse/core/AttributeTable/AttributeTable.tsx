@@ -275,11 +275,7 @@ const AttributeTable = ({
   };
 
   const handleEdit = (attribute: Attribute) => {
-    router.push(
-      `/apps/attribute/attribute-update/${
-        attribute.id
-      }?attributeData=${encodeURIComponent(JSON.stringify(attribute))}`
-    );
+    router.push(`/apps/attribute/attribute-update/${attribute.id}`);
   };
 
   const columns = useMemo<MRT_ColumnDef<Attribute>[]>(

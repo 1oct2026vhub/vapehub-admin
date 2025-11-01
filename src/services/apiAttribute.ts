@@ -54,19 +54,26 @@ export interface AttributeListResponse {
 }
 
 export interface AttributeDetailResponse {
-  data: {
-    attribute: Attribute & {
-      terms?: Array<{
-        id: number;
-        name: string;
-        slug: string;
-        description?: string;
-        sort_order: number;
-        created_at: string;
-        updated_at: string;
-        deleted_at: string | null;
-      }>;
-    };
+  success: boolean;
+  message: string;
+  data: Attribute & {
+    image_url?: string | null;
+    terms?: Array<{
+      id: number;
+      name: string;
+      slug: string;
+      description?: string;
+      sort_order?: number;
+      created_at: string;
+      updated_at: string;
+      deleted_at?: string | null;
+    }>;
+    updatedByUser?: {
+      id: number;
+      first_name: string;
+      last_name: string;
+      email: string;
+    } | null;
   };
 }
 

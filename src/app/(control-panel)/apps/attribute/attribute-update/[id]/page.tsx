@@ -46,14 +46,12 @@
 
 
 "use client";
-import { useSearchParams, useParams } from "next/navigation";
+import { useParams } from "next/navigation";
 import EditForm from "../EditForm";
 import { useEffect } from "react";
 
 const EditAttributePage = () => {
-  const searchParams = useSearchParams();
   const params = useParams();
-  const attributeData = searchParams ? searchParams.get("attributeData") : null;
   
   // Get the ID from the URL params
   const id = params ? params.id : null;
@@ -62,23 +60,15 @@ const EditAttributePage = () => {
     document.title = "Edit Attribute | VapeHub";
   }, []);
 
-  const attribute = attributeData
-    ? JSON.parse(decodeURIComponent(attributeData))
-    : null;
-
   // Log for debugging
   console.log("Attribute ID from params:", id);
-  console.log("Attribute data:", attribute);
 
   if (!id) {
     return <p>Attribute ID not found in URL. Please check the link and try again.</p>;
   }
 
-  if (!attribute) {
-    return <p>No attribute data found. Please go back and try again.</p>;
-  }
-
-  return <EditForm attribute={attribute} />;
+  // Pass undefined as attribute - EditForm will fetch data by ID
+  return <EditForm />;
 };
 
 export default EditAttributePage;
