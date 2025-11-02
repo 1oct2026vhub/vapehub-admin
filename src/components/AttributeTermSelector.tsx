@@ -20,7 +20,7 @@ interface AttributeTermSelectorProps {
   attrIndex: number;
   handleTermChange: (event: SelectChangeEvent<unknown>, index: number, attrIndex: number) => void;
 }
-
+ 
 const AttributeTermSelector = ({
   instanceId,
   name,
