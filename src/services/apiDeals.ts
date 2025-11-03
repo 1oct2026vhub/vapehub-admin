@@ -27,6 +27,7 @@ export interface Deal {
   is_active: boolean;
   valid_from: string;
   valid_to: string;
+  description?: string | null;
   is_deleted: boolean;
   deletedAt: string | null;
   createdAt: string;
@@ -85,6 +86,7 @@ export interface DealFormData {
   discount_percent?: number | null;
   tiered_qty_json?: TieredQty[] | null;
   bundle_product_ids_json?: number[] | null;
+  description?: string | null;
   image?: File | null | string;
 }
 
