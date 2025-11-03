@@ -52,12 +52,27 @@ const FormFileUploadField: React.FC<FormFileUploadFieldProps> = ({
     defaultImage || null
   );
   const [touched, setTouched] = useState(false);
+  const [lastDefaultImage, setLastDefaultImage] = useState<string | undefined>(defaultImage);
 
   useEffect(() => {
-    if (defaultImage && !previewUrl) {
-      setPreviewUrl(defaultImage);
+    // Sync previewUrl with defaultImage changes
+    if (defaultImage !== lastDefaultImage) {
+      if (defaultImage) {
+        // New default image provided
+        setPreviewUrl(defaultImage);
+      } else if (!defaultImage && lastDefaultImage) {
+        // Default image was removed - clear the preview only if showing server image
+        setPreviewUrl((prev) => {
+          // Only clear if showing an http URL (server image), not a blob URL (newly uploaded)
+          if (prev && (prev.startsWith('http://') || prev.startsWith('https://'))) {
+            return null;
+          }
+          return prev;
+        });
+      }
+      setLastDefaultImage(defaultImage);
     }
-  }, [defaultImage]);
+  }, [defaultImage, lastDefaultImage]);
 
   const validateFile = async (file: File | null) => {
     if (required && !file) return "File is required";
