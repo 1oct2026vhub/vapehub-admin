@@ -1,5 +1,5 @@
 
-import { fetcher, poster } from './apiService';
+import { fetcher, poster, deleter } from './apiService';
 
 export interface WelcomeContent {
     id: number;
@@ -48,4 +48,8 @@ export const getWelcomeContent = (params: FetchWelcomeContentParams): Promise<Li
 
 export const createOrUpdateWelcomeContent = (formData: FormData): Promise<any> => {
     return poster('/api/admin/welcome-content', formData);
+};
+
+export const removeWelcomeContentImage = async (id: number): Promise<{ success: boolean; message: string }> => {
+    return deleter(`/api/admin/welcome-content/${id}/image`);
 };

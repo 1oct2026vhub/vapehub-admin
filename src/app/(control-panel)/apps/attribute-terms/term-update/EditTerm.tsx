@@ -51,14 +51,15 @@ function EditTerm() {
   console.log("Term ID from params:", id);
 
   // Fetch term details
-  const { data: termData, isLoading: isLoadingTerm } = useFetch(
-    ["termDetail", id],
+  const { data: termData, error: fetchError, isLoading: isLoadingTerm } = useFetch(
+    id ? ["termDetail", id] : null,
     () => getAttributeTermDetails(id as string),
-    { revalidateOnFocus: false }
+    { enabled: !!id, revalidateOnFocus: false }
   );
 
   const term = termData?.data;
   console.log("Term data fetched:", term);
+  console.log("Full termData response:", termData);
 
   const { control, formState, handleSubmit, reset, watch } = useForm<FormType>({
     mode: "onChange",
@@ -75,14 +76,18 @@ function EditTerm() {
   useEffect(() => {
     if (term) {
       console.log("Setting form values with term data:", term);
-      reset({
-        name: term?.name,
-        slug: term?.slug,
+      const formData = {
+        name: term?.name || "",
+        slug: term?.slug || "",
         description: term.description || "",
-      });
+      };
+      console.log("Form data being set:", formData);
+      reset(formData);
       setAttributeName(term?.attribute?.name || "N/A");
+    } else if (fetchError) {
+      showSnackbar("Failed to load term data.", "error");
     }
-  }, [term, reset]);
+  }, [term, reset, fetchError, showSnackbar]);
 
   const { isValid, errors } = formState;
   const { trigger: triggerUpdateTerm } = usePost(
@@ -139,10 +144,34 @@ function EditTerm() {
     }
   };
 
-  if (isLoadingTerm) {
+  if (isLoadingTerm && id) {
     return (
       <div className="flex justify-center items-center p-10">
         <CircularProgress />
+      </div>
+    );
+  }
+
+  if (fetchError && id) {
+    return (
+      <div className="md:px-64 p-4">
+        <Alert severity="error">Failed to load term data. Please try again later.</Alert>
+      </div>
+    );
+  }
+
+  if (!term && !isLoadingTerm && id) {
+    return (
+      <div className="md:px-64 p-4">
+        <Alert severity="error">Term not found.</Alert>
+      </div>
+    );
+  }
+
+  if (!id) {
+    return (
+      <div className="md:px-64 p-4">
+        <Alert severity="error">Term ID is missing from URL.</Alert>
       </div>
     );
   }

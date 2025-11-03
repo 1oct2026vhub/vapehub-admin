@@ -43,8 +43,14 @@ export interface UpdateAttributeTermData {
 }
 
 export interface AttributeTermDetailResponse {
-  data: {
-    term: AttributeTerm;
+  success: boolean;
+  message: string;
+  data: AttributeTerm & {
+    attribute?: {
+      id: number;
+      name: string;
+      slug: string;
+    };
   };
 }
 
