@@ -260,11 +260,7 @@ const AttributeTermTable = ({
   };
 
   const handleEdit = (term: AttributeTerm) => {
-    router.push(
-      `/apps/attribute-terms/term-update/${
-        term.id
-      }?termData=${encodeURIComponent(JSON.stringify(term))}`
-    );
+    router.push(`/apps/attribute-terms/term-update/${term.id}`);
   };
 
   const columns = useMemo<MRT_ColumnDef<AttributeTerm>[]>(

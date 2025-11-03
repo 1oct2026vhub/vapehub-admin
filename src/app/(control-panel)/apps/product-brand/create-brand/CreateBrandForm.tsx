@@ -20,11 +20,18 @@ const ACCEPTED_FILE_TYPES = [
   "image/jpg",
   "image/webp",
 ];
-const MAX_IMAGE_WIDTH = 150;
-const MAX_IMAGE_HEIGHT = 150;
+const MIN_IMAGE_WIDTH = 150;
+const MIN_IMAGE_HEIGHT = 150;
+const MAX_IMAGE_WIDTH = 300;
+const MAX_IMAGE_HEIGHT = 300;
+const MAX_ASPECT_RATIO = 2; // Width to height ratio (prevents very elongated images)
 
 // Helper function to validate image dimensions
-const validateImageDimensions = (file: File): Promise<{ valid: boolean; dimensions?: { width: number; height: number } }> => {
+const validateImageDimensions = (file: File): Promise<{ 
+  valid: boolean; 
+  error?: string;
+  dimensions?: { width: number; height: number } 
+}> => {
   return new Promise((resolve) => {
     if (!file || !(file instanceof File)) {
       resolve({ valid: true });
@@ -34,17 +41,40 @@ const validateImageDimensions = (file: File): Promise<{ valid: boolean; dimensio
     const img = new Image();
     img.onload = () => {
       URL.revokeObjectURL(img.src);
-      if (img.width > MAX_IMAGE_WIDTH || img.height > MAX_IMAGE_HEIGHT) {
+      const { width, height } = img;
+      
+      // Check minimum dimensions
+      if (width < MIN_IMAGE_WIDTH || height < MIN_IMAGE_HEIGHT) {
         resolve({ 
-          valid: false, 
-          dimensions: { 
-            width: img.width, 
-            height: img.height 
-          } 
+          valid: false,
+          error: `Image dimensions must be at least ${MIN_IMAGE_WIDTH}×${MIN_IMAGE_HEIGHT} pixels. Current: ${width}×${height}px`,
+          dimensions: { width, height } 
         });
-      } else {
-        resolve({ valid: true });
+        return;
       }
+      
+      // Check maximum dimensions
+      if (width > MAX_IMAGE_WIDTH || height > MAX_IMAGE_HEIGHT) {
+        resolve({ 
+          valid: false,
+          error: `Image dimensions must not exceed ${MAX_IMAGE_WIDTH}×${MAX_IMAGE_HEIGHT} pixels. Current: ${width}×${height}px`,
+          dimensions: { width, height } 
+        });
+        return;
+      }
+      
+      // Check aspect ratio (prevent very tall or very wide images)
+      const aspectRatio = Math.max(width / height, height / width);
+      if (aspectRatio > MAX_ASPECT_RATIO) {
+        resolve({ 
+          valid: false,
+          error: `Image must be square or rectangle. Very elongated images are not allowed. Current: ${width}×${height}px`,
+          dimensions: { width, height } 
+        });
+        return;
+      }
+      
+      resolve({ valid: true, dimensions: { width, height } });
     };
     img.onerror = () => {
       URL.revokeObjectURL(img.src);
@@ -78,13 +108,15 @@ const schema = z.object({
         (file) => ACCEPTED_FILE_TYPES.includes(file.type),
         "Only .jpg, .jpeg, .png, and .webp formats are supported"
       )
-      .refine(
-        async (file) => {
-          const result = await validateImageDimensions(file);
-          return result.valid;
-        },
-        `Image dimensions must not exceed ${MAX_IMAGE_WIDTH}×${MAX_IMAGE_HEIGHT} pixels`
-      )
+      .superRefine(async (file, ctx) => {
+        const result = await validateImageDimensions(file);
+        if (!result.valid) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: result.error || `Image dimensions must be between ${MIN_IMAGE_WIDTH}×${MIN_IMAGE_HEIGHT} and ${MAX_IMAGE_WIDTH}×${MAX_IMAGE_HEIGHT} pixels`,
+          });
+        }
+      })
   ]).optional().nullable(),
 });
 
@@ -226,7 +258,7 @@ function CreateBrandForm() {
                 setSelectedFile(file);
                 setValue("logo", file, { shouldValidate: true });
               }}
-              helperText={`Upload a brand logo (${MAX_IMAGE_WIDTH} × ${MAX_IMAGE_HEIGHT} px, Max size: 5MB). Supported formats: PNG, JPG, JPEG, WebP`}
+              helperText={`Upload a brand logo (Min: ${MIN_IMAGE_WIDTH}×${MIN_IMAGE_HEIGHT}px, Max: ${MAX_IMAGE_WIDTH}×${MAX_IMAGE_HEIGHT}px, Max size: 5MB). Only square or rectangle images allowed. Supported formats: PNG, JPG, JPEG, WebP`}
             />
           </Box>
 

@@ -99,7 +99,7 @@ const sortOrderOptions = [
   { label: "Id", value: "id" },
 ];
 
-const EditAttributeForm = ({ attribute: initialAttributeData }: { attribute: Attribute }) => {
+const EditAttributeForm = ({ attribute: initialAttributeData }: { attribute?: Attribute }) => {
   const router = useRouter();
   const params = useParams();
   const id = params?.id ? (Array.isArray(params.id) ? params.id[0] : params.id) : undefined;
@@ -114,7 +114,8 @@ const EditAttributeForm = ({ attribute: initialAttributeData }: { attribute: Att
     { enabled: !!id, revalidateOnFocus: false }
   );
 
-  const attribute = fetchedAttribute?.data?.attribute || initialAttributeData;
+  // The API returns data directly, not nested under 'attribute'
+  const attribute = fetchedAttribute?.data || initialAttributeData;
 
   const { control, formState, handleSubmit, setValue, reset, setError } = useForm<FormType>({
     mode: "all",
@@ -131,15 +132,18 @@ const EditAttributeForm = ({ attribute: initialAttributeData }: { attribute: Att
 
   useEffect(() => {
     if (attribute) {
+      console.log("Populating form with attribute data:", attribute);
       const defaultImageData = (attribute as any).image_url || null;
-      reset({
+      const formData = {
         name: attribute.name || "",
         slug: attribute.slug || "",
         description: attribute.description || "",
         type: attribute.type || "select",
         sort_order: attribute.sort_order?.toString() || "custom",
         image: defaultImageData,
-      });
+      };
+      console.log("Form data being set:", formData);
+      reset(formData);
       setNewImageFile(null);
     } else if (fetchError) {
       showSnackbar("Failed to load attribute data.", "error");
@@ -229,7 +233,7 @@ const EditAttributeForm = ({ attribute: initialAttributeData }: { attribute: Att
   if (fetchError && id) {
     return <Alert severity="error">Failed to load attribute data. Please try again later.</Alert>;
   }
-  if (!attribute && id) {
+  if (!attribute && !isFetchingAttribute && id) {
     return <Alert severity="error">Attribute not found.</Alert>;
   }
   if (!id) {

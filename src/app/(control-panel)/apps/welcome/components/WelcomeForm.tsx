@@ -9,8 +9,9 @@ import FormTextField from '@/components/Shared/FormTextField';
 import FormCKEditor from '@/components/Shared/FormCKEditor';
 import AppButton from '@/components/Shared/AppButton';
 import FormFileUploadField from '@/components/Shared/FormFileUploadField';
-import { Paper } from '@mui/material';
-import { getWelcomeContent, createOrUpdateWelcomeContent } from '@/services/apiWelcome';
+import { Paper, Box, IconButton, CircularProgress } from '@mui/material';
+import DeleteIcon from '@mui/icons-material/Delete';
+import { getWelcomeContent, createOrUpdateWelcomeContent, removeWelcomeContentImage } from '@/services/apiWelcome';
 import { useSnackbar } from '@/contexts/SnackbarContext';
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
@@ -52,11 +53,15 @@ const welcomeSchema = z.object({
 type WelcomeFormData = z.infer<typeof welcomeSchema>;
 
 const WelcomeForm: React.FC<{}> = () => {
-  const { control, handleSubmit, reset, formState: { errors } } = useForm<WelcomeFormData>({
+  const { control, handleSubmit, reset, setValue, formState: { errors } } = useForm<WelcomeFormData>({
     resolver: zodResolver(welcomeSchema),
     mode: 'onChange',
   });
   const { showSnackbar } = useSnackbar();
+  const [welcomeContentId, setWelcomeContentId] = React.useState<number | null>(null);
+  const [isDeletingImage, setIsDeletingImage] = React.useState(false);
+  const [currentImageUrl, setCurrentImageUrl] = React.useState<string | undefined>();
+  const [hasNewUpload, setHasNewUpload] = React.useState(false);
 
   useEffect(() => {
     const fetchContent = async () => {
@@ -64,6 +69,11 @@ const WelcomeForm: React.FC<{}> = () => {
         const response = await getWelcomeContent({});
         if (response.success && response.data.welcomeContents.length > 0) {
           const content = response.data.welcomeContents[0];
+          console.log('Welcome content loaded:', content);
+          setWelcomeContentId(content.id);
+          setCurrentImageUrl(content.image_url);
+          setHasNewUpload(false); // Reset flag when loading existing content
+          console.log('Current image URL set to:', content.image_url);
           reset({
             title: content.title,
             content: content.content,
@@ -77,6 +87,16 @@ const WelcomeForm: React.FC<{}> = () => {
     fetchContent();
   }, [reset]);
 
+  const handleFileChange = (file: File | null) => {
+    if (file) {
+      // A new file was uploaded
+      setHasNewUpload(true);
+    } else {
+      // File was removed
+      setHasNewUpload(false);
+    }
+  };
+
   const onSubmit = async (data: WelcomeFormData) => {
     const formData = new FormData();
     formData.append('title', data.title);
@@ -89,8 +109,53 @@ const WelcomeForm: React.FC<{}> = () => {
       const response = await createOrUpdateWelcomeContent(formData);
       console.log(response);
       showSnackbar(response?.data?.message, 'success');
+      
+      // Reset the new upload flag after successful submission
+      setHasNewUpload(false);
+      
+      // Refetch content to get the new image URL
+      const updatedContent = await getWelcomeContent({});
+      if (updatedContent.success && updatedContent.data.welcomeContents.length > 0) {
+        const content = updatedContent.data.welcomeContents[0];
+        setWelcomeContentId(content.id);
+        setCurrentImageUrl(content.image_url);
+      }
     } catch (error) {
       showSnackbar('Failed to save welcome content', 'error');
+    }
+  };
+
+  const handleDeleteImage = async () => {
+    if (!welcomeContentId) {
+      showSnackbar('Welcome content ID is missing', 'error');
+      return;
+    }
+    
+    setIsDeletingImage(true);
+    try {
+      const response = await removeWelcomeContentImage(welcomeContentId);
+      showSnackbar(response.message || 'Image removed successfully!', 'success');
+      setCurrentImageUrl(undefined);
+      setHasNewUpload(false);
+      setValue('image', null, { shouldDirty: true, shouldValidate: true });
+    } catch (err: any) {
+      if (err?.errors) {
+        showSnackbar(err?.errors[0]?.msg, "error");
+      } else {
+        const errorMessage = err?.message || "Failed to remove image";
+        showSnackbar(errorMessage, "error");
+      }
+
+      const errorData = err || err;
+      if (errorData?.error && typeof errorData.error === "object") {
+        Object.entries(errorData.error).forEach(([field, message]) => {
+          if (typeof message === "string") {
+            showSnackbar(message, "error");
+          }
+        });
+      }
+    } finally {
+      setIsDeletingImage(false);
     }
   };
 
@@ -114,8 +179,46 @@ const WelcomeForm: React.FC<{}> = () => {
             helperText="Required resolution: 658 × 507 px (PNG/JPG/WebP, max 5MB)"
             exactWidth={658}
             exactHeight={507}
-            defaultImage={control._defaultValues.image}
+            defaultImage={currentImageUrl}
+            onFileChange={handleFileChange}
           />
+          {/* Custom delete button for welcome content image - only show for server-saved images, not new uploads */}
+          {currentImageUrl && welcomeContentId && currentImageUrl.startsWith('http') && !hasNewUpload && (
+            <Box 
+              sx={{ 
+                position: 'relative',
+                marginTop: '-120px', // Overlay on top of the "Current Image" section (128px - 8px padding)
+                marginLeft: '0px',
+                width: '128px',
+                height: '128px',
+                pointerEvents: 'none',
+                zIndex: 10
+              }}
+            >
+              <IconButton
+                className="bg-white hover:bg-red-50 shadow-md"
+                size="small"
+                onClick={handleDeleteImage}
+                disabled={isDeletingImage}
+                sx={{
+                  position: 'absolute',
+                  top: '8px',
+                  right: '8px',
+                  pointerEvents: 'auto',
+                  "& .MuiSvgIcon-root": {
+                    color: isDeletingImage ? "#9ca3af" : "#ef4444",
+                  },
+                  "&:hover": {
+                    "& .MuiSvgIcon-root": {
+                      color: "#dc2626",
+                    },
+                  },
+                }}
+              >
+                {isDeletingImage ? <CircularProgress size={20} /> : <DeleteIcon />}
+              </IconButton>
+            </Box>
+          )}
         </div>
         <div className="mb-4">
           <FormCKEditor

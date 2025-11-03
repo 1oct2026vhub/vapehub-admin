@@ -38,6 +38,7 @@ import AppButton from '@/components/Shared/AppButton';
 import FuseSvgIcon from '@fuse/core/FuseSvgIcon';
 import ProductSelector from './ProductSelector';
 import FormFileUploadField from '@/components/Shared/FormFileUploadField';
+import FormCKEditor from '@/components/Shared/FormCKEditor';
 import { ACCEPTED_IMAGE_TYPES, MAX_FILE_SIZE } from '@/utils/fileValidation';
 import { validateImageDimensions } from '@/utils/imageUtils';
 import { id } from 'date-fns/locale';
@@ -57,6 +58,7 @@ const dealSchema = z.object({
         discount: z.coerce.number().min(1, "Discount is required"),
     })).optional().nullable(),
     bundle_product_ids_json: z.array(z.number()).optional().nullable(),
+    description: z.string().optional().nullable(),
     image: z.any().optional()
         .refine((file) => {
             if (typeof file === 'string' || !file) return true;
@@ -110,6 +112,7 @@ const DealForm: React.FC<DealFormProps> = ({ deal, onDealCreated, hideButtons = 
             discount_percent: null,
             tiered_qty_json: [],
             bundle_product_ids_json: [],
+            description: '',
             image: null,
         },
     });
@@ -155,6 +158,7 @@ const DealForm: React.FC<DealFormProps> = ({ deal, onDealCreated, hideButtons = 
                 is_active: data.is_active,
                 valid_from: data.valid_from,
                 valid_to: data.valid_to,
+                description: data.description,
                 image: data.image,
             };
 
@@ -282,6 +286,14 @@ if (error?.errors) {
                                         exactWidth={660}
                                         exactHeight={250}
                                         helperText="Image must be 660x250 px. Supported formats: PNG, JPG, JPEG, WebP (max 5MB)"
+                                    />
+                                </Grid>
+                                <Grid item xs={12}>
+                                    <FormCKEditor
+                                        name="description"
+                                        control={control}
+                                        label="Description"
+                                        defaultValue={deal?.description || ''}
                                     />
                                 </Grid>
                                 <Grid item xs={12}>
