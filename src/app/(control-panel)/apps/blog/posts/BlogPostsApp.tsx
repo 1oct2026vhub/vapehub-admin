@@ -19,6 +19,10 @@ import {
   Chip,
   Autocomplete,
   Button,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from "@mui/material";
 import { motion } from "motion/react";
 import {
@@ -110,6 +114,8 @@ export default function BlogPostsApp() {
   const [tagSearch, setTagSearch] = useState("");
   
   const [status, setStatus] = useState<string>("");
+  const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
+  const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false);
 
   // State for tracking active search vs selection mode
   const [isActivelySearchingCategory, setIsActivelySearchingCategory] = useState(false);
@@ -166,6 +172,7 @@ export default function BlogPostsApp() {
     setPagination(prev => ({ ...prev, page: 1 })); // Reset page
     setCategorySearch(""); // Clear Autocomplete search
     setTagSearch(""); // Clear Autocomplete search
+    setRowSelection({}); // Clear row selection when filters are cleared
     showSnackbar("Filters cleared", "info");
   };
   // --- END ADD ---
@@ -354,6 +361,62 @@ export default function BlogPostsApp() {
     } catch (error) {
       console.error("Failed to restore post:", error);
       showSnackbar(error.message, "error");
+    }
+  };
+
+  // Bulk delete handlers
+  const handleOpenBulkDeleteDialog = () => {
+    setIsBulkDeleteDialogOpen(true);
+  };
+
+  const handleCloseBulkDeleteDialog = () => {
+    setIsBulkDeleteDialogOpen(false);
+  };
+
+  const handleConfirmBulkDelete = async () => {
+    const selectedIndices = Object.keys(rowSelection).filter(
+      (key) => rowSelection[key]
+    );
+    const selectedPostsToDelete = posts.filter((_, index) =>
+      selectedIndices.includes(index.toString())
+    );
+
+    // Filter out already deleted posts for bulk delete
+    const activePostsToDelete = selectedPostsToDelete.filter(
+      (post) => !post.deleted_at
+    );
+
+    if (activePostsToDelete.length === 0) {
+      showSnackbar(
+        "No active posts selected for deletion.",
+        "warning"
+      );
+      handleCloseBulkDeleteDialog();
+      return;
+    }
+
+    const idsToDelete = activePostsToDelete.map((post) => post.id);
+
+    try {
+      setLoading(true);
+      // Delete all selected posts in parallel
+      await Promise.all(idsToDelete.map((id) => deleteBlogPost(id)));
+
+      showSnackbar(
+        `${idsToDelete.length} post(s) deleted successfully!`,
+        "success"
+      );
+      setRowSelection({});
+      
+      // Refresh data from server
+      setPagination(prev => ({ ...prev }));
+    } catch (error: any) {
+      const errorMessage =
+        error?.message || error?.errors?.[0]?.msg || "Bulk delete failed";
+      showSnackbar(errorMessage, "error");
+    } finally {
+      setLoading(false);
+      handleCloseBulkDeleteDialog();
     }
   };
 
@@ -625,6 +688,26 @@ export default function BlogPostsApp() {
                     <MenuItem value="deleted">Deleted</MenuItem>
                   </Select>
                 </FormControl>
+
+                {/* Bulk Delete Button */}
+                {Object.keys(rowSelection).length > 0 && !showDeleted && (
+                  <Button
+                    variant="contained"
+                    color="error"
+                    size="small"
+                    startIcon={<FuseSvgIcon>heroicons-outline:trash</FuseSvgIcon>}
+                    onClick={handleOpenBulkDeleteDialog}
+                    sx={{
+                      backgroundColor: "#d32f2f",
+                      "&:hover": {
+                        backgroundColor: "#b71c1c",
+                      },
+                      height: '40px'
+                    }}
+                  >
+                    Bulk Delete ({Object.keys(rowSelection).length})
+                  </Button>
+                )}
                 
                 {areFiltersActive && (
                   <ClearFiltersButton 
@@ -647,7 +730,9 @@ export default function BlogPostsApp() {
                     manualSorting
                     onSortingChange={handleSortingChange}
                     onColumnOrderChange={onColumnOrderChange}
-                    state={{ columnOrder, sorting }}
+                    enableRowSelection={true}
+                    onRowSelectionChange={setRowSelection}
+                    state={{ columnOrder, sorting, rowSelection }}
                     renderRowActionMenuItems={({ closeMenu, row }) => [
                       ...(row.original.deleted_at ? [
                         <MenuItem
@@ -736,6 +821,32 @@ export default function BlogPostsApp() {
             </Paper>
           </Grid>
         </Grid>
+
+        {/* Bulk Delete Dialog */}
+        <Dialog
+          open={isBulkDeleteDialogOpen}
+          onClose={handleCloseBulkDeleteDialog}
+        >
+          <DialogTitle>Bulk Delete Posts</DialogTitle>
+          <DialogContent>
+            <Typography>
+              Are you sure you want to delete{" "}
+              <strong>{Object.keys(rowSelection).length}</strong> selected
+              post(s)? This action cannot be undone.
+            </Typography>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleCloseBulkDeleteDialog}>Cancel</Button>
+            <Button
+              onClick={handleConfirmBulkDelete}
+              color="error"
+              variant="contained"
+              disabled={loading}
+            >
+              Delete
+            </Button>
+          </DialogActions>
+        </Dialog>
       </motion.div>
     </Container>
   );

@@ -16,6 +16,11 @@ import {
   ListItemIcon,
   Pagination,
   PaginationItem,
+  Button,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from "@mui/material";
 import { motion } from "motion/react";
 import { MRT_ColumnDef } from "material-react-table";
@@ -69,6 +74,8 @@ export default function BlogCategoriesApp() {
     null
   );
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
+  const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false);
 
   // --- START ADD: Check if Filters are Active ---
   const areFiltersActive = useMemo(() => {
@@ -88,6 +95,7 @@ export default function BlogCategoriesApp() {
     setDebouncedSearch("");
     setShowDeleted(false);
     setPagination(prev => ({ ...prev, page: 1 })); // Reset page
+    setRowSelection({}); // Clear row selection when filters are cleared
     showSnackbar("Filters cleared", "info");
   };
   // --- END ADD ---
@@ -183,6 +191,62 @@ export default function BlogCategoriesApp() {
     } catch (error: any) {
       console.error("Failed to restore category:", error);
       showSnackbar(error?.message || "Failed to restore category", "error");
+    }
+  };
+
+  // Bulk delete handlers
+  const handleOpenBulkDeleteDialog = () => {
+    setIsBulkDeleteDialogOpen(true);
+  };
+
+  const handleCloseBulkDeleteDialog = () => {
+    setIsBulkDeleteDialogOpen(false);
+  };
+
+  const handleConfirmBulkDelete = async () => {
+    const selectedIndices = Object.keys(rowSelection).filter(
+      (key) => rowSelection[key]
+    );
+    const selectedCategoriesToDelete = categories.filter((_, index) =>
+      selectedIndices.includes(index.toString())
+    );
+
+    // Filter out already deleted categories for bulk delete
+    const activeCategoriesToDelete = selectedCategoriesToDelete.filter(
+      (category) => !category.deletedAt
+    );
+
+    if (activeCategoriesToDelete.length === 0) {
+      showSnackbar(
+        "No active categories selected for deletion.",
+        "warning"
+      );
+      handleCloseBulkDeleteDialog();
+      return;
+    }
+
+    const idsToDelete = activeCategoriesToDelete.map((category) => category.id);
+
+    try {
+      setLoading(true);
+      // Delete all selected categories in parallel
+      await Promise.all(idsToDelete.map((id) => deleteBlogCategory(id)));
+
+      showSnackbar(
+        `${idsToDelete.length} category(ies) deleted successfully!`,
+        "success"
+      );
+      setRowSelection({});
+      
+      // Refresh data from server
+      fetchCategories();
+    } catch (error: any) {
+      const errorMessage =
+        error?.message || error?.errors?.[0]?.msg || "Bulk delete failed";
+      showSnackbar(errorMessage, "error");
+    } finally {
+      setLoading(false);
+      handleCloseBulkDeleteDialog();
     }
   };
 
@@ -324,6 +388,26 @@ export default function BlogCategoriesApp() {
                   </Select>
                 </FormControl>
 
+                {/* Bulk Delete Button */}
+                {Object.keys(rowSelection).length > 0 && !showDeleted && (
+                  <Button
+                    variant="contained"
+                    color="error"
+                    size="small"
+                    startIcon={<FuseSvgIcon>heroicons-outline:trash</FuseSvgIcon>}
+                    onClick={handleOpenBulkDeleteDialog}
+                    sx={{
+                      backgroundColor: "#d32f2f",
+                      "&:hover": {
+                        backgroundColor: "#b71c1c",
+                      },
+                      height: '40px'
+                    }}
+                  >
+                    Bulk Delete ({Object.keys(rowSelection).length})
+                  </Button>
+                )}
+
                 {/* --- START ADD: Clear Filters Button --- */}
                 {areFiltersActive && (
                   <ClearFiltersButton 
@@ -340,7 +424,9 @@ export default function BlogCategoriesApp() {
                 enableRowActions
                 enableColumnOrdering
                 onColumnOrderChange={onColumnOrderChange}
-                state={{ columnOrder }}
+                enableRowSelection={true}
+                onRowSelectionChange={setRowSelection}
+                state={{ columnOrder, rowSelection }}
                 renderRowActionMenuItems={({ closeMenu, row }) => {
                   const isDeleted = !!row.original.deletedAt;
 
@@ -446,6 +532,32 @@ export default function BlogCategoriesApp() {
         itemName={categoryToDelete?.name || ""}
         loading={deleteLoading}
       />
+
+      {/* Bulk Delete Dialog */}
+      <Dialog
+        open={isBulkDeleteDialogOpen}
+        onClose={handleCloseBulkDeleteDialog}
+      >
+        <DialogTitle>Bulk Delete Categories</DialogTitle>
+        <DialogContent>
+          <Typography>
+            Are you sure you want to delete{" "}
+            <strong>{Object.keys(rowSelection).length}</strong> selected
+            category(ies)? This action cannot be undone.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseBulkDeleteDialog}>Cancel</Button>
+          <Button
+            onClick={handleConfirmBulkDelete}
+            color="error"
+            variant="contained"
+            disabled={loading}
+          >
+            Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Container>
   );
 }

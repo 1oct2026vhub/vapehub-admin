@@ -17,6 +17,11 @@ import {
   Pagination,
   PaginationItem,
   Link,
+  Button,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from "@mui/material";
 import { motion } from "motion/react";
 import {
@@ -75,6 +80,8 @@ export default function BlogTagsApp() {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [tagToDelete, setTagToDelete] = useState<BlogTag | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
+  const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false);
 
   const router = useRouter();
 
@@ -122,6 +129,7 @@ export default function BlogTagsApp() {
     setSortOrder("DESC");
     setShowDeleted(false);
     setPagination(prev => ({ ...prev, page: 1 })); // Reset page
+    setRowSelection({}); // Clear row selection when filters are cleared
     showSnackbar("Filters cleared", "info");
   };
   // --- END ADD ---
@@ -259,6 +267,62 @@ export default function BlogTagsApp() {
     }
   };
 
+  // Bulk delete handlers
+  const handleOpenBulkDeleteDialog = () => {
+    setIsBulkDeleteDialogOpen(true);
+  };
+
+  const handleCloseBulkDeleteDialog = () => {
+    setIsBulkDeleteDialogOpen(false);
+  };
+
+  const handleConfirmBulkDelete = async () => {
+    const selectedIndices = Object.keys(rowSelection).filter(
+      (key) => rowSelection[key]
+    );
+    const selectedTagsToDelete = tags.filter((_, index) =>
+      selectedIndices.includes(index.toString())
+    );
+
+    // Filter out already deleted tags for bulk delete
+    const activeTagsToDelete = selectedTagsToDelete.filter(
+      (tag) => !tag.deleted_at
+    );
+
+    if (activeTagsToDelete.length === 0) {
+      showSnackbar(
+        "No active tags selected for deletion.",
+        "warning"
+      );
+      handleCloseBulkDeleteDialog();
+      return;
+    }
+
+    const idsToDelete = activeTagsToDelete.map((tag) => tag.id);
+
+    try {
+      setLoading(true);
+      // Delete all selected tags in parallel
+      await Promise.all(idsToDelete.map((id) => deleteBlogTag(id)));
+
+      showSnackbar(
+        `${idsToDelete.length} tag(s) deleted successfully!`,
+        "success"
+      );
+      setRowSelection({});
+      
+      // Refresh data from server
+      fetchTags();
+    } catch (error: any) {
+      const errorMessage =
+        error?.message || error?.errors?.[0]?.msg || "Bulk delete failed";
+      showSnackbar(errorMessage, "error");
+    } finally {
+      setLoading(false);
+      handleCloseBulkDeleteDialog();
+    }
+  };
+
   if (loading && tags.length === 0) {
     return <FuseLoading />;
   }
@@ -358,6 +422,26 @@ export default function BlogTagsApp() {
                   </Select>
                 </FormControl>
 
+                {/* Bulk Delete Button */}
+                {Object.keys(rowSelection).length > 0 && !showDeleted && (
+                  <Button
+                    variant="contained"
+                    color="error"
+                    size="small"
+                    startIcon={<FuseSvgIcon>heroicons-outline:trash</FuseSvgIcon>}
+                    onClick={handleOpenBulkDeleteDialog}
+                    sx={{
+                      backgroundColor: "#d32f2f",
+                      "&:hover": {
+                        backgroundColor: "#b71c1c",
+                      },
+                      height: '40px'
+                    }}
+                  >
+                    Bulk Delete ({Object.keys(rowSelection).length})
+                  </Button>
+                )}
+
                 {/* --- START ADD: Clear Filters Button --- */}
                 {areFiltersActive && (
                   <ClearFiltersButton 
@@ -375,7 +459,9 @@ export default function BlogTagsApp() {
                 manualSorting
                 onSortingChange={handleSortingChange}
                 onColumnOrderChange={onColumnOrderChange}
-                state={{ columnOrder, sorting }}
+                enableRowSelection={true}
+                onRowSelectionChange={setRowSelection}
+                state={{ columnOrder, sorting, rowSelection }}
                 renderRowActionMenuItems={({ closeMenu, row }) => [
                   ...(row.original.deleted_at
                     ? [
@@ -473,6 +559,32 @@ export default function BlogTagsApp() {
           title={tagToDelete?.name || ""}
           loading={deleteLoading}
         />
+
+        {/* Bulk Delete Dialog */}
+        <Dialog
+          open={isBulkDeleteDialogOpen}
+          onClose={handleCloseBulkDeleteDialog}
+        >
+          <DialogTitle>Bulk Delete Tags</DialogTitle>
+          <DialogContent>
+            <Typography>
+              Are you sure you want to delete{" "}
+              <strong>{Object.keys(rowSelection).length}</strong> selected
+              tag(s)? This action cannot be undone.
+            </Typography>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleCloseBulkDeleteDialog}>Cancel</Button>
+            <Button
+              onClick={handleConfirmBulkDelete}
+              color="error"
+              variant="contained"
+              disabled={loading}
+            >
+              Delete
+            </Button>
+          </DialogActions>
+        </Dialog>
       </motion.div>
     </Container>
   );
