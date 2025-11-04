@@ -51,7 +51,7 @@ const SeoListTable: React.FC<{ refreshTrigger: number, onEdit: (data: SeoListIte
     const [keyword, setKeyword] = useState('');
     const [debouncedKeyword, setDebouncedKeyword] = useState('');
     const [page, setPage] = useState(1);
-    const [limit, setLimit] = useState(10);
+    const [limit, setLimit] = useState(100);
     const [seoData, setSeoData] = useState<SeoListItem[]>([]);
     const [total, setTotal] = useState(0);
     const [isLoading, setIsLoading] = useState(false);

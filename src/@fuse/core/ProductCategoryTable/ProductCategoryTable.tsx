@@ -68,7 +68,7 @@ const ProductCategoryTable = ({
     null
   );
   const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(10);
+  const [limit, setLimit] = useState(100);
   const { showSnackbar } = useSnackbar();
   const [localCategories, setLocalCategories] = useState<CategoryType[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -307,9 +307,7 @@ const ProductCategoryTable = ({
 
   const handleEdit = (category: CategoryType) => {
     router.push(
-      `/apps/product-category/category-update/${
-        category.id
-      }?categoryData=${encodeURIComponent(JSON.stringify(category))}`
+      `/apps/product-category/category-update/${category.id}`
     );
   };
 

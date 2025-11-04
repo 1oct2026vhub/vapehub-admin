@@ -167,7 +167,10 @@ export type FormType = {
   logo_url?: string;
 };
 
-const EditBrandForm = ({ brand: initialBrand }: { brand: FormType }) => {
+const EditBrandForm = ({ brand: initialBrand }: { brand: FormType | null }) => {
+  if (!initialBrand) {
+    return <div>Loading brand data...</div>;
+  }
   const router = useRouter();
   const params = useParams();
   const brandId = params?.id ? (Array.isArray(params.id) ? parseInt(params.id[0], 10) : parseInt(params.id, 10)) : null;

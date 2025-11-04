@@ -10,7 +10,9 @@ export const metadata: Metadata = {
 function TransactionListPage() {
   return (
     <div>
+      <div className="px-6 mt-6">
       <PageBreadcrumb />
+      </div>
       <TransactionListApp />
     </div>
   );

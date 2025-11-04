@@ -44,7 +44,7 @@ const DealsTable: React.FC = () => {
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(10);
+  const [limit, setLimit] = useState(100);
   const [openDialog, setOpenDialog] = useState(false);
   const [selectedDeal, setSelectedDeal] = useState<Deal | null>(null);
   const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
