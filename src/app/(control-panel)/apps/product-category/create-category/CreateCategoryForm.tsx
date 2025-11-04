@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Alert, Typography, Box } from "@mui/material";
 import AppButton from "@/components/Shared/AppButton";
 import FormInputField from "@/components/Shared/FormInputField";
+import FormCKEditor from "@/components/Shared/FormCKEditor";
 import { usePost } from "@/hooks/useFetch";
 import { createCategory } from "@/services/apiProductCategory";
 import { useSnackbar } from "@/contexts/SnackbarContext";
@@ -237,11 +238,10 @@ function CreateCategoryForm() {
           type="text"
           required
         />
-        <FormInputField
+        <FormCKEditor
           name="description"
           control={control}
           label="Description"
-          type="text"
         />
         
         <Box sx={{ mt: 2, mb: 2 }}>

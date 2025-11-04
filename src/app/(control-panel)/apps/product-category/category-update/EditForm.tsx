@@ -9,6 +9,7 @@ import { Alert, Typography, Box, Button, CircularProgress, Tabs, Tab } from "@mu
 import DeleteIcon from "@mui/icons-material/Delete";
 import AppButton from "@/components/Shared/AppButton";
 import FormInputField from "@/components/Shared/FormInputField";
+import FormCKEditor from "@/components/Shared/FormCKEditor";
 import FormFileUploadField from "@/components/Shared/FormFileUploadField";
 import { usePost, useFetch } from "@/hooks/useFetch";
 import {
@@ -370,11 +371,11 @@ const EditCategoryForm = ({
               type="text"
               required
             />
-            <FormInputField
+            <FormCKEditor
               name="description"
               control={control}
               label="Description"
-              type="text"
+              defaultValue={initialCategory?.description || ""}
             />
             <FormInputField
               name="parent_id"
