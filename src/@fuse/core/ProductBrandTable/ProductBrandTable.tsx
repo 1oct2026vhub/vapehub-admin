@@ -308,19 +308,7 @@ const ProductBrandTable = ({ refreshData }: ProductBrandTableProps) => {
 
   const handleEdit = (brand: BrandType) => {
     router.push(
-      `/apps/product-brand/brand-update/${
-        brand.id
-      }?brandData=${encodeURIComponent(
-        JSON.stringify({
-          id: brand.id,
-          name: brand.name,
-          slug: brand.slug,
-          description: brand.description,
-          logo_url: brand.logo_url,
-          updatedAt: brand.updatedAt,
-          deletedAt: brand.deletedAt,
-        })
-      )}`
+      `/apps/product-brand/brand-update/${brand.id}`
     );
   };
 

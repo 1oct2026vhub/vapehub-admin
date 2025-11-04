@@ -78,6 +78,8 @@ const SettingsTable = ({
   const [settings, setSettings] = useState<Setting[]>([]);
   const [total, setTotal] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
+  const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
+  const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false);
 
   const sorting = useMemo<MRT_SortingState>(
     () => [{ id: sortBy, desc: order === "DESC" }],
@@ -121,6 +123,7 @@ const SettingsTable = ({
     setSortBy("created_at");
     setOrder("DESC");
     setPage(1);
+    setRowSelection({});
     showSnackbar("Filters cleared", "info");
   };
 
@@ -199,6 +202,62 @@ const SettingsTable = ({
 
   const handleEdit = (setting: Setting) => {
     router.push(`/apps/settings/edit/${setting.id}`);
+  };
+
+  // Bulk delete handlers
+  const handleOpenBulkDeleteDialog = () => {
+    setIsBulkDeleteDialogOpen(true);
+  };
+
+  const handleCloseBulkDeleteDialog = () => {
+    setIsBulkDeleteDialogOpen(false);
+  };
+
+  const handleConfirmBulkDelete = async () => {
+    const selectedIndices = Object.keys(rowSelection).filter(
+      (key) => rowSelection[key]
+    );
+    const selectedSettingsToDelete = settings.filter((_, index) =>
+      selectedIndices.includes(index.toString())
+    );
+
+    // Filter out already deleted settings for bulk delete
+    const activeSettingsToDelete = selectedSettingsToDelete.filter(
+      (setting) => !setting.deleted_at
+    );
+
+    if (activeSettingsToDelete.length === 0) {
+      showSnackbar(
+        "No active settings selected for deletion.",
+        "warning"
+      );
+      handleCloseBulkDeleteDialog();
+      return;
+    }
+
+    const idsToDelete = activeSettingsToDelete.map((setting) => setting.id);
+
+    try {
+      setIsLoading(true);
+      // Delete all selected settings in parallel
+      await Promise.all(idsToDelete.map((id) => deleteSetting(id)));
+
+      showSnackbar(
+        `${idsToDelete.length} setting(s) deleted successfully!`,
+        "success"
+      );
+      setRowSelection({});
+      
+      // Refresh data from server
+      fetchData();
+    } catch (error: any) {
+      const errorMessage =
+        error?.message || error?.errors?.[0]?.msg || "Bulk delete failed";
+      showSnackbar(errorMessage, "error");
+    } finally {
+      setIsLoading(false);
+      handleCloseBulkDeleteDialog();
+    }
   };
 
   const columns = useMemo<MRT_ColumnDef<Setting>[]>(
@@ -369,6 +428,26 @@ const SettingsTable = ({
             </Select>
           </FormControl>
 
+          {/* Bulk Delete Button */}
+          {Object.keys(rowSelection).length > 0 && !showDeleted && (
+            <Button
+              variant="contained"
+              color="error"
+              size="small"
+              startIcon={<FuseSvgIcon>heroicons-outline:trash</FuseSvgIcon>}
+              onClick={handleOpenBulkDeleteDialog}
+              sx={{
+                backgroundColor: "#d32f2f",
+                "&:hover": {
+                  backgroundColor: "#b71c1c",
+                },
+                height: '40px'
+              }}
+            >
+              Bulk Delete ({Object.keys(rowSelection).length})
+            </Button>
+          )}
+
           {areFiltersActive && (
             <ClearFiltersButton 
               onClick={clearFilters}
@@ -386,9 +465,12 @@ const SettingsTable = ({
         onColumnOrderChange={onColumnOrderChange}
         enablePagination
         manualPagination
+        enableRowSelection={true}
+        onRowSelectionChange={setRowSelection}
         state={{
           columnOrder,
           sorting,
+          rowSelection,
           pagination: { pageIndex: page - 1, pageSize },
         }}
         onPaginationChange={(updater: any) => {
@@ -470,6 +552,29 @@ const SettingsTable = ({
             type="button"
             onClick={handleConfirmDelete}
           />
+        </DialogActions>
+      </Dialog>
+
+      {/* Bulk Delete Dialog */}
+      <Dialog open={isBulkDeleteDialogOpen} onClose={handleCloseBulkDeleteDialog}>
+        <DialogTitle>Bulk Delete Settings</DialogTitle>
+        <DialogContent>
+          <Typography>
+            Are you sure you want to delete{" "}
+            <strong>{Object.keys(rowSelection).length}</strong> selected
+            setting(s)? This action cannot be undone.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseBulkDeleteDialog}>Cancel</Button>
+          <Button
+            onClick={handleConfirmBulkDelete}
+            color="error"
+            variant="contained"
+            disabled={isLoading}
+          >
+            Delete
+          </Button>
         </DialogActions>
       </Dialog>
     </Paper>

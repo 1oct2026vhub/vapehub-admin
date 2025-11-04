@@ -80,6 +80,8 @@ const UserTable = () => {
   const [openDrawer, setOpenDrawer] = useState(false); // Mobile Drawer state
   const [page, setPage] = useState(1);
   const [limit] = useState(10); // Number of records per page
+  const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
+  const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false);
   const { showSnackbar } = useSnackbar();
 
   const sorting = useMemo<MRT_SortingState>(
@@ -128,6 +130,7 @@ const UserTable = () => {
     setVerified(null);
     setBlocked(null);
     setPage(1); // Reset page number
+    setRowSelection({});
     showSnackbar("Filters cleared", "info");
   };
   // --- END ADD ---
@@ -249,6 +252,60 @@ const UserTable = () => {
         });
       }
       return false;
+    }
+  };
+
+  // Bulk delete handlers
+  const handleOpenBulkDeleteDialog = () => {
+    setIsBulkDeleteDialogOpen(true);
+  };
+
+  const handleCloseBulkDeleteDialog = () => {
+    setIsBulkDeleteDialogOpen(false);
+  };
+
+  const handleConfirmBulkDelete = async () => {
+    const selectedIndices = Object.keys(rowSelection).filter(
+      (key) => rowSelection[key]
+    );
+    const selectedUsersToDelete = users.filter((_, index) =>
+      selectedIndices.includes(index.toString())
+    );
+
+    // Filter out already deleted users for bulk delete
+    const activeUsersToDelete = selectedUsersToDelete.filter(
+      (user) => !user.deletedAt
+    );
+
+    if (activeUsersToDelete.length === 0) {
+      showSnackbar(
+        "No active users selected for deletion.",
+        "warning"
+      );
+      handleCloseBulkDeleteDialog();
+      return;
+    }
+
+    const idsToDelete = activeUsersToDelete.map((user) => user.id);
+
+    try {
+      // Delete all selected users in parallel
+      await Promise.all(idsToDelete.map((id) => deleteUser(id)));
+
+      showSnackbar(
+        `${idsToDelete.length} user(s) deleted successfully!`,
+        "success"
+      );
+      setRowSelection({});
+      
+      // Refresh data from server
+      await mutate(["userList", queryParams]);
+    } catch (error: any) {
+      const errorMessage =
+        error?.message || error?.errors?.[0]?.msg || "Bulk delete failed";
+      showSnackbar(errorMessage, "error");
+    } finally {
+      handleCloseBulkDeleteDialog();
     }
   };
 
@@ -499,6 +556,25 @@ const UserTable = () => {
               <MenuItem value="ASC">Ascending</MenuItem>
             </Select>
 
+            {/* Bulk Delete Button */}
+            {Object.keys(rowSelection).length > 0 && deleted !== true && (
+              <Button
+                variant="contained"
+                color="error"
+                size="small"
+                startIcon={<FuseSvgIcon>heroicons-outline:trash</FuseSvgIcon>}
+                onClick={handleOpenBulkDeleteDialog}
+                sx={{
+                  backgroundColor: "#d32f2f",
+                  "&:hover": {
+                    backgroundColor: "#b71c1c",
+                  },
+                }}
+              >
+                Bulk Delete ({Object.keys(rowSelection).length})
+              </Button>
+            )}
+
             {/* --- START ADD: Clear Filters Button (Desktop) --- */}
             {areFiltersActive && (
               <ClearFiltersButton 
@@ -515,8 +591,11 @@ const UserTable = () => {
           columns={columns}
           manualSorting
           onSortingChange={handleSortingChange}
+          enableRowSelection={true}
+          onRowSelectionChange={setRowSelection}
           state={{
             sorting,
+            rowSelection,
           }}
           renderRowActionMenuItems={({ closeMenu, row }) => {
             const menuItems = [];
@@ -801,6 +880,26 @@ const UserTable = () => {
             fullWidth
             size="large"
             onClick={handleConfirmAction}
+          />
+        </DialogActions>
+      </Dialog>
+
+      {/* Bulk Delete Dialog */}
+      <Dialog open={isBulkDeleteDialogOpen} onClose={handleCloseBulkDeleteDialog}>
+        <DialogTitle>Bulk Delete Users</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Are you sure you want to delete{" "}
+            <strong>{Object.keys(rowSelection).length}</strong> selected
+            user(s)? This action cannot be undone.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseBulkDeleteDialog}>Cancel</Button>
+          <AppButton
+            label="Delete"
+            type="button"
+            onClick={handleConfirmBulkDelete}
           />
         </DialogActions>
       </Dialog>

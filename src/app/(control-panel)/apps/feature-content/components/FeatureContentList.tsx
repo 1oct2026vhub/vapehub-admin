@@ -47,6 +47,8 @@ const FeatureContentList: React.FC<FeatureContentListProps> = ({ openCreate, onC
   const [status, setStatus] = useState<string>('');
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editItem, setEditItem] = useState<FeatureContent | null>(null);
+  const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
+  const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false);
   const { showSnackbar } = useSnackbar();
 
   useEffect(() => {
@@ -63,6 +65,7 @@ const FeatureContentList: React.FC<FeatureContentListProps> = ({ openCreate, onC
     setStatus('');
     setDeleted(false);
     setPage(1);
+    setRowSelection({});
   };
 
   useEffect(() => {
@@ -117,6 +120,62 @@ const FeatureContentList: React.FC<FeatureContentListProps> = ({ openCreate, onC
       fetchData();
     } catch (err: any) {
       showSnackbar(err?.message || 'Action failed', 'error');
+    }
+  };
+
+  // Bulk delete handlers
+  const handleOpenBulkDeleteDialog = () => {
+    setIsBulkDeleteDialogOpen(true);
+  };
+
+  const handleCloseBulkDeleteDialog = () => {
+    setIsBulkDeleteDialogOpen(false);
+  };
+
+  const handleConfirmBulkDelete = async () => {
+    const selectedIndices = Object.keys(rowSelection).filter(
+      (key) => rowSelection[key]
+    );
+    const selectedContentsToDelete = featureContents.filter((_, index) =>
+      selectedIndices.includes(index.toString())
+    );
+
+    // Filter out already deleted items for bulk delete
+    const activeContentsToDelete = selectedContentsToDelete.filter(
+      (content) => !content.deletedAt
+    );
+
+    if (activeContentsToDelete.length === 0) {
+      showSnackbar(
+        "No active feature content selected for deletion.",
+        "warning"
+      );
+      handleCloseBulkDeleteDialog();
+      return;
+    }
+
+    const idsToDelete = activeContentsToDelete.map((content) => content.id);
+
+    try {
+      setIsLoading(true);
+      // Delete all selected items in parallel
+      await Promise.all(idsToDelete.map((id) => deleteFeatureContent(id)));
+
+      showSnackbar(
+        `${idsToDelete.length} feature content item(s) deleted successfully!`,
+        "success"
+      );
+      setRowSelection({});
+      
+      // Refresh data from server
+      fetchData();
+    } catch (error: any) {
+      const errorMessage =
+        error?.message || error?.errors?.[0]?.msg || "Bulk delete failed";
+      showSnackbar(errorMessage, "error");
+    } finally {
+      setIsLoading(false);
+      handleCloseBulkDeleteDialog();
     }
   };
 
@@ -182,11 +241,34 @@ const FeatureContentList: React.FC<FeatureContentListProps> = ({ openCreate, onC
             <MenuItem value="false">Active</MenuItem>
             <MenuItem value="true">Deleted</MenuItem>
           </Select>
+
+          {/* Bulk Delete Button */}
+          {Object.keys(rowSelection).length > 0 && !deleted && (
+            <Button
+              variant="contained"
+              color="error"
+              size="small"
+              startIcon={<FuseSvgIcon>heroicons-outline:trash</FuseSvgIcon>}
+              onClick={handleOpenBulkDeleteDialog}
+              sx={{
+                backgroundColor: "#d32f2f",
+                "&:hover": {
+                  backgroundColor: "#b71c1c",
+                },
+              }}
+            >
+              Bulk Delete ({Object.keys(rowSelection).length})
+            </Button>
+          )}
+
           {areFiltersActive && <ClearFiltersButton onClick={clearFilters} />}
         </div>
         <DataTable
           data={featureContents}
           columns={columns}
+          enableRowSelection={true}
+          onRowSelectionChange={setRowSelection}
+          state={{ rowSelection }}
           renderRowActionMenuItems={({ closeMenu, row }) => [
             !row.original.deletedAt && 
             <MenuItem key="edit" onClick={() => { setEditItem(row.original); setIsCreateOpen(true); closeMenu(); }}>
@@ -246,6 +328,29 @@ const FeatureContentList: React.FC<FeatureContentListProps> = ({ openCreate, onC
               onCancel={() => { setIsCreateOpen(false); setEditItem(null); onCreateClosed?.(); }}
             />
           </DialogContent>
+        </Dialog>
+
+        {/* Bulk Delete Dialog */}
+        <Dialog open={isBulkDeleteDialogOpen} onClose={handleCloseBulkDeleteDialog}>
+          <DialogTitle>Bulk Delete Feature Content</DialogTitle>
+          <DialogContent>
+            <Typography>
+              Are you sure you want to delete{" "}
+              <strong>{Object.keys(rowSelection).length}</strong> selected
+              feature content item(s)? This action cannot be undone.
+            </Typography>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleCloseBulkDeleteDialog}>Cancel</Button>
+            <Button
+              onClick={handleConfirmBulkDelete}
+              color="error"
+              variant="contained"
+              disabled={isLoading}
+            >
+              Delete
+            </Button>
+          </DialogActions>
         </Dialog>
       </Paper>
     </div>

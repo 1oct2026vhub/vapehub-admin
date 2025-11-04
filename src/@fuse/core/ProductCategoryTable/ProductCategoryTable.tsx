@@ -307,9 +307,7 @@ const ProductCategoryTable = ({
 
   const handleEdit = (category: CategoryType) => {
     router.push(
-      `/apps/product-category/category-update/${
-        category.id
-      }?categoryData=${encodeURIComponent(JSON.stringify(category))}`
+      `/apps/product-category/category-update/${category.id}`
     );
   };
 

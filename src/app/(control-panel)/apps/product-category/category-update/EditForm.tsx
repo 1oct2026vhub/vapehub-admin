@@ -137,8 +137,11 @@ export type FormType = {
 const EditCategoryForm = ({
   category: initialCategory,
 }: {
-  category: FormType;
+  category: FormType | null;
 }) => {
+  if (!initialCategory) {
+    return <div>Loading category data...</div>;
+  }
   const router = useRouter();
   const params = useParams();
   const id = params?.id ? (Array.isArray(params.id) ? params.id[0] : params.id) : undefined;
@@ -372,6 +375,7 @@ const EditCategoryForm = ({
               required
             />
             <FormCKEditor
+              key={`description-${categoryId || 'new'}`}
               name="description"
               control={control}
               label="Description"
