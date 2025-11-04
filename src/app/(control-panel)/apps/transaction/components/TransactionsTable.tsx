@@ -11,8 +11,6 @@ import {
   Paper,
   IconButton,
   Box,
-  Pagination,
-  PaginationItem,
   Typography,
 } from "@mui/material";
 import {
@@ -29,6 +27,7 @@ import TransactionStatusChip from "./TransactionStatusChip";
 import TransactionTypeChip from "./TransactionTypeChip";
 import TransactionFilters from "./TransactionFilters";
 import GenerateReportButton from "./GenerateReportButton";
+import TablePagination from "@/components/Shared/TablePagination";
 
 interface TransactionsTableProps {
   statusFilter?: TransactionStatus;
@@ -53,7 +52,7 @@ const TransactionsTable = ({
   const [order, setOrder] = useState<"ASC" | "DESC">("DESC");
   const [sortBy, setSortBy] = useState<string>("id");
   const [page, setPage] = useState(1);
-  const [limit] = useState(10);
+  const [limit, setLimit] = useState(10);
   const [transactions, setTransactions] = useState([]);
   const [totalRecords, setTotalRecords] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
@@ -72,6 +71,12 @@ const TransactionsTable = ({
     initialEndDate ? dayjs(initialEndDate) : null
   );
   const [hasUserFiltered, setHasUserFiltered] = useState(false);
+
+  // Handle limit change with proper state batching
+  const handleLimitChange = useCallback((newLimit: number) => {
+    setPage(1);
+    setLimit(newLimit);
+  }, []);
 
   // Initial setup of filters from props
   useEffect(() => {
@@ -375,7 +380,14 @@ const TransactionsTable = ({
           columns={orderedColumns}
           enableColumnOrdering
           onColumnOrderChange={onColumnOrderChange}
-          state={{ columnOrder }}
+          manualPagination={true}
+          state={{ 
+            columnOrder,
+            pagination: {
+              pageIndex: 0,
+              pageSize: transactions.length || limit || 1000
+            }
+          }}
           renderRowActionMenuItems={({ closeMenu, row }) => [
             <MenuItem
               key="view"
@@ -392,31 +404,14 @@ const TransactionsTable = ({
           ]}
         />
 
-        {/* Pagination with additional information */}
-        <div className="flex flex-col items-center py-4">
-          <Pagination
-            count={totalPages}
-            page={page}
-            onChange={handlePageChange}
-            shape="rounded"
-            color="primary"
-            renderItem={(item) => (
-              <PaginationItem
-                {...item}
-                className="text-gray-600 hover:text-[#2E9970]"
-                sx={{
-                  "&.Mui-selected": {
-                    backgroundColor: "#2E9970",
-                    color: "#fff",
-                    "&:hover": {
-                      backgroundColor: "#247C5C",
-                    },
-                  },
-                }}
-              />
-            )}
-          />
-        </div>
+        <TablePagination
+          page={page}
+          totalPages={totalPages}
+          limit={limit}
+          totalRecords={totalRecords}
+          onPageChange={setPage}
+          onLimitChange={handleLimitChange}
+        />
       </Paper>
     </div>
   );

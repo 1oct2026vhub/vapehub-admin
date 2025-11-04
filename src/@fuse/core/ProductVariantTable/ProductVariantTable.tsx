@@ -24,8 +24,6 @@ import {
   List,
   ListItem,
   ListItemText,
-  Pagination,
-  PaginationItem,
   Chip,
 } from "@mui/material";
 import { listProducts } from "@/services/apiProduct";
@@ -45,6 +43,7 @@ import {
 } from "@/services/apiProductVariant";
 import { formatDate, formatPounds } from "@/utils/actions";
 import ClearFiltersButton from "@/components/Shared/ClearFiltersButton";
+import TablePagination from "@/components/Shared/TablePagination";
 
 // Extend the base ProductVariant type
 interface ProductVariant extends BaseProductVariant {
@@ -90,8 +89,8 @@ const ProductVariantTable = ({
   const [stockStatus, setStockStatus] = useState<string>("in_stock");
   const [productId, setProductId] = useState<string>("");
   const [openDrawer, setOpenDrawer] = useState(false);
-  const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
   const [openDialog, setOpenDialog] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [restoreDialogOpen, setRestoreDialogOpen] = useState(false);
@@ -126,6 +125,12 @@ const ProductVariantTable = ({
     );
   }, [search, order, sortBy, stockStatus, priceRange, productId, defaultFilters]);
 
+  // Handle limit change with proper state batching
+  const handleLimitChange = useCallback((newLimit: number) => {
+    setPage(1);
+    setLimit(newLimit);
+  }, []);
+
   // Debounced values
   const debouncedSearch = useDebounce(search, 500);
   const debouncedPriceRange = useDebounce(priceRange, 500);
@@ -135,8 +140,8 @@ const ProductVariantTable = ({
     () => ({
       sort_by: sortBy,
       order,
-      limit: rowsPerPage,
-      offset: page * rowsPerPage,
+      limit: limit,
+      offset: (page - 1) * limit,
       keyword: debouncedSearch,
       price_range: debouncedPriceRange,
       stock_status: stockStatus as any,
@@ -145,7 +150,7 @@ const ProductVariantTable = ({
     [
       sortBy,
       order,
-      rowsPerPage,
+      limit,
       page,
       deleted,
       debouncedSearch,
@@ -382,7 +387,14 @@ const ProductVariantTable = ({
           columns={orderedColumns}
           enableColumnOrdering
           onColumnOrderChange={onColumnOrderChange}
-          state={{ columnOrder }}
+          manualPagination={true}
+          state={{ 
+            columnOrder,
+            pagination: {
+              pageIndex: 0,
+              pageSize: variants.length || limit || 1000
+            }
+          }}
           renderRowActionMenuItems={({ closeMenu, row }) => [
             <MenuItem
               key="view"
@@ -413,33 +425,14 @@ const ProductVariantTable = ({
           ]}
         />
 
-        <div className="flex justify-center p-4">
-          <Pagination
-            count={Math.ceil(totalRows / rowsPerPage)}
-            page={page + 1}
-            onChange={(_, newPage) => setPage(newPage - 1)}
-            shape="rounded"
-            color="primary"
-            renderItem={(item) => (
-              <PaginationItem
-                {...item}
-                className="text-gray-600 hover:text-[#2E9970]"
-                sx={{
-                  backgroundColor:
-                    item.page === 1 && page === 0 ? "#2E9970" : "transparent",
-                  color: item.page === 1 && page === 0 ? "#fff" : "inherit",
-                  "&.Mui-selected": {
-                    backgroundColor: "#2E9970",
-                    color: "#fff",
-                    "&:hover": {
-                      backgroundColor: "#247C5C",
-                    },
-                  },
-                }}
-              />
-            )}
-          />
-        </div>
+        <TablePagination
+          page={page}
+          totalPages={Math.ceil(totalRows / limit)}
+          limit={limit}
+          totalRecords={totalRows}
+          onPageChange={setPage}
+          onLimitChange={handleLimitChange}
+        />
       </Paper>
 
       <Drawer

@@ -181,7 +181,7 @@ const EditBrandForm = ({ brand: initialBrand }: { brand: FormType }) => {
 
   const [activeTab, setActiveTab] = useState<number>(0); // 0 for Details, 1 for FAQ, 2 for SEO
 
-  const { control, formState, handleSubmit, setValue, watch } = useForm<InferredSchemaType>({
+  const { control, formState, handleSubmit, setValue, watch, setError } = useForm<InferredSchemaType>({
     mode: "all",
     defaultValues,
     resolver: zodResolver(schema),
@@ -248,14 +248,29 @@ const EditBrandForm = ({ brand: initialBrand }: { brand: FormType }) => {
       showSnackbar("Brand updated successfully!", "success");
       router.push("/apps/product-brand");
     } catch (error: any) {
-        if (error?.errors) {
-            showSnackbar(error?.errors[0]?.msg, "error");
-        } else {
-            const errorMessage = error?.response?.data?.message || error?.message || "An unexpected error occurred";
-            showSnackbar(errorMessage, "error");
-        }
+      // Handle validation errors from the API
+      const errorResponse = error?.response?.data || error;
+      
+      if (errorResponse?.error && Array.isArray(errorResponse.error)) {
+        errorResponse.error.forEach((validationError: any) => {
+          if (validationError.path && validationError.message) {
+            // Set field-specific error
+            setError(validationError.path as keyof InferredSchemaType, {
+              type: "manual",
+              message: validationError.message,
+            });
+            // Show snackbar for the error
+            showSnackbar(validationError.message, "error");
+          }
+        });
+      } else if (error?.errors) {
+        showSnackbar(error?.errors[0]?.msg, "error");
+      } else {
+        const errorMessage = error?.response?.data?.message || error?.message || "An unexpected error occurred";
+        showSnackbar(errorMessage, "error");
+      }
     } finally {
-        setIsLoading(false);
+      setIsLoading(false);
     }
   };
 

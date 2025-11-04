@@ -136,7 +136,7 @@ function CreateBrandForm() {
   const [hasImageError, setHasImageError] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
-  const { control, formState, handleSubmit, setValue, watch } = useForm<FormType>({
+  const { control, formState, handleSubmit, setValue, watch, setError } = useForm<FormType>({
     mode: "all",
     defaultValues,
     resolver: zodResolver(schema),
@@ -184,16 +184,30 @@ function CreateBrandForm() {
       await triggerCreateBrand(formDataObj);
       showSnackbar("Brand created successfully!", "success");
       router.push("/apps/product-brand");
-    } catch (error) {
-      if (error?.errors) {
+    } catch (error: any) {
+      // Handle validation errors from the API
+      if (error?.error && Array.isArray(error.error)) {
+        error.error.forEach((validationError: any) => {
+          if (validationError.path && validationError.message) {
+            // Set field-specific error
+            setError(validationError.path as keyof FormType, {
+              type: "manual",
+              message: validationError.message,
+            });
+            // Show snackbar for the error
+            showSnackbar(validationError.message, "error");
+          }
+        });
+      } else if (error?.errors) {
         showSnackbar(error?.errors[0]?.msg, "error");
       } else {
         const errorMessage = error?.message || "An unexpected error occurred";
         showSnackbar(errorMessage, "error");
       }
 
+      // Legacy error handling for backward compatibility
       const errorData = error || error;
-      if (errorData?.error && typeof errorData.error === "object") {
+      if (errorData?.error && typeof errorData.error === "object" && !Array.isArray(errorData.error)) {
         Object.entries(errorData.error).forEach(([field, message]) => {
           if (typeof message === "string") {
             showSnackbar(message, "error");

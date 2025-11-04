@@ -23,8 +23,6 @@ import {
   List,
   ListItem,
   ListItemText,
-  Pagination,
-  PaginationItem,
   Chip,
   FormControl,
   InputLabel,
@@ -45,6 +43,7 @@ import { formatDate } from "@/utils/actions";
 import useColumnOrder from "@/hooks/useColumnOrder";
 import debounce from 'lodash/debounce';
 import ClearFiltersButton from "@/components/Shared/ClearFiltersButton";
+import TablePagination from "@/components/Shared/TablePagination";
 
 export type ProductType = {
   id: number;
@@ -126,7 +125,7 @@ const ProductListTable = ({
   
   const [openDrawer, setOpenDrawer] = useState(false);
   const [page, setPage] = useState(1);
-  const [limit] = useState(10);
+  const [limit, setLimit] = useState(10);
   const { showSnackbar } = useSnackbar();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [restoreDialogOpen, setRestoreDialogOpen] = useState(false);
@@ -138,6 +137,8 @@ const ProductListTable = ({
   const [totalPages, setTotalPages] = useState(0);
   const [manuallyRefreshing, setManuallyRefreshing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
+  const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false);
 
   // --- START ADD: Check if Filters are Active ---
   const areFiltersActive = useMemo(() => {
@@ -154,6 +155,12 @@ const ProductListTable = ({
     );
   }, [search, sortBy, order, deleted, status, isNew, priceRange, categories, brands]);
   // --- END ADD ---
+
+  // Handle limit change with proper state batching
+  const handleLimitChange = useCallback((newLimit: number) => {
+    setPage(1); // Reset to page 1 first
+    setLimit(newLimit); // Then update limit
+  }, []);
 
   // Add debounce effect for search term
   useEffect(() => {
@@ -494,6 +501,69 @@ const ProductListTable = ({
     setSelectedProduct(null);
   };
 
+  // Bulk delete handlers
+  const handleOpenBulkDeleteDialog = () => {
+    setIsBulkDeleteDialogOpen(true);
+  };
+
+  const handleCloseBulkDeleteDialog = () => {
+    setIsBulkDeleteDialogOpen(false);
+  };
+
+  const handleConfirmBulkDelete = async () => {
+    const selectedIndices = Object.keys(rowSelection).filter(
+      (key) => rowSelection[key]
+    );
+    const selectedProductsToDelete = products.filter((_, index) =>
+      selectedIndices.includes(index.toString())
+    );
+
+    // Filter out already deleted products for bulk delete
+    const activeProductsToDelete = selectedProductsToDelete.filter(
+      (product) => !product.deletedAt
+    );
+
+    if (activeProductsToDelete.length === 0) {
+      showSnackbar(
+        "No active products selected for deletion.",
+        "warning"
+      );
+      handleCloseBulkDeleteDialog();
+      return;
+    }
+
+    const idsToDelete = activeProductsToDelete.map((product) => product.id);
+
+    try {
+      setIsLoading(true);
+      // Delete all selected products in parallel
+      await Promise.all(idsToDelete.map((id) => deleteProduct(id)));
+
+      // Optimistically update the UI
+      setProducts((prev) =>
+        prev.filter((product) => !idsToDelete.includes(product.id))
+      );
+      setTotalRecords((prev) => prev - idsToDelete.length);
+      setTotalPages(Math.ceil((totalRecords - idsToDelete.length) / limit));
+
+      showSnackbar(
+        `${idsToDelete.length} product(s) deleted successfully!`,
+        "success"
+      );
+      setRowSelection({});
+      
+      // Refresh data from server
+      await mutate(["productList", queryParams]);
+    } catch (error: any) {
+      const errorMessage =
+        error?.message || error?.errors?.[0]?.msg || "Bulk delete failed";
+      showSnackbar(errorMessage, "error");
+    } finally {
+      setIsLoading(false);
+      handleCloseBulkDeleteDialog();
+    }
+  };
+
   const handleStatusChange = async (productId: number, newStatus: "draft" | "published" | "archived", closeMenu: () => void) => {
     try {
       await updateProductStatus(productId, newStatus);
@@ -653,6 +723,7 @@ const ProductListTable = ({
     setCategorySearchQuery("");
     setBrandSearchQuery("");
     setPage(1); // Reset page to 1
+    setRowSelection({}); // Clear row selection when filters are cleared
 
     // Reset dropdown options
     fetchCategories("");
@@ -778,6 +849,25 @@ const ProductListTable = ({
               <MenuItem value="published">Published</MenuItem>
               <MenuItem value="archived">Archived</MenuItem>
             </Select>
+
+            {/* Bulk Delete Button */}
+            {Object.keys(rowSelection).length > 0 && deleted !== true && (
+              <Button
+                variant="contained"
+                color="error"
+                size="small"
+                startIcon={<FuseSvgIcon>heroicons-outline:trash</FuseSvgIcon>}
+                onClick={handleOpenBulkDeleteDialog}
+                sx={{
+                  backgroundColor: "#d32f2f",
+                  "&:hover": {
+                    backgroundColor: "#b71c1c",
+                  },
+                }}
+              >
+                Bulk Delete ({Object.keys(rowSelection).length})
+              </Button>
+            )}
 
             <FormControl sx={{ minWidth: 120 }} size="small">
               <Autocomplete
@@ -920,7 +1010,17 @@ const ProductListTable = ({
           columns={orderedColumns}
           enableColumnOrdering
           onColumnOrderChange={onColumnOrderChange}
-          state={{ columnOrder }}
+          manualPagination={true}
+          enableRowSelection={true}
+          onRowSelectionChange={setRowSelection}
+          state={{ 
+            columnOrder,
+            rowSelection,
+            pagination: {
+              pageIndex: 0,
+              pageSize: products.length || limit || 1000
+            }
+          }}
           renderRowActionMenuItems={({ closeMenu, row }) => [
             <MenuItem
               key="view"
@@ -1020,30 +1120,14 @@ const ProductListTable = ({
             ),
           ]}
         />
-        <div className="flex justify-center mb-6">
-          <Pagination
-            count={totalPages}
-            page={page}
-            onChange={(event, value) => setPage(value)}
-            shape="rounded"
-            color="primary"
-            renderItem={(item) => (
-              <PaginationItem
-                {...item}
-                className="text-gray-600 hover:text-[#2E9970]"
-                sx={{
-                  "&.Mui-selected": {
-                    backgroundColor: "#2E9970",
-                    color: "#fff",
-                    "&:hover": {
-                      backgroundColor: "#247C5C",
-                    },
-                  },
-                }}
-              />
-            )}
-          />
-        </div>
+        <TablePagination
+          page={page}
+          totalPages={totalPages}
+          limit={limit}
+          totalRecords={totalRecords}
+          onPageChange={setPage}
+          onLimitChange={handleLimitChange}
+        />
       </Paper>
 
       <Drawer
@@ -1332,6 +1416,32 @@ const ProductListTable = ({
           <Button onClick={() => setRestoreDialogOpen(false)}>Cancel</Button>
           <Button onClick={confirmRestore} color="success" variant="contained">
             Restore
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Bulk Delete Dialog */}
+      <Dialog
+        open={isBulkDeleteDialogOpen}
+        onClose={handleCloseBulkDeleteDialog}
+      >
+        <DialogTitle>Bulk Delete Products</DialogTitle>
+        <DialogContent>
+          <Typography>
+            Are you sure you want to delete{" "}
+            <strong>{Object.keys(rowSelection).length}</strong> selected
+            product(s)? This action cannot be undone.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseBulkDeleteDialog}>Cancel</Button>
+          <Button
+            onClick={handleConfirmBulkDelete}
+            color="error"
+            variant="contained"
+            disabled={isLoading}
+          >
+            Delete
           </Button>
         </DialogActions>
       </Dialog>

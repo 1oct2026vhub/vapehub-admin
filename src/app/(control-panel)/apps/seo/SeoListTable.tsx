@@ -11,8 +11,6 @@ import {
   InputAdornment,
   MenuItem,
   Select,
-  Pagination,
-  PaginationItem,
   ListItemIcon,
   Box,
   Autocomplete,
@@ -30,6 +28,7 @@ import FuseSvgIcon from '@fuse/core/FuseSvgIcon';
 import { useRouter } from 'next/navigation';
 import { useSnackbar } from '@/contexts/SnackbarContext';
 import { Circle } from '@mui/icons-material';
+import TablePagination from '@/components/Shared/TablePagination';
 
 const getEditUrl = (item: SeoListItem): string | null => {
     switch (item.entityType) {
@@ -79,6 +78,12 @@ const SeoListTable: React.FC<{ refreshTrigger: number, onEdit: (data: SeoListIte
         setPage(1);
         setEntitySearchKeyword('');
     };
+
+    // Handle limit change with proper state batching
+    const handleLimitChange = useCallback((newLimit: number) => {
+        setPage(1);
+        setLimit(newLimit);
+    }, []);
 
     useEffect(() => {
         const timer = setTimeout(() => {
@@ -359,30 +364,14 @@ const SeoListTable: React.FC<{ refreshTrigger: number, onEdit: (data: SeoListIte
                         return menuItems;
                     }}
                 />
-                <div className="flex justify-center p-4">
-                    <Pagination
-                        count={totalPages}
-                        page={page}
-                        onChange={(_, newPage) => setPage(newPage)}
-                        shape="rounded"
-                        color="primary"
-                        renderItem={(item) => (
-                            <PaginationItem
-                                {...item}
-                                className="text-gray-600 hover:text-[#2E9970]"
-                                sx={{
-                                    '&.Mui-selected': {
-                                        backgroundColor: '#2E9970',
-                                        color: '#fff',
-                                        '&:hover': {
-                                            backgroundColor: '#247C5C',
-                                        },
-                                    },
-                                }}
-                            />
-                        )}
-                    />
-                </div>
+                <TablePagination
+                    page={page}
+                    totalPages={totalPages}
+                    limit={limit}
+                    totalRecords={total}
+                    onPageChange={setPage}
+                    onLimitChange={handleLimitChange}
+                />
             </Paper>
         </div>
     );
