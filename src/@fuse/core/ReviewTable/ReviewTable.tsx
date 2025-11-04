@@ -46,6 +46,8 @@ const ReviewTable: React.FC<ReviewTableProps> = ({ onEditClick }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [openDialog, setOpenDialog] = useState(false);
   const [selectedReview, setSelectedReview] = useState<Review | null>(null);
+  const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
+  const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false);
   const { showSnackbar } = useSnackbar();
   const [search, setSearch] = useState('');
   const [rating, setRating] = useState('all');
@@ -76,6 +78,7 @@ const ReviewTable: React.FC<ReviewTableProps> = ({ onEditClick }) => {
     setRating('all');
     setSortBy('created_at');
     setSortOrder('DESC');
+    setRowSelection({}); // Clear row selection when filters are cleared
   };
 
   const isFilterApplied = search !== '' || rating !== 'all' || sortBy !== 'created_at' || sortOrder !== 'DESC';
@@ -126,6 +129,57 @@ const ReviewTable: React.FC<ReviewTableProps> = ({ onEditClick }) => {
       fetchData(); // Refresh the data
     } catch (err: any) {
       showSnackbar(err?.message || 'Failed to delete review', 'error');
+    }
+  };
+
+  // Bulk delete handlers
+  const handleOpenBulkDeleteDialog = () => {
+    setIsBulkDeleteDialogOpen(true);
+  };
+
+  const handleCloseBulkDeleteDialog = () => {
+    setIsBulkDeleteDialogOpen(false);
+  };
+
+  const handleConfirmBulkDelete = async () => {
+    const selectedIndices = Object.keys(rowSelection).filter(
+      (key) => rowSelection[key]
+    );
+    const selectedReviewsToDelete = reviews.filter((_, index) =>
+      selectedIndices.includes(index.toString())
+    );
+
+    if (selectedReviewsToDelete.length === 0) {
+      showSnackbar(
+        "No reviews selected for deletion.",
+        "warning"
+      );
+      handleCloseBulkDeleteDialog();
+      return;
+    }
+
+    const idsToDelete = selectedReviewsToDelete.map((review) => review.id);
+
+    try {
+      setIsLoading(true);
+      // Delete all selected reviews in parallel
+      await Promise.all(idsToDelete.map((id) => deleteReview(id)));
+
+      showSnackbar(
+        `${idsToDelete.length} review(s) deleted successfully!`,
+        "success"
+      );
+      setRowSelection({});
+      
+      // Refresh data from server
+      fetchData();
+    } catch (error: any) {
+      const errorMessage =
+        error?.message || error?.errors?.[0]?.msg || "Bulk delete failed";
+      showSnackbar(errorMessage, "error");
+    } finally {
+      setIsLoading(false);
+      handleCloseBulkDeleteDialog();
     }
   };
 
@@ -223,6 +277,26 @@ const ReviewTable: React.FC<ReviewTableProps> = ({ onEditClick }) => {
               <MenuItem value="ASC">Ascending</MenuItem>
             </Select>
           </FormControl>
+
+          {/* Bulk Delete Button */}
+          {Object.keys(rowSelection).length > 0 && (
+            <Button
+              variant="contained"
+              color="error"
+              size="small"
+              startIcon={<FuseSvgIcon>heroicons-outline:trash</FuseSvgIcon>}
+              onClick={handleOpenBulkDeleteDialog}
+              sx={{
+                backgroundColor: "#d32f2f",
+                "&:hover": {
+                  backgroundColor: "#b71c1c",
+                },
+              }}
+            >
+              Bulk Delete ({Object.keys(rowSelection).length})
+            </Button>
+          )}
+
           {isFilterApplied && (
             <ClearFiltersButton onClick={handleClearFilters} />
           )}
@@ -232,7 +306,9 @@ const ReviewTable: React.FC<ReviewTableProps> = ({ onEditClick }) => {
           columns={columns}
           manualSorting
           onSortingChange={handleSortingChange}
-          state={{ sorting }}
+          enableRowSelection={true}
+          onRowSelectionChange={setRowSelection}
+          state={{ sorting, rowSelection }}
           renderRowActionMenuItems={({ closeMenu, row }) => {
             const menuItems = [];
             
@@ -294,6 +370,32 @@ const ReviewTable: React.FC<ReviewTableProps> = ({ onEditClick }) => {
           <DialogActions>
             <Button onClick={() => setOpenDialog(false)}>Cancel</Button>
             <Button color="error" onClick={handleConfirmDelete}>
+              Delete
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Bulk Delete Dialog */}
+        <Dialog
+          open={isBulkDeleteDialogOpen}
+          onClose={handleCloseBulkDeleteDialog}
+        >
+          <DialogTitle>Bulk Delete Reviews</DialogTitle>
+          <DialogContent>
+            <Typography>
+              Are you sure you want to delete{" "}
+              <strong>{Object.keys(rowSelection).length}</strong> selected
+              review(s)? This action cannot be undone.
+            </Typography>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleCloseBulkDeleteDialog}>Cancel</Button>
+            <Button
+              onClick={handleConfirmBulkDelete}
+              color="error"
+              variant="contained"
+              disabled={isLoading}
+            >
               Delete
             </Button>
           </DialogActions>

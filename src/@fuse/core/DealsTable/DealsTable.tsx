@@ -47,6 +47,8 @@ const DealsTable: React.FC = () => {
   const [limit, setLimit] = useState(10);
   const [openDialog, setOpenDialog] = useState(false);
   const [selectedDeal, setSelectedDeal] = useState<Deal | null>(null);
+  const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
+  const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false);
   const [status, setStatus] = useState<string>('');
   const [dealType, setDealType] = useState<string>('BUY_N_FOR_FIXED');
   const [validNow, setValidNow] = useState<boolean | null>(null);
@@ -80,6 +82,7 @@ const DealsTable: React.FC = () => {
     setProductSearch('');
     setDebouncedProductSearch('');
     setPage(1);
+    setRowSelection({}); // Clear row selection when filters are cleared
   };
 
   // Debounced search for deals
@@ -185,6 +188,62 @@ const DealsTable: React.FC = () => {
       }
     } catch (err: any) {
       showSnackbar(err?.message || 'Action failed', 'error');
+    }
+  };
+
+  // Bulk delete handlers
+  const handleOpenBulkDeleteDialog = () => {
+    setIsBulkDeleteDialogOpen(true);
+  };
+
+  const handleCloseBulkDeleteDialog = () => {
+    setIsBulkDeleteDialogOpen(false);
+  };
+
+  const handleConfirmBulkDelete = async () => {
+    const selectedIndices = Object.keys(rowSelection).filter(
+      (key) => rowSelection[key]
+    );
+    const selectedDealsToDelete = deals.filter((_, index) =>
+      selectedIndices.includes(index.toString())
+    );
+
+    // Filter out already deleted deals for bulk delete
+    const activeDealsToDelete = selectedDealsToDelete.filter(
+      (deal) => !deal.deletedAt
+    );
+
+    if (activeDealsToDelete.length === 0) {
+      showSnackbar(
+        "No active deals selected for deletion.",
+        "warning"
+      );
+      handleCloseBulkDeleteDialog();
+      return;
+    }
+
+    const idsToDelete = activeDealsToDelete.map((deal) => deal.id);
+
+    try {
+      setIsLoading(true);
+      // Delete all selected deals in parallel
+      await Promise.all(idsToDelete.map((id) => deleteDeal(id)));
+
+      showSnackbar(
+        `${idsToDelete.length} deal(s) deleted successfully!`,
+        "success"
+      );
+      setRowSelection({});
+      
+      // Refresh data from server
+      fetchData();
+    } catch (error: any) {
+      const errorMessage =
+        error?.message || error?.errors?.[0]?.msg || "Bulk delete failed";
+      showSnackbar(errorMessage, "error");
+    } finally {
+      setIsLoading(false);
+      handleCloseBulkDeleteDialog();
     }
   };
 
@@ -316,12 +375,35 @@ const DealsTable: React.FC = () => {
                 control={<Switch checked={isDeleted === true} onChange={(e) => setIsDeleted(e.target.checked ? true : null)} />}
                 label="Show Deleted"
             />
+
+          {/* Bulk Delete Button */}
+          {Object.keys(rowSelection).length > 0 && isDeleted !== true && (
+            <Button
+              variant="contained"
+              color="error"
+              size="small"
+              startIcon={<FuseSvgIcon>heroicons-outline:trash</FuseSvgIcon>}
+              onClick={handleOpenBulkDeleteDialog}
+              sx={{
+                backgroundColor: "#d32f2f",
+                "&:hover": {
+                  backgroundColor: "#b71c1c",
+                },
+              }}
+            >
+              Bulk Delete ({Object.keys(rowSelection).length})
+            </Button>
+          )}
+
           {areFiltersActive && <ClearFiltersButton onClick={clearFilters} />}
         </div>
         <DataTable
           data={deals}
           columns={columns}
           enableColumnOrdering
+          enableRowSelection={true}
+          onRowSelectionChange={setRowSelection}
+          state={{ rowSelection }}
           renderRowActionMenuItems={({ closeMenu, row }) => {
             const menuItems = [
               !row.original.deletedAt && (
@@ -364,6 +446,32 @@ const DealsTable: React.FC = () => {
             <Button onClick={() => setOpenDialog(false)}>Cancel</Button>
             <Button color="error" onClick={handleConfirmDelete}>
               {selectedDeal?.deletedAt ? 'Restore' : 'Delete'}
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Bulk Delete Dialog */}
+        <Dialog
+          open={isBulkDeleteDialogOpen}
+          onClose={handleCloseBulkDeleteDialog}
+        >
+          <DialogTitle>Bulk Delete Deals</DialogTitle>
+          <DialogContent>
+            <Typography>
+              Are you sure you want to delete{" "}
+              <strong>{Object.keys(rowSelection).length}</strong> selected
+              deal(s)? This action cannot be undone.
+            </Typography>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleCloseBulkDeleteDialog}>Cancel</Button>
+            <Button
+              onClick={handleConfirmBulkDelete}
+              color="error"
+              variant="contained"
+              disabled={isLoading}
+            >
+              Delete
             </Button>
           </DialogActions>
         </Dialog>
