@@ -359,6 +359,9 @@ function AttributesTab() {
         // ---> Populate initial attribute IDs set
         setInitialAttributeIds(new Set(attributeGroups.map(attr => attr.attribute_id).filter(id => id != null)));
 
+        // ---> Store initial attributes data for comparison
+        setInitialAttributes(JSON.parse(JSON.stringify(attributeGroups)));
+
         // Update form context data
         updateFormData({
           attributes: attributeGroups,
@@ -623,6 +626,46 @@ function AttributesTab() {
     return combinedTerms;
   };
 
+  // Helper function to check if an attribute has been modified
+  const isAttributeModified = (currentAttr: FormProductAttribute): boolean => {
+    // If it's a new attribute (not in initial list), it's modified
+    if (!initialAttributeIds.has(currentAttr.attribute_id)) {
+      return true;
+    }
+
+    // Find the matching initial attribute
+    const initialAttr = initialAttributes.find(
+      (attr) => attr.attribute_id === currentAttr.attribute_id
+    );
+
+    if (!initialAttr) {
+      return true; // New attribute
+    }
+
+    // Compare term_ids (order doesn't matter)
+    const currentTermIds = [...currentAttr.term_ids].sort();
+    const initialTermIds = [...initialAttr.term_ids].sort();
+    
+    if (currentTermIds.length !== initialTermIds.length) {
+      return true;
+    }
+    
+    if (!currentTermIds.every((id, index) => id === initialTermIds[index])) {
+      return true;
+    }
+
+    // Compare boolean flags
+    if (currentAttr.is_visible_page !== initialAttr.is_visible_page) {
+      return true;
+    }
+
+    if (currentAttr.used_in_variation !== initialAttr.used_in_variation) {
+      return true;
+    }
+
+    return false;
+  };
+
   const onSubmit = async (data: FormData) => {
     if (!productId) {
       showSnackbar("Product ID is missing. Cannot save attributes.", "error");
@@ -657,9 +700,19 @@ function AttributesTab() {
       let response;
       
       if (isEditMode) {
+        // Filter to only include modified or new attributes
+        const modifiedAttributes = data.attributes.filter(isAttributeModified);
+
+        // If no attributes were modified, show a message and don't make API call
+        if (modifiedAttributes.length === 0) {
+          showSnackbar("No changes detected", "info");
+          setIsSubmitting(false);
+          return;
+        }
+
         // For update, we need to format the request differently
         const updateRequest: UpdateProductAttributesRequest = {
-          attributes: data.attributes.map((attr) => ({
+          attributes: modifiedAttributes.map((attr) => ({
             attribute_id: Number(attr.attribute_id),
             term_ids: attr.term_ids.map(id => Number(id)), // Ensure all IDs are numbers
             is_visible_page: attr.is_visible_page,
@@ -669,6 +722,16 @@ function AttributesTab() {
 
         response = await updateProductAttributes(productId, updateRequest);
         showSnackbar("Product attributes updated successfully", "success");
+        
+        // Update initial state with current values after successful update
+        const updatedAttributesList = data.attributes.map((attr) => ({
+          attribute_id: Number(attr.attribute_id),
+          term_ids: attr.term_ids.map(id => Number(id)),
+          is_visible_page: attr.is_visible_page,
+          used_in_variation: attr.used_in_variation,
+        }));
+        setInitialAttributes(JSON.parse(JSON.stringify(updatedAttributesList)));
+        setInitialAttributeIds(new Set(updatedAttributesList.map(attr => attr.attribute_id).filter(id => id != null)));
       } else {
         // For new products, flatten attributes and terms into attribute-term pairs
         const addRequest: AddProductAttributesRequest = {
@@ -808,6 +871,16 @@ function AttributesTab() {
             ),
         },
       });
+
+      // Update initial attributes state to remove deleted attribute
+      setInitialAttributes((prev) => 
+        prev.filter((attr) => attr.attribute_id !== attributeToDelete.attribute_id)
+      );
+      setInitialAttributeIds((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(attributeToDelete.attribute_id);
+        return newSet;
+      });
     } catch (error) {
       if (error?.errors) {
         showSnackbar(error?.errors[0]?.msg, "error");
@@ -881,6 +954,9 @@ function AttributesTab() {
 
   // ---> Add state to track initially loaded attribute IDs
   const [initialAttributeIds, setInitialAttributeIds] = useState<Set<number>>(new Set());
+
+  // ---> Add state to track initial attributes data for comparison
+  const [initialAttributes, setInitialAttributes] = useState<FormProductAttribute[]>([]);
 
   // ---> Add state for delete confirmation dialog
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState<boolean>(false);

@@ -25,8 +25,6 @@ import {
   InputLabel,
   FormControlLabel,
   Switch,
-  Pagination,
-  PaginationItem,
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import {
@@ -45,6 +43,7 @@ import { useSnackbar } from "@/contexts/SnackbarContext";
 import { formatDate } from "@/utils/actions";
 import useColumnOrder from "@/hooks/useColumnOrder";
 import ClearFiltersButton from "@/components/Shared/ClearFiltersButton";
+import TablePagination from "@/components/Shared/TablePagination";
 
 const SORT_FIELDS = [
   { value: "id", label: "ID" },
@@ -66,7 +65,7 @@ const AttributeTable = ({
   const router = useRouter();
   const { showSnackbar } = useSnackbar();
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const [limit, setLimit] = useState(10);
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [showDeleted, setShowDeleted] = useState(false);
@@ -80,6 +79,8 @@ const AttributeTable = ({
   const [localAttributes, setLocalAttributes] = useState<Attribute[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [manuallyRefreshing, setManuallyRefreshing] = useState(false);
+  const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
+  const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false);
 
   const sorting = useMemo<MRT_SortingState>(
     () => [{ id: sortBy, desc: order === "DESC" }],
@@ -98,6 +99,12 @@ const AttributeTable = ({
       setOrder("DESC");
     }
   };
+
+  // Handle limit change with proper state batching
+  const handleLimitChange = useCallback((newLimit: number) => {
+    setPage(1);
+    setLimit(newLimit);
+  }, []);
 
   // --- START ADD: Check if Filters are Active ---
   const areFiltersActive = useMemo(() => {
@@ -123,6 +130,7 @@ const AttributeTable = ({
     setSortBy("created_at");
     setOrder("DESC");
     setPage(1); // Reset page number
+    setRowSelection({}); // Clear row selection when filters are cleared
     showSnackbar("Filters cleared", "info");
   };
   // --- END ADD ---
@@ -139,12 +147,12 @@ const AttributeTable = ({
     () => ({
       sort_by: sortBy,
       order,
-      limit: pageSize,
-      offset: (page - 1) * pageSize,
+      limit: limit,
+      offset: (page - 1) * limit,
       keyword: debouncedSearch,
       show_deleted: showDeleted,
     }),
-    [sortBy, order, pageSize, page, debouncedSearch, showDeleted]
+    [sortBy, order, limit, page, debouncedSearch, showDeleted]
   );
 
   const {
@@ -224,7 +232,7 @@ const AttributeTable = ({
 
       // Update pagination if needed
       const newTotal = (data?.data?.pagination?.total || 0) - 1;
-      if (newTotal <= (page - 1) * pageSize && page > 1) {
+      if (newTotal <= (page - 1) * limit && page > 1) {
         setPage(page - 1);
       }
 
@@ -272,6 +280,67 @@ const AttributeTable = ({
 
     //   return false;
     // } 
+  };
+
+  // Bulk delete handlers
+  const handleOpenBulkDeleteDialog = () => {
+    setIsBulkDeleteDialogOpen(true);
+  };
+
+  const handleCloseBulkDeleteDialog = () => {
+    setIsBulkDeleteDialogOpen(false);
+  };
+
+  const handleConfirmBulkDelete = async () => {
+    const selectedIndices = Object.keys(rowSelection).filter(
+      (key) => rowSelection[key]
+    );
+    const selectedAttributesToDelete = localAttributes.filter((_, index) =>
+      selectedIndices.includes(index.toString())
+    );
+
+    // Filter out already deleted attributes for bulk delete
+    const activeAttributesToDelete = selectedAttributesToDelete.filter(
+      (attr) => !attr.deleted_at
+    );
+
+    if (activeAttributesToDelete.length === 0) {
+      showSnackbar(
+        "No active attributes selected for deletion.",
+        "warning"
+      );
+      handleCloseBulkDeleteDialog();
+      return;
+    }
+
+    const idsToDelete = activeAttributesToDelete.map((attr) => attr.id);
+
+    try {
+      setIsLoading(true);
+      // Delete all selected attributes in parallel
+      await Promise.all(idsToDelete.map((id) => deleteAttribute(id)));
+
+      // Optimistically update the UI
+      setLocalAttributes((prev) =>
+        prev.filter((attr) => !idsToDelete.includes(attr.id))
+      );
+
+      showSnackbar(
+        `${idsToDelete.length} attribute(s) deleted successfully!`,
+        "success"
+      );
+      setRowSelection({});
+      
+      // Refresh data from server
+      await mutate(["attributeList", queryParams]);
+    } catch (error: any) {
+      const errorMessage =
+        error?.message || error?.errors?.[0]?.msg || "Bulk delete failed";
+      showSnackbar(errorMessage, "error");
+    } finally {
+      setIsLoading(false);
+      handleCloseBulkDeleteDialog();
+    }
   };
 
   const handleEdit = (attribute: Attribute) => {
@@ -403,6 +472,26 @@ const AttributeTable = ({
             </Select>
           </FormControl>
 
+          {/* Bulk Delete Button */}
+          {Object.keys(rowSelection).length > 0 && !showDeleted && (
+            <Button
+              variant="contained"
+              color="error"
+              size="small"
+              startIcon={<FuseSvgIcon>heroicons-outline:trash</FuseSvgIcon>}
+              onClick={handleOpenBulkDeleteDialog}
+              sx={{
+                backgroundColor: "#d32f2f",
+                "&:hover": {
+                  backgroundColor: "#b71c1c",
+                },
+                height: '40px'
+              }}
+            >
+              Bulk Delete ({Object.keys(rowSelection).length})
+            </Button>
+          )}
+
           {/* --- START ADD: Clear Filters Button --- */}
           {areFiltersActive && (
             <ClearFiltersButton 
@@ -420,17 +509,17 @@ const AttributeTable = ({
         manualSorting
         onSortingChange={handleSortingChange}
         onColumnOrderChange={onColumnOrderChange}
-        enablePagination
-        manualPagination
+        manualPagination={true}
+        enableRowSelection={true}
+        onRowSelectionChange={setRowSelection}
         state={{
           columnOrder,
           sorting,
-          pagination: { pageIndex: page - 1, pageSize },
-        }}
-        onPaginationChange={(updater: any) => {
-          const newPagination = updater({ pageIndex: page - 1, pageSize });
-          setPage(newPagination.pageIndex + 1);
-          setPageSize(newPagination.pageSize);
+          rowSelection,
+          pagination: {
+            pageIndex: 0,
+            pageSize: localAttributes.length || limit || 1000
+          }
         }}
         rowCount={data?.data?.pagination?.total || 0}
         renderRowActionMenuItems={({ closeMenu, row }) => [
@@ -487,30 +576,14 @@ const AttributeTable = ({
         ]}
       />
 
-      <div className="flex justify-center p-4">
-        <Pagination
-          count={Math.ceil(data?.data?.pagination?.total / pageSize)}
-          page={page}
-          onChange={(_, newPage) => setPage(newPage)}
-          shape="rounded"
-          color="primary"
-          renderItem={(item) => (
-            <PaginationItem
-              {...item}
-              className="text-gray-600 hover:text-[#2E9970]"
-              sx={{
-                "&.Mui-selected": {
-                  backgroundColor: "#2E9970",
-                  color: "#fff",
-                  "&:hover": {
-                    backgroundColor: "#247C5C",
-                  },
-                },
-              }}
-            />
-          )}
-        />
-      </div>
+      <TablePagination
+        page={page}
+        totalPages={Math.ceil((data?.data?.pagination?.total || 0) / limit)}
+        limit={limit}
+        totalRecords={data?.data?.pagination?.total || 0}
+        onPageChange={setPage}
+        onLimitChange={handleLimitChange}
+      />
 
       <Dialog open={openDialog} onClose={() => setOpenDialog(false)}>
         <DialogTitle>
@@ -530,6 +603,32 @@ const AttributeTable = ({
             type="button"
             onClick={handleConfirmDelete}
           />
+        </DialogActions>
+      </Dialog>
+
+      {/* Bulk Delete Dialog */}
+      <Dialog
+        open={isBulkDeleteDialogOpen}
+        onClose={handleCloseBulkDeleteDialog}
+      >
+        <DialogTitle>Bulk Delete Attributes</DialogTitle>
+        <DialogContent>
+          <Typography>
+            Are you sure you want to delete{" "}
+            <strong>{Object.keys(rowSelection).length}</strong> selected
+            attribute(s)? This action cannot be undone.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseBulkDeleteDialog}>Cancel</Button>
+          <Button
+            onClick={handleConfirmBulkDelete}
+            color="error"
+            variant="contained"
+            disabled={isLoading}
+          >
+            Delete
+          </Button>
         </DialogActions>
       </Dialog>
     </Paper>

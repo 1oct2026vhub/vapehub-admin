@@ -12,8 +12,6 @@ import {
   Paper,
   IconButton,
   Box,
-  Pagination,
-  PaginationItem,
   Typography,
 } from "@mui/material";
 import { getOrders, OrderStatus, PaymentStatus } from "@/services/apiOrder";
@@ -32,6 +30,7 @@ import relativeTime from "dayjs/plugin/relativeTime";
 import useColumnOrder from "@/hooks/useColumnOrder";
 import { formatCustomerNameSafely } from "@/utils/actions";
 import { listProducts } from "@/services/apiProduct";
+import TablePagination from "@/components/Shared/TablePagination";
 
 // Initialize dayjs plugins
 dayjs.extend(relativeTime);
@@ -74,7 +73,7 @@ const OrdersTable = ({
   const [sortBy, setSortBy] = useState<string>("id");
   const [openDrawer, setOpenDrawer] = useState(false);
   const [page, setPage] = useState(1);
-  const [limit] = useState(10);
+  const [limit, setLimit] = useState(10);
   const [orders, setOrders] = useState([]);
   const [totalRecords, setTotalRecords] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
@@ -86,6 +85,13 @@ const OrdersTable = ({
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus | "">("");
   const searchDebounceRef = useRef<NodeJS.Timeout | null>(null);
   const [hasUserFiltered, setHasUserFiltered] = useState(false);
+
+  // Handle limit change with proper state batching
+  const handleLimitChange = useCallback((newLimit: number) => {
+    setPage(1);
+    setLimit(newLimit);
+  }, []);
+
   // Product filter state
   interface Product { id: number; name: string }
   const [products, setProducts] = useState<Product[]>([]);
@@ -449,39 +455,24 @@ const OrdersTable = ({
           ]}
           enableColumnOrdering
           onColumnOrderChange={onColumnOrderChange}
-          state={{ columnOrder }}
+          manualPagination={true}
+          state={{ 
+            columnOrder,
+            pagination: {
+              pageIndex: 0,
+              pageSize: orders.length || limit || 1000
+            }
+          }}
         />
         
-        {/* Pagination with additional information */}
-        <div className="flex flex-col items-center py-4">
-          <Pagination
-            count={totalPages}
-            page={page}
-            onChange={handlePageChange}
-            shape="rounded"
-            color="primary"
-            renderItem={(item) => (
-              <PaginationItem
-                {...item}
-                className="text-gray-600 hover:text-[#2E9970]"
-                sx={{
-                  "&.Mui-selected": {
-                    backgroundColor: "#2E9970",
-                    color: "#fff",
-                    "&:hover": {
-                      backgroundColor: "#247C5C",
-                    },
-                  },
-                }}
-              />
-            )}
-          />
-          {/* {totalRecords > 0 && (
-            <Typography variant="body2" color="text.secondary" className="mt-2">
-              Showing page {page} of {totalPages} ({totalRecords} total records)
-            </Typography>
-          )} */}
-        </div>
+        <TablePagination
+          page={page}
+          totalPages={totalPages}
+          limit={limit}
+          totalRecords={totalRecords}
+          onPageChange={setPage}
+          onLimitChange={handleLimitChange}
+        />
       </Paper>
 
       <OrderFilterDrawer

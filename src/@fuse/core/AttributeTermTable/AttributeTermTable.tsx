@@ -25,8 +25,6 @@ import {
   InputLabel,
   FormControlLabel,
   Switch,
-  Pagination,
-  PaginationItem,
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import {
@@ -46,6 +44,7 @@ import { useSnackbar } from "@/contexts/SnackbarContext";
 import { formatDate } from "@/utils/actions";
 import useColumnOrder from "@/hooks/useColumnOrder";
 import ClearFiltersButton from "@/components/Shared/ClearFiltersButton";
+import TablePagination from "@/components/Shared/TablePagination";
 
 // // Add delete and restore functions
 // const deleteAttributeTerm = async (id: number) => {
@@ -77,8 +76,8 @@ const AttributeTermTable = ({
 }: AttributeTermTableProps) => {
   const router = useRouter();
   const { showSnackbar } = useSnackbar();
-  const [page, setPage] = useState(0);
-  const [pageSize, setPageSize] = useState(10);
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [showDeleted, setShowDeleted] = useState(false);
@@ -90,6 +89,8 @@ const AttributeTermTable = ({
   const [localTerms, setLocalTerms] = useState<AttributeTerm[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [manuallyRefreshing, setManuallyRefreshing] = useState(false);
+  const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
+  const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false);
 
   const sorting = useMemo<MRT_SortingState>(
     () => [{ id: sortBy, desc: order === "DESC" }],
@@ -108,6 +109,12 @@ const AttributeTermTable = ({
       setOrder("DESC");
     }
   };
+
+  // Handle limit change with proper state batching
+  const handleLimitChange = useCallback((newLimit: number) => {
+    setPage(1);
+    setLimit(newLimit);
+  }, []);
 
   // --- START ADD: Check if Filters are Active ---
   const areFiltersActive = useMemo(() => {
@@ -132,7 +139,8 @@ const AttributeTermTable = ({
     setShowDeleted(false);
     setSortBy("created_at");
     setOrder("DESC");
-    setPage(0); // Reset page index
+    setPage(1); // Reset page to 1
+    setRowSelection({}); // Clear row selection when filters are cleared
     showSnackbar("Filters cleared", "info");
   };
   // --- END ADD ---
@@ -150,12 +158,12 @@ const AttributeTermTable = ({
       attribute_id: attributeId,
       sort_by: sortBy,
       order,
-      limit: pageSize,
-      offset: page * pageSize,
+      limit: limit,
+      offset: (page - 1) * limit,
       keyword: debouncedSearch,
       show_deleted: showDeleted,
     }),
-    [attributeId, sortBy, order, pageSize, page, debouncedSearch, showDeleted]
+    [attributeId, sortBy, order, limit, page, debouncedSearch, showDeleted]
   );
 
   // Function to manually refresh data by making a direct API call
@@ -213,7 +221,7 @@ const AttributeTermTable = ({
   }, [data?.data?.terms, fetchLoading, localTerms.length, manuallyRefreshing]);
 
   const totalRecords = data?.data?.pagination?.total || 0;
-  const totalPages = Math.ceil(totalRecords / pageSize);
+  const totalPages = Math.ceil(totalRecords / limit);
 
   const handleDeleteClick = (term: AttributeTerm) => {
     setSelectedTerm(term);
@@ -256,6 +264,67 @@ const AttributeTermTable = ({
       refreshData();
 
       return false;
+    }
+  };
+
+  // Bulk delete handlers
+  const handleOpenBulkDeleteDialog = () => {
+    setIsBulkDeleteDialogOpen(true);
+  };
+
+  const handleCloseBulkDeleteDialog = () => {
+    setIsBulkDeleteDialogOpen(false);
+  };
+
+  const handleConfirmBulkDelete = async () => {
+    const selectedIndices = Object.keys(rowSelection).filter(
+      (key) => rowSelection[key]
+    );
+    const selectedTermsToDelete = localTerms.filter((_, index) =>
+      selectedIndices.includes(index.toString())
+    );
+
+    // Filter out already deleted terms for bulk delete
+    const activeTermsToDelete = selectedTermsToDelete.filter(
+      (term) => !term.deleted_at
+    );
+
+    if (activeTermsToDelete.length === 0) {
+      showSnackbar(
+        "No active terms selected for deletion.",
+        "warning"
+      );
+      handleCloseBulkDeleteDialog();
+      return;
+    }
+
+    const idsToDelete = activeTermsToDelete.map((term) => term.id);
+
+    try {
+      setIsLoading(true);
+      // Delete all selected terms in parallel
+      await Promise.all(idsToDelete.map((id) => deleteAttributeTerm(id)));
+
+      // Optimistically update the UI
+      setLocalTerms((prev) =>
+        prev.filter((term) => !idsToDelete.includes(term.id))
+      );
+
+      showSnackbar(
+        `${idsToDelete.length} term(s) deleted successfully!`,
+        "success"
+      );
+      setRowSelection({});
+      
+      // Refresh data from server
+      await mutate(["attributeTerms", queryParams]);
+    } catch (error: any) {
+      const errorMessage =
+        error?.message || error?.errors?.[0]?.msg || "Bulk delete failed";
+      showSnackbar(errorMessage, "error");
+    } finally {
+      setIsLoading(false);
+      handleCloseBulkDeleteDialog();
     }
   };
 
@@ -379,6 +448,26 @@ const AttributeTermTable = ({
             </Select>
           </FormControl>
 
+          {/* Bulk Delete Button */}
+          {Object.keys(rowSelection).length > 0 && !showDeleted && (
+            <Button
+              variant="contained"
+              color="error"
+              size="small"
+              startIcon={<FuseSvgIcon>heroicons-outline:trash</FuseSvgIcon>}
+              onClick={handleOpenBulkDeleteDialog}
+              sx={{
+                backgroundColor: "#d32f2f",
+                "&:hover": {
+                  backgroundColor: "#b71c1c",
+                },
+                height: '40px'
+              }}
+            >
+              Bulk Delete ({Object.keys(rowSelection).length})
+            </Button>
+          )}
+
           {/* --- START ADD: Clear Filters Button --- */}
           {areFiltersActive && (
             <ClearFiltersButton 
@@ -396,17 +485,17 @@ const AttributeTermTable = ({
         manualSorting
         onSortingChange={handleSortingChange}
         onColumnOrderChange={onColumnOrderChange}
-        enablePagination
-        manualPagination
+        manualPagination={true}
+        enableRowSelection={true}
+        onRowSelectionChange={setRowSelection}
         state={{
           columnOrder,
           sorting,
-          pagination: { pageIndex: page, pageSize },
-        }}
-        onPaginationChange={(updater: any) => {
-          const newPagination = updater({ pageIndex: page, pageSize });
-          setPage(newPagination.pageIndex);
-          setPageSize(newPagination.pageSize);
+          rowSelection,
+          pagination: {
+            pageIndex: 0,
+            pageSize: localTerms.length || limit || 1000
+          }
         }}
         rowCount={totalRecords}
         renderRowActionMenuItems={({ closeMenu, row }) => [
@@ -461,33 +550,14 @@ const AttributeTermTable = ({
         ]}
       />
 
-      <div className="flex justify-center p-4">
-        <Pagination
-          count={totalPages}
-          page={page + 1}
-          onChange={(_, newPage) => setPage(newPage - 1)}
-          shape="rounded"
-          color="primary"
-          renderItem={(item) => (
-            <PaginationItem
-              {...item}
-              className="text-gray-600 hover:text-[#2E9970]"
-              sx={{
-                backgroundColor:
-                  item.page === 1 && page === 0 ? "#2E9970" : "transparent",
-                color: item.page === 1 && page === 0 ? "#fff" : "inherit",
-                "&.Mui-selected": {
-                  backgroundColor: "#2E9970",
-                  color: "#fff",
-                  "&:hover": {
-                    backgroundColor: "#247C5C",
-                  },
-                },
-              }}
-            />
-          )}
-        />
-      </div>
+      <TablePagination
+        page={page}
+        totalPages={totalPages}
+        limit={limit}
+        totalRecords={totalRecords}
+        onPageChange={setPage}
+        onLimitChange={handleLimitChange}
+      />
 
       <Dialog open={openDialog} onClose={() => setOpenDialog(false)}>
         <DialogTitle>
@@ -507,6 +577,32 @@ const AttributeTermTable = ({
             type="button"
             onClick={handleConfirmDelete}
           />
+        </DialogActions>
+      </Dialog>
+
+      {/* Bulk Delete Dialog */}
+      <Dialog
+        open={isBulkDeleteDialogOpen}
+        onClose={handleCloseBulkDeleteDialog}
+      >
+        <DialogTitle>Bulk Delete Terms</DialogTitle>
+        <DialogContent>
+          <Typography>
+            Are you sure you want to delete{" "}
+            <strong>{Object.keys(rowSelection).length}</strong> selected
+            term(s)? This action cannot be undone.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseBulkDeleteDialog}>Cancel</Button>
+          <Button
+            onClick={handleConfirmBulkDelete}
+            color="error"
+            variant="contained"
+            disabled={isLoading}
+          >
+            Delete
+          </Button>
         </DialogActions>
       </Dialog>
     </Paper>
