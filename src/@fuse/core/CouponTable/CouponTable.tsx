@@ -43,6 +43,8 @@ const CouponTable: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [openDialog, setOpenDialog] = useState(false);
   const [selectedCoupon, setSelectedCoupon] = useState<Coupon | null>(null);
+  const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
+  const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false);
   const [status, setStatus] = useState<string>('');
   const [discountType, setDiscountType] = useState<string>('');
   const [entityType, setEntityType] = useState<string>('');
@@ -74,6 +76,7 @@ const CouponTable: React.FC = () => {
     setDeleted(null);
     setPage(1);
     setEntitySearchKeyword('');
+    setRowSelection({}); // Clear row selection when filters are cleared
   };
   // --- END ---
 
@@ -202,6 +205,62 @@ const CouponTable: React.FC = () => {
       fetchData();
     } catch (err: any) {
       showSnackbar(err?.message || 'Action failed', 'error');
+    }
+  };
+
+  // Bulk delete handlers
+  const handleOpenBulkDeleteDialog = () => {
+    setIsBulkDeleteDialogOpen(true);
+  };
+
+  const handleCloseBulkDeleteDialog = () => {
+    setIsBulkDeleteDialogOpen(false);
+  };
+
+  const handleConfirmBulkDelete = async () => {
+    const selectedIndices = Object.keys(rowSelection).filter(
+      (key) => rowSelection[key]
+    );
+    const selectedCouponsToDelete = coupons.filter((_, index) =>
+      selectedIndices.includes(index.toString())
+    );
+
+    // Filter out already deleted coupons for bulk delete
+    const activeCouponsToDelete = selectedCouponsToDelete.filter(
+      (coupon) => !coupon.deletedAt
+    );
+
+    if (activeCouponsToDelete.length === 0) {
+      showSnackbar(
+        "No active coupons selected for deletion.",
+        "warning"
+      );
+      handleCloseBulkDeleteDialog();
+      return;
+    }
+
+    const idsToDelete = activeCouponsToDelete.map((coupon) => coupon.id);
+
+    try {
+      setIsLoading(true);
+      // Delete all selected coupons in parallel
+      await Promise.all(idsToDelete.map((id) => deleteCoupon(id)));
+
+      showSnackbar(
+        `${idsToDelete.length} coupon(s) deleted successfully!`,
+        "success"
+      );
+      setRowSelection({});
+      
+      // Refresh data from server
+      fetchData();
+    } catch (error: any) {
+      const errorMessage =
+        error?.message || error?.errors?.[0]?.msg || "Bulk delete failed";
+      showSnackbar(errorMessage, "error");
+    } finally {
+      setIsLoading(false);
+      handleCloseBulkDeleteDialog();
     }
   };
   // --- END ---
@@ -392,12 +451,50 @@ const CouponTable: React.FC = () => {
             InputLabelProps={{ shrink: true }}
             sx={{ mx: 1, minWidth: 140 }}
           />
+          <Select
+            value={deleted === null ? "active" : deleted ? "deleted" : "active"}
+            onChange={(e) =>
+              setDeleted(
+                e.target.value === "active"
+                  ? null
+                  : e.target.value === "deleted"
+              )
+            }
+            size="small"
+            sx={{ minWidth: 120, mx: 1 }}
+          >
+            <MenuItem value="active">Active</MenuItem>
+            <MenuItem value="deleted">Deleted</MenuItem>
+          </Select>
+
+          {/* Bulk Delete Button */}
+          {Object.keys(rowSelection).length > 0 && deleted !== true && (
+            <Button
+              variant="contained"
+              color="error"
+              size="small"
+              startIcon={<FuseSvgIcon>heroicons-outline:trash</FuseSvgIcon>}
+              onClick={handleOpenBulkDeleteDialog}
+              sx={{
+                backgroundColor: "#d32f2f",
+                "&:hover": {
+                  backgroundColor: "#b71c1c",
+                },
+              }}
+            >
+              Bulk Delete ({Object.keys(rowSelection).length})
+            </Button>
+          )}
+
           {areFiltersActive && <ClearFiltersButton onClick={clearFilters} />}
         </div>
         <DataTable
           data={coupons}
           columns={columns}
           enableColumnOrdering
+          enableRowSelection={true}
+          onRowSelectionChange={setRowSelection}
+          state={{ rowSelection }}
           renderRowActionMenuItems={({ closeMenu, row }) => {
             const menuItems = [
               // <MenuItem key="view-details" onClick={() => { router.push(`/apps/coupon/${row.original.id}`); closeMenu(); }}>
@@ -461,6 +558,32 @@ const CouponTable: React.FC = () => {
             <Button onClick={() => setOpenDialog(false)}>Cancel</Button>
             <Button color="error" onClick={handleConfirmDelete}>
               {selectedCoupon?.deletedAt ? 'Restore' : 'Delete'}
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Bulk Delete Dialog */}
+        <Dialog
+          open={isBulkDeleteDialogOpen}
+          onClose={handleCloseBulkDeleteDialog}
+        >
+          <DialogTitle>Bulk Delete Coupons</DialogTitle>
+          <DialogContent>
+            <Typography>
+              Are you sure you want to delete{" "}
+              <strong>{Object.keys(rowSelection).length}</strong> selected
+              coupon(s)? This action cannot be undone.
+            </Typography>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleCloseBulkDeleteDialog}>Cancel</Button>
+            <Button
+              onClick={handleConfirmBulkDelete}
+              color="error"
+              variant="contained"
+              disabled={isLoading}
+            >
+              Delete
             </Button>
           </DialogActions>
         </Dialog>
