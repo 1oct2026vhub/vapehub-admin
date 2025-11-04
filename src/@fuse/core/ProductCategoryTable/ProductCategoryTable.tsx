@@ -23,8 +23,6 @@ import {
   MenuItem,
   ListItemIcon,
   Select,
-  Pagination,
-  PaginationItem,
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import {
@@ -40,6 +38,7 @@ import FuseSvgIcon from "../FuseSvgIcon";
 import { useSnackbar } from "@/contexts/SnackbarContext";
 import { formatDate } from "@/utils/actions";
 import ClearFiltersButton from "@/components/Shared/ClearFiltersButton";
+import TablePagination from "@/components/Shared/TablePagination";
 
 export type CategoryType = {
   id: number;
@@ -74,6 +73,8 @@ const ProductCategoryTable = ({
   const [localCategories, setLocalCategories] = useState<CategoryType[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [manuallyRefreshing, setManuallyRefreshing] = useState(false);
+  const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
+  const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false);
 
   // --- START ADD: Check if Filters are Active ---
   const areFiltersActive = useMemo(() => {
@@ -94,9 +95,16 @@ const ProductCategoryTable = ({
     setSortBy("createdAt");
     setOrder("DESC");
     setPage(1); // Reset page to 1
+    setRowSelection({}); // Clear row selection when filters are cleared
     showSnackbar("Filters cleared", "info");
   };
   // --- END ADD ---
+
+  // Handle limit change with proper state batching
+  const handleLimitChange = useCallback((newLimit: number) => {
+    setPage(1);
+    setLimit(newLimit);
+  }, []);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -233,6 +241,67 @@ const ProductCategoryTable = ({
         // setError('root', { type: 'manual', message: errorMessage });
       }
       return false;
+    }
+  };
+
+  // Bulk delete handlers
+  const handleOpenBulkDeleteDialog = () => {
+    setIsBulkDeleteDialogOpen(true);
+  };
+
+  const handleCloseBulkDeleteDialog = () => {
+    setIsBulkDeleteDialogOpen(false);
+  };
+
+  const handleConfirmBulkDelete = async () => {
+    const selectedIndices = Object.keys(rowSelection).filter(
+      (key) => rowSelection[key]
+    );
+    const selectedCategoriesToDelete = localCategories.filter((_, index) =>
+      selectedIndices.includes(index.toString())
+    );
+
+    // Filter out already deleted categories for bulk delete
+    const activeCategoriesToDelete = selectedCategoriesToDelete.filter(
+      (cat) => !cat.deletedAt
+    );
+
+    if (activeCategoriesToDelete.length === 0) {
+      showSnackbar(
+        "No active categories selected for deletion.",
+        "warning"
+      );
+      handleCloseBulkDeleteDialog();
+      return;
+    }
+
+    const idsToDelete = activeCategoriesToDelete.map((cat) => cat.id);
+
+    try {
+      setIsLoading(true);
+      // Delete all selected categories in parallel
+      await Promise.all(idsToDelete.map((id) => deleteCategory(id)));
+
+      // Optimistically update the UI
+      setLocalCategories((prev) =>
+        prev.filter((cat) => !idsToDelete.includes(cat.id))
+      );
+
+      showSnackbar(
+        `${idsToDelete.length} category(s) deleted successfully!`,
+        "success"
+      );
+      setRowSelection({});
+      
+      // Refresh data from server
+      await mutate(["productCategoryList", queryParams]);
+    } catch (error: any) {
+      const errorMessage =
+        error?.message || error?.errors?.[0]?.msg || "Bulk delete failed";
+      showSnackbar(errorMessage, "error");
+    } finally {
+      setIsLoading(false);
+      handleCloseBulkDeleteDialog();
     }
   };
 
@@ -379,6 +448,26 @@ const ProductCategoryTable = ({
             <MenuItem value="deleted">Deleted</MenuItem>
           </Select>
 
+          {/* Bulk Delete Button */}
+          {Object.keys(rowSelection).length > 0 && deleted !== true && (
+            <Button
+              variant="contained"
+              color="error"
+              size="small"
+              startIcon={<FuseSvgIcon>heroicons-outline:trash</FuseSvgIcon>}
+              onClick={handleOpenBulkDeleteDialog}
+              sx={{
+                backgroundColor: "#d32f2f",
+                "&:hover": {
+                  backgroundColor: "#b71c1c",
+                },
+                height: '40px'
+              }}
+            >
+              Bulk Delete ({Object.keys(rowSelection).length})
+            </Button>
+          )}
+
           {/* --- EDIT: Conditionally render and remove isVisible prop --- */}
           {areFiltersActive && (
             <ClearFiltersButton 
@@ -398,9 +487,12 @@ const ProductCategoryTable = ({
         onColumnOrderChange={onColumnOrderChange}
         enablePagination
         manualPagination
+        enableRowSelection={true}
+        onRowSelectionChange={setRowSelection}
         state={{
           columnOrder,
           sorting,
+          rowSelection,
           pagination: { pageIndex: page - 1, pageSize: limit },
         }}
         onPaginationChange={(updater: any) => {
@@ -468,30 +560,14 @@ const ProductCategoryTable = ({
         }}
       />
 
-      <div className="flex justify-center p-4">
-        <Pagination
-          count={Math.ceil((data?.data?.total || 0) / limit)}
-          page={page}
-          onChange={(_, newPage) => setPage(newPage)}
-          shape="rounded"
-          color="primary"
-          renderItem={(item) => (
-            <PaginationItem
-              {...item}
-              className="text-gray-600 hover:text-[#2E9970]"
-              sx={{
-                "&.Mui-selected": {
-                  backgroundColor: "#2E9970",
-                  color: "#fff",
-                  "&:hover": {
-                    backgroundColor: "#247C5C",
-                  },
-                },
-              }}
-            />
-          )}
-        />
-      </div>
+      <TablePagination
+        page={page}
+        totalPages={Math.ceil((data?.data?.total || 0) / limit)}
+        limit={limit}
+        totalRecords={data?.data?.total || 0}
+        onPageChange={setPage}
+        onLimitChange={handleLimitChange}
+      />
 
       <Dialog open={openDialog} onClose={() => setOpenDialog(false)}>
         <DialogTitle>
@@ -511,6 +587,32 @@ const ProductCategoryTable = ({
             type="button"
             onClick={handleConfirmDelete}
           />
+        </DialogActions>
+      </Dialog>
+
+      {/* Bulk Delete Dialog */}
+      <Dialog
+        open={isBulkDeleteDialogOpen}
+        onClose={handleCloseBulkDeleteDialog}
+      >
+        <DialogTitle>Bulk Delete Categories</DialogTitle>
+        <DialogContent>
+          <Typography>
+            Are you sure you want to delete{" "}
+            <strong>{Object.keys(rowSelection).length}</strong> selected
+            category(s)? This action cannot be undone.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseBulkDeleteDialog}>Cancel</Button>
+          <Button
+            onClick={handleConfirmBulkDelete}
+            color="error"
+            variant="contained"
+            disabled={isLoading}
+          >
+            Delete
+          </Button>
         </DialogActions>
       </Dialog>
     </Paper>

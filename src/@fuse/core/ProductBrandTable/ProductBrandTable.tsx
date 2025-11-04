@@ -21,8 +21,6 @@ import {
   MenuItem,
   ListItemIcon,
   Select,
-  Pagination,
-  PaginationItem,
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import {
@@ -39,6 +37,7 @@ import { useSnackbar } from "@/contexts/SnackbarContext";
 import { formatDate } from "@/utils/actions";
 import useColumnOrder from "@/hooks/useColumnOrder";
 import ClearFiltersButton from "@/components/Shared/ClearFiltersButton";
+import TablePagination from "@/components/Shared/TablePagination";
 
 export type BrandType = {
   id: number;
@@ -68,6 +67,8 @@ const ProductBrandTable = ({ refreshData }: ProductBrandTableProps) => {
   const { showSnackbar } = useSnackbar();
   const [brands, setBrands] = useState<BrandType[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
+  const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false);
 
   // --- START ADD: Check if Filters are Active ---
   const areFiltersActive = useMemo(() => {
@@ -88,9 +89,16 @@ const ProductBrandTable = ({ refreshData }: ProductBrandTableProps) => {
     setSortBy("createdAt");
     setOrder("DESC");
     setPage(1); // Reset page to 1
+    setRowSelection({}); // Clear row selection when filters are cleared
     showSnackbar("Filters cleared", "info");
   };
   // --- END ADD ---
+
+  // Handle limit change with proper state batching
+  const handleLimitChange = useCallback((newLimit: number) => {
+    setPage(1); // Reset to page 1 first
+    setLimit(newLimit); // Then update limit
+  }, []);
 
   // Debounce search input
   useEffect(() => {
@@ -103,7 +111,7 @@ const ProductBrandTable = ({ refreshData }: ProductBrandTableProps) => {
   const queryParams = useMemo(
     () => ({
       search: debouncedSearch,
-      page,
+      offset: (page - 1) * limit,
       limit,
       sortBy,
       order,
@@ -234,6 +242,67 @@ const ProductBrandTable = ({ refreshData }: ProductBrandTableProps) => {
         // setError('root', { type: 'manual', message: errorMessage });
       }
       return false;
+    }
+  };
+
+  // Bulk delete handlers
+  const handleOpenBulkDeleteDialog = () => {
+    setIsBulkDeleteDialogOpen(true);
+  };
+
+  const handleCloseBulkDeleteDialog = () => {
+    setIsBulkDeleteDialogOpen(false);
+  };
+
+  const handleConfirmBulkDelete = async () => {
+    const selectedIndices = Object.keys(rowSelection).filter(
+      (key) => rowSelection[key]
+    );
+    const selectedBrandsToDelete = brands.filter((_, index) =>
+      selectedIndices.includes(index.toString())
+    );
+
+    // Filter out already deleted brands for bulk delete
+    const activeBrandsToDelete = selectedBrandsToDelete.filter(
+      (brand) => !brand.deletedAt
+    );
+
+    if (activeBrandsToDelete.length === 0) {
+      showSnackbar(
+        "No active brands selected for deletion.",
+        "warning"
+      );
+      handleCloseBulkDeleteDialog();
+      return;
+    }
+
+    const idsToDelete = activeBrandsToDelete.map((brand) => brand.id);
+
+    try {
+      setIsLoading(true);
+      // Delete all selected brands in parallel
+      await Promise.all(idsToDelete.map((id) => deleteBrand(id)));
+
+      // Optimistically update the UI
+      setBrands((prev) =>
+        prev.filter((brand) => !idsToDelete.includes(brand.id))
+      );
+
+      showSnackbar(
+        `${idsToDelete.length} brand(s) deleted successfully!`,
+        "success"
+      );
+      setRowSelection({});
+      
+      // Refresh data from server
+      await mutate(["productBrandList", queryParams]);
+    } catch (error: any) {
+      const errorMessage =
+        error?.message || error?.errors?.[0]?.msg || "Bulk delete failed";
+      showSnackbar(errorMessage, "error");
+    } finally {
+      setIsLoading(false);
+      handleCloseBulkDeleteDialog();
     }
   };
 
@@ -391,6 +460,25 @@ const ProductBrandTable = ({ refreshData }: ProductBrandTableProps) => {
               <MenuItem value="deleted">Deleted</MenuItem>
             </Select>
 
+            {/* Bulk Delete Button */}
+            {Object.keys(rowSelection).length > 0 && deleted !== true && (
+              <Button
+                variant="contained"
+                color="error"
+                size="small"
+                startIcon={<FuseSvgIcon>heroicons-outline:trash</FuseSvgIcon>}
+                onClick={handleOpenBulkDeleteDialog}
+                sx={{
+                  backgroundColor: "#d32f2f",
+                  "&:hover": {
+                    backgroundColor: "#b71c1c",
+                  },
+                }}
+              >
+                Bulk Delete ({Object.keys(rowSelection).length})
+              </Button>
+            )}
+
             {/* --- EDIT: Conditionally render and remove isVisible prop --- */}
             {areFiltersActive && (
               <ClearFiltersButton 
@@ -407,7 +495,18 @@ const ProductBrandTable = ({ refreshData }: ProductBrandTableProps) => {
           manualSorting
           onSortingChange={handleSortingChange}
           onColumnOrderChange={onColumnOrderChange}
-          state={{ columnOrder, sorting }}
+          manualPagination={true}
+          enableRowSelection={true}
+          onRowSelectionChange={setRowSelection}
+          state={{ 
+            columnOrder, 
+            sorting,
+            rowSelection,
+            pagination: {
+              pageIndex: 0,
+              pageSize: brands.length || limit || 1000
+            }
+          }}
           renderRowActionMenuItems={({ closeMenu, row }) => {
             const menuItems = [
               // View Details MenuItem
@@ -470,30 +569,14 @@ const ProductBrandTable = ({ refreshData }: ProductBrandTableProps) => {
           }}
         />
 
-        <div className="flex justify-center p-4">
-          <Pagination
-            count={totalPages}
-            page={page}
-            onChange={(_, newPage) => setPage(newPage)}
-            shape="rounded"
-            color="primary"
-            renderItem={(item) => (
-              <PaginationItem
-                {...item}
-                className="text-gray-600 hover:text-[#2E9970]"
-                sx={{
-                  "&.Mui-selected": {
-                    backgroundColor: "#2E9970",
-                    color: "#fff",
-                    "&:hover": {
-                      backgroundColor: "#247C5C",
-                    },
-                  },
-                }}
-              />
-            )}
-          />
-        </div>
+        <TablePagination
+          page={page}
+          totalPages={totalPages}
+          limit={limit}
+          totalRecords={totalRecords}
+          onPageChange={setPage}
+          onLimitChange={handleLimitChange}
+        />
 
         <Dialog open={openDialog} onClose={() => setOpenDialog(false)}>
           <DialogTitle>
@@ -513,6 +596,32 @@ const ProductBrandTable = ({ refreshData }: ProductBrandTableProps) => {
               type="button"
               onClick={handleConfirmDelete}
             />
+          </DialogActions>
+        </Dialog>
+
+        {/* Bulk Delete Dialog */}
+        <Dialog
+          open={isBulkDeleteDialogOpen}
+          onClose={handleCloseBulkDeleteDialog}
+        >
+          <DialogTitle>Bulk Delete Brands</DialogTitle>
+          <DialogContent>
+            <Typography>
+              Are you sure you want to delete{" "}
+              <strong>{Object.keys(rowSelection).length}</strong> selected
+              brand(s)? This action cannot be undone.
+            </Typography>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleCloseBulkDeleteDialog}>Cancel</Button>
+            <Button
+              onClick={handleConfirmBulkDelete}
+              color="error"
+              variant="contained"
+              disabled={isLoading}
+            >
+              Delete
+            </Button>
           </DialogActions>
         </Dialog>
       </Paper>
