@@ -72,7 +72,7 @@ const CustomerTable = () => {
 
   const [customers, setCustomers] = useState<UserType[]>([]);
   const [page, setPage] = useState(1);
-  const [limit] = useState(10); // Number of records per page
+  const [limit] = useState(100); // Number of records per page
 
   // State for confirmation dialog
   const [dialogOpen, setDialogOpen] = useState(false);

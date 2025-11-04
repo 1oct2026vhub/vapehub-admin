@@ -62,7 +62,7 @@ export default function BlogTagsApp() {
   const [pagination, setPagination] = useState<Pagination>({
     total: 0,
     page: 1,
-    limit: 10,
+    limit: 100,
   });
 
   // Add sorting state

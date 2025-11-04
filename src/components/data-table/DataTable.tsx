@@ -101,9 +101,9 @@ function DataTable<TData extends { id: number }>(
             right: isHidden ? [] : ["mrt-row-actions"],
             // right: ['mrt-row-actions']
           },
-          // pagination: {
-          // 	pageSize: 10
-          // },
+          pagination: {
+            pageSize: 100
+          },
           enableFullScreenToggle: false,
         },
         enableFullScreenToggle: false,

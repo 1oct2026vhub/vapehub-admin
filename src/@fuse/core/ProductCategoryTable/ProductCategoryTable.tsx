@@ -68,7 +68,7 @@ const ProductCategoryTable = ({
     null
   );
   const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(10);
+  const [limit, setLimit] = useState(100);
   const { showSnackbar } = useSnackbar();
   const [localCategories, setLocalCategories] = useState<CategoryType[]>([]);
   const [isLoading, setIsLoading] = useState(false);

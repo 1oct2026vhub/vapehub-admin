@@ -79,7 +79,7 @@ const UserTable = () => {
   const [selectedUser, setSelectedUser] = useState<UserType | null>(null);
   const [openDrawer, setOpenDrawer] = useState(false); // Mobile Drawer state
   const [page, setPage] = useState(1);
-  const [limit] = useState(10); // Number of records per page
+  const [limit] = useState(100); // Number of records per page
   const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
   const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false);
   const { showSnackbar } = useSnackbar();

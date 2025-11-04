@@ -63,7 +63,7 @@ const ProductBrandTable = ({ refreshData }: ProductBrandTableProps) => {
   const [openDialog, setOpenDialog] = useState(false);
   const [selectedBrand, setSelectedBrand] = useState<BrandType | null>(null);
   const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(10);
+  const [limit, setLimit] = useState(100);
   const { showSnackbar } = useSnackbar();
   const [brands, setBrands] = useState<BrandType[]>([]);
   const [isLoading, setIsLoading] = useState(false);
