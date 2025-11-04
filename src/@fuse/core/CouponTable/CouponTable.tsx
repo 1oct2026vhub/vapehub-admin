@@ -37,7 +37,7 @@ const CouponTable: React.FC = () => {
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [deleted, setDeleted] = useState<boolean | null>(null);
   const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(10);
+  const [limit, setLimit] = useState(100);
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [total, setTotal] = useState(0);
   const [isLoading, setIsLoading] = useState(false);

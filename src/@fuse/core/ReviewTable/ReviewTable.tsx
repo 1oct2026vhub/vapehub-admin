@@ -40,7 +40,7 @@ interface ReviewTableProps {
 
 const ReviewTable: React.FC<ReviewTableProps> = ({ onEditClick }) => {
   const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(10);
+  const [limit, setLimit] = useState(100);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [total, setTotal] = useState(0);
   const [isLoading, setIsLoading] = useState(false);

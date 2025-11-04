@@ -31,7 +31,7 @@ interface LoyaltyPointsTableProps {
 
 const LoyaltyPointsTable: React.FC<LoyaltyPointsTableProps> = ({ onSettingsUpdate }) => {
   const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(10);
+  const [limit, setLimit] = useState(100);
   const [settings, setSettings] = useState<LoyaltyPointSetting[]>([]);
   const [total, setTotal] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
@@ -61,7 +61,7 @@ const LoyaltyPointsTable: React.FC<LoyaltyPointsTableProps> = ({ onSettingsUpdat
       setSettings(settingsData);
       setTotal(res.data?.pagination?.total || 0);
       setPage(res.data?.pagination?.page || 1);
-      setLimit(res.data?.pagination?.limit || 10);
+      setLimit(res.data?.pagination?.limit || 100);
       
       // Notify parent component about settings count
       if (onSettingsUpdate) {

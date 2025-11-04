@@ -72,7 +72,7 @@ const CustomerTable = () => {
 
   const [customers, setCustomers] = useState<UserType[]>([]);
   const [page, setPage] = useState(1);
-  const [limit] = useState(10); // Number of records per page
+  const [limit] = useState(100); // Number of records per page
 
   // State for confirmation dialog
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -81,6 +81,8 @@ const CustomerTable = () => {
   >(null);
   const [selectedUser, setSelectedUser] = useState<UserType | null>(null);
   const [openDrawer, setOpenDrawer] = useState(false); // Mobile filter drawer state
+  const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
+  const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false);
   const { showSnackbar } = useSnackbar();
 
   const sorting = useMemo<MRT_SortingState>(
@@ -126,6 +128,7 @@ const CustomerTable = () => {
     setVerified(null);
     setBlocked(null);
     setPage(1); // Reset page number
+    setRowSelection({});
     showSnackbar("Filters cleared", "info");
   };
   // --- END ADD ---
@@ -235,6 +238,60 @@ const CustomerTable = () => {
         // setError('root', { type: 'manual', message: errorMessage });
       }
       return false;
+    }
+  };
+
+  // Bulk delete handlers
+  const handleOpenBulkDeleteDialog = () => {
+    setIsBulkDeleteDialogOpen(true);
+  };
+
+  const handleCloseBulkDeleteDialog = () => {
+    setIsBulkDeleteDialogOpen(false);
+  };
+
+  const handleConfirmBulkDelete = async () => {
+    const selectedIndices = Object.keys(rowSelection).filter(
+      (key) => rowSelection[key]
+    );
+    const selectedCustomersToDelete = customers.filter((_, index) =>
+      selectedIndices.includes(index.toString())
+    );
+
+    // Filter out already deleted customers for bulk delete
+    const activeCustomersToDelete = selectedCustomersToDelete.filter(
+      (customer) => !customer.deletedAt
+    );
+
+    if (activeCustomersToDelete.length === 0) {
+      showSnackbar(
+        "No active customers selected for deletion.",
+        "warning"
+      );
+      handleCloseBulkDeleteDialog();
+      return;
+    }
+
+    const idsToDelete = activeCustomersToDelete.map((customer) => customer.id);
+
+    try {
+      // Delete all selected customers in parallel
+      await Promise.all(idsToDelete.map((id) => deleteCustomer(id)));
+
+      showSnackbar(
+        `${idsToDelete.length} customer(s) deleted successfully!`,
+        "success"
+      );
+      setRowSelection({});
+      
+      // Refresh data from server
+      await mutate(["customerList", queryParams], true);
+    } catch (error: any) {
+      const errorMessage =
+        error?.message || error?.errors?.[0]?.msg || "Bulk delete failed";
+      showSnackbar(errorMessage, "error");
+    } finally {
+      handleCloseBulkDeleteDialog();
     }
   };
 
@@ -432,6 +489,25 @@ const CustomerTable = () => {
               <MenuItem value="ASC">Ascending</MenuItem>
             </Select>
 
+            {/* Bulk Delete Button */}
+            {Object.keys(rowSelection).length > 0 && deleted !== true && (
+              <Button
+                variant="contained"
+                color="error"
+                size="small"
+                startIcon={<FuseSvgIcon>heroicons-outline:trash</FuseSvgIcon>}
+                onClick={handleOpenBulkDeleteDialog}
+                sx={{
+                  backgroundColor: "#d32f2f",
+                  "&:hover": {
+                    backgroundColor: "#b71c1c",
+                  },
+                }}
+              >
+                Bulk Delete ({Object.keys(rowSelection).length})
+              </Button>
+            )}
+
             {/* --- START ADD: Clear Filters Button (Desktop) --- */}
             {areFiltersActive && (
               <ClearFiltersButton 
@@ -446,8 +522,11 @@ const CustomerTable = () => {
           columns={columns}
           manualSorting
           onSortingChange={handleSortingChange}
+          enableRowSelection={true}
+          onRowSelectionChange={setRowSelection}
           state={{
             sorting,
+            rowSelection,
           }}
           renderRowActionMenuItems={({ closeMenu, row }) => {
             const isDeleted = row.original.deletedAt !== null;
@@ -682,6 +761,26 @@ const CustomerTable = () => {
                   : "Block"
             }
             onClick={handleConfirmAction}
+          />
+        </DialogActions>
+      </Dialog>
+
+      {/* Bulk Delete Dialog */}
+      <Dialog open={isBulkDeleteDialogOpen} onClose={handleCloseBulkDeleteDialog}>
+        <DialogTitle>Bulk Delete Customers</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Are you sure you want to delete{" "}
+            <strong>{Object.keys(rowSelection).length}</strong> selected
+            customer(s)? This action cannot be undone.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseBulkDeleteDialog}>Cancel</Button>
+          <AppButton
+            label="Delete"
+            type="button"
+            onClick={handleConfirmBulkDelete}
           />
         </DialogActions>
       </Dialog>

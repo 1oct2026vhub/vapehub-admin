@@ -147,7 +147,7 @@ function TransactionListApp() {
   };
 
   return (
-    <Container maxWidth={false} sx={{ py: 3 }}>
+    <Container maxWidth={false}>
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
