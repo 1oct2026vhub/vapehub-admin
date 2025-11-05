@@ -26,6 +26,7 @@ export interface FetchSubscribersParams {
   page?: number;
   limit?: number;
   search?: string;
+  subscribed?: boolean;
 }
 
 export async function getSubscribers(params: FetchSubscribersParams = {}): Promise<SubscribersApiResponse> {

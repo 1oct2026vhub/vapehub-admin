@@ -9,16 +9,17 @@ import {
   Pagination,
   PaginationItem,
   MenuItem,
-  ListItemIcon,
   Chip,
+  TextField,
+  Box,
 } from '@mui/material';
 import { getSubscribers, Subscriber, FetchSubscribersParams } from '@/services/apiSubscribers';
 import { useSnackbar } from '@/contexts/SnackbarContext';
-import FuseSvgIcon from '@fuse/core/FuseSvgIcon';
 
 const SubscribersTable: React.FC = () => {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
+  const [subscribed, setSubscribed] = useState<boolean>(true);
   const [subscribers, setSubscribers] = useState<Subscriber[]>([]);
   const [total, setTotal] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
@@ -27,7 +28,7 @@ const SubscribersTable: React.FC = () => {
   const fetchData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const params: FetchSubscribersParams = { page, limit };
+      const params: FetchSubscribersParams = { page, limit, subscribed };
       const res = await getSubscribers(params);
       setSubscribers(res.data?.subscribers || []);
       setTotal(res.data?.pagination?.total || 0);
@@ -38,7 +39,7 @@ const SubscribersTable: React.FC = () => {
     finally {
       setIsLoading(false);
     }
-  }, [page, limit, showSnackbar]);
+  }, [page, limit, subscribed, showSnackbar]);
 
   useEffect(() => {
     fetchData();
@@ -84,10 +85,29 @@ const SubscribersTable: React.FC = () => {
     []
   );
 
+  const handleSubscribedFilterChange = (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const value = event.target.value;
+    setSubscribed(value === 'true');
+    setPage(1); // Reset to first page when filter changes
+  };
+
   if (isLoading) return <FuseLoading />;
   return (
     <div>
       <Paper className="flex flex-col flex-auto shadow-1 overflow-hidden" elevation={0}>
+        <Box className="flex items-center gap-2 p-4 border-b">
+          <TextField
+            select
+            label="Subscription Status"
+            value={subscribed.toString()}
+            onChange={handleSubscribedFilterChange}
+            size="small"
+            sx={{ minWidth: 180 }}
+          >
+            <MenuItem value="true">Subscribed</MenuItem>
+            <MenuItem value="false">Unsubscribed</MenuItem>
+          </TextField>
+        </Box>
         <DataTable
           data={subscribers}
           columns={columns}

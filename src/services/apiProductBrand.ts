@@ -77,3 +77,23 @@ export const bulkUpdateBrands = async (file: File) => {
   );
   return response.data;
 };
+
+// Bulk delete brands by IDs
+export const bulkDeleteBrand = async (ids: number[]) => {
+  const response = await axiosInstance.delete(
+    "/api/admin/brand/bulk-delete",
+    {
+      data: { ids },
+    }
+  );
+  return response.data;
+};
+
+// Bulk restore soft-deleted brands by IDs
+export const bulkRestoreBrand = async (ids: number[]) => {
+  const response = await axiosInstance.put(
+    "/api/admin/brand/bulk-restore",
+    { ids }
+  );
+  return response.data;
+};
