@@ -419,9 +419,9 @@ const UserTable = () => {
   }));
 
   return (
-    <>
+    <div className="flex flex-col h-full">
       <Paper
-        className="flex flex-col flex-auto shadow-1 overflow-hidden"
+        className="flex flex-col flex-auto shadow-1 overflow-hidden h-full"
         elevation={0}
       >
         {/* Top Bar with Search & Filters */}
@@ -596,6 +596,14 @@ const UserTable = () => {
           state={{
             sorting,
             rowSelection,
+          }}
+          muiTableContainerProps={{
+            sx: {
+              maxHeight: 'none',
+              overflowY: 'visible',
+              height: '100%',
+            },
+            className: 'flex-auto',
           }}
           renderRowActionMenuItems={({ closeMenu, row }) => {
             const menuItems = [];
@@ -903,7 +911,7 @@ const UserTable = () => {
           />
         </DialogActions>
       </Dialog>
-    </>
+    </div>
   );
 };
 
