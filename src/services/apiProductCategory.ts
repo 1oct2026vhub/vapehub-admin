@@ -77,3 +77,23 @@ export const bulkUpdateCategory = async (file: File) => {
   );
   return response.data;
 };
+
+// Bulk delete categories by IDs
+export const bulkDeleteCategory = async (ids: number[]) => {
+  const response = await axiosInstance.delete(
+    "/api/admin/category/bulk-delete",
+    {
+      data: { ids },
+    }
+  );
+  return response.data;
+};
+
+// Bulk restore soft-deleted categories by IDs
+export const bulkRestoreCategory = async (ids: number[]) => {
+  const response = await axiosInstance.put(
+    "/api/admin/category/bulk-restore",
+    { ids }
+  );
+  return response.data;
+};

@@ -27,6 +27,8 @@ import {
   listProductBrand,
   deleteBrand,
   restoreBrand,
+  bulkDeleteBrand,
+  bulkRestoreBrand,
 } from "@/services/apiProductBrand";
 import { useFetch } from "@/hooks/useFetch";
 import { mutate } from "swr";
@@ -69,6 +71,7 @@ const ProductBrandTable = ({ refreshData }: ProductBrandTableProps) => {
   const [isLoading, setIsLoading] = useState(false);
   const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
   const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false);
+  const [isBulkRestoreDialogOpen, setIsBulkRestoreDialogOpen] = useState(false);
 
   // --- START ADD: Check if Filters are Active ---
   const areFiltersActive = useMemo(() => {
@@ -280,22 +283,26 @@ const ProductBrandTable = ({ refreshData }: ProductBrandTableProps) => {
 
     try {
       setIsLoading(true);
-      // Delete all selected brands in parallel
-      await Promise.all(idsToDelete.map((id) => deleteBrand(id)));
+      // Use bulk delete API
+      const response = await bulkDeleteBrand(idsToDelete);
 
-      // Optimistically update the UI
-      setBrands((prev) =>
-        prev.filter((brand) => !idsToDelete.includes(brand.id))
-      );
-
-      showSnackbar(
-        `${idsToDelete.length} brand(s) deleted successfully!`,
-        "success"
-      );
-      setRowSelection({});
+      // Handle response - API may return summary or just success
+      const deletedCount = response?.data?.summary?.deleted_count || idsToDelete.length;
+      const successMessage = `${deletedCount} brand(s) deleted successfully!`;
       
-      // Refresh data from server
-      await mutate(["productBrandList", queryParams]);
+      // Fetch fresh data immediately after delete
+      const freshData = await listProductBrand(queryParams);
+      
+      // Update SWR cache first - this will trigger useEffect and update data
+      await mutate(["productBrandList", queryParams], freshData, { revalidate: false });
+      
+      // Also directly update local state to ensure immediate table update
+      if (freshData?.data?.brands) {
+        setBrands(freshData.data.brands);
+      }
+      
+      showSnackbar(successMessage, "success");
+      setRowSelection({});
     } catch (error: any) {
       const errorMessage =
         error?.message || error?.errors?.[0]?.msg || "Bulk delete failed";
@@ -303,6 +310,85 @@ const ProductBrandTable = ({ refreshData }: ProductBrandTableProps) => {
     } finally {
       setIsLoading(false);
       handleCloseBulkDeleteDialog();
+    }
+  };
+
+  // Bulk restore handlers
+  const handleOpenBulkRestoreDialog = () => {
+    setIsBulkRestoreDialogOpen(true);
+  };
+
+  const handleCloseBulkRestoreDialog = () => {
+    setIsBulkRestoreDialogOpen(false);
+  };
+
+  const handleConfirmBulkRestore = async () => {
+    const selectedIndices = Object.keys(rowSelection).filter(
+      (key) => rowSelection[key]
+    );
+    const selectedBrandsToRestore = brands.filter((_, index) =>
+      selectedIndices.includes(index.toString())
+    );
+
+    // Filter only deleted brands for bulk restore
+    const deletedBrandsToRestore = selectedBrandsToRestore.filter(
+      (brand) => brand.deletedAt
+    );
+
+    if (deletedBrandsToRestore.length === 0) {
+      showSnackbar(
+        "No deleted brands selected for restoration.",
+        "warning"
+      );
+      handleCloseBulkRestoreDialog();
+      return;
+    }
+
+    const idsToRestore = deletedBrandsToRestore.map((brand) => brand.id);
+
+    try {
+      setIsLoading(true);
+      // Use bulk restore API
+      const response = await bulkRestoreBrand(idsToRestore);
+
+      const successMessage = response?.data?.summary?.restored_count
+        ? `${response.data.summary.restored_count} brand(s) restored successfully!`
+        : `${idsToRestore.length} brand(s) restored successfully!`;
+      
+      // Change filter to active status after restore
+      setDeleted(null);
+      setPage(1);
+      
+      // Create new query params with active filter
+      const activeQueryParams = {
+        ...queryParams,
+        deleted: null,
+        offset: 0, // Reset to first page
+      };
+      
+      // Fetch fresh data with active filter
+      const freshData = await listProductBrand(activeQueryParams);
+      
+      // Update SWR cache with new query params
+      await mutate(["productBrandList", activeQueryParams], freshData, { revalidate: false });
+      
+      // Also update cache for old query params to keep it in sync
+      await mutate(["productBrandList", queryParams], undefined, { revalidate: true });
+      
+      // Update local state with fresh data to show restored items
+      if (freshData?.data?.brands) {
+        setBrands(freshData.data.brands);
+      }
+      
+      showSnackbar(successMessage, "success");
+      setRowSelection({});
+    } catch (error: any) {
+      const errorMessage =
+        error?.message || error?.errors?.[0]?.msg || "Bulk restore failed";
+      showSnackbar(errorMessage, "error");
+    } finally {
+      setIsLoading(false);
+      handleCloseBulkRestoreDialog();
     }
   };
 
@@ -467,6 +553,25 @@ const ProductBrandTable = ({ refreshData }: ProductBrandTableProps) => {
               </Button>
             )}
 
+            {/* Bulk Restore Button */}
+            {Object.keys(rowSelection).length > 0 && deleted === true && (
+              <Button
+                variant="contained"
+                color="success"
+                size="small"
+                startIcon={<FuseSvgIcon>heroicons-outline:arrow-path</FuseSvgIcon>}
+                onClick={handleOpenBulkRestoreDialog}
+                sx={{
+                  backgroundColor: "#2E9970",
+                  "&:hover": {
+                    backgroundColor: "#247C5C",
+                  },
+                }}
+              >
+                Bulk Restore ({Object.keys(rowSelection).length})
+              </Button>
+            )}
+
             {/* --- EDIT: Conditionally render and remove isVisible prop --- */}
             {areFiltersActive && (
               <ClearFiltersButton 
@@ -609,6 +714,38 @@ const ProductBrandTable = ({ refreshData }: ProductBrandTableProps) => {
               disabled={isLoading}
             >
               Delete
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Bulk Restore Dialog */}
+        <Dialog
+          open={isBulkRestoreDialogOpen}
+          onClose={handleCloseBulkRestoreDialog}
+        >
+          <DialogTitle>Bulk Restore Brands</DialogTitle>
+          <DialogContent>
+            <Typography>
+              Are you sure you want to restore{" "}
+              <strong>{Object.keys(rowSelection).length}</strong> selected
+              brand(s)?
+            </Typography>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleCloseBulkRestoreDialog}>Cancel</Button>
+            <Button
+              onClick={handleConfirmBulkRestore}
+              color="success"
+              variant="contained"
+              disabled={isLoading}
+              sx={{
+                backgroundColor: "#2E9970",
+                "&:hover": {
+                  backgroundColor: "#247C5C",
+                },
+              }}
+            >
+              Restore
             </Button>
           </DialogActions>
         </Dialog>

@@ -29,6 +29,8 @@ import {
   listProductCategory,
   deleteCategory,
   restoreCategory,
+  bulkDeleteCategory,
+  bulkRestoreCategory,
 } from "@/services/apiProductCategory";
 import { useFetch } from "@/hooks/useFetch";
 import { mutate } from "swr";
@@ -75,6 +77,7 @@ const ProductCategoryTable = ({
   const [manuallyRefreshing, setManuallyRefreshing] = useState(false);
   const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
   const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false);
+  const [isBulkRestoreDialogOpen, setIsBulkRestoreDialogOpen] = useState(false);
 
   // --- START ADD: Check if Filters are Active ---
   const areFiltersActive = useMemo(() => {
@@ -279,22 +282,26 @@ const ProductCategoryTable = ({
 
     try {
       setIsLoading(true);
-      // Delete all selected categories in parallel
-      await Promise.all(idsToDelete.map((id) => deleteCategory(id)));
+      // Use bulk delete API
+      const response = await bulkDeleteCategory(idsToDelete);
 
-      // Optimistically update the UI
-      setLocalCategories((prev) =>
-        prev.filter((cat) => !idsToDelete.includes(cat.id))
-      );
-
-      showSnackbar(
-        `${idsToDelete.length} category(s) deleted successfully!`,
-        "success"
-      );
-      setRowSelection({});
+      // Handle response - API may return summary or just success
+      const deletedCount = response?.data?.summary?.deleted_count || idsToDelete.length;
+      const successMessage = `${deletedCount} category(s) deleted successfully!`;
       
-      // Refresh data from server
-      await mutate(["productCategoryList", queryParams]);
+      // Fetch fresh data immediately after delete
+      const freshData = await listProductCategory(queryParams);
+      
+      // Update SWR cache first - this will trigger useEffect and update data
+      await mutate(["productCategoryList", queryParams], freshData, { revalidate: false });
+      
+      // Also directly update local state to ensure immediate table update
+      if (freshData?.data?.categories) {
+        setLocalCategories(freshData.data.categories);
+      }
+      
+      showSnackbar(successMessage, "success");
+      setRowSelection({});
     } catch (error: any) {
       const errorMessage =
         error?.message || error?.errors?.[0]?.msg || "Bulk delete failed";
@@ -302,6 +309,85 @@ const ProductCategoryTable = ({
     } finally {
       setIsLoading(false);
       handleCloseBulkDeleteDialog();
+    }
+  };
+
+  // Bulk restore handlers
+  const handleOpenBulkRestoreDialog = () => {
+    setIsBulkRestoreDialogOpen(true);
+  };
+
+  const handleCloseBulkRestoreDialog = () => {
+    setIsBulkRestoreDialogOpen(false);
+  };
+
+  const handleConfirmBulkRestore = async () => {
+    const selectedIndices = Object.keys(rowSelection).filter(
+      (key) => rowSelection[key]
+    );
+    const selectedCategoriesToRestore = localCategories.filter((_, index) =>
+      selectedIndices.includes(index.toString())
+    );
+
+    // Filter only deleted categories for bulk restore
+    const deletedCategoriesToRestore = selectedCategoriesToRestore.filter(
+      (cat) => cat.deletedAt
+    );
+
+    if (deletedCategoriesToRestore.length === 0) {
+      showSnackbar(
+        "No deleted categories selected for restoration.",
+        "warning"
+      );
+      handleCloseBulkRestoreDialog();
+      return;
+    }
+
+    const idsToRestore = deletedCategoriesToRestore.map((cat) => cat.id);
+
+    try {
+      setIsLoading(true);
+      // Use bulk restore API
+      const response = await bulkRestoreCategory(idsToRestore);
+
+      const successMessage = response?.data?.summary?.restored_count
+        ? `${response.data.summary.restored_count} category(s) restored successfully!`
+        : `${idsToRestore.length} category(s) restored successfully!`;
+      
+      // Change filter to active status after restore
+      setDeleted(null);
+      setPage(1);
+      
+      // Create new query params with active filter
+      const activeQueryParams = {
+        ...queryParams,
+        deleted: null,
+        page: 1,
+      };
+      
+      // Fetch fresh data with active filter
+      const freshData = await listProductCategory(activeQueryParams);
+      
+      // Update SWR cache with new query params
+      await mutate(["productCategoryList", activeQueryParams], freshData, { revalidate: false });
+      
+      // Also update cache for old query params to keep it in sync
+      await mutate(["productCategoryList", queryParams], undefined, { revalidate: true });
+      
+      // Update local state with fresh data to show restored items
+      if (freshData?.data?.categories) {
+        setLocalCategories(freshData.data.categories);
+      }
+      
+      showSnackbar(successMessage, "success");
+      setRowSelection({});
+    } catch (error: any) {
+      const errorMessage =
+        error?.message || error?.errors?.[0]?.msg || "Bulk restore failed";
+      showSnackbar(errorMessage, "error");
+    } finally {
+      setIsLoading(false);
+      handleCloseBulkRestoreDialog();
     }
   };
 
@@ -342,13 +428,13 @@ const ProductCategoryTable = ({
               xmlns="http://www.w3.org/2000/svg"
               fill="none"
               viewBox="0 0 24 24"
-              stroke-width="1.5"
+              strokeWidth="1.5"
               stroke="gray"
               className="size-10"
             >
               <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
+                strokeLinecap="round"
+                strokeLinejoin="round"
                 d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 0 0 1.5-1.5V6a1.5 1.5 0 0 0-1.5-1.5H3.75A1.5 1.5 0 0 0 2.25 6v12a1.5 1.5 0 0 0 1.5 1.5Zm10.5-11.25h.008v.008h-.008V8.25Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z"
               />
             </svg>
@@ -463,6 +549,26 @@ const ProductCategoryTable = ({
               }}
             >
               Bulk Delete ({Object.keys(rowSelection).length})
+            </Button>
+          )}
+
+          {/* Bulk Restore Button */}
+          {Object.keys(rowSelection).length > 0 && deleted === true && (
+            <Button
+              variant="contained"
+              color="success"
+              size="small"
+              startIcon={<FuseSvgIcon>heroicons-outline:arrow-path</FuseSvgIcon>}
+              onClick={handleOpenBulkRestoreDialog}
+              sx={{
+                backgroundColor: "#2E9970",
+                "&:hover": {
+                  backgroundColor: "#247C5C",
+                },
+                height: '40px'
+              }}
+            >
+              Bulk Restore ({Object.keys(rowSelection).length})
             </Button>
           )}
 
@@ -610,6 +716,38 @@ const ProductCategoryTable = ({
             disabled={isLoading}
           >
             Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Bulk Restore Dialog */}
+      <Dialog
+        open={isBulkRestoreDialogOpen}
+        onClose={handleCloseBulkRestoreDialog}
+      >
+        <DialogTitle>Bulk Restore Categories</DialogTitle>
+        <DialogContent>
+          <Typography>
+            Are you sure you want to restore{" "}
+            <strong>{Object.keys(rowSelection).length}</strong> selected
+            category(s)?
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseBulkRestoreDialog}>Cancel</Button>
+          <Button
+            onClick={handleConfirmBulkRestore}
+            color="success"
+            variant="contained"
+            disabled={isLoading}
+            sx={{
+              backgroundColor: "#2E9970",
+              "&:hover": {
+                backgroundColor: "#247C5C",
+              },
+            }}
+          >
+            Restore
           </Button>
         </DialogActions>
       </Dialog>
