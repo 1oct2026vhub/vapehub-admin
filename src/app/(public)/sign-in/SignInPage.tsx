@@ -14,13 +14,13 @@ function SignInPage() {
       <Paper className="h-full w-full px-4 py-2 ltr:border-r-1 rtl:border-l-1 sm:h-auto sm:w-auto sm:rounded-xl sm:p-12 sm:shadow-sm md:flex md:h-full md:w-1/2 md:items-center md:justify-end md:rounded-none md:p-16 md:shadow-none">
         <CardContent className="mx-auto w-full max-w-80 sm:mx-0 sm:w-80">
           <div className="w-32 mb-3">
-            <a
-              href="https://vapehub.devateam.com/"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
+            {/* <a
+              href="#"
+              // target="_blank"
+              // rel="noopener noreferrer"
+            > */}
               <img src="/assets/images/logo/logo.svg" alt="logo" />
-            </a>
+            {/* </a> */}
           </div>
           <Typography className="text-4xl font-extrabold leading-[1.25] tracking-tight mb-5">
             Sign in
