@@ -300,6 +300,13 @@ const navigationConfig: FuseNavItemType[] = [
     icon: "heroicons-outline:cog",
     url: "/apps/settings"
   },
+    {
+    id: "popular-categories",
+    title: "Popular Categories",
+    type: "item",
+    icon: "heroicons-outline:star",
+    url: "/apps/popular-categories"
+  },
 ];
 
 export default navigationConfig;
