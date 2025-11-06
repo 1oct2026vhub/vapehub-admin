@@ -381,6 +381,7 @@ const TransactionsTable = ({
           enableColumnOrdering
           onColumnOrderChange={onColumnOrderChange}
           manualPagination={true}
+          hideRowSelectionCheckboxes={true}
           state={{ 
             columnOrder,
             pagination: {

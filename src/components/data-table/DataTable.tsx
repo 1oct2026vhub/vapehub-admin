@@ -79,10 +79,13 @@ const tableIcons: Partial<MRT_Icons> = {
     <FuseSvgIcon size={20}>heroicons-outline:eye-slash</FuseSvgIcon>
   ),
 };
+
 function DataTable<TData extends { id: number }>(
-  props: MaterialReactTableProps<TData>,
+  props: MaterialReactTableProps<TData> & {
+    hideRowSelectionCheckboxes?: boolean;
+  },
 ) {
-  const { columns, data, ...rest } = props;
+  const { columns, data, hideRowSelectionCheckboxes, ...rest } = props;
   const searchParams = useSearchParams();
   const id = searchParams.get("id");
   const pathname = usePathname();
@@ -156,9 +159,19 @@ function DataTable<TData extends { id: number }>(
         },
         muiSelectAllCheckboxProps: {
           className: "w-12",
+          ...(hideRowSelectionCheckboxes && {
+            sx: {
+              display: 'none !important',
+            },
+          }),
         },
         muiSelectCheckboxProps: {
           className: "w-12",
+          ...(hideRowSelectionCheckboxes && {
+            sx: {
+              display: 'none !important',
+            },
+          }),
         },
         muiTableBodyRowProps: ({ row, table }) => {
           const { density } = table.getState();
@@ -205,7 +218,25 @@ function DataTable<TData extends { id: number }>(
             },
             backgroundColor: (theme) =>
               column.getIsPinned() ? theme.palette.background.paper : "inherit",
+            ...(hideRowSelectionCheckboxes && {
+              '&[data-column-id="mrt-row-select"]': {
+                '& .MuiCheckbox-root, & .MuiCheckbox-root:hover, & .MuiCheckbox-root:focus, & .MuiCheckbox-root.Mui-checked': {
+                  display: 'none !important',
+                },
+              },
+            }),
           },
+        }),
+        ...(hideRowSelectionCheckboxes && {
+          muiTableBodyCellProps: ({ column }) => ({
+            sx: {
+              '&[data-column-id="mrt-row-select"]': {
+                '& .MuiCheckbox-root, & .MuiCheckbox-root:hover, & .MuiCheckbox-root:focus, & .MuiCheckbox-root.Mui-checked': {
+                  display: 'none !important',
+                },
+              },
+            },
+          }),
         }),
         mrtTheme: (theme) => ({
           baseBackgroundColor: theme.palette.background.paper,
@@ -216,7 +247,7 @@ function DataTable<TData extends { id: number }>(
         renderTopToolbar: (_props) => <DataTableTopToolbar {..._props} />,
         icons: tableIcons,
       } as Partial<MaterialReactTableProps<TData>>),
-    [rest],
+    [rest, hideRowSelectionCheckboxes],
   );
 
   const tableOptions = useMemo(

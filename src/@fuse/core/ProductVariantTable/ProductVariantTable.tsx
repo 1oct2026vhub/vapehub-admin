@@ -388,6 +388,7 @@ const ProductVariantTable = ({
           enableColumnOrdering
           onColumnOrderChange={onColumnOrderChange}
           manualPagination={true}
+          hideRowSelectionCheckboxes={true}
           state={{ 
             columnOrder,
             pagination: {
