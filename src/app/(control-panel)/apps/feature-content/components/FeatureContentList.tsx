@@ -269,6 +269,7 @@ const FeatureContentList: React.FC<FeatureContentListProps> = ({ openCreate, onC
           enableRowSelection={true}
           onRowSelectionChange={setRowSelection}
           state={{ rowSelection }}
+          hideRowSelectionCheckboxes={true}
           renderRowActionMenuItems={({ closeMenu, row }) => [
             !row.original.deletedAt && 
             <MenuItem key="edit" onClick={() => { setEditItem(row.original); setIsCreateOpen(true); closeMenu(); }}>
