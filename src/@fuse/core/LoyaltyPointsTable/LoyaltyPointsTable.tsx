@@ -171,9 +171,8 @@ const LoyaltyPointsTable: React.FC<LoyaltyPointsTableProps> = ({ onSettingsUpdat
           data={settings}
           columns={columns}
           enableColumnOrdering
-          enableRowSelection
-          muiTableHeadCellProps={{
-          }}
+          enableRowSelection={true}
+          hideRowSelectionCheckboxes={true}
           renderRowActionMenuItems={({ closeMenu, row }) => {
             const menuItems = [
               <MenuItem key="edit" onClick={() => { router.push(`/apps/loyalty-points/loyalty-point-edit/${row.original.id}`); closeMenu(); }}>

@@ -67,7 +67,7 @@ function PageBreadcrumb(props: PageBreadcrumbProps) {
       const title = navItem?.title || part;
 
       // Check if this is a detail page or has an ID
-      const isDetailPage = part.includes('-detail') || part.includes('-edit') || Boolean(part.match(/^\d+$/));
+      const isDetailPage = part.includes('-detail') || part.includes('-edit') || part.includes('-update') || Boolean(part.match(/^\d+$/));
       
       // For detail pages, the breadcrumb should navigate to the parent list page
       let crumbUrl = url;
@@ -79,6 +79,10 @@ function PageBreadcrumb(props: PageBreadcrumbProps) {
           // For other edit pages, navigate to the parent section
           const parentPart = part.replace('-edit', '');
           crumbUrl = `/apps/${parentPart}`;
+        } else if (part.includes('-update')) {
+          // For update pages (like brand-update, category-update), make non-clickable
+          // Don't set a URL as these will be non-clickable
+          crumbUrl = '';
         } else if (part.includes('-detail')) {
           // For detail pages, navigate to the parent section
           const parentPart = part.replace('-detail', '');
@@ -115,7 +119,8 @@ function PageBreadcrumb(props: PageBreadcrumbProps) {
         const isLast = index === crumbs.length - 1;
         // Make "FAQ" breadcrumb non-clickable to avoid navigating to a non-existent page
         const isFaqCrumb = item.title?.toLowerCase() === "faq" || item.url?.endsWith("/apps/faq");
-        const isClickable = !item.isDetailPage && !isLast && !isFaqCrumb;
+        // Make breadcrumbs non-clickable if they are detail pages, last item, FAQ, or have empty URL (like update pages)
+        const isClickable = !item.isDetailPage && !isLast && !isFaqCrumb && item.url !== '';
         
         // Use custom label for the last breadcrumb if provided
         const displayTitle = isLast && customLastLabel ? customLastLabel : item.title;

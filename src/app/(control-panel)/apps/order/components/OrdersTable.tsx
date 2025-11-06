@@ -439,6 +439,7 @@ const OrdersTable = ({
         <DataTable
           data={orders}
           columns={columns}
+          hideRowSelectionCheckboxes={true}
           renderRowActionMenuItems={({ closeMenu, row }) => [
             <MenuItem
               key="view"

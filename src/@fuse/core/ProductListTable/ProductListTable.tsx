@@ -30,7 +30,7 @@ import {
   CircularProgress,
   Box,
 } from "@mui/material";
-import { listProducts, deleteProduct, restoreProduct, updateProductStatus } from "@/services/apiProduct";
+import { listProducts, deleteProduct, restoreProduct, updateProductStatus, bulkDeleteProduct, bulkRestoreProduct } from "@/services/apiProduct";
 import { listProductCategory } from "@/services/apiProductCategory";
 import { listProductBrand } from "@/services/apiProductBrand";
 import { useFetch } from "@/hooks/useFetch";
@@ -139,6 +139,7 @@ const ProductListTable = ({
   const [isLoading, setIsLoading] = useState(false);
   const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
   const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false);
+  const [isBulkRestoreDialogOpen, setIsBulkRestoreDialogOpen] = useState(false);
 
   // --- START ADD: Check if Filters are Active ---
   const areFiltersActive = useMemo(() => {
@@ -536,24 +537,28 @@ const ProductListTable = ({
 
     try {
       setIsLoading(true);
-      // Delete all selected products in parallel
-      await Promise.all(idsToDelete.map((id) => deleteProduct(id)));
+      // Use bulk delete API
+      const response = await bulkDeleteProduct(idsToDelete);
 
-      // Optimistically update the UI
-      setProducts((prev) =>
-        prev.filter((product) => !idsToDelete.includes(product.id))
-      );
-      setTotalRecords((prev) => prev - idsToDelete.length);
-      setTotalPages(Math.ceil((totalRecords - idsToDelete.length) / limit));
-
-      showSnackbar(
-        `${idsToDelete.length} product(s) deleted successfully!`,
-        "success"
-      );
-      setRowSelection({});
+      // Handle response - API may return summary or just success
+      const deletedCount = response?.data?.summary?.deleted_count || idsToDelete.length;
+      const successMessage = `${deletedCount} product(s) deleted successfully!`;
       
-      // Refresh data from server
-      await mutate(["productList", queryParams]);
+      // Fetch fresh data immediately after delete
+      const freshData = await listProducts(queryParams);
+      
+      // Update SWR cache first - this will trigger useEffect and update data
+      await mutate(["productList", queryParams], freshData, { revalidate: false });
+      
+      // Also directly update local state to ensure immediate table update
+      if (freshData?.data?.products) {
+        setProducts(freshData.data.products);
+        setTotalRecords(freshData.data.pagination?.total_count || 0);
+        setTotalPages(Math.ceil((freshData.data.pagination?.total_count || 0) / limit));
+      }
+      
+      showSnackbar(successMessage, "success");
+      setRowSelection({});
     } catch (error: any) {
       const errorMessage =
         error?.message || error?.errors?.[0]?.msg || "Bulk delete failed";
@@ -561,6 +566,87 @@ const ProductListTable = ({
     } finally {
       setIsLoading(false);
       handleCloseBulkDeleteDialog();
+    }
+  };
+
+  // Bulk restore handlers
+  const handleOpenBulkRestoreDialog = () => {
+    setIsBulkRestoreDialogOpen(true);
+  };
+
+  const handleCloseBulkRestoreDialog = () => {
+    setIsBulkRestoreDialogOpen(false);
+  };
+
+  const handleConfirmBulkRestore = async () => {
+    const selectedIndices = Object.keys(rowSelection).filter(
+      (key) => rowSelection[key]
+    );
+    const selectedProductsToRestore = products.filter((_, index) =>
+      selectedIndices.includes(index.toString())
+    );
+
+    // Filter only deleted products for bulk restore
+    const deletedProductsToRestore = selectedProductsToRestore.filter(
+      (product) => product.deletedAt
+    );
+
+    if (deletedProductsToRestore.length === 0) {
+      showSnackbar(
+        "No deleted products selected for restoration.",
+        "warning"
+      );
+      handleCloseBulkRestoreDialog();
+      return;
+    }
+
+    const idsToRestore = deletedProductsToRestore.map((product) => product.id);
+
+    try {
+      setIsLoading(true);
+      // Use bulk restore API
+      const response = await bulkRestoreProduct(idsToRestore);
+
+      const successMessage = response?.data?.summary?.restored_count
+        ? `${response.data.summary.restored_count} product(s) restored successfully!`
+        : `${idsToRestore.length} product(s) restored successfully!`;
+      
+      // Change filter to active status after restore
+      setDeleted(null);
+      setPage(1);
+      
+      // Create new query params with active filter
+      const activeQueryParams = {
+        ...queryParams,
+        deleted: null,
+        offset: 0, // Reset to first page
+      };
+      
+      // Fetch fresh data with active filter
+      const freshData = await listProducts(activeQueryParams);
+      
+      // Update SWR cache with new query params
+      await mutate(["productList", activeQueryParams], freshData, { revalidate: false });
+      
+      // Also update cache for old query params to keep it in sync
+      await mutate(["productList", queryParams], undefined, { revalidate: true });
+      
+      // Update local state with fresh data to show restored items
+      if (freshData?.data?.products) {
+        setProducts(freshData.data.products);
+        setTotalRecords(freshData.data.pagination?.total_count || 0);
+        setTotalPages(Math.ceil((freshData.data.pagination?.total_count || 0) / limit));
+      }
+      
+      showSnackbar(successMessage, "success");
+      setRowSelection({});
+    } catch (error: any) {
+      const errorMessage =
+        error?.message || error?.errors?.[0]?.msg || "Bulk restore failed";
+      showSnackbar(errorMessage, "error");
+    } finally {
+      setIsLoading(false);
+      handleCloseBulkRestoreDialog();
     }
   };
 
@@ -866,6 +952,25 @@ const ProductListTable = ({
                 }}
               >
                 Bulk Delete ({Object.keys(rowSelection).length})
+              </Button>
+            )}
+
+            {/* Bulk Restore Button */}
+            {Object.keys(rowSelection).length > 0 && deleted === true && (
+              <Button
+                variant="contained"
+                color="success"
+                size="small"
+                startIcon={<FuseSvgIcon>heroicons-outline:arrow-path</FuseSvgIcon>}
+                onClick={handleOpenBulkRestoreDialog}
+                sx={{
+                  backgroundColor: "#2E9970",
+                  "&:hover": {
+                    backgroundColor: "#247C5C",
+                  },
+                }}
+              >
+                Bulk Restore ({Object.keys(rowSelection).length})
               </Button>
             )}
 
@@ -1442,6 +1547,38 @@ const ProductListTable = ({
             disabled={isLoading}
           >
             Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Bulk Restore Dialog */}
+      <Dialog
+        open={isBulkRestoreDialogOpen}
+        onClose={handleCloseBulkRestoreDialog}
+      >
+        <DialogTitle>Bulk Restore Products</DialogTitle>
+        <DialogContent>
+          <Typography>
+            Are you sure you want to restore{" "}
+            <strong>{Object.keys(rowSelection).length}</strong> selected
+            product(s)?
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseBulkRestoreDialog}>Cancel</Button>
+          <Button
+            onClick={handleConfirmBulkRestore}
+            color="success"
+            variant="contained"
+            disabled={isLoading}
+            sx={{
+              backgroundColor: "#2E9970",
+              "&:hover": {
+                backgroundColor: "#247C5C",
+              },
+            }}
+          >
+            Restore
           </Button>
         </DialogActions>
       </Dialog>

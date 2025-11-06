@@ -337,6 +337,7 @@ const SeoListTable: React.FC<{ refreshTrigger: number, onEdit: (data: SeoListIte
                     data={seoData}
                     columns={columns}
                     enableColumnOrdering
+                    hideRowSelectionCheckboxes={true}
                     renderRowActionMenuItems={({ closeMenu, row }) => {
                         const editUrl = getEditUrl(row.original);
                         const menuItems = [];

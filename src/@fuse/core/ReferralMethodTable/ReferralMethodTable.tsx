@@ -327,6 +327,7 @@ const ReferralMethodTable: React.FC = () => {
           enableRowSelection={true}
           onRowSelectionChange={setRowSelection}
           state={{ rowSelection }}
+          hideRowSelectionCheckboxes={true}
           renderRowActionMenuItems={({ closeMenu, row }) => [
               <MenuItem key="edit" onClick={() => { router.push(`/apps/referral-methods/referral-method-edit/${row.original.id}`); closeMenu(); }}>
                 <ListItemIcon>
