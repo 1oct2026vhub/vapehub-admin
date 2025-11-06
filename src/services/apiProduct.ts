@@ -76,6 +76,26 @@ export const restoreProduct = async (id: number) => {
   return response.data;
 };
 
+// Bulk delete products by IDs
+export const bulkDeleteProduct = async (ids: number[]) => {
+  const response = await axiosInstance.delete(
+    "/api/admin/products/bulk-delete",
+    {
+      data: { ids },
+    }
+  );
+  return response.data;
+};
+
+// Bulk restore soft-deleted products by IDs
+export const bulkRestoreProduct = async (ids: number[]) => {
+  const response = await axiosInstance.put(
+    "/api/admin/products/bulk-restore",
+    { ids }
+  );
+  return response.data;
+};
+
 export const downloadSampleExcel = async () => {
   try {
     const response = await axiosInstance.get(
