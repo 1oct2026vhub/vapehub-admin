@@ -1,9 +1,24 @@
 "use client";
 import React, { useMemo, useState, useEffect, useCallback } from 'react';
-import DataTable from '@/components/data-table/DataTable';
-import { type MRT_ColumnDef } from 'material-react-table';
 import { formatDate } from "@/utils/actions";
 import FuseLoading from '@fuse/core/FuseLoading';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import {
   Paper,
   TextField,
@@ -16,9 +31,21 @@ import {
   InputAdornment,
   MenuItem,
   Select,
-  ListItemIcon,
+  Grid,
+  Card,
+  CardContent,
+  CardActions,
+  Checkbox,
+  IconButton,
+  Box,
+  Chip,
+  Divider,
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
+import EditIcon from '@mui/icons-material/Edit';
+import DeleteIcon from '@mui/icons-material/Delete';
+import RestoreFromTrashIcon from '@mui/icons-material/RestoreFromTrash';
+import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
 import ClearFiltersButton from '@/components/Shared/ClearFiltersButton';
 import {
   listPopularCategory,
@@ -26,9 +53,12 @@ import {
   restorePopularCategory,
   bulkDeletePopularCategory,
   bulkRestorePopularCategory,
+  updatePopularCategory,
+  updatePopularCategoryOrder,
   PopularCategory,
   FetchPopularCategoryParams,
 } from '@/services/apiPopularCategory';
+import { listProductCategory } from '@/services/apiProductCategory';
 import FuseSvgIcon from '@fuse/core/FuseSvgIcon';
 import { useSnackbar } from '@/contexts/SnackbarContext';
 import TablePagination from '@/components/Shared/TablePagination';
@@ -64,7 +94,35 @@ const PopularCategoriesList: React.FC<PopularCategoriesListProps> = ({ refreshTr
   const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
   const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false);
   const [isBulkRestoreDialogOpen, setIsBulkRestoreDialogOpen] = useState(false);
+  const [categories, setCategories] = useState<Array<{ id: number; name: string }>>([]);
+  const [isUpdatingOrder, setIsUpdatingOrder] = useState(false);
   const { showSnackbar } = useSnackbar();
+
+  // Drag and drop sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  // Fetch categories for select box
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const response = await listProductCategory({
+          limit: 1000,
+          deleted: false,
+        });
+        if (response?.data?.categories) {
+          setCategories(response.data.categories);
+        }
+      } catch (error) {
+        console.error('Failed to fetch categories:', error);
+      }
+    };
+    fetchCategories();
+  }, []);
 
   const areFiltersActive = useMemo(() => {
     return search !== '' || deleted || sortBy !== 'order' || sortOrder !== 'ASC';
@@ -255,42 +313,277 @@ const PopularCategoriesList: React.FC<PopularCategoriesListProps> = ({ refreshTr
     setLimit(newLimit);
   }, []);
 
-  const columns = useMemo<MRT_ColumnDef<PopularCategory>[]>(
-    () => [
-      { accessorKey: 'title', header: 'Title' },
-      { accessorKey: 'description', header: 'Description' },
-      {
-        accessorKey: 'order',
-        header: 'Order',
-        Cell: ({ row }) => row.original.order ?? '-',
-      },
-      {
-        accessorKey: 'status',
-        header: 'Status',
-        Cell: ({ row }) => {
-          const status = row.original.status;
-          if (status === undefined || status === null) {
-            return '-';
-          }
-          // Handle boolean status
-          if (typeof status === 'boolean') {
-            return status ? 'Active' : 'Inactive';
-          }
-          // Handle string status (for backward compatibility)
-          if (typeof status === 'string') {
-            return status ? status.charAt(0).toUpperCase() + status.slice(1) : '-';
-          }
-          return '-';
-        },
-      },
-      {
-        accessorKey: "updatedAt",
-        header: "Last Updated",
-        Cell: ({ row }) => formatDate(row.original.updatedAt),
-      },
-    ],
-    []
-  );
+  // Handle checkbox selection
+  const handleCardSelection = (index: number, checked: boolean) => {
+    setRowSelection((prev) => ({
+      ...prev,
+      [index]: checked,
+    }));
+  };
+
+  // Get status display
+  const getStatusDisplay = (status: any) => {
+    if (status === undefined || status === null) {
+      return { text: '-', color: 'default' as const };
+    }
+    if (typeof status === 'boolean') {
+      return status ? { text: 'Active', color: 'success' as const } : { text: 'Inactive', color: 'default' as const };
+    }
+    if (typeof status === 'string') {
+      const statusText = status.charAt(0).toUpperCase() + status.slice(1);
+      return statusText === 'Active' 
+        ? { text: statusText, color: 'success' as const }
+        : { text: statusText, color: 'default' as const };
+    }
+    return { text: '-', color: 'default' as const };
+  };
+
+  // Handle category change
+  const handleCategoryChange = async (categoryId: number, newCategoryId: number | undefined) => {
+    try {
+      const category = popularCategories.find(c => c.id === categoryId);
+      if (!category) return;
+
+      await updatePopularCategory(categoryId, {
+        title: category.title,
+        description: category.description,
+        status: typeof category.status === 'boolean' ? category.status : undefined,
+        order: category.order,
+        category_id: newCategoryId,
+      });
+      
+      showSnackbar('Category updated successfully', 'success');
+      fetchData();
+    } catch (error: any) {
+      showSnackbar(error?.message || 'Failed to update category', 'error');
+    }
+  };
+
+  // Handle drag end for reordering
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = popularCategories.findIndex((item) => item.id.toString() === active.id);
+    const newIndex = popularCategories.findIndex((item) => item.id.toString() === over.id);
+
+    if (oldIndex === -1 || newIndex === -1) return;
+
+    // Save original state for potential revert
+    const originalItems = [...popularCategories];
+    
+    const newItems = arrayMove(popularCategories, oldIndex, newIndex);
+    
+    // Update order for each item
+    const updatedItems = newItems.map((item, index) => ({
+      ...item,
+      order: index + 1,
+    }));
+
+    // Update local state immediately
+    setPopularCategories(updatedItems);
+
+    // Call API to update order
+    updatePopularCategoryOrderAPI(updatedItems, originalItems, oldIndex, newIndex);
+  };
+
+  // API call to update popular category order
+  const updatePopularCategoryOrderAPI = async (
+    updatedItems: PopularCategory[],
+    originalItems: PopularCategory[],
+    oldIndex: number,
+    newIndex: number
+  ) => {
+    // Prevent multiple simultaneous API calls
+    if (isUpdatingOrder) {
+      console.log("Order update already in progress, skipping...");
+      return;
+    }
+
+    try {
+      setIsUpdatingOrder(true);
+      
+      // Get the moved item
+      const movedItem = updatedItems[newIndex];
+      
+      // Call API to update the order
+      await updatePopularCategoryOrder(movedItem.id, newIndex + 1);
+      
+      showSnackbar("Popular category order updated successfully", "success");
+    } catch (error: any) {
+      console.error("Error updating popular category order:", error);
+      
+      // Revert to original order on error
+      setPopularCategories(originalItems);
+      
+      if (error?.response?.status === 503) {
+        showSnackbar("Service temporarily unavailable. Please try again.", "warning");
+      } else if (error?.response?.status === 404) {
+        showSnackbar("Update order endpoint not found.", "warning");
+      } else if (error?.response?.status === 500) {
+        showSnackbar("Server error. Please try again.", "error");
+      } else {
+        showSnackbar("Failed to update popular category order.", "error");
+      }
+      
+      // Refresh data to get correct order from server
+      setTimeout(() => {
+        fetchData();
+      }, 1000);
+    } finally {
+      setIsUpdatingOrder(false);
+    }
+  };
+
+  // Draggable Card Component
+  const DraggableCategoryCard = ({ category, index }: { category: PopularCategory; index: number }) => {
+    const {
+      attributes,
+      listeners,
+      setNodeRef,
+      transform,
+      transition,
+      isDragging,
+    } = useSortable({ id: category.id.toString() });
+
+    const style = {
+      transform: CSS.Transform.toString(transform),
+      transition,
+      opacity: isDragging ? 0.5 : 1,
+    };
+
+    const statusDisplay = getStatusDisplay(category.status);
+    const isSelected = rowSelection[index] || false;
+
+    return (
+      <Grid item xs={12} sm={6} md={4} lg={3} key={category.id}>
+        <Card
+          ref={setNodeRef}
+          style={style}
+          sx={{
+            height: '100%',
+            display: 'flex',
+            flexDirection: 'column',
+            border: isSelected ? '2px solid #2E9970' : '1px solid #e0e0e0',
+            position: 'relative',
+            opacity: category.deletedAt ? 0.7 : 1,
+          }}
+          {...attributes}
+        >
+          <CardContent sx={{ flexGrow: 1, pt: 2 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', flex: 1, gap: 1 }}>
+                <IconButton
+                  size="small"
+                  sx={{
+                    cursor: isDragging ? 'grabbing' : 'grab',
+                    color: 'text.secondary',
+                    '&:hover': {
+                      backgroundColor: 'action.hover',
+                    },
+                  }}
+                  {...listeners}
+                >
+                  <DragIndicatorIcon fontSize="small" />
+                </IconButton>
+                <Typography variant="h6" component="h2" sx={{ fontWeight: 'bold', flex: 1 }}>
+                  {category.title}
+                </Typography>
+              </Box>
+              <Checkbox
+                checked={isSelected}
+                onChange={(e) => {
+                  e.stopPropagation();
+                  handleCardSelection(index, e.target.checked);
+                }}
+                onClick={(e) => e.stopPropagation()}
+                onMouseDown={(e) => e.stopPropagation()}
+                size="small"
+              />
+            </Box>
+            {category.description && (
+              <Typography
+                variant="body2"
+                color="text.secondary"
+                sx={{
+                  mb: 2,
+                  display: '-webkit-box',
+                  WebkitLineClamp: 2,
+                  WebkitBoxOrient: 'vertical',
+                  overflow: 'hidden',
+                }}
+              >
+                {category.description}
+              </Typography>
+            )}
+            <Divider sx={{ my: 1.5 }} />
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Typography variant="caption" color="text.secondary">
+                  Order:
+                </Typography>
+                <Typography variant="body2" fontWeight="medium">
+                  {category.order ?? '-'}
+                </Typography>
+              </Box>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Typography variant="caption" color="text.secondary">
+                  Status:
+                </Typography>
+                <Chip
+                  label={statusDisplay.text}
+                  color={statusDisplay.color}
+                  size="small"
+                />
+              </Box>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Typography variant="caption" color="text.secondary">
+                  Updated:
+                </Typography>
+                <Typography variant="caption">
+                  {formatDate(category.updatedAt)}
+                </Typography>
+              </Box>
+            </Box>
+          </CardContent>
+          <CardActions sx={{ justifyContent: 'flex-end', px: 2, pb: 2 }}>
+            {!category.deletedAt && (
+              <IconButton
+                size="small"
+                color="primary"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setEditItem(category);
+                  setIsCreateOpen(true);
+                }}
+                onMouseDown={(e) => e.stopPropagation()}
+                title="Edit"
+              >
+                <EditIcon fontSize="small" />
+              </IconButton>
+            )}
+            <IconButton
+              size="small"
+              color={category.deletedAt ? 'success' : 'error'}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleDeleteClick(category);
+              }}
+              onMouseDown={(e) => e.stopPropagation()}
+              title={category.deletedAt ? 'Restore' : 'Delete'}
+            >
+              {category.deletedAt ? (
+                <RestoreFromTrashIcon fontSize="small" />
+              ) : (
+                <DeleteIcon fontSize="small" />
+              )}
+            </IconButton>
+          </CardActions>
+        </Card>
+      </Grid>
+    );
+  };
 
   if (isLoading && popularCategories.length === 0) return <FuseLoading />;
 
@@ -387,39 +680,77 @@ const PopularCategoriesList: React.FC<PopularCategoriesListProps> = ({ refreshTr
 
           {areFiltersActive && <ClearFiltersButton onClick={clearFilters} />}
         </div>
-        <DataTable
-          data={popularCategories}
-          columns={columns}
-          enableRowSelection={true}
-          onRowSelectionChange={setRowSelection}
-          state={{ rowSelection }}
-          // hideRowSelectionCheckboxes={true}
-          renderRowActionMenuItems={({ closeMenu, row }) => [
-            !row.original.deletedAt && 
-            <MenuItem key="edit" onClick={() => { setEditItem(row.original); setIsCreateOpen(true); closeMenu(); }}>
-              <ListItemIcon>
-                <FuseSvgIcon>heroicons-outline:pencil-square</FuseSvgIcon>
-              </ListItemIcon>
-              Edit
-            </MenuItem>,
-            <MenuItem key="delete" onClick={() => { handleDeleteClick(row.original); closeMenu(); }}>
-              <ListItemIcon>
-                <FuseSvgIcon>
-                  {row.original.deletedAt ? "heroicons-outline:arrow-path" : "heroicons-outline:trash"}
-                </FuseSvgIcon>
-              </ListItemIcon>
-              {row.original.deletedAt ? "Restore" : "Delete"}
-            </MenuItem>,
-          ]}
-        />
-        <TablePagination
-          page={page}
-          totalPages={totalPages}
-          limit={limit}
-          totalRecords={total}
-          onPageChange={setPage}
-          onLimitChange={handleLimitChange}
-        />
+
+        {/* Cards Grid */}
+        {isLoading && popularCategories.length === 0 ? (
+          <Box display="flex" justifyContent="center" alignItems="center" sx={{ minHeight: '400px' }}>
+            <FuseLoading />
+          </Box>
+        ) : popularCategories.length === 0 ? (
+          <Box display="flex" justifyContent="center" alignItems="center" sx={{ minHeight: '400px' }}>
+            <Typography variant="body1" color="text.secondary">
+              No popular categories found
+            </Typography>
+          </Box>
+        ) : (
+          <Box sx={{ p: 3, position: 'relative' }}>
+            {isUpdatingOrder && (
+              <Box
+                      sx={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  backgroundColor: 'rgba(255, 255, 255, 0.7)',
+                        display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  zIndex: 1000,
+                  borderRadius: 1,
+                }}
+              >
+                <Typography variant="body2" color="text.secondary">
+                  Updating order...
+                            </Typography>
+                          </Box>
+            )}
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+            >
+              <SortableContext
+                items={popularCategories.map(item => item.id.toString())}
+                strategy={verticalListSortingStrategy}
+              >
+                <Grid container spacing={3}>
+                  {popularCategories.map((category, index) => (
+                    <DraggableCategoryCard
+                      key={category.id}
+                      category={category}
+                      index={index}
+                    />
+                  ))}
+                  </Grid>
+              </SortableContext>
+            </DndContext>
+          </Box>
+        )}
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
+            <TablePagination
+              page={page}
+              totalPages={totalPages}
+              limit={limit}
+              totalRecords={total}
+              onPageChange={setPage}
+              onLimitChange={handleLimitChange}
+            />
+          </Box>
+        )}
         {/* Delete/Restore Dialog */}
         <Dialog open={openDialog} onClose={() => setOpenDialog(false)}>
           <DialogTitle>
