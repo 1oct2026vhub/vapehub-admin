@@ -33,6 +33,8 @@ import {
   type AttributeTermListParams,
   deleteAttributeTerm,
   restoreAttributeTerm,
+  bulkDeleteAttributeTerm,
+  bulkRestoreAttributeTerm,
 } from "@/services/apiAttributeTerm";
 import { useFetch } from "@/hooks/useFetch";
 import { mutate } from "swr";
@@ -91,6 +93,7 @@ const AttributeTermTable = ({
   const [manuallyRefreshing, setManuallyRefreshing] = useState(false);
   const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
   const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false);
+  const [isBulkRestoreDialogOpen, setIsBulkRestoreDialogOpen] = useState(false);
 
   const sorting = useMemo<MRT_SortingState>(
     () => [{ id: sortBy, desc: order === "DESC" }],
@@ -302,22 +305,26 @@ const AttributeTermTable = ({
 
     try {
       setIsLoading(true);
-      // Delete all selected terms in parallel
-      await Promise.all(idsToDelete.map((id) => deleteAttributeTerm(id)));
+      // Use bulk delete API
+      const response = await bulkDeleteAttributeTerm(idsToDelete);
 
-      // Optimistically update the UI
-      setLocalTerms((prev) =>
-        prev.filter((term) => !idsToDelete.includes(term.id))
-      );
-
-      showSnackbar(
-        `${idsToDelete.length} term(s) deleted successfully!`,
-        "success"
-      );
-      setRowSelection({});
+      // Handle response - API may return summary or just success
+      const deletedCount = response?.data?.summary?.deleted_count || idsToDelete.length;
+      const successMessage = `${deletedCount} term(s) deleted successfully!`;
       
-      // Refresh data from server
-      await mutate(["attributeTerms", queryParams]);
+      // Fetch fresh data immediately after delete
+      const freshData = await listAttributeTerms(queryParams);
+      
+      // Update SWR cache first - this will trigger useEffect and update data
+      await mutate(["attributeTerms", queryParams], freshData, { revalidate: false });
+      
+      // Also directly update local state to ensure immediate table update
+      if (freshData?.data?.terms) {
+        setLocalTerms(freshData.data.terms);
+      }
+      
+      showSnackbar(successMessage, "success");
+      setRowSelection({});
     } catch (error: any) {
       const errorMessage =
         error?.message || error?.errors?.[0]?.msg || "Bulk delete failed";
@@ -325,6 +332,85 @@ const AttributeTermTable = ({
     } finally {
       setIsLoading(false);
       handleCloseBulkDeleteDialog();
+    }
+  };
+
+  // Bulk restore handlers
+  const handleOpenBulkRestoreDialog = () => {
+    setIsBulkRestoreDialogOpen(true);
+  };
+
+  const handleCloseBulkRestoreDialog = () => {
+    setIsBulkRestoreDialogOpen(false);
+  };
+
+  const handleConfirmBulkRestore = async () => {
+    const selectedIndices = Object.keys(rowSelection).filter(
+      (key) => rowSelection[key]
+    );
+    const selectedTermsToRestore = localTerms.filter((_, index) =>
+      selectedIndices.includes(index.toString())
+    );
+
+    // Filter only deleted terms for bulk restore
+    const deletedTermsToRestore = selectedTermsToRestore.filter(
+      (term) => term.deleted_at
+    );
+
+    if (deletedTermsToRestore.length === 0) {
+      showSnackbar(
+        "No deleted terms selected for restoration.",
+        "warning"
+      );
+      handleCloseBulkRestoreDialog();
+      return;
+    }
+
+    const idsToRestore = deletedTermsToRestore.map((term) => term.id);
+
+    try {
+      setIsLoading(true);
+      // Use bulk restore API
+      const response = await bulkRestoreAttributeTerm(idsToRestore);
+
+      const successMessage = response?.data?.summary?.restored_count
+        ? `${response.data.summary.restored_count} term(s) restored successfully!`
+        : `${idsToRestore.length} term(s) restored successfully!`;
+      
+      // Change filter to active status after restore
+      setShowDeleted(false);
+      setPage(1);
+      
+      // Create new query params with active filter
+      const activeQueryParams = {
+        ...queryParams,
+        show_deleted: false,
+        offset: 0, // Reset to first page
+      };
+      
+      // Fetch fresh data with active filter
+      const freshData = await listAttributeTerms(activeQueryParams);
+      
+      // Update SWR cache with new query params
+      await mutate(["attributeTerms", activeQueryParams], freshData, { revalidate: false });
+      
+      // Also update cache for old query params to keep it in sync
+      await mutate(["attributeTerms", queryParams], undefined, { revalidate: true });
+      
+      // Update local state with fresh data to show restored items
+      if (freshData?.data?.terms) {
+        setLocalTerms(freshData.data.terms);
+      }
+      
+      showSnackbar(successMessage, "success");
+      setRowSelection({});
+    } catch (error: any) {
+      const errorMessage =
+        error?.message || error?.errors?.[0]?.msg || "Bulk restore failed";
+      showSnackbar(errorMessage, "error");
+    } finally {
+      setIsLoading(false);
+      handleCloseBulkRestoreDialog();
     }
   };
 
@@ -468,6 +554,26 @@ const AttributeTermTable = ({
             </Button>
           )}
 
+          {/* Bulk Restore Button */}
+          {Object.keys(rowSelection).length > 0 && showDeleted && (
+            <Button
+              variant="contained"
+              color="success"
+              size="small"
+              startIcon={<FuseSvgIcon>heroicons-outline:arrow-path</FuseSvgIcon>}
+              onClick={handleOpenBulkRestoreDialog}
+              sx={{
+                backgroundColor: "#2E9970",
+                "&:hover": {
+                  backgroundColor: "#247C5C",
+                },
+                height: '40px'
+              }}
+            >
+              Bulk Restore ({Object.keys(rowSelection).length})
+            </Button>
+          )}
+
           {/* --- START ADD: Clear Filters Button --- */}
           {areFiltersActive && (
             <ClearFiltersButton 
@@ -602,6 +708,38 @@ const AttributeTermTable = ({
             disabled={isLoading}
           >
             Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Bulk Restore Dialog */}
+      <Dialog
+        open={isBulkRestoreDialogOpen}
+        onClose={handleCloseBulkRestoreDialog}
+      >
+        <DialogTitle>Bulk Restore Terms</DialogTitle>
+        <DialogContent>
+          <Typography>
+            Are you sure you want to restore{" "}
+            <strong>{Object.keys(rowSelection).length}</strong> selected
+            term(s)?
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseBulkRestoreDialog}>Cancel</Button>
+          <Button
+            onClick={handleConfirmBulkRestore}
+            color="success"
+            variant="contained"
+            disabled={isLoading}
+            sx={{
+              backgroundColor: "#2E9970",
+              "&:hover": {
+                backgroundColor: "#247C5C",
+              },
+            }}
+          >
+            Restore
           </Button>
         </DialogActions>
       </Dialog>

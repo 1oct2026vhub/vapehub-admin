@@ -172,3 +172,23 @@ export const bulkUpdateAttributeTerm = async (file: File) => {
   );
   return response.data;
 };
+
+// Bulk delete attribute terms by IDs
+export const bulkDeleteAttributeTerm = async (ids: number[]) => {
+  const response = await axiosInstance.delete(
+    "/api/admin/attribute-terms/bulk-delete",
+    {
+      data: { ids },
+    }
+  );
+  return response.data;
+};
+
+// Bulk restore soft-deleted attribute terms by IDs
+export const bulkRestoreAttributeTerm = async (ids: number[]) => {
+  const response = await axiosInstance.put(
+    "/api/admin/attribute-terms/bulk-restore",
+    { ids }
+  );
+  return response.data;
+};
