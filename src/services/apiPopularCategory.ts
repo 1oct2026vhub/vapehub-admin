@@ -88,3 +88,12 @@ export const bulkRestorePopularCategory = async (ids: number[]) => {
   return response.data;
 };
 
+// Update popular category order
+export const updatePopularCategoryOrder = async (id: number, newOrder: number): Promise<any> => {
+  const response = await axiosInstance.put(
+    `/api/admin/popularCategory/${id}/shuffle-order`,
+    { new_order: newOrder }
+  );
+  return response.data;
+};
+
