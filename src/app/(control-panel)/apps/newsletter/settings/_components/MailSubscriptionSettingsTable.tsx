@@ -157,6 +157,7 @@ const MailSubscriptionSettingsTable: React.FC<MailSubscriptionSettingsTableProps
           data={settings}
           columns={columns}
           enableColumnOrdering
+          hideRowSelectionCheckboxes={true}
           renderRowActionMenuItems={({ closeMenu, row }) => {
             const menuItems = [
               <MenuItem key="edit" onClick={() => { router.push(`/apps/newsletter/settings/${row.original.id}`); closeMenu(); }}>
