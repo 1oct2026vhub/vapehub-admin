@@ -27,7 +27,7 @@ import {
 import SearchIcon from '@mui/icons-material/Search';
 import ClearFiltersButton from '@/components/Shared/ClearFiltersButton';
 import FormTextField from '@/components/Shared/FormTextField';
-import { getDeals, Deal, FetchDealsParams, deleteDeal, restoreDeal } from '@/services/apiDeals';
+import { getDeals, Deal, FetchDealsParams, deleteDeal, restoreDeal, bulkDeleteDeals, bulkRestoreDeals } from '@/services/apiDeals';
 import { listProducts } from '@/services/apiProduct';
 import FuseSvgIcon from '@fuse/core/FuseSvgIcon';
 import { useRouter } from 'next/navigation';
@@ -49,6 +49,7 @@ const DealsTable: React.FC = () => {
   const [selectedDeal, setSelectedDeal] = useState<Deal | null>(null);
   const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
   const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false);
+  const [isBulkRestoreDialogOpen, setIsBulkRestoreDialogOpen] = useState(false);
   const [status, setStatus] = useState<string>('');
   const [dealType, setDealType] = useState<string>('BUY_N_FOR_FIXED');
   const [validNow, setValidNow] = useState<boolean | null>(null);
@@ -226,8 +227,8 @@ const DealsTable: React.FC = () => {
 
     try {
       setIsLoading(true);
-      // Delete all selected deals in parallel
-      await Promise.all(idsToDelete.map((id) => deleteDeal(id)));
+      // Use bulk delete API
+      await bulkDeleteDeals(idsToDelete);
 
       showSnackbar(
         `${idsToDelete.length} deal(s) deleted successfully!`,
@@ -239,11 +240,73 @@ const DealsTable: React.FC = () => {
       fetchData();
     } catch (error: any) {
       const errorMessage =
-        error?.message || error?.errors?.[0]?.msg || "Bulk delete failed";
+        error?.response?.data?.message || 
+        error?.message || 
+        error?.response?.data?.errors?.[0]?.msg || 
+        "Bulk delete failed";
       showSnackbar(errorMessage, "error");
     } finally {
       setIsLoading(false);
       handleCloseBulkDeleteDialog();
+    }
+  };
+
+  // Bulk restore handlers
+  const handleOpenBulkRestoreDialog = () => {
+    setIsBulkRestoreDialogOpen(true);
+  };
+
+  const handleCloseBulkRestoreDialog = () => {
+    setIsBulkRestoreDialogOpen(false);
+  };
+
+  const handleConfirmBulkRestore = async () => {
+    const selectedIndices = Object.keys(rowSelection).filter(
+      (key) => rowSelection[key]
+    );
+    const selectedDealsToRestore = deals.filter((_, index) =>
+      selectedIndices.includes(index.toString())
+    );
+
+    // Filter only deleted deals for bulk restore
+    const deletedDealsToRestore = selectedDealsToRestore.filter(
+      (deal) => deal.deletedAt
+    );
+
+    if (deletedDealsToRestore.length === 0) {
+      showSnackbar(
+        "No deleted deals selected for restoration.",
+        "warning"
+      );
+      handleCloseBulkRestoreDialog();
+      return;
+    }
+
+    const idsToRestore = deletedDealsToRestore.map((deal) => deal.id);
+
+    try {
+      setIsLoading(true);
+      // Use bulk restore API
+      await bulkRestoreDeals(idsToRestore);
+
+      showSnackbar(
+        `${idsToRestore.length} deal(s) restored successfully!`,
+        "success"
+      );
+      setRowSelection({});
+      
+      // Refresh data from server
+      fetchData();
+    } catch (error: any) {
+      const errorMessage =
+        error?.response?.data?.message || 
+        error?.message || 
+        error?.response?.data?.errors?.[0]?.msg || 
+        "Bulk restore failed";
+      showSnackbar(errorMessage, "error");
+    } finally {
+      setIsLoading(false);
+      handleCloseBulkRestoreDialog();
     }
   };
 
@@ -395,6 +458,25 @@ const DealsTable: React.FC = () => {
             </Button>
           )}
 
+          {/* Bulk Restore Button */}
+          {Object.keys(rowSelection).length > 0 && isDeleted === true && (
+            <Button
+              variant="contained"
+              color="success"
+              size="small"
+              startIcon={<FuseSvgIcon>heroicons-outline:arrow-path</FuseSvgIcon>}
+              onClick={handleOpenBulkRestoreDialog}
+              sx={{
+                backgroundColor: "#2e7d32",
+                "&:hover": {
+                  backgroundColor: "#1b5e20",
+                },
+              }}
+            >
+              Bulk Restore ({Object.keys(rowSelection).length})
+            </Button>
+          )}
+
           {areFiltersActive && <ClearFiltersButton onClick={clearFilters} />}
         </div>
         <DataTable
@@ -472,6 +554,32 @@ const DealsTable: React.FC = () => {
               disabled={isLoading}
             >
               Delete
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Bulk Restore Dialog */}
+        <Dialog
+          open={isBulkRestoreDialogOpen}
+          onClose={handleCloseBulkRestoreDialog}
+        >
+          <DialogTitle>Bulk Restore Deals</DialogTitle>
+          <DialogContent>
+            <Typography>
+              Are you sure you want to restore{" "}
+              <strong>{Object.keys(rowSelection).length}</strong> selected
+              deal(s)?
+            </Typography>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleCloseBulkRestoreDialog}>Cancel</Button>
+            <Button
+              onClick={handleConfirmBulkRestore}
+              color="success"
+              variant="contained"
+              disabled={isLoading}
+            >
+              Restore
             </Button>
           </DialogActions>
         </Dialog>

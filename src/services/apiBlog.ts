@@ -1,4 +1,5 @@
 import { fetcher, poster, updater, deleter } from "./apiService";
+import axiosInstance from '@/utils/axiosApi';
 
 // Types for Blog Posts, Categories, and Tags
 export interface BlogPost {
@@ -140,6 +141,30 @@ export async function restoreBlogPost(id: number) {
   }
 }
 
+/**
+ * Bulk delete blog posts
+ * @param ids - Array of post IDs to delete
+ * @returns Promise containing the API response
+ */
+export async function bulkDeleteBlogPosts(ids: number[]): Promise<any> {
+  const response = await axiosInstance.delete('/api/admin/blog/posts/bulk-delete', {
+    data: { ids }
+  });
+  return response.data;
+}
+
+/**
+ * Bulk restore soft-deleted blog posts
+ * @param ids - Array of post IDs to restore
+ * @returns Promise containing the API response
+ */
+export async function bulkRestoreBlogPosts(ids: number[]): Promise<any> {
+  const response = await axiosInstance.put('/api/admin/blog/posts/bulk-restore', {
+    ids
+  });
+  return response.data;
+}
+
 // Blog Categories API Functions
 export const getBlogCategories = async (
   params: BlogCategoryParams = {}
@@ -180,6 +205,30 @@ export async function restoreBlogCategory(id: number) {
   } catch (error) {
     throw error;
   }
+}
+
+/**
+ * Bulk delete blog categories
+ * @param ids - Array of category IDs to delete
+ * @returns Promise containing the API response
+ */
+export async function bulkDeleteBlogCategories(ids: number[]): Promise<any> {
+  const response = await axiosInstance.delete('/api/admin/blog/categories/bulk-delete', {
+    data: { ids }
+  });
+  return response.data;
+}
+
+/**
+ * Bulk restore soft-deleted blog categories
+ * @param ids - Array of category IDs to restore
+ * @returns Promise containing the API response
+ */
+export async function bulkRestoreBlogCategories(ids: number[]): Promise<any> {
+  const response = await axiosInstance.put('/api/admin/blog/categories/bulk-restore', {
+    ids
+  });
+  return response.data;
 }
 
 // Blog Tag Types
@@ -248,6 +297,30 @@ export async function restoreBlogTag(id: number) {
   } catch (error) {
     throw error;
   }
+}
+
+/**
+ * Bulk delete blog tags
+ * @param ids - Array of tag IDs to delete
+ * @returns Promise containing the API response
+ */
+export async function bulkDeleteBlogTags(ids: number[]): Promise<any> {
+  const response = await axiosInstance.delete('/api/admin/blog/tags/bulk-delete', {
+    data: { ids }
+  });
+  return response.data;
+}
+
+/**
+ * Bulk restore soft-deleted blog tags
+ * @param ids - Array of tag IDs to restore
+ * @returns Promise containing the API response
+ */
+export async function bulkRestoreBlogTags(ids: number[]): Promise<any> {
+  const response = await axiosInstance.put('/api/admin/blog/tags/bulk-restore', {
+    ids
+  });
+  return response.data;
 }
 
 export interface BlogTagDetailResponse {

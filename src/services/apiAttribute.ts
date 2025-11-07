@@ -251,3 +251,23 @@ export const bulkUpdateAttribute = async (file: File): Promise<BulkUpdateRespons
   );
   return response.data;
 };
+
+// Bulk delete attributes by IDs
+export const bulkDeleteAttribute = async (ids: number[]) => {
+  const response = await axiosInstance.delete(
+    "/api/admin/attributes/bulk-delete",
+    {
+      data: { ids },
+    }
+  );
+  return response.data;
+};
+
+// Bulk restore soft-deleted attributes by IDs
+export const bulkRestoreAttribute = async (ids: number[]) => {
+  const response = await axiosInstance.put(
+    "/api/admin/attributes/bulk-restore",
+    { ids }
+  );
+  return response.data;
+};

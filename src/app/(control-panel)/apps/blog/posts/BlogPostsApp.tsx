@@ -47,6 +47,8 @@ import {
   getBlogCategories,
   getBlogTags,
   restoreBlogPost,
+  bulkDeleteBlogPosts,
+  bulkRestoreBlogPosts,
 } from "@/services/apiBlog";
 import { formatDate } from "@/utils/actions";
 import { useRouter } from "next/navigation";
@@ -116,6 +118,7 @@ export default function BlogPostsApp() {
   const [status, setStatus] = useState<string>("");
   const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
   const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false);
+  const [isBulkRestoreDialogOpen, setIsBulkRestoreDialogOpen] = useState(false);
 
   // State for tracking active search vs selection mode
   const [isActivelySearchingCategory, setIsActivelySearchingCategory] = useState(false);
@@ -399,8 +402,8 @@ export default function BlogPostsApp() {
 
     try {
       setLoading(true);
-      // Delete all selected posts in parallel
-      await Promise.all(idsToDelete.map((id) => deleteBlogPost(id)));
+      // Use bulk delete API
+      await bulkDeleteBlogPosts(idsToDelete);
 
       showSnackbar(
         `${idsToDelete.length} post(s) deleted successfully!`,
@@ -408,15 +411,113 @@ export default function BlogPostsApp() {
       );
       setRowSelection({});
       
-      // Refresh data from server
-      setPagination(prev => ({ ...prev }));
+      // Refresh data from server by triggering a refetch
+      const response = await getBlogPosts({
+        page: pagination.page,
+        limit: pagination.limit,
+        search: debouncedSearch,
+        sort: sortField,
+        order: sortOrder,
+        deleted: showDeleted,
+        category_id: selectedCategory?.id?.toString() || undefined,
+        tag_id: selectedTag?.id?.toString() || undefined,
+        status: status || undefined,
+      } as ExtendedBlogPostParams) as BlogPostResponse;
+
+      if (response?.data) {
+        setPosts(response.data.blogs);
+        setPagination(prev => ({
+          ...prev,
+          total: response.data?.pagination?.total || 0
+        }));
+      }
     } catch (error: any) {
       const errorMessage =
-        error?.message || error?.errors?.[0]?.msg || "Bulk delete failed";
+        error?.response?.data?.message || 
+        error?.message || 
+        error?.response?.data?.errors?.[0]?.msg || 
+        "Bulk delete failed";
       showSnackbar(errorMessage, "error");
     } finally {
       setLoading(false);
       handleCloseBulkDeleteDialog();
+    }
+  };
+
+  // Bulk restore handlers
+  const handleOpenBulkRestoreDialog = () => {
+    setIsBulkRestoreDialogOpen(true);
+  };
+
+  const handleCloseBulkRestoreDialog = () => {
+    setIsBulkRestoreDialogOpen(false);
+  };
+
+  const handleConfirmBulkRestore = async () => {
+    const selectedIndices = Object.keys(rowSelection).filter(
+      (key) => rowSelection[key]
+    );
+    const selectedPostsToRestore = posts.filter((_, index) =>
+      selectedIndices.includes(index.toString())
+    );
+
+    // Filter only deleted posts for bulk restore
+    const deletedPostsToRestore = selectedPostsToRestore.filter(
+      (post) => post.deleted_at
+    );
+
+    if (deletedPostsToRestore.length === 0) {
+      showSnackbar(
+        "No deleted posts selected for restoration.",
+        "warning"
+      );
+      handleCloseBulkRestoreDialog();
+      return;
+    }
+
+    const idsToRestore = deletedPostsToRestore.map((post) => post.id);
+
+    try {
+      setLoading(true);
+      // Use bulk restore API
+      await bulkRestoreBlogPosts(idsToRestore);
+
+      showSnackbar(
+        `${idsToRestore.length} post(s) restored successfully!`,
+        "success"
+      );
+      setRowSelection({});
+      
+      // Refresh data from server by triggering a refetch
+      const response = await getBlogPosts({
+        page: pagination.page,
+        limit: pagination.limit,
+        search: debouncedSearch,
+        sort: sortField,
+        order: sortOrder,
+        deleted: showDeleted,
+        category_id: selectedCategory?.id?.toString() || undefined,
+        tag_id: selectedTag?.id?.toString() || undefined,
+        status: status || undefined,
+      } as ExtendedBlogPostParams) as BlogPostResponse;
+
+      if (response?.data) {
+        setPosts(response.data.blogs);
+        setPagination(prev => ({
+          ...prev,
+          total: response.data?.pagination?.total || 0
+        }));
+      }
+    } catch (error: any) {
+      const errorMessage =
+        error?.response?.data?.message || 
+        error?.message || 
+        error?.response?.data?.errors?.[0]?.msg || 
+        "Bulk restore failed";
+      showSnackbar(errorMessage, "error");
+    } finally {
+      setLoading(false);
+      handleCloseBulkRestoreDialog();
     }
   };
 
@@ -708,6 +809,26 @@ export default function BlogPostsApp() {
                     Bulk Delete ({Object.keys(rowSelection).length})
                   </Button>
                 )}
+
+                {/* Bulk Restore Button */}
+                {Object.keys(rowSelection).length > 0 && showDeleted && (
+                  <Button
+                    variant="contained"
+                    color="success"
+                    size="small"
+                    startIcon={<FuseSvgIcon>heroicons-outline:arrow-path</FuseSvgIcon>}
+                    onClick={handleOpenBulkRestoreDialog}
+                    sx={{
+                      backgroundColor: "#2e7d32",
+                      "&:hover": {
+                        backgroundColor: "#1b5e20",
+                      },
+                      height: '40px'
+                    }}
+                  >
+                    Bulk Restore ({Object.keys(rowSelection).length})
+                  </Button>
+                )}
                 
                 {areFiltersActive && (
                   <ClearFiltersButton 
@@ -844,6 +965,32 @@ export default function BlogPostsApp() {
               disabled={loading}
             >
               Delete
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Bulk Restore Dialog */}
+        <Dialog
+          open={isBulkRestoreDialogOpen}
+          onClose={handleCloseBulkRestoreDialog}
+        >
+          <DialogTitle>Bulk Restore Posts</DialogTitle>
+          <DialogContent>
+            <Typography>
+              Are you sure you want to restore{" "}
+              <strong>{Object.keys(rowSelection).length}</strong> selected
+              post(s)?
+            </Typography>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleCloseBulkRestoreDialog}>Cancel</Button>
+            <Button
+              onClick={handleConfirmBulkRestore}
+              color="success"
+              variant="contained"
+              disabled={loading}
+            >
+              Restore
             </Button>
           </DialogActions>
         </Dialog>
