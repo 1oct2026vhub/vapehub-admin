@@ -38,6 +38,8 @@ import {
   getBlogCategories,
   deleteBlogCategory,
   restoreBlogCategory,
+  bulkDeleteBlogCategories,
+  bulkRestoreBlogCategories,
 } from "@/services/apiBlog";
 import DeleteConfirmationModal from "./components/DeleteConfirmationModal";
 import useColumnOrder from "@/hooks/useColumnOrder";
@@ -76,6 +78,7 @@ export default function BlogCategoriesApp() {
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
   const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false);
+  const [isBulkRestoreDialogOpen, setIsBulkRestoreDialogOpen] = useState(false);
 
   // --- START ADD: Check if Filters are Active ---
   const areFiltersActive = useMemo(() => {
@@ -229,8 +232,8 @@ export default function BlogCategoriesApp() {
 
     try {
       setLoading(true);
-      // Delete all selected categories in parallel
-      await Promise.all(idsToDelete.map((id) => deleteBlogCategory(id)));
+      // Use bulk delete API
+      await bulkDeleteBlogCategories(idsToDelete);
 
       showSnackbar(
         `${idsToDelete.length} category(ies) deleted successfully!`,
@@ -242,11 +245,73 @@ export default function BlogCategoriesApp() {
       fetchCategories();
     } catch (error: any) {
       const errorMessage =
-        error?.message || error?.errors?.[0]?.msg || "Bulk delete failed";
+        error?.response?.data?.message || 
+        error?.message || 
+        error?.response?.data?.errors?.[0]?.msg || 
+        "Bulk delete failed";
       showSnackbar(errorMessage, "error");
     } finally {
       setLoading(false);
       handleCloseBulkDeleteDialog();
+    }
+  };
+
+  // Bulk restore handlers
+  const handleOpenBulkRestoreDialog = () => {
+    setIsBulkRestoreDialogOpen(true);
+  };
+
+  const handleCloseBulkRestoreDialog = () => {
+    setIsBulkRestoreDialogOpen(false);
+  };
+
+  const handleConfirmBulkRestore = async () => {
+    const selectedIndices = Object.keys(rowSelection).filter(
+      (key) => rowSelection[key]
+    );
+    const selectedCategoriesToRestore = categories.filter((_, index) =>
+      selectedIndices.includes(index.toString())
+    );
+
+    // Filter only deleted categories for bulk restore
+    const deletedCategoriesToRestore = selectedCategoriesToRestore.filter(
+      (category) => category.deletedAt
+    );
+
+    if (deletedCategoriesToRestore.length === 0) {
+      showSnackbar(
+        "No deleted categories selected for restoration.",
+        "warning"
+      );
+      handleCloseBulkRestoreDialog();
+      return;
+    }
+
+    const idsToRestore = deletedCategoriesToRestore.map((category) => category.id);
+
+    try {
+      setLoading(true);
+      // Use bulk restore API
+      await bulkRestoreBlogCategories(idsToRestore);
+
+      showSnackbar(
+        `${idsToRestore.length} category(ies) restored successfully!`,
+        "success"
+      );
+      setRowSelection({});
+      
+      // Refresh data from server
+      fetchCategories();
+    } catch (error: any) {
+      const errorMessage =
+        error?.response?.data?.message || 
+        error?.message || 
+        error?.response?.data?.errors?.[0]?.msg || 
+        "Bulk restore failed";
+      showSnackbar(errorMessage, "error");
+    } finally {
+      setLoading(false);
+      handleCloseBulkRestoreDialog();
     }
   };
 
@@ -408,6 +473,26 @@ export default function BlogCategoriesApp() {
                   </Button>
                 )}
 
+                {/* Bulk Restore Button */}
+                {Object.keys(rowSelection).length > 0 && showDeleted && (
+                  <Button
+                    variant="contained"
+                    color="success"
+                    size="small"
+                    startIcon={<FuseSvgIcon>heroicons-outline:arrow-path</FuseSvgIcon>}
+                    onClick={handleOpenBulkRestoreDialog}
+                    sx={{
+                      backgroundColor: "#2e7d32",
+                      "&:hover": {
+                        backgroundColor: "#1b5e20",
+                      },
+                      height: '40px'
+                    }}
+                  >
+                    Bulk Restore ({Object.keys(rowSelection).length})
+                  </Button>
+                )}
+
                 {/* --- START ADD: Clear Filters Button --- */}
                 {areFiltersActive && (
                   <ClearFiltersButton 
@@ -555,6 +640,32 @@ export default function BlogCategoriesApp() {
             disabled={loading}
           >
             Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Bulk Restore Dialog */}
+      <Dialog
+        open={isBulkRestoreDialogOpen}
+        onClose={handleCloseBulkRestoreDialog}
+      >
+        <DialogTitle>Bulk Restore Categories</DialogTitle>
+        <DialogContent>
+          <Typography>
+            Are you sure you want to restore{" "}
+            <strong>{Object.keys(rowSelection).length}</strong> selected
+            category(ies)?
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseBulkRestoreDialog}>Cancel</Button>
+          <Button
+            onClick={handleConfirmBulkRestore}
+            color="success"
+            variant="contained"
+            disabled={loading}
+          >
+            Restore
           </Button>
         </DialogActions>
       </Dialog>

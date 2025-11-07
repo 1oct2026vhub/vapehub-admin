@@ -3,7 +3,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Paper, TextField, MenuItem, Select, InputAdornment, Pagination, PaginationItem, ListItemIcon, Button, Dialog, DialogTitle, DialogContent, DialogActions, Typography } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import DataTable from '@/components/data-table/DataTable';
-import { getFlashNews, deleteFlashNews, restoreFlashNews, FlashNews } from '@/services/apiFlashNews';
+import { getFlashNews, deleteFlashNews, restoreFlashNews, FlashNews, bulkDeleteFlashNews, bulkRestoreFlashNews } from '@/services/apiFlashNews';
 import AppButton from '@/components/Shared/AppButton';
 import FuseSvgIcon from '@fuse/core/FuseSvgIcon';
 import { useRouter } from 'next/navigation';
@@ -23,6 +23,7 @@ const FlashNewsTable: React.FC = () => {
   const [selectedFlashNews, setSelectedFlashNews] = useState<FlashNews | null>(null);
   const [rowSelection, setRowSelection] = useState({});
   const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false);
+  const [isBulkRestoreDialogOpen, setIsBulkRestoreDialogOpen] = useState(false);
   const router = useRouter();
   const { showSnackbar } = useSnackbar();
 
@@ -104,8 +105,8 @@ const FlashNewsTable: React.FC = () => {
 
     try {
       setIsLoading(true);
-      // Delete all selected flash news in parallel
-      await Promise.all(idsToDelete.map((id) => deleteFlashNews(id)));
+      // Use bulk delete API
+      await bulkDeleteFlashNews(idsToDelete);
 
       showSnackbar(
         `${idsToDelete.length} flash news item(s) deleted successfully!`,
@@ -117,11 +118,73 @@ const FlashNewsTable: React.FC = () => {
       fetchData();
     } catch (error: any) {
       const errorMessage =
-        error?.message || error?.errors?.[0]?.msg || "Bulk delete failed";
+        error?.response?.data?.message || 
+        error?.message || 
+        error?.response?.data?.errors?.[0]?.msg || 
+        "Bulk delete failed";
       showSnackbar(errorMessage, "error");
     } finally {
       setIsLoading(false);
       handleCloseBulkDeleteDialog();
+    }
+  };
+
+  // Bulk restore handlers
+  const handleOpenBulkRestoreDialog = () => {
+    setIsBulkRestoreDialogOpen(true);
+  };
+
+  const handleCloseBulkRestoreDialog = () => {
+    setIsBulkRestoreDialogOpen(false);
+  };
+
+  const handleConfirmBulkRestore = async () => {
+    const selectedIndices = Object.keys(rowSelection).filter(
+      (key) => rowSelection[key]
+    );
+    const selectedFlashNewsToRestore = flashNews.filter((_, index) =>
+      selectedIndices.includes(index.toString())
+    );
+
+    // Filter only deleted flash news for bulk restore
+    const deletedFlashNewsToRestore = selectedFlashNewsToRestore.filter(
+      (item) => item.deleted_at
+    );
+
+    if (deletedFlashNewsToRestore.length === 0) {
+      showSnackbar(
+        "No deleted flash news selected for restoration.",
+        "warning"
+      );
+      handleCloseBulkRestoreDialog();
+      return;
+    }
+
+    const idsToRestore = deletedFlashNewsToRestore.map((item) => item.id);
+
+    try {
+      setIsLoading(true);
+      // Use bulk restore API
+      await bulkRestoreFlashNews(idsToRestore);
+
+      showSnackbar(
+        `${idsToRestore.length} flash news item(s) restored successfully!`,
+        "success"
+      );
+      setRowSelection({});
+      
+      // Refresh data from server
+      fetchData();
+    } catch (error: any) {
+      const errorMessage =
+        error?.response?.data?.message || 
+        error?.message || 
+        error?.response?.data?.errors?.[0]?.msg || 
+        "Bulk restore failed";
+      showSnackbar(errorMessage, "error");
+    } finally {
+      setIsLoading(false);
+      handleCloseBulkRestoreDialog();
     }
   };
 
@@ -201,6 +264,25 @@ const FlashNewsTable: React.FC = () => {
               }}
             >
               Bulk Delete ({Object.keys(rowSelection).length})
+            </Button>
+          )}
+
+          {/* Bulk Restore Button */}
+          {Object.keys(rowSelection).length > 0 && deleted === true && (
+            <Button
+              variant="contained"
+              color="success"
+              size="small"
+              startIcon={<FuseSvgIcon>heroicons-outline:arrow-path</FuseSvgIcon>}
+              onClick={handleOpenBulkRestoreDialog}
+              sx={{
+                backgroundColor: "#2e7d32",
+                "&:hover": {
+                  backgroundColor: "#1b5e20",
+                },
+              }}
+            >
+              Bulk Restore ({Object.keys(rowSelection).length})
             </Button>
           )}
 
@@ -305,6 +387,29 @@ const FlashNewsTable: React.FC = () => {
             disabled={isLoading}
           >
             Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Bulk Restore Confirmation Dialog */}
+      <Dialog open={isBulkRestoreDialogOpen} onClose={handleCloseBulkRestoreDialog}>
+        <DialogTitle>Bulk Restore Flash News</DialogTitle>
+        <DialogContent>
+          <Typography>
+            Are you sure you want to restore{" "}
+            <strong>{Object.keys(rowSelection).length}</strong> selected
+            flash news item(s)?
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseBulkRestoreDialog}>Cancel</Button>
+          <Button 
+            onClick={handleConfirmBulkRestore}
+            color="success"
+            variant="contained"
+            disabled={isLoading}
+          >
+            Restore
           </Button>
         </DialogActions>
       </Dialog>

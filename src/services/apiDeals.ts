@@ -168,4 +168,28 @@ export const removeProductsFromDeal = async (dealId: number, product_ids: number
     return response.data;
 };
 
+/**
+ * Bulk delete deals
+ * @param ids - Array of deal IDs to delete
+ * @returns Promise containing the API response
+ */
+export async function bulkDeleteDeals(ids: number[]): Promise<any> {
+  const response = await axiosInstance.delete('/api/admin/deals/bulk-delete', {
+    data: { ids }
+  });
+  return response.data;
+}
+
+/**
+ * Bulk restore soft-deleted deals
+ * @param ids - Array of deal IDs to restore
+ * @returns Promise containing the API response
+ */
+export async function bulkRestoreDeals(ids: number[]): Promise<any> {
+  const response = await axiosInstance.put('/api/admin/deals/bulk-restore', {
+    ids
+  });
+  return response.data;
+}
+
 

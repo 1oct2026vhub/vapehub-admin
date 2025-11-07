@@ -42,4 +42,18 @@ export async function deleteFlashNews(id: number): Promise<any> {
 export async function restoreFlashNews(id: number): Promise<any> {
   const response = await axiosInstance.patch(`/api/admin/flash-news/${id}/restore`);
   return response.data;
+}
+
+export async function bulkDeleteFlashNews(ids: number[]): Promise<any> {
+  const response = await axiosInstance.delete('/api/admin/flash-news/bulk-delete', {
+    data: { ids }
+  });
+  return response.data;
+}
+
+export async function bulkRestoreFlashNews(ids: number[]): Promise<any> {
+  const response = await axiosInstance.put('/api/admin/flash-news/bulk-restore', {
+    ids
+  });
+  return response.data;
 } 

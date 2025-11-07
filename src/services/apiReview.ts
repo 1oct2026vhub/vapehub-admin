@@ -1,4 +1,5 @@
 import { fetcher, deleter, poster, updater } from './apiService';
+import axiosInstance from '@/utils/axiosApi';
 
 export interface Review {
     id: number;
@@ -35,6 +36,7 @@ export interface FetchReviewsParams {
     rating?: string;
     sortBy?: string;
     sortOrder?: 'ASC' | 'DESC';
+    deleted?: boolean;
 }
 
 export interface ListReviewsApiResponse {
@@ -58,4 +60,16 @@ export const updateReview = (id: number, data: CreateReviewData): Promise<Review
 
 export const deleteReview = (id: number): Promise<void> => {
     return deleter(`/api/admin/review/${id}`);
+};
+
+export const bulkDeleteReviews = (ids: number[]): Promise<any> => {
+    return axiosInstance.delete('/api/admin/review/bulk-delete', {
+        data: { ids }
+    }).then((res) => res.data);
+};
+
+export const bulkRestoreReviews = (ids: number[]): Promise<any> => {
+    return axiosInstance.put('/api/admin/review/bulk-restore', {
+        ids
+    }).then((res) => res.data);
 }; 
