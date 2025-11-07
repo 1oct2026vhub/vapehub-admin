@@ -36,7 +36,7 @@ import SearchIcon from "@mui/icons-material/Search";
 import FuseSvgIcon from "@fuse/core/FuseSvgIcon";
 import { useSnackbar } from "@/contexts/SnackbarContext";
 import { formatDate } from "@/utils/actions";
-import { BlogTag, BlogTagResponse, getBlogTags, createBlogTag, updateBlogTag, deleteBlogTag, restoreBlogTag } from "@/services/apiBlog";
+import { BlogTag, BlogTagResponse, getBlogTags, createBlogTag, updateBlogTag, deleteBlogTag, restoreBlogTag, bulkDeleteBlogTags, bulkRestoreBlogTags } from "@/services/apiBlog";
 import { useRouter } from "next/navigation";
 import DeleteConfirmationModal from "./components/DeleteConfirmationModal";
 import useColumnOrder from "@/hooks/useColumnOrder";
@@ -82,6 +82,7 @@ export default function BlogTagsApp() {
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
   const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false);
+  const [isBulkRestoreDialogOpen, setIsBulkRestoreDialogOpen] = useState(false);
 
   const router = useRouter();
 
@@ -302,8 +303,8 @@ export default function BlogTagsApp() {
 
     try {
       setLoading(true);
-      // Delete all selected tags in parallel
-      await Promise.all(idsToDelete.map((id) => deleteBlogTag(id)));
+      // Use bulk delete API
+      await bulkDeleteBlogTags(idsToDelete);
 
       showSnackbar(
         `${idsToDelete.length} tag(s) deleted successfully!`,
@@ -315,11 +316,73 @@ export default function BlogTagsApp() {
       fetchTags();
     } catch (error: any) {
       const errorMessage =
-        error?.message || error?.errors?.[0]?.msg || "Bulk delete failed";
+        error?.response?.data?.message || 
+        error?.message || 
+        error?.response?.data?.errors?.[0]?.msg || 
+        "Bulk delete failed";
       showSnackbar(errorMessage, "error");
     } finally {
       setLoading(false);
       handleCloseBulkDeleteDialog();
+    }
+  };
+
+  // Bulk restore handlers
+  const handleOpenBulkRestoreDialog = () => {
+    setIsBulkRestoreDialogOpen(true);
+  };
+
+  const handleCloseBulkRestoreDialog = () => {
+    setIsBulkRestoreDialogOpen(false);
+  };
+
+  const handleConfirmBulkRestore = async () => {
+    const selectedIndices = Object.keys(rowSelection).filter(
+      (key) => rowSelection[key]
+    );
+    const selectedTagsToRestore = tags.filter((_, index) =>
+      selectedIndices.includes(index.toString())
+    );
+
+    // Filter only deleted tags for bulk restore
+    const deletedTagsToRestore = selectedTagsToRestore.filter(
+      (tag) => tag.deleted_at
+    );
+
+    if (deletedTagsToRestore.length === 0) {
+      showSnackbar(
+        "No deleted tags selected for restoration.",
+        "warning"
+      );
+      handleCloseBulkRestoreDialog();
+      return;
+    }
+
+    const idsToRestore = deletedTagsToRestore.map((tag) => tag.id);
+
+    try {
+      setLoading(true);
+      // Use bulk restore API
+      await bulkRestoreBlogTags(idsToRestore);
+
+      showSnackbar(
+        `${idsToRestore.length} tag(s) restored successfully!`,
+        "success"
+      );
+      setRowSelection({});
+      
+      // Refresh data from server
+      fetchTags();
+    } catch (error: any) {
+      const errorMessage =
+        error?.response?.data?.message || 
+        error?.message || 
+        error?.response?.data?.errors?.[0]?.msg || 
+        "Bulk restore failed";
+      showSnackbar(errorMessage, "error");
+    } finally {
+      setLoading(false);
+      handleCloseBulkRestoreDialog();
     }
   };
 
@@ -439,6 +502,26 @@ export default function BlogTagsApp() {
                     }}
                   >
                     Bulk Delete ({Object.keys(rowSelection).length})
+                  </Button>
+                )}
+
+                {/* Bulk Restore Button */}
+                {Object.keys(rowSelection).length > 0 && showDeleted && (
+                  <Button
+                    variant="contained"
+                    color="success"
+                    size="small"
+                    startIcon={<FuseSvgIcon>heroicons-outline:arrow-path</FuseSvgIcon>}
+                    onClick={handleOpenBulkRestoreDialog}
+                    sx={{
+                      backgroundColor: "#2e7d32",
+                      "&:hover": {
+                        backgroundColor: "#1b5e20",
+                      },
+                      height: '40px'
+                    }}
+                  >
+                    Bulk Restore ({Object.keys(rowSelection).length})
                   </Button>
                 )}
 
@@ -582,6 +665,32 @@ export default function BlogTagsApp() {
               disabled={loading}
             >
               Delete
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Bulk Restore Dialog */}
+        <Dialog
+          open={isBulkRestoreDialogOpen}
+          onClose={handleCloseBulkRestoreDialog}
+        >
+          <DialogTitle>Bulk Restore Tags</DialogTitle>
+          <DialogContent>
+            <Typography>
+              Are you sure you want to restore{" "}
+              <strong>{Object.keys(rowSelection).length}</strong> selected
+              tag(s)?
+            </Typography>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleCloseBulkRestoreDialog}>Cancel</Button>
+            <Button
+              onClick={handleConfirmBulkRestore}
+              color="success"
+              variant="contained"
+              disabled={loading}
+            >
+              Restore
             </Button>
           </DialogActions>
         </Dialog>

@@ -24,7 +24,7 @@ import {
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import ClearFiltersButton from '@/components/Shared/ClearFiltersButton';
-import { getCoupons, Coupon, FetchCouponsParams, deleteCoupon, restoreCoupon } from '@/services/apiCoupon';
+import { getCoupons, Coupon, FetchCouponsParams, deleteCoupon, restoreCoupon, bulkDeleteCoupons, bulkRestoreCoupons } from '@/services/apiCoupon';
 import { listProducts } from '@/services/apiProduct';
 import { listProductBrand } from '@/services/apiProductBrand';
 import { listProductCategory } from '@/services/apiProductCategory';
@@ -45,6 +45,7 @@ const CouponTable: React.FC = () => {
   const [selectedCoupon, setSelectedCoupon] = useState<Coupon | null>(null);
   const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
   const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false);
+  const [isBulkRestoreDialogOpen, setIsBulkRestoreDialogOpen] = useState(false);
   const [status, setStatus] = useState<string>('');
   const [discountType, setDiscountType] = useState<string>('');
   const [entityType, setEntityType] = useState<string>('');
@@ -169,6 +170,7 @@ const CouponTable: React.FC = () => {
         entity_id: entityId || undefined,
         start_date: startDate || undefined,
         end_date: endDate || undefined,
+        deleted: deleted !== null ? deleted : undefined,
       };
       const res = await getCoupons(params);
       setCoupons(res.data?.coupons || []);
@@ -178,7 +180,7 @@ const CouponTable: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [page, limit, debouncedSearch, status, discountType, entityType, entityId, startDate, endDate]);
+  }, [page, limit, debouncedSearch, status, discountType, entityType, entityId, startDate, endDate, deleted]);
 
   useEffect(() => {
     fetchData();
@@ -243,8 +245,8 @@ const CouponTable: React.FC = () => {
 
     try {
       setIsLoading(true);
-      // Delete all selected coupons in parallel
-      await Promise.all(idsToDelete.map((id) => deleteCoupon(id)));
+      // Use bulk delete API
+      await bulkDeleteCoupons(idsToDelete);
 
       showSnackbar(
         `${idsToDelete.length} coupon(s) deleted successfully!`,
@@ -256,11 +258,73 @@ const CouponTable: React.FC = () => {
       fetchData();
     } catch (error: any) {
       const errorMessage =
-        error?.message || error?.errors?.[0]?.msg || "Bulk delete failed";
+        error?.response?.data?.message || 
+        error?.message || 
+        error?.response?.data?.errors?.[0]?.msg || 
+        "Bulk delete failed";
       showSnackbar(errorMessage, "error");
     } finally {
       setIsLoading(false);
       handleCloseBulkDeleteDialog();
+    }
+  };
+
+  // Bulk restore handlers
+  const handleOpenBulkRestoreDialog = () => {
+    setIsBulkRestoreDialogOpen(true);
+  };
+
+  const handleCloseBulkRestoreDialog = () => {
+    setIsBulkRestoreDialogOpen(false);
+  };
+
+  const handleConfirmBulkRestore = async () => {
+    const selectedIndices = Object.keys(rowSelection).filter(
+      (key) => rowSelection[key]
+    );
+    const selectedCouponsToRestore = coupons.filter((_, index) =>
+      selectedIndices.includes(index.toString())
+    );
+
+    // Filter only deleted coupons for bulk restore
+    const deletedCouponsToRestore = selectedCouponsToRestore.filter(
+      (coupon) => coupon.deletedAt
+    );
+
+    if (deletedCouponsToRestore.length === 0) {
+      showSnackbar(
+        "No deleted coupons selected for restoration.",
+        "warning"
+      );
+      handleCloseBulkRestoreDialog();
+      return;
+    }
+
+    const idsToRestore = deletedCouponsToRestore.map((coupon) => coupon.id);
+
+    try {
+      setIsLoading(true);
+      // Use bulk restore API
+      await bulkRestoreCoupons(idsToRestore);
+
+      showSnackbar(
+        `${idsToRestore.length} coupon(s) restored successfully!`,
+        "success"
+      );
+      setRowSelection({});
+      
+      // Refresh data from server
+      fetchData();
+    } catch (error: any) {
+      const errorMessage =
+        error?.response?.data?.message || 
+        error?.message || 
+        error?.response?.data?.errors?.[0]?.msg || 
+        "Bulk restore failed";
+      showSnackbar(errorMessage, "error");
+    } finally {
+      setIsLoading(false);
+      handleCloseBulkRestoreDialog();
     }
   };
   // --- END ---
@@ -486,6 +550,25 @@ const CouponTable: React.FC = () => {
             </Button>
           )}
 
+          {/* Bulk Restore Button */}
+          {Object.keys(rowSelection).length > 0 && deleted === true && (
+            <Button
+              variant="contained"
+              color="success"
+              size="small"
+              startIcon={<FuseSvgIcon>heroicons-outline:arrow-path</FuseSvgIcon>}
+              onClick={handleOpenBulkRestoreDialog}
+              sx={{
+                backgroundColor: "#2e7d32",
+                "&:hover": {
+                  backgroundColor: "#1b5e20",
+                },
+              }}
+            >
+              Bulk Restore ({Object.keys(rowSelection).length})
+            </Button>
+          )}
+
           {areFiltersActive && <ClearFiltersButton onClick={clearFilters} />}
         </div>
         <DataTable
@@ -584,6 +667,32 @@ const CouponTable: React.FC = () => {
               disabled={isLoading}
             >
               Delete
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Bulk Restore Dialog */}
+        <Dialog
+          open={isBulkRestoreDialogOpen}
+          onClose={handleCloseBulkRestoreDialog}
+        >
+          <DialogTitle>Bulk Restore Coupons</DialogTitle>
+          <DialogContent>
+            <Typography>
+              Are you sure you want to restore{" "}
+              <strong>{Object.keys(rowSelection).length}</strong> selected
+              coupon(s)?
+            </Typography>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleCloseBulkRestoreDialog}>Cancel</Button>
+            <Button
+              onClick={handleConfirmBulkRestore}
+              color="success"
+              variant="contained"
+              disabled={isLoading}
+            >
+              Restore
             </Button>
           </DialogActions>
         </Dialog>

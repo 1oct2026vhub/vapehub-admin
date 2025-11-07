@@ -28,7 +28,7 @@ import {
   InputLabel,
   Select,
 } from '@mui/material';
-import { getReviews, Review, FetchReviewsParams, deleteReview } from '@/services/apiReview';
+import { getReviews, Review, FetchReviewsParams, deleteReview, bulkDeleteReviews, bulkRestoreReviews } from '@/services/apiReview';
 import { useSnackbar } from '@/contexts/SnackbarContext';
 import FuseSvgIcon from '@fuse/core/FuseSvgIcon';
 import { useDebounce } from '@/hooks/useDebounce';
@@ -48,6 +48,8 @@ const ReviewTable: React.FC<ReviewTableProps> = ({ onEditClick }) => {
   const [selectedReview, setSelectedReview] = useState<Review | null>(null);
   const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
   const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false);
+  const [isBulkRestoreDialogOpen, setIsBulkRestoreDialogOpen] = useState(false);
+  const [deleted, setDeleted] = useState<boolean | null>(null);
   const { showSnackbar } = useSnackbar();
   const [search, setSearch] = useState('');
   const [rating, setRating] = useState('all');
@@ -78,10 +80,11 @@ const ReviewTable: React.FC<ReviewTableProps> = ({ onEditClick }) => {
     setRating('all');
     setSortBy('created_at');
     setSortOrder('DESC');
+    setDeleted(null);
     setRowSelection({}); // Clear row selection when filters are cleared
   };
 
-  const isFilterApplied = search !== '' || rating !== 'all' || sortBy !== 'created_at' || sortOrder !== 'DESC';
+  const isFilterApplied = search !== '' || rating !== 'all' || sortBy !== 'created_at' || sortOrder !== 'DESC' || deleted !== null;
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);
@@ -93,6 +96,7 @@ const ReviewTable: React.FC<ReviewTableProps> = ({ onEditClick }) => {
         rating,
         sortBy,
         sortOrder,
+        deleted: deleted !== null ? deleted : undefined,
       };
       const res = await getReviews(params);
       console.log("reviews", res);
@@ -105,7 +109,7 @@ const ReviewTable: React.FC<ReviewTableProps> = ({ onEditClick }) => {
     finally {
       setIsLoading(false);
     }
-  }, [page, limit, showSnackbar, debouncedSearch, rating, sortBy, sortOrder]);
+  }, [page, limit, showSnackbar, debouncedSearch, rating, sortBy, sortOrder, deleted]);
 
   useEffect(() => {
     fetchData();
@@ -149,21 +153,26 @@ const ReviewTable: React.FC<ReviewTableProps> = ({ onEditClick }) => {
       selectedIndices.includes(index.toString())
     );
 
-    if (selectedReviewsToDelete.length === 0) {
+    // Filter out already deleted reviews for bulk delete
+    const activeReviewsToDelete = selectedReviewsToDelete.filter(
+      (review) => !(review as any).deletedAt
+    );
+
+    if (activeReviewsToDelete.length === 0) {
       showSnackbar(
-        "No reviews selected for deletion.",
+        "No active reviews selected for deletion.",
         "warning"
       );
       handleCloseBulkDeleteDialog();
       return;
     }
 
-    const idsToDelete = selectedReviewsToDelete.map((review) => review.id);
+    const idsToDelete = activeReviewsToDelete.map((review) => review.id);
 
     try {
       setIsLoading(true);
-      // Delete all selected reviews in parallel
-      await Promise.all(idsToDelete.map((id) => deleteReview(id)));
+      // Use bulk delete API
+      await bulkDeleteReviews(idsToDelete);
 
       showSnackbar(
         `${idsToDelete.length} review(s) deleted successfully!`,
@@ -175,11 +184,73 @@ const ReviewTable: React.FC<ReviewTableProps> = ({ onEditClick }) => {
       fetchData();
     } catch (error: any) {
       const errorMessage =
-        error?.message || error?.errors?.[0]?.msg || "Bulk delete failed";
+        error?.response?.data?.message || 
+        error?.message || 
+        error?.response?.data?.errors?.[0]?.msg || 
+        "Bulk delete failed";
       showSnackbar(errorMessage, "error");
     } finally {
       setIsLoading(false);
       handleCloseBulkDeleteDialog();
+    }
+  };
+
+  // Bulk restore handlers
+  const handleOpenBulkRestoreDialog = () => {
+    setIsBulkRestoreDialogOpen(true);
+  };
+
+  const handleCloseBulkRestoreDialog = () => {
+    setIsBulkRestoreDialogOpen(false);
+  };
+
+  const handleConfirmBulkRestore = async () => {
+    const selectedIndices = Object.keys(rowSelection).filter(
+      (key) => rowSelection[key]
+    );
+    const selectedReviewsToRestore = reviews.filter((_, index) =>
+      selectedIndices.includes(index.toString())
+    );
+
+    // Filter only deleted reviews for bulk restore
+    const deletedReviewsToRestore = selectedReviewsToRestore.filter(
+      (review) => (review as any).deletedAt
+    );
+
+    if (deletedReviewsToRestore.length === 0) {
+      showSnackbar(
+        "No deleted reviews selected for restoration.",
+        "warning"
+      );
+      handleCloseBulkRestoreDialog();
+      return;
+    }
+
+    const idsToRestore = deletedReviewsToRestore.map((review) => review.id);
+
+    try {
+      setIsLoading(true);
+      // Use bulk restore API
+      await bulkRestoreReviews(idsToRestore);
+
+      showSnackbar(
+        `${idsToRestore.length} review(s) restored successfully!`,
+        "success"
+      );
+      setRowSelection({});
+      
+      // Refresh data from server
+      fetchData();
+    } catch (error: any) {
+      const errorMessage =
+        error?.response?.data?.message || 
+        error?.message || 
+        error?.response?.data?.errors?.[0]?.msg || 
+        "Bulk restore failed";
+      showSnackbar(errorMessage, "error");
+    } finally {
+      setIsLoading(false);
+      handleCloseBulkRestoreDialog();
     }
   };
 
@@ -278,8 +349,24 @@ const ReviewTable: React.FC<ReviewTableProps> = ({ onEditClick }) => {
             </Select>
           </FormControl>
 
+          <Select
+            value={deleted === null ? "active" : deleted ? "deleted" : "active"}
+            onChange={(e) =>
+              setDeleted(
+                e.target.value === "active"
+                  ? null
+                  : e.target.value === "deleted"
+              )
+            }
+            size="small"
+            sx={{ minWidth: 120 }}
+          >
+            <MenuItem value="active">Active</MenuItem>
+            <MenuItem value="deleted">Deleted</MenuItem>
+          </Select>
+
           {/* Bulk Delete Button */}
-          {Object.keys(rowSelection).length > 0 && (
+          {Object.keys(rowSelection).length > 0 && deleted !== true && (
             <Button
               variant="contained"
               color="error"
@@ -294,6 +381,25 @@ const ReviewTable: React.FC<ReviewTableProps> = ({ onEditClick }) => {
               }}
             >
               Bulk Delete ({Object.keys(rowSelection).length})
+            </Button>
+          )}
+
+          {/* Bulk Restore Button */}
+          {Object.keys(rowSelection).length > 0 && deleted === true && (
+            <Button
+              variant="contained"
+              color="success"
+              size="small"
+              startIcon={<FuseSvgIcon>heroicons-outline:arrow-path</FuseSvgIcon>}
+              onClick={handleOpenBulkRestoreDialog}
+              sx={{
+                backgroundColor: "#2e7d32",
+                "&:hover": {
+                  backgroundColor: "#1b5e20",
+                },
+              }}
+            >
+              Bulk Restore ({Object.keys(rowSelection).length})
             </Button>
           )}
 
@@ -397,6 +503,32 @@ const ReviewTable: React.FC<ReviewTableProps> = ({ onEditClick }) => {
               disabled={isLoading}
             >
               Delete
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Bulk Restore Dialog */}
+        <Dialog
+          open={isBulkRestoreDialogOpen}
+          onClose={handleCloseBulkRestoreDialog}
+        >
+          <DialogTitle>Bulk Restore Reviews</DialogTitle>
+          <DialogContent>
+            <Typography>
+              Are you sure you want to restore{" "}
+              <strong>{Object.keys(rowSelection).length}</strong> selected
+              review(s)?
+            </Typography>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleCloseBulkRestoreDialog}>Cancel</Button>
+            <Button
+              onClick={handleConfirmBulkRestore}
+              color="success"
+              variant="contained"
+              disabled={isLoading}
+            >
+              Restore
             </Button>
           </DialogActions>
         </Dialog>

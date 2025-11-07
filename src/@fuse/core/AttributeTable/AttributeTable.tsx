@@ -31,6 +31,8 @@ import {
   listAttributes,
   deleteAttribute,
   restoreAttribute,
+  bulkDeleteAttribute,
+  bulkRestoreAttribute,
   type Attribute,
   type AttributeListParams,
 } from "@/services/apiAttribute";
@@ -81,6 +83,7 @@ const AttributeTable = ({
   const [manuallyRefreshing, setManuallyRefreshing] = useState(false);
   const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
   const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false);
+  const [isBulkRestoreDialogOpen, setIsBulkRestoreDialogOpen] = useState(false);
 
   const sorting = useMemo<MRT_SortingState>(
     () => [{ id: sortBy, desc: order === "DESC" }],
@@ -223,19 +226,12 @@ const AttributeTable = ({
     if (!selectedAttribute) return;
     setOpenDialog(false);
 
+    // Optimistically remove the item immediately for instant UI feedback
+    setLocalAttributes((prev) =>
+      prev.filter((attr) => attr.id !== selectedAttribute.id)
+    );
+
     try {
-      // Immediately update local state
-      const updatedAttributes = localAttributes.filter(
-        (attr) => attr.id !== selectedAttribute.id
-      );
-      setLocalAttributes(updatedAttributes);
-
-      // Update pagination if needed
-      const newTotal = (data?.data?.pagination?.total || 0) - 1;
-      if (newTotal <= (page - 1) * limit && page > 1) {
-        setPage(page - 1);
-      }
-
       // Perform the actual API call
       if (selectedAttribute.deleted_at) {
         await restoreAttribute(selectedAttribute.id);
@@ -245,9 +241,30 @@ const AttributeTable = ({
         showSnackbar("Attribute deleted successfully!", "success");
       }
 
-      // Update the server data
-      await mutate(["attributeList", queryParams]);
+      // Fetch fresh data immediately after delete/restore to ensure accuracy
+      const freshData = await listAttributes(queryParams);
+      
+      // Update SWR cache with fresh data
+      await mutate(["attributeList", queryParams], freshData, { revalidate: false });
+      
+      // Update local state with fresh data to ensure table is in sync
+      if (freshData?.data?.attributes) {
+        setLocalAttributes(freshData.data.attributes);
+      }
+
+      // Update pagination if needed
+      const newTotal = freshData?.data?.total || (data?.data?.total || 0) - 1;
+      if (newTotal <= (page - 1) * limit && page > 1) {
+        setPage(page - 1);
+      }
     } catch (error: any) {
+      // On error, refresh data to restore correct state
+      const freshData = await listAttributes(queryParams);
+      if (freshData?.data?.attributes) {
+        setLocalAttributes(freshData.data.attributes);
+      }
+      await mutate(["attributeList", queryParams], freshData, { revalidate: false });
+
       if (error?.errors) {
         showSnackbar(error?.errors[0]?.msg, "error");
       } else {
@@ -259,27 +276,14 @@ const AttributeTable = ({
       if (errorData?.error && typeof errorData.error === "object") {
         Object.entries(errorData.error).forEach(([field, message]) => {
           if (typeof message === "string") {
-            // setError(field, { type: 'manual', message });
             showSnackbar(` ${message}`, "error");
           }
         });
-      } else {
-        // setError('root', { type: 'manual', message: errorMessage });
       }
       return false;
+    } finally {
+      setSelectedAttribute(null);
     }
-    //   if (error?.errors) {
-    //     showSnackbar(error?.errors[0]?.msg, "error");
-    //   } else {
-    //     const errorMessage = error?.message || "An unexpected error occurred";
-    //     showSnackbar(errorMessage, "error");
-    //   }
-
-    //   // Rollback the optimistic update on error
-    //   refreshData();
-
-    //   return false;
-    // } 
   };
 
   // Bulk delete handlers
@@ -317,22 +321,26 @@ const AttributeTable = ({
 
     try {
       setIsLoading(true);
-      // Delete all selected attributes in parallel
-      await Promise.all(idsToDelete.map((id) => deleteAttribute(id)));
+      // Use bulk delete API
+      const response = await bulkDeleteAttribute(idsToDelete);
 
-      // Optimistically update the UI
-      setLocalAttributes((prev) =>
-        prev.filter((attr) => !idsToDelete.includes(attr.id))
-      );
-
-      showSnackbar(
-        `${idsToDelete.length} attribute(s) deleted successfully!`,
-        "success"
-      );
-      setRowSelection({});
+      // Handle response - API may return summary or just success
+      const deletedCount = response?.data?.summary?.deleted_count || idsToDelete.length;
+      const successMessage = `${deletedCount} attribute(s) deleted successfully!`;
       
-      // Refresh data from server
-      await mutate(["attributeList", queryParams]);
+      // Fetch fresh data immediately after delete
+      const freshData = await listAttributes(queryParams);
+      
+      // Update SWR cache first - this will trigger useEffect and update data
+      await mutate(["attributeList", queryParams], freshData, { revalidate: false });
+      
+      // Also directly update local state to ensure immediate table update
+      if (freshData?.data?.attributes) {
+        setLocalAttributes(freshData.data.attributes);
+      }
+      
+      showSnackbar(successMessage, "success");
+      setRowSelection({});
     } catch (error: any) {
       const errorMessage =
         error?.message || error?.errors?.[0]?.msg || "Bulk delete failed";
@@ -340,6 +348,85 @@ const AttributeTable = ({
     } finally {
       setIsLoading(false);
       handleCloseBulkDeleteDialog();
+    }
+  };
+
+  // Bulk restore handlers
+  const handleOpenBulkRestoreDialog = () => {
+    setIsBulkRestoreDialogOpen(true);
+  };
+
+  const handleCloseBulkRestoreDialog = () => {
+    setIsBulkRestoreDialogOpen(false);
+  };
+
+  const handleConfirmBulkRestore = async () => {
+    const selectedIndices = Object.keys(rowSelection).filter(
+      (key) => rowSelection[key]
+    );
+    const selectedAttributesToRestore = localAttributes.filter((_, index) =>
+      selectedIndices.includes(index.toString())
+    );
+
+    // Filter only deleted attributes for bulk restore
+    const deletedAttributesToRestore = selectedAttributesToRestore.filter(
+      (attr) => attr.deleted_at
+    );
+
+    if (deletedAttributesToRestore.length === 0) {
+      showSnackbar(
+        "No deleted attributes selected for restoration.",
+        "warning"
+      );
+      handleCloseBulkRestoreDialog();
+      return;
+    }
+
+    const idsToRestore = deletedAttributesToRestore.map((attr) => attr.id);
+
+    try {
+      setIsLoading(true);
+      // Use bulk restore API
+      const response = await bulkRestoreAttribute(idsToRestore);
+
+      const successMessage = response?.data?.summary?.restored_count
+        ? `${response.data.summary.restored_count} attribute(s) restored successfully!`
+        : `${idsToRestore.length} attribute(s) restored successfully!`;
+      
+      // Change filter to active status after restore
+      setShowDeleted(false);
+      setPage(1);
+      
+      // Create new query params with active filter
+      const activeQueryParams = {
+        ...queryParams,
+        show_deleted: false,
+        offset: 0, // Reset to first page
+      };
+      
+      // Fetch fresh data with active filter
+      const freshData = await listAttributes(activeQueryParams);
+      
+      // Update SWR cache with new query params
+      await mutate(["attributeList", activeQueryParams], freshData, { revalidate: false });
+      
+      // Also update cache for old query params to keep it in sync
+      await mutate(["attributeList", queryParams], undefined, { revalidate: true });
+      
+      // Update local state with fresh data to show restored items
+      if (freshData?.data?.attributes) {
+        setLocalAttributes(freshData.data.attributes);
+      }
+      
+      showSnackbar(successMessage, "success");
+      setRowSelection({});
+    } catch (error: any) {
+      const errorMessage =
+        error?.message || error?.errors?.[0]?.msg || "Bulk restore failed";
+      showSnackbar(errorMessage, "error");
+    } finally {
+      setIsLoading(false);
+      handleCloseBulkRestoreDialog();
     }
   };
 
@@ -492,6 +579,26 @@ const AttributeTable = ({
             </Button>
           )}
 
+          {/* Bulk Restore Button */}
+          {Object.keys(rowSelection).length > 0 && showDeleted && (
+            <Button
+              variant="contained"
+              color="success"
+              size="small"
+              startIcon={<FuseSvgIcon>heroicons-outline:arrow-path</FuseSvgIcon>}
+              onClick={handleOpenBulkRestoreDialog}
+              sx={{
+                backgroundColor: "#2E9970",
+                "&:hover": {
+                  backgroundColor: "#247C5C",
+                },
+                height: '40px'
+              }}
+            >
+              Bulk Restore ({Object.keys(rowSelection).length})
+            </Button>
+          )}
+
           {/* --- START ADD: Clear Filters Button --- */}
           {areFiltersActive && (
             <ClearFiltersButton 
@@ -521,7 +628,7 @@ const AttributeTable = ({
             pageSize: localAttributes.length || limit || 1000
           }
         }}
-        rowCount={data?.data?.pagination?.total || 0}
+        rowCount={data?.data?.total || 0}
         renderRowActionMenuItems={({ closeMenu, row }) => [
           !row.original.deleted_at && (
             <MenuItem
@@ -578,14 +685,17 @@ const AttributeTable = ({
 
       <TablePagination
         page={page}
-        totalPages={Math.ceil((data?.data?.pagination?.total || 0) / limit)}
+        totalPages={Math.ceil((data?.data?.total || 0) / limit)}
         limit={limit}
-        totalRecords={data?.data?.pagination?.total || 0}
+        totalRecords={data?.data?.total || 0}
         onPageChange={setPage}
         onLimitChange={handleLimitChange}
       />
 
-      <Dialog open={openDialog} onClose={() => setOpenDialog(false)}>
+      <Dialog open={openDialog} onClose={() => {
+        setOpenDialog(false);
+        setSelectedAttribute(null);
+      }}>
         <DialogTitle>
           {selectedAttribute?.deleted_at ? "Confirm Restore" : "Confirm Delete"}
         </DialogTitle>
@@ -597,7 +707,10 @@ const AttributeTable = ({
           </Typography>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setOpenDialog(false)}>Cancel</Button>
+          <Button onClick={() => {
+            setOpenDialog(false);
+            setSelectedAttribute(null);
+          }}>Cancel</Button>
           <AppButton
             label={selectedAttribute?.deleted_at ? "Restore" : "Delete"}
             type="button"
@@ -628,6 +741,38 @@ const AttributeTable = ({
             disabled={isLoading}
           >
             Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Bulk Restore Dialog */}
+      <Dialog
+        open={isBulkRestoreDialogOpen}
+        onClose={handleCloseBulkRestoreDialog}
+      >
+        <DialogTitle>Bulk Restore Attributes</DialogTitle>
+        <DialogContent>
+          <Typography>
+            Are you sure you want to restore{" "}
+            <strong>{Object.keys(rowSelection).length}</strong> selected
+            attribute(s)?
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseBulkRestoreDialog}>Cancel</Button>
+          <Button
+            onClick={handleConfirmBulkRestore}
+            color="success"
+            variant="contained"
+            disabled={isLoading}
+            sx={{
+              backgroundColor: "#2E9970",
+              "&:hover": {
+                backgroundColor: "#247C5C",
+              },
+            }}
+          >
+            Restore
           </Button>
         </DialogActions>
       </Dialog>

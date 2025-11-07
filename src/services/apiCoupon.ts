@@ -36,6 +36,7 @@ export interface FetchCouponsParams {
   entity_id?: number;
   start_date?: string;
   end_date?: string;
+  deleted?: boolean;
 }
 
 export interface CreateCouponData {
@@ -81,5 +82,19 @@ export async function getCouponById(id: number): Promise<any> {
 
 export async function updateCoupon(id: number, data: CreateCouponData): Promise<any> {
   const response = await axiosInstance.put(`/api/admin/coupons/${id}`, data);
+  return response.data;
+}
+
+export async function bulkDeleteCoupons(ids: number[]): Promise<any> {
+  const response = await axiosInstance.delete('/api/admin/coupons/bulk-delete', {
+    data: { ids }
+  });
+  return response.data;
+}
+
+export async function bulkRestoreCoupons(ids: number[]): Promise<any> {
+  const response = await axiosInstance.put('/api/admin/coupons/bulk-restore', {
+    ids
+  });
   return response.data;
 } 

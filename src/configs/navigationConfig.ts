@@ -307,6 +307,13 @@ const navigationConfig: FuseNavItemType[] = [
     icon: "heroicons-outline:star",
     url: "/apps/popular-categories"
   },
+    {
+    id: "shop-by-categories",
+    title: "Shop By Categories",
+    type: "item",
+    icon: "heroicons-outline:star",
+    url: "/apps/shop-by-categories"
+  },
 ];
 
 export default navigationConfig;
