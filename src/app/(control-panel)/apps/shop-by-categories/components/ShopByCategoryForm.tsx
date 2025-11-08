@@ -9,6 +9,7 @@ import {
   createShopByCategory,
   updateShopByCategory,
   getShopByCategoryDetails,
+  listShopByCategory,
   ShopByCategory,
 } from '@/services/apiShopByCategory';
 import { listProductCategory } from '@/services/apiProductCategory';
@@ -46,7 +47,7 @@ const schema = z.object({
     z.undefined()
   ]),
   status: z.boolean().optional(),
-  order: z.number().optional(),
+  order: z.number().min(0, 'Order must be a positive number').optional(),
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -78,7 +79,9 @@ const ShopByCategoryForm: React.FC<Props> = ({ item, onSuccess, onCancel }) => {
   const [categoriesLoading, setCategoriesLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [existingShopByCategories, setExistingShopByCategories] = useState<ShopByCategory[]>([]);
   const imageValue = watch('image');
+  const selectedCategoryId = watch('category_id');
 
   // Fetch categories on component mount
   useEffect(() => {
@@ -102,6 +105,27 @@ const ShopByCategoryForm: React.FC<Props> = ({ item, onSuccess, onCancel }) => {
 
     fetchCategories();
   }, [showSnackbar]);
+
+  // Fetch existing shop by categories to check for duplicates (only in create mode)
+  useEffect(() => {
+    const fetchExistingShopByCategories = async () => {
+      if (!isEditMode) {
+        try {
+          const response = await listShopByCategory({
+            limit: 1000,
+            deleted: false,
+          });
+          if (response?.data?.shopByCategories) {
+            setExistingShopByCategories(response.data.shopByCategories);
+          }
+        } catch (error) {
+          console.error('Failed to fetch existing shop by categories:', error);
+        }
+      }
+    };
+
+    fetchExistingShopByCategories();
+  }, [isEditMode]);
 
   // Fetch item details if editing
   useEffect(() => {
@@ -130,6 +154,23 @@ const ShopByCategoryForm: React.FC<Props> = ({ item, onSuccess, onCancel }) => {
   const onSubmit = async (data: FormValues) => {
     if (!data.category_id) {
       showSnackbar('Category is required', 'error');
+      return;
+    }
+
+    // Check for duplicate category (only in create mode)
+    if (!item?.id) {
+      const isDuplicate = existingShopByCategories.some(
+        (shopByCat) => shopByCat.category_id === data.category_id
+      );
+      if (isDuplicate) {
+        showSnackbar('This category is already added to Shop By Category', 'error');
+        return;
+      }
+    }
+
+    // Validate order is not negative
+    if (data.order !== undefined && data.order !== null && data.order < 0) {
+      showSnackbar('Order must be a positive number (0 or greater)', 'error');
       return;
     }
 
@@ -216,8 +257,19 @@ const ShopByCategoryForm: React.FC<Props> = ({ item, onSuccess, onCancel }) => {
               fullWidth
               size="small"
               required
-              error={!!fieldState.error}
-              helperText={fieldState.error?.message || (categoriesLoading ? 'Loading categories...' : '')}
+              error={
+                !!fieldState.error || 
+                (!isEditMode && selectedCategoryId && existingShopByCategories.some(
+                  (shopByCat) => shopByCat.category_id === selectedCategoryId
+                ))
+              }
+              helperText={
+                fieldState.error?.message || 
+                (categoriesLoading ? 'Loading categories...' : '') ||
+                (!isEditMode && selectedCategoryId && existingShopByCategories.some(
+                  (shopByCat) => shopByCat.category_id === selectedCategoryId
+                ) ? 'This category is already added to Shop By Category' : '')
+              }
               value={field.value ?? ''}
               onChange={(e) => {
                 const value = e.target.value === '' ? undefined : Number(e.target.value);
@@ -308,34 +360,127 @@ const ShopByCategoryForm: React.FC<Props> = ({ item, onSuccess, onCancel }) => {
         <Controller
           name="order"
           control={control}
-          render={({ field, fieldState }) => (
-            <TextField
-              {...field}
-              label="Order"
-              type="number"
-              fullWidth
-              size="small"
-              error={!!fieldState.error}
-              helperText={fieldState.error?.message}
-              value={field.value ?? ''}
-              onChange={(e) => {
-                const value = e.target.value === '' ? undefined : Number(e.target.value);
-                field.onChange(value);
-              }}
-              InputLabelProps={{ shrink: true }}
-              sx={{
-                '& .MuiOutlinedInput-root': {
-                  backgroundColor: 'white',
-                },
-              }}
-            />
-          )}
+          render={({ field, fieldState }) => {
+            // Use local state to track the input value for better editing experience
+            const [inputValue, setInputValue] = useState<string>(
+              field.value !== undefined && field.value !== null ? String(field.value) : ''
+            );
+
+            // Sync with field value when it changes externally (e.g., form reset)
+            useEffect(() => {
+              if (field.value !== undefined && field.value !== null) {
+                setInputValue(String(field.value));
+              } else {
+                setInputValue('');
+              }
+            }, [field.value]);
+
+            return (
+              <TextField
+                label="Order"
+                type="text"
+                fullWidth
+                size="small"
+                error={!!fieldState.error}
+                helperText={fieldState.error?.message || 'Enter a positive number (0 or greater)'}
+                value={inputValue}
+                onChange={(e) => {
+                  const newValue = e.target.value;
+                  // Allow empty string
+                  if (newValue === '') {
+                    setInputValue('');
+                    field.onChange(undefined);
+                    return;
+                  }
+                  // Only allow digits (0-9) - update local state immediately for responsive editing
+                  if (/^\d+$/.test(newValue)) {
+                    setInputValue(newValue);
+                    const numValue = parseInt(newValue, 10);
+                    if (!isNaN(numValue) && numValue >= 0) {
+                      field.onChange(numValue);
+                    }
+                  }
+                  // If input contains non-digits, don't update (ignore invalid input)
+                }}
+                onBlur={(e) => {
+                  field.onBlur();
+                  // Validate and normalize on blur
+                  const trimmedValue = inputValue.trim();
+                  if (trimmedValue === '') {
+                    setInputValue('');
+                    field.onChange(undefined);
+                  } else if (/^\d+$/.test(trimmedValue)) {
+                    const numValue = parseInt(trimmedValue, 10);
+                    if (!isNaN(numValue) && numValue >= 0) {
+                      setInputValue(String(numValue));
+                      field.onChange(numValue);
+                    } else {
+                      // Reset to last valid value
+                      if (field.value !== undefined && field.value !== null) {
+                        setInputValue(String(field.value));
+                      } else {
+                        setInputValue('');
+                      }
+                    }
+                  } else {
+                    // Reset to last valid value if invalid
+                    if (field.value !== undefined && field.value !== null) {
+                      setInputValue(String(field.value));
+                    } else {
+                      setInputValue('');
+                    }
+                  }
+                }}
+                name={field.name}
+                inputRef={field.ref}
+                onKeyDown={(e) => {
+                  // Allow all navigation and editing keys
+                  const allowedKeys = [
+                    'Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown',
+                    'Tab', 'Home', 'End', 'Enter', 'Escape'
+                  ];
+                  if (allowedKeys.includes(e.key)) {
+                    return; // Allow these keys
+                  }
+                  // Allow Ctrl/Cmd combinations (copy, paste, select all, etc.)
+                  if (e.ctrlKey || e.metaKey) {
+                    return;
+                  }
+                  // Only allow digits (0-9)
+                  if (!/^\d$/.test(e.key)) {
+                    e.preventDefault();
+                  }
+                }}
+                InputLabelProps={{ shrink: true }}
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    backgroundColor: 'white',
+                  },
+                }}
+              />
+            );
+          }}
         />
         <Stack direction="row" justifyContent="flex-end" spacing={2}>
           <Button variant="outlined" onClick={onCancel} disabled={isSubmitting}>
             Cancel
           </Button>
-          <Button variant="contained" type="submit" disabled={isSubmitting}>
+          <Button 
+            variant="contained" 
+            type="submit" 
+            disabled={isSubmitting}
+            sx={{
+              backgroundColor: '#005B2F',
+              color: 'white',
+              '&:hover': {
+                backgroundColor: '#004225',
+              },
+              '&:disabled': {
+                backgroundColor: '#cccccc',
+                color: '#666666',
+              },
+            }}
+          >
             {isSubmitting ? 'Saving...' : 'Save'}
           </Button>
         </Stack>

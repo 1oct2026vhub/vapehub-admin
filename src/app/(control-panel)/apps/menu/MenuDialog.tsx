@@ -588,7 +588,7 @@ const MenuDialog: React.FC<MenuDialogProps> = ({ open, onClose, onSave, menuItem
                     control={
                       <Controller name="list_on_active_product" control={control} render={({ field }) => <Switch {...field} checked={field.value} />} />
                     }
-                    label="List on Active Product"
+                    label="List All Active Product"
                   />
               </Grid>
             )}
@@ -597,7 +597,17 @@ const MenuDialog: React.FC<MenuDialogProps> = ({ open, onClose, onSave, menuItem
                 name="image"
                 control={control}
                 label="Image"
-                defaultImage={menuItem?.image || undefined}
+                defaultImage={
+                  menuItem?.image_url 
+                    ? (menuItem.image_url.startsWith('http') 
+                        ? menuItem.image_url 
+                        : `${process.env.NEXT_PUBLIC_API_URL || ''}${menuItem.image_url}`)
+                    : menuItem?.image 
+                      ? (menuItem.image.startsWith('http') 
+                          ? menuItem.image 
+                          : `${process.env.NEXT_PUBLIC_API_URL || ''}${menuItem.image}`)
+                      : undefined
+                }
                 helperText="Supported formats: PNG, JPG, JPEG, WebP (max 5MB). Required dimensions: 183 x 130 pixels"
                 exactWidth={183}
                 exactHeight={130}
