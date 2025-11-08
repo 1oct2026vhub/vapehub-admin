@@ -133,7 +133,11 @@ const MenuList: React.FC = () => {
 
   // Toggle expand/collapse for group
   const handleToggleExpand = (id: number) => {
-    setExpanded((prev) => ({ ...prev, [id]: !prev[id] }));
+    setExpanded((prev) => {
+      // If undefined, default to false (collapsed), then toggle
+      const currentState = prev[id] === undefined ? false : prev[id];
+      return { ...prev, [id]: !currentState };
+    });
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
@@ -291,12 +295,12 @@ const MenuList: React.FC = () => {
                 </Tooltip>
                 {item.children && item.children.length > 0 && (
                   <IconButton size="small" onClick={() => handleToggleExpand(item.id)}>
-                    {expanded[item.id] !== false ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+                    {expanded[item.id] === true ? <ExpandLessIcon /> : <ExpandMoreIcon />}
                   </IconButton>
                 )}
               </CardContent>
               {item.children && item.children.length > 0 && (
-                <Collapse in={expanded[item.id] !== false} timeout="auto" unmountOnExit>
+                <Collapse in={expanded[item.id] === true} timeout="auto" unmountOnExit>
                   <Box sx={{ px: isTopLevel ? 2 : 0, pb: isTopLevel ? 2 : 1 }}>
                     {renderItems(item.children, false)}
                   </Box>

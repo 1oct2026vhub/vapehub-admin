@@ -505,10 +505,10 @@ const ShopByCategoriesList: React.FC<ShopByCategoriesListProps> = ({ refreshTrig
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <Typography variant="caption" color="text.secondary">
-                  Category ID:
+                  Category Name:
                 </Typography>
                 <Typography variant="body2" fontWeight="medium">
-                  {category.category_id ?? '-'}
+                  {getCategoryName(category.category_id) || '-'}
                 </Typography>
               </Box>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
