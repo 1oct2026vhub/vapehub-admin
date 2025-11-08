@@ -11,11 +11,14 @@ export interface MenuItem {
   entity_id?: number;
   original?: string;
   show_image?: boolean;
+  image?: string;
+  image_url?: string;
   icon?: string;
   hide_text?: boolean;
   hide_mobile_view?: boolean;
   hide_desktop_view?: boolean;
   icon_position?: 'left' | 'right';
+  list_on_active_product?: boolean;
   [key: string]: any; // For any additional fields
 }
 
