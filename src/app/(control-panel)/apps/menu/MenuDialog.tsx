@@ -20,6 +20,7 @@ import {
 } from '@mui/material';
 import { type MenuItem as MenuDataType, createMenu, updateMenu } from '@/services/apiMenu';
 import FormTextField from '@/components/Shared/FormTextField'; // Assuming path
+import FormFileUploadField from '@/components/Shared/FormFileUploadField';
 import { useSnackbar } from '@/contexts/SnackbarContext';
 import { listProducts } from '@/services/apiProduct';
 import { listProductBrand } from '@/services/apiProductBrand';
@@ -28,6 +29,10 @@ import { getBlogPosts, type BlogPost } from '@/services/apiBlog';
 import { useDebounce } from '@/hooks/useDebounce';
 import { getDeals, type Deal } from '@/services/apiDeals';
 import AppButton from '@/components/Shared/AppButton';
+import { validateImageDimensions } from '@/utils/imageUtils';
+
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+const ACCEPTED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'];
 
 const menuSchema = z
   .object({
@@ -40,6 +45,34 @@ const menuSchema = z
     hide_text: z.boolean().optional(),
     hide_mobile_view: z.boolean().optional(),
     hide_desktop_view: z.boolean().optional(),
+    list_on_active_product: z.boolean().optional(),
+    image: z
+      .union([z.instanceof(File), z.null()])
+      .optional()
+      .refine(
+        (file) => {
+          if (!file || !(file instanceof File)) return true;
+          return file.size <= MAX_FILE_SIZE;
+        },
+        { message: 'Max file size is 5MB.' }
+      )
+      .refine(
+        (file) => {
+          if (!file || !(file instanceof File)) return true;
+          return ACCEPTED_IMAGE_TYPES.includes(file.type);
+        },
+        { message: 'Only .png, .jpg, .jpeg, .webp formats are accepted.' }
+      )
+      .superRefine(async (file, ctx) => {
+        if (!file || !(file instanceof File)) return;
+        const { valid, message } = await validateImageDimensions(file, 183, 130);
+        if (!valid) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: message || 'Image dimensions must be 183x130px.',
+          });
+        }
+      }),
     // icon_position: z.enum(['left', 'right']).optional(),
     // icon: z.string().optional().nullable(),
   })
@@ -88,9 +121,11 @@ const MenuDialog: React.FC<MenuDialogProps> = ({ open, onClose, onSave, menuItem
     reset,
     watch,
     setValue,
+    trigger,
     formState: { errors, isSubmitting, dirtyFields },
   } = useForm<MenuFormValues>({
     resolver: zodResolver(menuSchema),
+    mode: 'onChange',
     defaultValues: {
       label: '',
       entity_type: 'page',
@@ -101,6 +136,8 @@ const MenuDialog: React.FC<MenuDialogProps> = ({ open, onClose, onSave, menuItem
       hide_text: false,
       hide_mobile_view: false,
       hide_desktop_view: false,
+      list_on_active_product: false,
+      image: null,
       // icon_position: 'left',
       // icon: '',
     },
@@ -311,6 +348,8 @@ const MenuDialog: React.FC<MenuDialogProps> = ({ open, onClose, onSave, menuItem
           hide_text: menuItem.hide_text,
           hide_mobile_view: menuItem.hide_mobile_view,
           hide_desktop_view: menuItem.hide_desktop_view,
+          list_on_active_product: menuItem.list_on_active_product || false,
+          image: null,
           // icon_position: menuItem.icon_position,
           // icon: menuItem.icon,
         });
@@ -325,6 +364,8 @@ const MenuDialog: React.FC<MenuDialogProps> = ({ open, onClose, onSave, menuItem
           hide_text: false,
           hide_mobile_view: false,
           hide_desktop_view: false,
+          list_on_active_product: false,
+          image: null,
           // icon_position: 'left',
           // icon: '',
         });
@@ -334,12 +375,46 @@ const MenuDialog: React.FC<MenuDialogProps> = ({ open, onClose, onSave, menuItem
 
   const onSubmit = async (data: MenuFormValues) => {
     try {
-      const payload = { ...data, menu_parent: data.menu_parent || null };
-      if (isEditing && menuItem) {
-        await updateMenu(menuItem.id, payload);
+      // Check if there's an image file to upload
+      const hasImage = data.image instanceof File;
+      
+      if (hasImage) {
+        // Use FormData for file upload
+        const formData = new FormData();
+        formData.append('label', data.label);
+        if (data.entity_type) formData.append('entity_type', data.entity_type);
+        if (data.entity_id != null) formData.append('entity_id', String(data.entity_id));
+        if (data.original) formData.append('original', data.original);
+        formData.append('menu_parent', data.menu_parent != null ? String(data.menu_parent) : '');
+        formData.append('show_image', String(data.show_image || false));
+        formData.append('hide_text', String(data.hide_text || false));
+        formData.append('hide_mobile_view', String(data.hide_mobile_view || false));
+        formData.append('hide_desktop_view', String(data.hide_desktop_view || false));
+        formData.append('list_on_active_product', String(data.list_on_active_product || false));
+        formData.append('image', data.image);
+        
+        if (isEditing && menuItem) {
+          await updateMenu(menuItem.id, formData as any);
+        } else {
+          await createMenu(formData as any);
+        }
       } else {
-        await createMenu(payload as any);
+        // Use regular JSON payload
+        const payload = { 
+          ...data, 
+          menu_parent: data.menu_parent || null,
+          image: undefined, // Don't send image field if it's null
+        };
+        // Remove image from payload if it's null
+        delete (payload as any).image;
+        
+        if (isEditing && menuItem) {
+          await updateMenu(menuItem.id, payload);
+        } else {
+          await createMenu(payload as any);
+        }
       }
+      
       showSnackbar(`Menu item ${isEditing ? 'updated' : 'created'} successfully!`, 'success');
       onSave();
       onClose();
@@ -506,6 +581,29 @@ const MenuDialog: React.FC<MenuDialogProps> = ({ open, onClose, onSave, menuItem
                   }
                   label="Hide on Desktop"
                 />
+            </Grid>
+            {(entityType === 'brand' || entityType === 'category') && (
+              <Grid item xs={12} sm={6}>
+                  <FormControlLabel
+                    control={
+                      <Controller name="list_on_active_product" control={control} render={({ field }) => <Switch {...field} checked={field.value} />} />
+                    }
+                    label="List on Active Product"
+                  />
+              </Grid>
+            )}
+            <Grid item xs={12}>
+              <FormFileUploadField
+                name="image"
+                control={control}
+                label="Image"
+                defaultImage={menuItem?.image || undefined}
+                helperText="Supported formats: PNG, JPG, JPEG, WebP (max 5MB). Required dimensions: 183 x 130 pixels"
+                exactWidth={183}
+                exactHeight={130}
+                error={!!errors.image}
+                errorMessage={errors.image?.message as string}
+              />
             </Grid>
           </Grid>
         </DialogContent>
