@@ -17,7 +17,6 @@ const schema = z.object({
   title: z.string().min(1, 'Title is required'),
   description: z.string().max(200, 'Description must be 200 characters or less').optional(),
   status: z.string().optional(),
-  order: z.number().min(0, 'Order must be a positive number').optional(),
   category_id: z.number().optional(),
 });
 
@@ -41,7 +40,6 @@ const PopularCategoryForm: React.FC<Props> = ({ item, onSuccess, onCancel }) => 
       title: item?.title || '',
       description: item?.description || '',
       status: item?.status || '',
-      order: item?.order || undefined,
       category_id: item?.category_id || undefined,
     }
   });
@@ -88,7 +86,6 @@ const PopularCategoryForm: React.FC<Props> = ({ item, onSuccess, onCancel }) => 
         title: item.title,
         description: item.description || '',
         status: statusValue,
-        order: item.order || undefined,
         category_id: item.category_id || undefined,
       });
     } else {
@@ -96,7 +93,6 @@ const PopularCategoryForm: React.FC<Props> = ({ item, onSuccess, onCancel }) => 
         title: '',
         description: '',
         status: '',
-        order: undefined,
         category_id: undefined,
       });
     }
@@ -115,12 +111,6 @@ const PopularCategoryForm: React.FC<Props> = ({ item, onSuccess, onCancel }) => 
       return;
     }
 
-    // Validate order is not negative
-    if (data.order !== undefined && data.order !== null && data.order < 0) {
-      showSnackbar('Order must be a positive number (0 or greater)', 'error');
-      return;
-    }
-
     try {
       // Convert status string to boolean
       let statusValue: boolean | undefined = undefined;
@@ -132,7 +122,6 @@ const PopularCategoryForm: React.FC<Props> = ({ item, onSuccess, onCancel }) => 
         title,
         ...(data.description && { description: data.description.trim() }),
         ...(statusValue !== undefined && { status: statusValue }),
-        ...(data.order !== undefined && data.order !== null && data.order >= 0 && { order: Number(data.order) }),
         ...(data.category_id !== undefined && data.category_id !== null && { category_id: Number(data.category_id) }),
       };
 
@@ -267,111 +256,7 @@ const PopularCategoryForm: React.FC<Props> = ({ item, onSuccess, onCancel }) => 
           <MenuItem value="active">Active</MenuItem>
           <MenuItem value="inactive">Inactive</MenuItem>
         </FormTextField>
-      
-        <Controller
-          name="order"
-          control={control}
-          render={({ field, fieldState }) => {
-            // Use local state to track the input value for better editing experience
-            const [inputValue, setInputValue] = useState<string>(
-              field.value !== undefined && field.value !== null ? String(field.value) : ''
-            );
 
-            // Sync with field value when it changes externally (e.g., form reset)
-            useEffect(() => {
-              if (field.value !== undefined && field.value !== null) {
-                setInputValue(String(field.value));
-              } else {
-                setInputValue('');
-              }
-            }, [field.value]);
-
-            return (
-              <TextField
-                label="Order"
-                type="text"
-                fullWidth
-                size="small"
-                error={!!fieldState.error}
-                helperText={fieldState.error?.message || 'Enter a positive number (0 or greater)'}
-                value={inputValue}
-                onChange={(e) => {
-                  const newValue = e.target.value;
-                  // Allow empty string
-                  if (newValue === '') {
-                    setInputValue('');
-                    field.onChange(undefined);
-                    return;
-                  }
-                  // Only allow digits (0-9) - update local state immediately for responsive editing
-                  if (/^\d+$/.test(newValue)) {
-                    setInputValue(newValue);
-                    const numValue = parseInt(newValue, 10);
-                    if (!isNaN(numValue) && numValue >= 0) {
-                      field.onChange(numValue);
-                    }
-                  }
-                  // If input contains non-digits, don't update (ignore invalid input)
-                }}
-                onBlur={(e) => {
-                  field.onBlur();
-                  // Validate and normalize on blur
-                  const trimmedValue = inputValue.trim();
-                  if (trimmedValue === '') {
-                    setInputValue('');
-                    field.onChange(undefined);
-                  } else if (/^\d+$/.test(trimmedValue)) {
-                    const numValue = parseInt(trimmedValue, 10);
-                    if (!isNaN(numValue) && numValue >= 0) {
-                      setInputValue(String(numValue));
-                      field.onChange(numValue);
-                    } else {
-                      // Reset to last valid value
-                      if (field.value !== undefined && field.value !== null) {
-                        setInputValue(String(field.value));
-                      } else {
-                        setInputValue('');
-                      }
-                    }
-                  } else {
-                    // Reset to last valid value if invalid
-                    if (field.value !== undefined && field.value !== null) {
-                      setInputValue(String(field.value));
-                    } else {
-                      setInputValue('');
-                    }
-                  }
-                }}
-                name={field.name}
-                inputRef={field.ref}
-                onKeyDown={(e) => {
-                  // Allow all navigation and editing keys
-                  const allowedKeys = [
-                    'Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown',
-                    'Tab', 'Home', 'End', 'Enter', 'Escape'
-                  ];
-                  if (allowedKeys.includes(e.key)) {
-                    return; // Allow these keys
-                  }
-                  // Allow Ctrl/Cmd combinations (copy, paste, select all, etc.)
-                  if (e.ctrlKey || e.metaKey) {
-                    return;
-                  }
-                  // Only allow digits (0-9)
-                  if (!/^\d$/.test(e.key)) {
-                    e.preventDefault();
-                  }
-                }}
-                InputLabelProps={{ shrink: true }}
-                sx={{
-                  '& .MuiOutlinedInput-root': {
-                    backgroundColor: 'white',
-                  },
-                }}
-              />
-            );
-          }}
-        />
         <Stack direction="row" justifyContent="flex-end" spacing={2}>
           <Button variant="outlined" onClick={onCancel}>
             Cancel
