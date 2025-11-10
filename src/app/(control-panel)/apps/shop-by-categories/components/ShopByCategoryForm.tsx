@@ -10,6 +10,7 @@ import {
   updateShopByCategory,
   getShopByCategoryDetails,
   listShopByCategory,
+  deleteShopByCategoryImage,
   ShopByCategory,
 } from '@/services/apiShopByCategory';
 import { listProductCategory } from '@/services/apiProductCategory';
@@ -47,7 +48,6 @@ const schema = z.object({
     z.undefined()
   ]),
   status: z.boolean().optional(),
-  order: z.number().min(0, 'Order must be a positive number').optional(),
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -71,7 +71,6 @@ const ShopByCategoryForm: React.FC<Props> = ({ item, onSuccess, onCancel }) => {
       category_id: item?.category_id || undefined,
       image: undefined,
       status: item?.status === true || (typeof item?.status === 'string' && item.status === 'active') ? true : false,
-      order: item?.order || undefined,
     }
   });
   const { showSnackbar } = useSnackbar();
@@ -80,6 +79,7 @@ const ShopByCategoryForm: React.FC<Props> = ({ item, onSuccess, onCancel }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [existingShopByCategories, setExistingShopByCategories] = useState<ShopByCategory[]>([]);
+  const [currentImageUrl, setCurrentImageUrl] = useState<string | undefined>(item?.image_url);
   const imageValue = watch('image');
   const selectedCategoryId = watch('category_id');
 
@@ -135,11 +135,11 @@ const ShopByCategoryForm: React.FC<Props> = ({ item, onSuccess, onCancel }) => {
           const response = await getShopByCategoryDetails(item.id);
           if (response?.data?.shopByCategory) {
             const category = response.data.shopByCategory;
+            setCurrentImageUrl(category.image_url);
             reset({
               category_id: category.category_id || undefined,
               image: undefined, // Don't set image file, use defaultImage prop instead
               status: category.status === true || (typeof category.status === 'string' && category.status === 'active') ? true : false,
-              order: category.order || undefined,
             });
           }
         } catch (error) {
@@ -168,12 +168,6 @@ const ShopByCategoryForm: React.FC<Props> = ({ item, onSuccess, onCancel }) => {
       }
     }
 
-    // Validate order is not negative
-    if (data.order !== undefined && data.order !== null && data.order < 0) {
-      showSnackbar('Order must be a positive number (0 or greater)', 'error');
-      return;
-    }
-
     // For create, image is required
     if (!item?.id && !selectedFile && !imageValue) {
       showSnackbar('Image is required', 'error');
@@ -198,7 +192,6 @@ const ShopByCategoryForm: React.FC<Props> = ({ item, onSuccess, onCancel }) => {
           category_id: data.category_id,
           image: imageFile,
           ...(data.status !== undefined && { status: data.status }),
-          ...(data.order !== undefined && data.order !== null && { order: Number(data.order) }),
         };
 
         const res = await createShopByCategory(payload);
@@ -216,7 +209,6 @@ const ShopByCategoryForm: React.FC<Props> = ({ item, onSuccess, onCancel }) => {
           ...(data.category_id !== undefined && data.category_id !== null && { category_id: data.category_id }),
           ...(imageFile && { image: imageFile }),
           ...(data.status !== undefined && { status: data.status }),
-          ...(data.order !== undefined && data.order !== null && { order: Number(data.order) }),
         };
 
         const res = await updateShopByCategory(item.id, payload);
@@ -240,6 +232,20 @@ const ShopByCategoryForm: React.FC<Props> = ({ item, onSuccess, onCancel }) => {
       showSnackbar(msg, 'error');
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleDeleteImage = async () => {
+    if (!item?.id) return;
+    
+    try {
+      await deleteShopByCategoryImage(item.id);
+      setCurrentImageUrl(undefined);
+      showSnackbar('Image deleted successfully', 'success');
+    } catch (error: any) {
+      const msg = error?.response?.data?.message || error?.message || 'Failed to delete image';
+      showSnackbar(msg, 'error');
+      throw error; // Re-throw to let the component handle loading state
     }
   };
 
@@ -309,7 +315,7 @@ const ShopByCategoryForm: React.FC<Props> = ({ item, onSuccess, onCancel }) => {
           control={control}
           label="Image"
           required={!isEditMode} // Required only for create
-          defaultImage={item?.image_url}
+          defaultImage={currentImageUrl}
           exactWidth={43}
           exactHeight={43}
           onFileChange={async (file) => {
@@ -323,6 +329,7 @@ const ShopByCategoryForm: React.FC<Props> = ({ item, onSuccess, onCancel }) => {
               await trigger('image');
             }
           }}
+          onDeleteDefaultImage={isEditMode ? handleDeleteImage : undefined}
           helperText="Supported formats: PNG, JPG, JPEG, WebP (max 5MB). Image dimensions must be exactly 43x43 pixels."
         />
 
@@ -356,111 +363,7 @@ const ShopByCategoryForm: React.FC<Props> = ({ item, onSuccess, onCancel }) => {
             </TextField>
           )}
         />
-      
-        <Controller
-          name="order"
-          control={control}
-          render={({ field, fieldState }) => {
-            // Use local state to track the input value for better editing experience
-            const [inputValue, setInputValue] = useState<string>(
-              field.value !== undefined && field.value !== null ? String(field.value) : ''
-            );
 
-            // Sync with field value when it changes externally (e.g., form reset)
-            useEffect(() => {
-              if (field.value !== undefined && field.value !== null) {
-                setInputValue(String(field.value));
-              } else {
-                setInputValue('');
-              }
-            }, [field.value]);
-
-            return (
-              <TextField
-                label="Order"
-                type="text"
-                fullWidth
-                size="small"
-                error={!!fieldState.error}
-                helperText={fieldState.error?.message || 'Enter a positive number (0 or greater)'}
-                value={inputValue}
-                onChange={(e) => {
-                  const newValue = e.target.value;
-                  // Allow empty string
-                  if (newValue === '') {
-                    setInputValue('');
-                    field.onChange(undefined);
-                    return;
-                  }
-                  // Only allow digits (0-9) - update local state immediately for responsive editing
-                  if (/^\d+$/.test(newValue)) {
-                    setInputValue(newValue);
-                    const numValue = parseInt(newValue, 10);
-                    if (!isNaN(numValue) && numValue >= 0) {
-                      field.onChange(numValue);
-                    }
-                  }
-                  // If input contains non-digits, don't update (ignore invalid input)
-                }}
-                onBlur={(e) => {
-                  field.onBlur();
-                  // Validate and normalize on blur
-                  const trimmedValue = inputValue.trim();
-                  if (trimmedValue === '') {
-                    setInputValue('');
-                    field.onChange(undefined);
-                  } else if (/^\d+$/.test(trimmedValue)) {
-                    const numValue = parseInt(trimmedValue, 10);
-                    if (!isNaN(numValue) && numValue >= 0) {
-                      setInputValue(String(numValue));
-                      field.onChange(numValue);
-                    } else {
-                      // Reset to last valid value
-                      if (field.value !== undefined && field.value !== null) {
-                        setInputValue(String(field.value));
-                      } else {
-                        setInputValue('');
-                      }
-                    }
-                  } else {
-                    // Reset to last valid value if invalid
-                    if (field.value !== undefined && field.value !== null) {
-                      setInputValue(String(field.value));
-                    } else {
-                      setInputValue('');
-                    }
-                  }
-                }}
-                name={field.name}
-                inputRef={field.ref}
-                onKeyDown={(e) => {
-                  // Allow all navigation and editing keys
-                  const allowedKeys = [
-                    'Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown',
-                    'Tab', 'Home', 'End', 'Enter', 'Escape'
-                  ];
-                  if (allowedKeys.includes(e.key)) {
-                    return; // Allow these keys
-                  }
-                  // Allow Ctrl/Cmd combinations (copy, paste, select all, etc.)
-                  if (e.ctrlKey || e.metaKey) {
-                    return;
-                  }
-                  // Only allow digits (0-9)
-                  if (!/^\d$/.test(e.key)) {
-                    e.preventDefault();
-                  }
-                }}
-                InputLabelProps={{ shrink: true }}
-                sx={{
-                  '& .MuiOutlinedInput-root': {
-                    backgroundColor: 'white',
-                  },
-                }}
-              />
-            );
-          }}
-        />
         <Stack direction="row" justifyContent="flex-end" spacing={2}>
           <Button variant="outlined" onClick={onCancel} disabled={isSubmitting}>
             Cancel
