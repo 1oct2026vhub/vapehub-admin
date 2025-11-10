@@ -338,6 +338,13 @@ const PopularCategoriesList: React.FC<PopularCategoriesListProps> = ({ refreshTr
     return { text: '-', color: 'default' as const };
   };
 
+  // Get category name by ID
+  const getCategoryName = (categoryId?: number) => {
+    if (!categoryId) return '-';
+    const category = categories.find(c => c.id === categoryId);
+    return category?.name || `Category #${categoryId}`;
+  };
+
   // Handle category change
   const handleCategoryChange = async (categoryId: number, newCategoryId: number | undefined) => {
     try {
@@ -519,6 +526,14 @@ const PopularCategoriesList: React.FC<PopularCategoriesListProps> = ({ refreshTr
             )}
             <Divider sx={{ my: 1.5 }} />
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Typography variant="caption" color="text.secondary">
+                  Category Name:
+                </Typography>
+                <Typography variant="body2" fontWeight="medium">
+                  {getCategoryName(category.category_id) || '-'}
+                </Typography>
+              </Box>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <Typography variant="caption" color="text.secondary">
                   Order:

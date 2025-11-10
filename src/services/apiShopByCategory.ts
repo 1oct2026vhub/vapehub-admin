@@ -137,3 +137,11 @@ export const updateShopByCategoryOrder = async (id: number, newOrder: number): P
   return response.data;
 };
 
+// Delete shop by category image
+export const deleteShopByCategoryImage = async (id: number): Promise<any> => {
+  const response = await axiosInstance.delete(
+    `/api/admin/shopByCategory/${id}/image`
+  );
+  return response.data;
+};
+

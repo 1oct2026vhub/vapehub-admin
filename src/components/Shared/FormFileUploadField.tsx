@@ -23,6 +23,7 @@ export interface FormFileUploadFieldProps {
   accept?: string;
   helperText?: string;
   onFileChange?: (file: File | null) => void;
+  onDeleteDefaultImage?: () => Promise<void> | void;
   sx?: SxProps<Theme>;
   defaultImage?: string;
   error?: boolean;
@@ -40,6 +41,7 @@ const FormFileUploadField: React.FC<FormFileUploadFieldProps> = ({
   accept = "image/*",
   helperText = "Supported formats: PNG, JPG, JPEG, WebP (max 5MB)",
   onFileChange,
+  onDeleteDefaultImage,
   sx,
   defaultImage,
   error: customError,
@@ -53,6 +55,7 @@ const FormFileUploadField: React.FC<FormFileUploadFieldProps> = ({
   );
   const [touched, setTouched] = useState(false);
   const [lastDefaultImage, setLastDefaultImage] = useState<string | undefined>(defaultImage);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     // Sync previewUrl with defaultImage changes
@@ -130,6 +133,21 @@ const FormFileUploadField: React.FC<FormFileUploadFieldProps> = ({
     setPreviewUrl(defaultImage || null);
     onChange(null);
     if (onFileChange) onFileChange(null);
+  };
+
+  const handleDeleteDefaultImage = async () => {
+    if (onDeleteDefaultImage) {
+      setIsDeleting(true);
+      try {
+        await onDeleteDefaultImage();
+        setPreviewUrl(null);
+        setLastDefaultImage(undefined);
+      } catch (error) {
+        console.error('Failed to delete image:', error);
+      } finally {
+        setIsDeleting(false);
+      }
+    }
   };
 
   // Clean up preview URL when component unmounts
@@ -239,6 +257,30 @@ const FormFileUploadField: React.FC<FormFileUploadFieldProps> = ({
                   alt="Current"
                   className="w-full h-full object-contain"
                 />
+                {onDeleteDefaultImage && (
+                  <IconButton
+                    className="absolute top-2 right-2 bg-white hover:bg-red-50 shadow-md"
+                    size="small"
+                    onClick={handleDeleteDefaultImage}
+                    disabled={isDeleting}
+                    sx={{
+                      "& .MuiSvgIcon-root": {
+                        color: "#ef4444",
+                      },
+                      "&:hover": {
+                        "& .MuiSvgIcon-root": {
+                          color: "#dc2626",
+                        },
+                      },
+                    }}
+                  >
+                    {isDeleting ? (
+                      <CircularProgress size={20} sx={{ color: "#ef4444" }} />
+                    ) : (
+                      <DeleteIcon />
+                    )}
+                  </IconButton>
+                )}
               </Box>
             </Box>
           )}
