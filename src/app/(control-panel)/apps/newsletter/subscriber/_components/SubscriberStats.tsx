@@ -70,6 +70,21 @@ function SubscriberStats() {
 					</div>
 				</Paper>
 			</motion.div>
+			<motion.div variants={item}>
+				<Paper className="flex flex-col flex-auto items-center py-4 justify-center shadow rounded-2xl overflow-hidden">
+					<div className="flex items-start justify-between">
+						<div className="text-lg font-medium tracking-tight leading-6">Unsubscribers</div>
+					</div>
+					<div className="mt-4">
+						<Typography
+							className="text-3xl font-semibold tracking-tight leading-tight"
+							color="text.secondary"
+						>
+							{stats.unsubscribersCount || 0}
+						</Typography>
+					</div>
+				</Paper>
+			</motion.div>
 			{Object.entries(stats.frequencyStats).map(([freq, count]) => (
 				<motion.div
 					variants={item}
