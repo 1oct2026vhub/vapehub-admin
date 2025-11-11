@@ -289,6 +289,7 @@ export const updateProductAttributes = async (
 
 export interface UpdateProductVariantRequest {
   slug: string;
+  sku?: string | null;
   regular_price: number | null;
   discount_price?: number | null;
   purchase_price?: number | null;

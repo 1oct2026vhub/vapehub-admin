@@ -26,6 +26,7 @@ import FuseLoading from '@fuse/core/FuseLoading';
 import { useDropzone, DropzoneRootProps, DropzoneInputProps } from 'react-dropzone';
 import VariantDisplayCard from '../components/VariantDisplayCard';
 import VariantDetailsForm, { VariantFormData } from '../components/VariantDetailsForm';
+import { useProductForm } from '../ProductFormContext';
 
 // --- START: Image Validation Constants ---
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
@@ -234,6 +235,7 @@ const individualVariantEditSchema = z.object({
     .min(1, "Slug is required")
     .max(100, "Slug cannot exceed 100 characters")
     .regex(/^[a-z0-9-]+$/, "Slug must contain only lowercase letters, numbers, and hyphens"),
+  sku: z.string().optional(),
   regular_price: z.preprocess(
     (val) => (val === "" || val === null || val === undefined ? null : Number(val)),
     z.number({ required_error: "Regular price is required", invalid_type_error: "Please enter a valid number for regular price" })
@@ -464,6 +466,8 @@ const BulkUpdateView: React.FC<BulkUpdateViewProps> = ({
   const { showSnackbar: useSnackbarShowSnackbar } = useSnackbar();
   const searchParams = useSearchParams();
   const productId = searchParams ? searchParams.get('productId') : null;
+  // Get product form data for product slug
+  const { formData } = useProductForm();
 
   const [isLoadingVariants, setIsLoadingVariants] = useState(false);
   const [isBulkSubmitting, setIsBulkSubmitting] = useState(false);
@@ -506,12 +510,13 @@ const BulkUpdateView: React.FC<BulkUpdateViewProps> = ({
     handleSubmit: handleEditDetailSubmit,
     reset: resetEditDetailForm,
     getValues: getEditDetailValues,
+    setValue: setEditDetailValue,
     formState: editDetailFormState,
   } = useForm<VariantFormData>({
     resolver: zodResolver(individualVariantEditSchema),
     mode: "all",
     defaultValues: {
-      slug: "", regular_price: 0, stock: 0, status: "active", stockStatus: "In Stock",
+      slug: "", sku: "", regular_price: 0, stock: 0, status: "active", stockStatus: "In Stock",
       depositPrice: null, purchasePrice: null, lowStockThreshold: null,
       weight: null, length: null, width: null, height: null,
       barcode: null, description: null,
@@ -640,6 +645,7 @@ const BulkUpdateView: React.FC<BulkUpdateViewProps> = ({
     if (selectedVariantForEdit) {
       resetEditDetailForm({
         slug: getEditFieldValue(selectedVariantForEdit.slug),
+        sku: getEditFieldValue(selectedVariantForEdit.sku),
         regular_price: getEditNumericValue(selectedVariantForEdit.regular_price),
         stock: getEditNumericValue(selectedVariantForEdit.stock),
         status: (selectedVariantForEdit.status?.toLowerCase() === 'active' ? 'active' : 'inactive') as 'active' | 'inactive',
@@ -660,7 +666,7 @@ const BulkUpdateView: React.FC<BulkUpdateViewProps> = ({
       prevSelectedVariantIdRef.current = selectedVariantForEdit.id;
     } else {
       resetEditDetailForm({
-        slug: "", regular_price: 0, stock: 0, status: "active", stockStatus: "In Stock",
+        slug: "", sku: "", regular_price: 0, stock: 0, status: "active", stockStatus: "In Stock",
         depositPrice: null, purchasePrice: null, lowStockThreshold: null,
         weight: null, length: null, width: null, height: null,
         barcode: null, description: null,
@@ -686,6 +692,7 @@ const BulkUpdateView: React.FC<BulkUpdateViewProps> = ({
     try {
       const updateRequestData: Partial<UpdateProductVariantRequest> = {
         slug: data.slug,
+        sku: data.sku || null,
         regular_price: getEditNumericValue(data.regular_price),
         stock: getEditNumericValue(data.stock), // Ensure this is a number
         status: data.status,
@@ -1545,6 +1552,10 @@ const BulkUpdateView: React.FC<BulkUpdateViewProps> = ({
                   isImageUploading={isEditImageUploading}
                   onSetPrimaryImage={handleSetPrimaryImageEditForm}
                   onDeleteImage={handleDeleteImageEditForm}
+                  getValues={getEditDetailValues}
+                  setValue={setEditDetailValue}
+                  showSnackbar={showSnackbar}
+                  productSlug={formData?.slug || ""}
                 />
               </div>
             )}
