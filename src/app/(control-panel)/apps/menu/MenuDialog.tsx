@@ -160,8 +160,7 @@ const MenuDialog: React.FC<MenuDialogProps> = ({ open, onClose, onSave, menuItem
 
       let response: any;
       let fetchedEntities: any[] = [];
-      // const params: any = { limit: 1000 };
-      const params: any = {};
+      const params: any = { limit: 1000 };
 
       if (debouncedSearch) {
         if (entityType === 'product') {
@@ -238,48 +237,51 @@ const MenuDialog: React.FC<MenuDialogProps> = ({ open, onClose, onSave, menuItem
         // First, try to fetch with default parameters (first 10 results)
         switch (menuItem.entity_type) {
           case 'brand': {
-            const defaultResponse = await listProductBrand({});
+            const defaultResponse = await listProductBrand({ limit: 1000 });
             fetchedEntity = defaultResponse?.data?.brands?.find((brand: any) => brand.id === menuItem.entity_id) || null;
             
             // If not found, try searching by name
             if (!fetchedEntity) {
               const searchResponse = await listProductBrand({ 
                 search: menuItem.label, 
-                search_only_name: true 
+                search_only_name: true,
+                limit: 1000
               });
               fetchedEntity = searchResponse?.data?.brands?.find((brand: any) => brand.id === menuItem.entity_id) || null;
             }
             break;
           }
           case 'category': {
-            const defaultResponse = await listProductCategory({});
+            const defaultResponse = await listProductCategory({ limit: 1000 });
             fetchedEntity = defaultResponse?.data?.categories?.find((category: any) => category.id === menuItem.entity_id) || null;
             
             // If not found, try searching by name
             if (!fetchedEntity) {
               const searchResponse = await listProductCategory({ 
                 search: menuItem.label, 
-                search_only_name: true 
+                search_only_name: true,
+                limit: 1000
               });
               fetchedEntity = searchResponse?.data?.categories?.find((category: any) => category.id === menuItem.entity_id) || null;
             }
             break;
           }
           case 'product': {
-            const defaultResponse = await listProducts({});
+            const defaultResponse = await listProducts({ limit: 1000 });
             fetchedEntity = defaultResponse?.data?.products?.find((product: any) => product.id === menuItem.entity_id) || null;
             
             // If not found, try searching by name
             if (!fetchedEntity) {
               const searchResponse = await listProducts({ 
-                keyword: menuItem.label 
+                keyword: menuItem.label,
+                limit: 1000
               });
               fetchedEntity = searchResponse?.data?.products?.find((product: any) => product.id === menuItem.entity_id) || null;
             }
             
             // If still not found, fetch specifically by ID
             if (!fetchedEntity) {
-              const specificResponse = await listProducts({ ids: [menuItem.entity_id] });
+              const specificResponse = await listProducts({ ids: [menuItem.entity_id], limit: 1000 });
               fetchedEntity = specificResponse?.data?.products?.[0] || null;
             }
             break;

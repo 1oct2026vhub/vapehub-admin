@@ -14,13 +14,17 @@ const schema = z.object({
   title: z.string().min(1, 'Title is required'),
   subtitle: z.string().min(1, 'Subtitle is required'),
   icon_id: z.number({ required_error: 'Icon is required' }),
+  link: z.string().refine(
+    (val) => val === '' || z.string().url().safeParse(val).success,
+    { message: 'Please enter a valid URL' }
+  ).optional(),
   status: z.enum(['active', 'inactive']).default('active')
 });
 
 type FormValues = z.infer<typeof schema>;
 
 interface Props {
-  item?: { id: number; title: string; subtitle: string; icon_id: number; status: 'active' | 'inactive'; icon?: { file_name: string; icon_url: string; } } | null;
+  item?: { id: number; title: string; subtitle: string; icon_id: number; link?: string; status: 'active' | 'inactive'; icon?: { file_name: string; icon_url: string; } } | null;
   onSuccess: () => void;
   onCancel: () => void;
 }
@@ -54,6 +58,7 @@ const CreateFeatureContentForm: React.FC<Props> = ({ item, onSuccess, onCancel }
       title: item?.title || '',
       subtitle: item?.subtitle || '',
       icon_id: (item?.icon_id as number) || (undefined as unknown as number),
+      link: item?.link || '',
       status: (item?.status as any) || 'active'
     }
   });
@@ -81,12 +86,13 @@ const CreateFeatureContentForm: React.FC<Props> = ({ item, onSuccess, onCancel }
         title: item.title,
         subtitle: item.subtitle,
         icon_id: item.icon_id as number,
+        link: item.link || '',
         status: item.status as any,
       });
       setSelectedIconName(item.icon?.file_name || '');
       setSelectedIconUrl(item.icon?.icon_url || '');
     } else {
-      reset({ title: '', subtitle: '', icon_id: undefined as unknown as number, status: 'active' });
+      reset({ title: '', subtitle: '', icon_id: undefined as unknown as number, link: '', status: 'active' });
       setSelectedIconName('');
       setSelectedIconUrl('');
     }
@@ -151,12 +157,19 @@ const CreateFeatureContentForm: React.FC<Props> = ({ item, onSuccess, onCancel }
   const onSubmit = async (data: FormValues) => {
     const title = String(data.title ?? '').trim();
     const subtitle = String(data.subtitle ?? '').trim();
+    const link = String(data.link ?? '').trim();
     if (!title || !subtitle) {
       showSnackbar('Title and Subtitle are required', 'error');
       return;
     }
     try {
-      const payload = { title, subtitle, status: data.status, icon_id: Number(data.icon_id) } as const;
+      const payload = { 
+        title, 
+        subtitle, 
+        status: data.status, 
+        icon_id: Number(data.icon_id),
+        ...(link && { link })
+      } as const;
       const res = item?.id ? await updateFeatureContent(item.id, payload) : await createFeatureContent(payload);
       if (res?.success === false) {
         const msg = res?.errors?.[0]?.msg || res?.message || 'Validation failed';
@@ -185,6 +198,12 @@ const CreateFeatureContentForm: React.FC<Props> = ({ item, onSuccess, onCancel }
           control={control}
           label="Subtitle"
           required
+        />
+        <FormTextField<FormValues>
+          name="link"
+          control={control}
+          label="Link"
+          placeholder="https://example.com"
         />
         <Controller
           name="icon_id"

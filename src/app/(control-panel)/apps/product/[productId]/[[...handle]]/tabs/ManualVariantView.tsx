@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useRef } from 'react';
 import { Controller, SubmitHandler, Control, UseFormHandleSubmit, FieldErrors, UseFormSetValue, useForm } from 'react-hook-form';
-import { Paper, IconButton, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, Button as MuiButton, Select, MenuItem, FormControl, InputLabel, FormHelperText } from '@mui/material';
+import { Paper, IconButton, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, Button as MuiButton, Box as MuiBox, Select, MenuItem, FormControl, InputLabel, FormHelperText } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import AppButton from '@/components/Shared/AppButton';
@@ -30,6 +30,7 @@ import {
 // Reusable components
 import VariantDisplayCard from '../components/VariantDisplayCard';
 import VariantDetailsForm, { VariantFormData as VariantEditFormData } from '../components/VariantDetailsForm';
+import { useProductForm } from '../ProductFormContext';
 
 // Assuming VariantFormData (for create), Variant (general), VariantAttributeField types are defined elsewhere or passed/defined here
 // Using placeholder types for now
@@ -137,6 +138,7 @@ interface ManualVariantData {
   id: number; 
   product_id: number;
   slug: string;
+  sku: string | null;
   regular_price: string; 
   discount_price: string | null;
   purchase_price: string | null;
@@ -160,6 +162,7 @@ const variantEditSchema = z.object({
     .min(1, "Slug is required")
     .max(100, "Slug cannot exceed 100 characters")
     .regex(/^[a-z0-9-]+$/, "Slug must contain only lowercase letters, numbers, and hyphens"),
+  sku: z.string().optional(),
   regular_price: z.preprocess(
     (val) => {
       if (val === "" || val === null || val === undefined) return null;
@@ -579,6 +582,8 @@ const ManualVariantView: React.FC<ManualVariantViewProps> = ({
   const { showSnackbar } = useSnackbar();
   const searchParams = useSearchParams();
   const productId = searchParams ? searchParams.get('productId') : null;
+  // Get product form data for product slug
+  const { formData } = useProductForm();
 
   // --- START: State for Manual Variant List and Edit ---
   const [manualVariants, setManualVariants] = useState<ManualVariantData[]>([]);
@@ -599,12 +604,13 @@ const ManualVariantView: React.FC<ManualVariantViewProps> = ({
     handleSubmit: handleEditSubmit,
     reset: resetEditForm,
     getValues: getEditValues,
+    setValue: setEditValue,
     formState: { errors: editErrors, isDirty: isEditDirty, isValid: isEditValid, dirtyFields: editDirtyFields },
   } = useForm<VariantEditFormData>({
     resolver: zodResolver(variantEditSchema),
     mode: "all", // Or "onChange"
     defaultValues: { // Sensible defaults
-      slug: "", regular_price: 0, stock: 0, status: "active", stockStatus: "In Stock",
+      slug: "", sku: "", regular_price: 0, stock: 0, status: "active", stockStatus: "In Stock",
       depositPrice: null, purchasePrice: null, lowStockThreshold: null,
       weight: null, length: null, width: null, height: null,
       barcode: null, description: null,
@@ -751,6 +757,7 @@ const ManualVariantView: React.FC<ManualVariantViewProps> = ({
     if (selectedManualVariant) {
       resetEditForm({
         slug: getEditFieldValue(selectedManualVariant.slug),
+        sku: getEditFieldValue(selectedManualVariant.sku),
         regular_price: getEditNumericValue(selectedManualVariant.regular_price),
         stock: getEditNumericValue(selectedManualVariant.stock),
         status: (selectedManualVariant.status?.toLowerCase() === 'active' ? 'active' : 'inactive') as 'active' | 'inactive',
@@ -772,7 +779,7 @@ const ManualVariantView: React.FC<ManualVariantViewProps> = ({
       prevSelectedManualVariantIdRef.current = selectedManualVariant.id;
     } else {
       resetEditForm({ // Reset to defaults if no variant selected
-        slug: "", regular_price: 0, stock: 0, status: "active", stockStatus: "In Stock",
+        slug: "", sku: "", regular_price: 0, stock: 0, status: "active", stockStatus: "In Stock",
         depositPrice: null, purchasePrice: null, lowStockThreshold: null,
         weight: null, length: null, width: null, height: null,
         barcode: null, description: null,
@@ -790,6 +797,7 @@ const ManualVariantView: React.FC<ManualVariantViewProps> = ({
     const formValues = getEditValues();
 
     if (formValues.slug !== originalVariant.slug) return true;
+    if (formValues.sku !== (originalVariant.sku || "")) return true;
     if (getEditNumericValue(formValues.regular_price) !== getEditNumericValue(originalVariant.regular_price)) return true;
     if (getEditNumericValue(formValues.stock) !== getEditNumericValue(originalVariant.stock)) return true; // originalVariant.stock is already a number
     if (formValues.status !== originalVariant.status?.toLowerCase()) return true;
@@ -852,6 +860,7 @@ const ManualVariantView: React.FC<ManualVariantViewProps> = ({
 
     const updateRequestData: any = {
       slug: data.slug,
+      sku: data.sku || null,
       regular_price: priceValue,
       stock: data.stock, 
       status: data.status,
@@ -1135,7 +1144,54 @@ const ManualVariantView: React.FC<ManualVariantViewProps> = ({
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
               <FormTextField name="stock" control={createControl} label="Stock" required type="number" />
               <FormTextField name="lowStockThreshold" control={createControl} label="Low Stock Threshold" type="number" />
-              <FormTextField name="slug" control={createControl} label="Slug" required placeholder="variant-slug" />
+              <div>
+                <FormTextField name="slug" control={createControl} label="Slug" required placeholder="variant-slug" />
+              </div>
+            </div>
+            <div className="mb-4">
+              <MuiBox sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
+                <MuiBox sx={{ flex: 1 }}>
+                  <FormTextField
+                    name="sku"
+                    control={createControl}
+                    label="SKU"
+                    type="text"
+                  />
+                </MuiBox>
+                <Controller
+                  name="slug"
+                  control={createControl}
+                  render={({ field }) => (
+                    <MuiButton 
+                      variant="outlined" 
+                      onClick={() => {
+                        const currentSlug = field.value || "";
+                        if (currentSlug) {
+                          setCreateValue("sku", currentSlug, { shouldValidate: true });
+                          showSnackbar("SKU filled with slug value", "success");
+                        } else {
+                          showSnackbar("Please enter a slug first", "warning");
+                        }
+                      }}
+                      sx={{ 
+                        height: '40px',
+                        textTransform: 'none',
+                        whiteSpace: 'nowrap',
+                        minWidth: 'auto',
+                        px: 2,
+                        borderColor: '#247c5c',
+                        color: '#247c5c',
+                        '&:hover': {
+                          borderColor: '#1a5c43',
+                          backgroundColor: 'rgba(36, 124, 92, 0.04)',
+                        }
+                      }}
+                    >
+                      Same as slug
+                    </MuiButton>
+                  )}
+                />
+              </MuiBox>
             </div>
           
             <div className="mb-4">
@@ -1233,12 +1289,16 @@ const ManualVariantView: React.FC<ManualVariantViewProps> = ({
                   selectedVariant={mapManualVariantForDetailsForm(selectedManualVariant)}
                   isSaving={isUpdatingManualVariant}
                   isSaveDisabled={isUpdatingManualVariant || isManualImageUploading || !isEditValid || !calculateManualVariantIsActuallyDirty()}
+                  getValues={getEditValues}
+                  setValue={setEditValue}
+                  showSnackbar={showSnackbar}
                   imageGetRootProps={editGetRootProps}
                   imageGetInputProps={editGetInputProps}
                   isImageDragActive={isEditDragActive}
                   isImageUploading={isManualImageUploading}
                   onSetPrimaryImage={handleManualSetPrimaryImage}
                   onDeleteImage={handleManualDeleteImage}
+                  productSlug={formData?.slug || ""}
                 />
               </div>
             )}

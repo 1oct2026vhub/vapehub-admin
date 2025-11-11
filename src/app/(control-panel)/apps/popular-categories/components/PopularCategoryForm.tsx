@@ -8,6 +8,7 @@ import { useSnackbar } from '@/contexts/SnackbarContext';
 import {
   createPopularCategory,
   updatePopularCategory,
+  listPopularCategory,
   PopularCategory,
 } from '@/services/apiPopularCategory';
 import { listProductCategory } from '@/services/apiProductCategory';
@@ -34,7 +35,8 @@ interface Category {
 }
 
 const PopularCategoryForm: React.FC<Props> = ({ item, onSuccess, onCancel }) => {
-  const { control, handleSubmit, reset } = useForm<FormValues>({
+  const isEditMode = !!item?.id;
+  const { control, handleSubmit, reset, watch } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
       title: item?.title || '',
@@ -46,6 +48,8 @@ const PopularCategoryForm: React.FC<Props> = ({ item, onSuccess, onCancel }) => 
   const { showSnackbar } = useSnackbar();
   const [categories, setCategories] = useState<Category[]>([]);
   const [categoriesLoading, setCategoriesLoading] = useState(false);
+  const [existingPopularCategories, setExistingPopularCategories] = useState<PopularCategory[]>([]);
+  const selectedCategoryId = watch('category_id');
 
   // Fetch categories on component mount
   useEffect(() => {
@@ -69,6 +73,27 @@ const PopularCategoryForm: React.FC<Props> = ({ item, onSuccess, onCancel }) => 
 
     fetchCategories();
   }, [showSnackbar]);
+
+  // Fetch existing popular categories to check for duplicates (only in create mode)
+  useEffect(() => {
+    const fetchExistingPopularCategories = async () => {
+      if (!isEditMode) {
+        try {
+          const response = await listPopularCategory({
+            limit: 1000,
+            deleted: false,
+          });
+          if (response?.data?.popularCategories) {
+            setExistingPopularCategories(response.data.popularCategories);
+          }
+        } catch (error) {
+          console.error('Failed to fetch existing popular categories:', error);
+        }
+      }
+    };
+
+    fetchExistingPopularCategories();
+  }, [isEditMode]);
 
   useEffect(() => {
     if (item) {
@@ -109,6 +134,17 @@ const PopularCategoryForm: React.FC<Props> = ({ item, onSuccess, onCancel }) => 
     if (data.description && data.description.length > 200) {
       showSnackbar('Description must be 200 characters or less', 'error');
       return;
+    }
+
+    // Check for duplicate category (only in create mode)
+    if (!item?.id && data.category_id) {
+      const isDuplicate = existingPopularCategories.some(
+        (popularCat) => popularCat.category_id === data.category_id
+      );
+      if (isDuplicate) {
+        showSnackbar('This category is already added to Popular Categories', 'error');
+        return;
+      }
     }
 
     try {
@@ -166,8 +202,19 @@ const PopularCategoryForm: React.FC<Props> = ({ item, onSuccess, onCancel }) => 
               select
               fullWidth
               size="small"
-              error={!!fieldState.error}
-              helperText={fieldState.error?.message || (categoriesLoading ? 'Loading categories...' : '')}
+              error={
+                !!fieldState.error || 
+                (!isEditMode && selectedCategoryId && existingPopularCategories.some(
+                  (popularCat) => popularCat.category_id === selectedCategoryId
+                ))
+              }
+              helperText={
+                fieldState.error?.message || 
+                (categoriesLoading ? 'Loading categories...' : '') ||
+                (!isEditMode && selectedCategoryId && existingPopularCategories.some(
+                  (popularCat) => popularCat.category_id === selectedCategoryId
+                ) ? 'This category is already added to Popular Categories' : '')
+              }
               value={field.value ?? ''}
               onChange={(e) => {
                 const value = e.target.value === '' ? undefined : Number(e.target.value);

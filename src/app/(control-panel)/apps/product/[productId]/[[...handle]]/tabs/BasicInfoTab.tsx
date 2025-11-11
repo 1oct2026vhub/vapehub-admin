@@ -40,6 +40,7 @@ const schema = z.object({
       /^[a-z0-9-]+$/,
       "Slug must be a valid URL-friendly string (lowercase letters, numbers, and hyphens only)"
     ),
+  sku: z.string().optional(),
   description: z.string().optional().default(""),
   category_ids: z.array(z.number()).min(1, "At least one category is required"),
   brand_ids: z.array(z.number()).min(1, "At least one brand is required"),
@@ -187,11 +188,13 @@ function BasicInfoTab() {
     formState: { isValid, errors },
     handleSubmit,
     watch,
+    getValues,
   } = useForm<FormData>({
     mode: "onChange",
     defaultValues: {
       name: formData.name || "",
       slug: formData.slug || "",
+      sku: formData.sku || "",
       description: formData.description || "",
       category_ids: formData.category_ids || [],
       brand_ids: formData.brand_ids || [],
@@ -450,6 +453,7 @@ function BasicInfoTab() {
             // Update form with fetched data
                          setValue("name", productData.name || "");
              setValue("slug", productData.slug || "");
+             setValue("sku", productData.sku || "");
              setValue("description", productData.description || "");
              setValue("category_ids", productData.Categories?.map(c => c.id) || []);
              setValue("brand_ids", productData.Brands?.map(b => b.id) || []);
@@ -462,6 +466,7 @@ function BasicInfoTab() {
              updateFormData({
                name: productData.name || "",
                slug: productData.slug || "",
+               sku: productData.sku || "",
                description: productData.description || "",
                category_ids: productData.Categories?.map(c => c.id) || [],
                brand_ids: productData.Brands?.map(b => b.id) || [],
@@ -496,6 +501,7 @@ function BasicInfoTab() {
        const productData: CreateProductData = {
          name: data.name.trim(),
          slug: data.slug.trim(),
+         ...(data.sku && { sku: data.sku.trim() }),
          description: data.description || "",
          category_ids: data.category_ids,
          brand_ids: data.brand_ids,
@@ -678,13 +684,53 @@ function BasicInfoTab() {
           />
         </Grid>
         <Grid item xs={12} md={6}>
-          <FormInputField
-            name="slug"
-            control={control}
-            label="Slug"
-            type="text"
-            required
-          />
+          <Stack spacing={2}>
+            <FormInputField
+              name="slug"
+              control={control}
+              label="Slug"
+              type="text"
+              required
+            />
+            <MuiBox sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
+              <MuiBox sx={{ flex: 1 }}>
+                <FormInputField
+                  name="sku"
+                  control={control}
+                  label="SKU"
+                  type="text"
+                />
+              </MuiBox>
+              <MuiButton 
+                variant="outlined" 
+                onClick={() => {
+                  const currentSlug = getValues("slug");
+                  if (currentSlug) {
+                    setValue("sku", currentSlug, { shouldValidate: true });
+                    showSnackbar("SKU filled with slug value", "success");
+                  } else {
+                    showSnackbar("Please enter a slug first", "warning");
+                  }
+                }}
+                sx={{ 
+                  // mt: '8px',
+                  height: '40px',
+                  textTransform: 'none',
+                  whiteSpace: 'nowrap',
+                  minWidth: 'auto',
+                  px: 2,
+                  borderColor: '#247c5c',
+                  color: '#247c5c',
+                  '&:hover': {
+                    borderColor: '#1a5c43',
+                    backgroundColor: 'rgba(36, 124, 92, 0.04)',
+                  }
+                }}
+              >
+                Same as slug
+              </MuiButton>
+            </MuiBox>
+          </Stack>
         </Grid>
         
         <Grid item xs={12} md={6}>

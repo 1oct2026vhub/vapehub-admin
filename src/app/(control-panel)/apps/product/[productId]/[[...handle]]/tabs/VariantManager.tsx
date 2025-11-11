@@ -160,7 +160,8 @@ const variantSchema = z.object({
   slug: z.string()
     .min(1, "Slug is required")
     .max(100, "Slug cannot exceed 100 characters") 
-    .regex(/^[a-z0-9-]+$/, "Slug must contain only lowercase letters, numbers, and hyphens"), 
+    .regex(/^[a-z0-9-]+$/, "Slug must contain only lowercase letters, numbers, and hyphens"),
+  sku: z.string().optional(), 
   regular_price: z.preprocess(
     (val) => {
       if (val === "" || val === null || val === undefined) return null;
@@ -798,6 +799,7 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
     // --- EDIT: Use simple null/defaults matching simplified schema ---
     defaultValues: { 
       slug: "",
+      sku: "",
       regular_price: null as any, 
       stock: null as any, 
       status: "active", 
@@ -830,6 +832,7 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
     // --- EDIT: Use simple null/defaults matching simplified schema ---
     defaultValues: { 
       slug: "",
+      sku: "",
       regular_price: null as any, 
       stock: null as any, 
       status: "active", 
@@ -1267,7 +1270,8 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
           return {
             id: Number(apiVariant.id), // Store as number
             product_id: Number(productId), // Populate product_id
-            slug: apiVariant.slug,
+            slug: apiVariant.slug || "",
+            sku: apiVariant.sku || "", // Default to empty string like BasicInfoTab, matching slug handling
             regular_price: String(apiVariant.regular_price), // Store as string
             stock: Number(apiVariant.stock),   // Store as number
             status: apiVariant.status, // Store API string (e.g., "active")
@@ -1281,7 +1285,6 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
             height: apiVariant.height !== null && apiVariant.height !== undefined ? String(apiVariant.height) : null,
             barcode: apiVariant.barcode || null,
             description: apiVariant.description || null,
-            sku: apiVariant.sku || null,
             attributes: apiVariant.attributes ? Object.entries(apiVariant.attributes).reduce((acc, [key, val]) => {
               acc[key] = String(val); // Ensure value is string
               return acc;
@@ -1513,8 +1516,9 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
           // Create our variant object
           return {
             id: apiVariant.id.toString(),
-            slug: apiVariant.slug,
-            regular_price: apiVariant.regular_price,
+            slug: apiVariant.slug || "",
+            sku: apiVariant.sku || "", // Default to empty string like BasicInfoTab, matching slug handling
+            regular_price: apiVariant.regular_price || "",
             stock: apiVariant.stock,
             status: apiVariant.status === 'active' ? 'Active' : 'Inactive',
             stock_status: mapApiStockStatusToForm(apiVariant.stock_status),
@@ -1585,6 +1589,7 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
     // Reset the CREATE form
     resetCreateForm({ 
       slug: "",
+      sku: "",
       regular_price: null as any,
       stock: null as any, 
       status: "active", 
@@ -1785,6 +1790,7 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
 
       // Define optional fields separately - use transformPriceNumber for price fields
       const optionalFields = {
+        sku: data.sku?.trim() || undefined,
         discount_price: transformPriceNumber(data.depositPrice),
         purchase_price: transformPriceNumber(data.purchasePrice),
         low_stock_threshold: transformOptionalNumber(data.lowStockThreshold),
@@ -1847,7 +1853,7 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
         height: String(transformOptionalNumber(data.height)),
         barcode: data.barcode?.trim() || null,
         description: data.description?.trim() || null,
-        sku: null,
+        sku: data.sku?.trim() || null,
         attributes: Object.fromEntries(Object.entries(pendingCombination).map(([key, value]) => [key, String((value as any).value)])), // Ensure value is string
         variantAttributes: Object.entries(pendingCombination).map(([attrName, comboValue]) => ({ 
           attribute_id: Number((comboValue as any).attribute_id),
@@ -2258,6 +2264,7 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
     // Reset the CREATE form with default values and the generated slug
     resetCreateForm({ // <-- CORRECTED: Use resetCreateForm
       slug: slug,
+      sku: "",
       regular_price: null as any,
       // --- EDIT: Reset complex fields to undefined for create --- 
       stock: null as any,
@@ -2550,6 +2557,7 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
 
       // Required fields (compare simple types)
       if (data.slug !== originalVariant.slug) { apiPayload.slug = data.slug; hasChanges = true; }
+      if ((data.sku || null) !== (originalVariant.sku || null)) { apiPayload.sku = data.sku || null; hasChanges = true; }
       if (transformOptionalNumber(data.regular_price) !== transformOptionalNumber(originalVariant.regular_price)) { apiPayload.regular_price = transformOptionalNumber(data.regular_price); hasChanges = true; }
       if (transformOptionalNumber(data.stock) !== transformOptionalNumber(originalVariant.stock)) { apiPayload.stock = transformOptionalNumber(data.stock); hasChanges = true; }
       
@@ -2680,6 +2688,7 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
             const updatedVariant: Variant = { 
               ...v, 
               slug: data.slug,
+              sku: data.sku || null,
               regular_price: String(transformOptionalNumber(data.regular_price)), 
               stock: Number(transformOptionalNumber(data.stock)), 
               // Ensure status is properly set in the correct format for display
@@ -2704,6 +2713,7 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
             // Reset the form with the updated values to reflect the changes
             const resetData = {
               slug: updatedVariant.slug ?? '',
+              sku: updatedVariant.sku ?? '',
               regular_price: updatedVariant.regular_price ? Number(updatedVariant.regular_price) : null,
               stock: updatedVariant.stock ?? 0,
               status: displayStatus.toLowerCase() as 'active' | 'inactive',
@@ -2946,6 +2956,7 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
 
         const resetData = {
           slug: currentSelectedVariant.slug ?? '',
+          sku: currentSelectedVariant.sku ?? '', // Default to empty string if null/undefined
           regular_price: currentSelectedVariant.regular_price ? Number(currentSelectedVariant.regular_price) : null,
           stock: currentSelectedVariant.stock ?? 0,
           status: formStatus as 'active' | 'inactive', // Use the derived lowercase formStatus
@@ -2968,7 +2979,7 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
       }
     } else {
       resetEditForm({ 
-        slug: "", regular_price: null as any, stock: null as any, status: "active",
+        slug: "", sku: "", regular_price: null as any, stock: null as any, status: "active",
         depositPrice: null, purchasePrice: null, stockStatus: "In Stock", 
         lowStockThreshold: null, weight: null, length: null, width: null, height: null, 
         barcode: null, description: null
@@ -3481,6 +3492,10 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
                         isImageUploading={imageUploading || isEditImageUploading || isEditUploading} 
                         onSetPrimaryImage={handleSetPrimaryImage}
                         onDeleteImage={handleDeleteImage}
+                        getValues={getValues as any}
+                        setValue={setEditValue as any}
+                        showSnackbar={showSnackbar}
+                        productSlug={formData?.slug || ""}
                       />
                       </div>
                     </>
