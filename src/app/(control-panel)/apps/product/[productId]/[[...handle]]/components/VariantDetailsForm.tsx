@@ -1,6 +1,6 @@
 import React from 'react';
-import { Control, Controller, UseFormHandleSubmit, FieldErrors, SubmitHandler } from 'react-hook-form';
-import { Paper, Select, MenuItem, FormControl, InputLabel, FormHelperText, Typography } from '@mui/material';
+import { Control, Controller, UseFormHandleSubmit, FieldErrors, SubmitHandler, UseFormGetValues, UseFormSetValue } from 'react-hook-form';
+import { Paper, Select, MenuItem, FormControl, InputLabel, FormHelperText, Typography, Button as MuiButton, Box as MuiBox } from '@mui/material';
 import { DropzoneRootProps, DropzoneInputProps } from 'react-dropzone';
 import AppButton from '@/components/Shared/AppButton';
 import FormTextField from '@/components/Shared/FormTextField';
@@ -89,6 +89,7 @@ export const validateFile = async (file: File): Promise<string | null> => {
 
 export interface VariantFormData {
   slug: string;
+  sku?: string;
   regular_price: number;
   stock: number;
   status: 'active' | 'inactive';
@@ -136,6 +137,10 @@ interface VariantDetailsFormProps {
   selectedVariant: SelectedVariantForForm | null; 
   isSaving: boolean; 
   isSaveDisabled?: boolean; // Made optional since it's no longer used
+  getValues?: UseFormGetValues<VariantFormData>;
+  setValue?: UseFormSetValue<VariantFormData>;
+  showSnackbar?: (message: string, severity: 'success' | 'error' | 'warning' | 'info') => void;
+  productSlug?: string; // Product slug for "Same as slug" button
 
   // Image handling props
   imageGetRootProps: (props?: any) => DropzoneRootProps;
@@ -152,6 +157,10 @@ const VariantDetailsForm: React.FC<VariantDetailsFormProps> = ({
   onSubmit,
   selectedVariant,
   isSaving,
+  getValues,
+  setValue,
+  showSnackbar,
+  productSlug,
   imageGetRootProps,
   imageGetInputProps,
   isImageDragActive,
@@ -211,6 +220,54 @@ const VariantDetailsForm: React.FC<VariantDetailsFormProps> = ({
         <FormTextField name="stock" control={control} label="Stock" required type="number" inputProps={{ step: "1" }} />
         <FormTextField name="lowStockThreshold" control={control} label="Low Stock Threshold" type="number" inputProps={{ step: "1" }} />
         <FormTextField name="slug" control={control} label="Slug" required />
+      </div>
+
+      <div className="mb-4">
+        <MuiBox sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
+          <MuiBox sx={{ flex: 1 }}>
+            <FormTextField
+              name="sku"
+              control={control}
+              label="SKU"
+              type="text"
+            />
+          </MuiBox>
+          {getValues && setValue && (
+            <MuiButton 
+              variant="outlined" 
+              onClick={() => {
+                const productSlugValue = productSlug || "";
+                if (productSlugValue) {
+                  // Convert product slug to SKU format: uppercase and remove hyphens
+                  const skuValue = productSlugValue.toUpperCase().replace(/-/g, '');
+                  setValue("sku", skuValue, { shouldValidate: true });
+                  if (showSnackbar) {
+                    showSnackbar("SKU filled with product slug value", "success");
+                  }
+                } else {
+                  if (showSnackbar) {
+                    showSnackbar("Product slug not available", "warning");
+                  }
+                }
+              }}
+              sx={{ 
+                height: '40px',
+                textTransform: 'none',
+                whiteSpace: 'nowrap',
+                minWidth: 'auto',
+                px: 2,
+                borderColor: '#247c5c',
+                color: '#247c5c',
+                '&:hover': {
+                  borderColor: '#1a5c43',
+                  backgroundColor: 'rgba(36, 124, 92, 0.04)',
+                }
+              }}
+            >
+              Same as slug
+            </MuiButton>
+          )}
+        </MuiBox>
       </div>
 
       {/* Dimensions & Weight */}

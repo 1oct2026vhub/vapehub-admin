@@ -17,6 +17,7 @@ import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import { uploadVariantImages, setVariantPrimaryImage, deleteVariantImage } from '@/services/apiProduct';
 import VariantDisplayCard from '../components/VariantDisplayCard';
 import VariantDetailsForm, { VariantFormData as DetailsFormDataType } from '../components/VariantDetailsForm';
+import { useProductForm } from '../ProductFormContext';
 
 interface GenerateVariantsViewProps {
   isLoading: boolean;
@@ -59,6 +60,7 @@ interface GeneratedVariant {
   id: number;
   product_id: number;
   slug: string;
+  sku: string; // Always a string (empty string if not provided by API), matching VariantManager
   regular_price: string;
   discount_price: string;
   purchase_price: string;
@@ -128,6 +130,7 @@ const variantSchema = z.object({
     .min(1, "Slug is required")
     .max(100, "Slug cannot exceed 100 characters")
     .regex(/^[a-z0-9-]+$/, "Slug must contain only lowercase letters, numbers, and hyphens"),
+  sku: z.string().optional(),
   regular_price: z.preprocess(
     (val) => {
       if (val === "" || val === null || val === undefined) return null;
@@ -361,6 +364,8 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
   const searchParams = useSearchParams();
   // Get productId safely once at the top
   const productId = searchParams ? searchParams.get('productId') : null;
+  // Get product form data for product slug
+  const { formData } = useProductForm();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [imageUploading, setImageUploading] = useState(false);
   const [isConfirmationDialogOpen, setIsConfirmationDialogOpen] = useState(false);
@@ -385,6 +390,7 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
     mode: "all",
     defaultValues: {
       slug: "",
+      sku: "",
       regular_price: 1,
       stock: 0,
       status: "active",
@@ -635,6 +641,7 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
             regular_price: String(getNumericValue(currentFormValues.regular_price) ?? variant.regular_price ?? null),
             stock: getNumericValue(currentFormValues.stock) ?? variant.stock ?? 0,
             slug: String(currentFormValues.slug || variant.slug || ''),
+            sku: currentFormValues.sku || variant.sku || '',
             discount_price: String(getNumericValue(currentFormValues.depositPrice) ?? variant.discount_price ?? null),
             purchase_price: String(getNumericValue(currentFormValues.purchasePrice) ?? variant.purchase_price ?? null),
             low_stock_threshold: getNumericValue(currentFormValues.lowStockThreshold) ?? variant.low_stock_threshold ?? null,
@@ -747,6 +754,7 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
               ...variant, // Start with the existing variant from state
               // Overwrite with potentially unsaved form values, applying correct typing/mapping
               slug: String(currentFormValues.slug || variant.slug || ''),
+              sku: currentFormValues.sku || variant.sku || '',
               regular_price: String(getNumericValue(currentFormValues.regular_price) ?? variant.regular_price ?? null),
               stock: getNumericValue(currentFormValues.stock) ?? variant.stock ?? 0,
               status: String(currentFormValues.status || variant.status || 'inactive') as 'active' | 'inactive',
@@ -835,6 +843,7 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
           ...variant,
           // (Merge with form values as before)
           slug: String(currentFormValues.slug || variant.slug || ''),
+          sku: currentFormValues.sku || variant.sku || '',
           regular_price: String(getNumericValue(currentFormValues.regular_price) ?? getNumericValue(variant.regular_price) ?? 0),
           stock: getNumericValue(currentFormValues.stock) ?? getNumericValue(variant.stock) ?? 0,
           status: String(currentFormValues.status || variant.status || 'inactive') as 'active' | 'inactive',
@@ -891,6 +900,7 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
         return {
           ...variant,
           slug: String(currentFormValues.slug || variant.slug || ''),
+          sku: currentFormValues.sku || variant.sku || '',
           regular_price: String(getNumericValue(currentFormValues.regular_price) ?? variant.regular_price ?? null),
           stock: getNumericValue(currentFormValues.stock) ?? variant.stock ?? 0,
           status: String(currentFormValues.status || variant.status || 'inactive') as 'active' | 'inactive',
@@ -937,6 +947,28 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
     }
   };
 
+  // Helper function to generate default SKU for a variant
+  const generateDefaultSku = (variant: GeneratedVariant): string | null => {
+    // If variant already has a SKU, return it
+    if (variant.sku && variant.sku.trim() !== '') {
+      return variant.sku;
+    }
+    
+    // Generate SKU based on variant slug or ID
+    // Format: Use slug if available, otherwise use variant ID
+    if (variant.slug && variant.slug.trim() !== '') {
+      // Use slug as base for SKU, convert to uppercase and replace hyphens
+      return variant.slug.toUpperCase().replace(/-/g, '');
+    }
+    
+    // Fallback to variant ID if slug is not available
+    if (variant.id) {
+      return `VAR-${variant.id}`;
+    }
+    
+    return null;
+  };
+
   // Fetch EXISTING variants (Simplified: No dialog logic here)
   const fetchVariants = async (productIdParam: string, isMounted: boolean) => {
     setIsLoading(true); 
@@ -949,7 +981,33 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
       if (!isMounted) return; // Check mount state after await
 
       if (response.success) {
-        const fetchedVariants = response.data || [];
+        const fetchedVariants = (response.data || []).map((variant: any) => {
+          // Create a properly typed variant object - same as VariantManager
+          const mappedVariant: GeneratedVariant = {
+            id: variant.id,
+            product_id: variant.product_id,
+            slug: variant.slug || '',
+            // Use SKU directly from API response, default to empty string like VariantManager
+            sku: variant.sku || "",
+            regular_price: variant.regular_price || '0',
+            discount_price: variant.discount_price || null,
+            purchase_price: variant.purchase_price || null,
+            weight: variant.weight || null,
+            length: variant.length || null,
+            width: variant.width || null,
+            height: variant.height || null,
+            description: variant.description || null,
+            barcode: variant.barcode || null,
+            stock: variant.stock || 0,
+            low_stock_threshold: variant.low_stock_threshold || null,
+            stock_status: variant.stock_status || 'out_of_stock',
+            status: variant.status || 'inactive',
+            variantImages: variant.variantImages || [],
+            variantAttributes: variant.variantAttributes || []
+          };
+          
+          return mappedVariant;
+        });
         setGeneratedVariants(fetchedVariants);
         // Select first variant if list is not empty and none is selected
         if (fetchedVariants.length > 0 && !selectedVariant) { 
@@ -1024,6 +1082,7 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
         console.log(`[useEffect resetEditForm GVW] Variant ID changed from ${prevSelectedVariantIdRef.current} to ${selectedVariant.id}. Resetting form.`);
         const resetValues = {
           slug: getFieldValue(selectedVariant.slug),
+          sku: getFieldValue(selectedVariant.sku),
           regular_price: getNumericValue(selectedVariant.regular_price),
           stock: getNumericValue(selectedVariant.stock),
           status: (selectedVariant.status?.toLowerCase() === 'active' ? 'active' : 'inactive') as 'active' | 'inactive',
@@ -1052,6 +1111,7 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
       console.log('[useEffect resetEditForm GVW] No variant selected, resetting to defaults.');
       resetForm({
         slug: '',
+        sku: '',
         regular_price: null,
         stock: null,
         status: 'active',
@@ -1090,6 +1150,7 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
 
         // Fields from the form (obtained via getValues())
         slug: formValues.slug,
+        sku: formValues.sku ?? originalSelectedVariantRef.current.sku ?? '',
         regular_price: String(getNumericValue(formValues.regular_price) ?? originalSelectedVariantRef.current.regular_price), // Fallback to original for comparison consistency
         stock: getNumericValue(formValues.stock) ?? originalSelectedVariantRef.current.stock,
         status: formValues.status, // 'active' | 'inactive'
@@ -1157,6 +1218,7 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
 
       // Dynamically add fields to payload ONLY if they are dirty
       if (dirtyFields.slug) apiPayload.slug = data.slug;
+      if (dirtyFields.sku) apiPayload.sku = data.sku || null;
       if (dirtyFields.regular_price) apiPayload.regular_price = transformOptionalNumber(data.regular_price);
       if (dirtyFields.stock) apiPayload.stock = transformOptionalNumber(data.stock);
       if (dirtyFields.depositPrice) {
@@ -1216,6 +1278,7 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
             return {
               ...variant,
               slug: data.slug,
+              sku: data.sku || '',
               regular_price: String(data.regular_price || 0),
               stock: Number(data.stock || 0),
               discount_price: String(data.depositPrice || 0),
@@ -1480,6 +1543,10 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
                     isImageUploading={imageUploading}
                     onSetPrimaryImage={handleSetPrimaryImage}
                     onDeleteImage={handleDeleteImage}
+                    getValues={getValues}
+                    setValue={setValue}
+                    showSnackbar={showSnackbar}
+                    productSlug={formData?.slug || ""}
                   />
                 </div>
               )}

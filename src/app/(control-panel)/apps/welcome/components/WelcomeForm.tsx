@@ -20,9 +20,9 @@ const ACCEPTED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/jpg', 'image/web
 const welcomeSchema = z.object({
   title: z.string().min(1, 'Title is required'),
   content: z.string().min(1, 'Content is required'),
-  image: z.any().superRefine(async (value, ctx) => {
-    if (!value) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Image is required' });
+  image: z.any().optional().superRefine(async (value, ctx) => {
+    // Image is optional, so if no value is provided, skip validation
+    if (!value || value === null || value === undefined) {
       return;
     }
     // When editing, existing value can be a URL string; allow it
@@ -175,8 +175,7 @@ const WelcomeForm: React.FC<{}> = () => {
             name="image"
             control={control}
             label="Image"
-            required
-            helperText="Required resolution: 658 × 507 px (PNG/JPG/WebP, max 5MB)"
+            helperText="Optional - Recommended resolution: 658 × 507 px (PNG/JPG/WebP, max 5MB)"
             exactWidth={658}
             exactHeight={507}
             defaultImage={currentImageUrl}
