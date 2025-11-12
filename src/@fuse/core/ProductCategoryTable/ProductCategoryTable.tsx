@@ -109,6 +109,11 @@ const ProductCategoryTable = ({
     setLimit(newLimit);
   }, []);
 
+  // Clear row selection when switching between active/deleted views
+  useEffect(() => {
+    setRowSelection({});
+  }, [deleted]);
+
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearch(search);

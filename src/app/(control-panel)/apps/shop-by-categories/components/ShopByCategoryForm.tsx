@@ -357,7 +357,7 @@ const ShopByCategoryForm: React.FC<Props> = ({ item, onSuccess, onCancel }) => {
                 },
               }}
             >
-              <MenuItem value="">None</MenuItem>
+              {/* <MenuItem value="">None</MenuItem> */}
               <MenuItem value="active">Active</MenuItem>
               <MenuItem value="inactive">Inactive</MenuItem>
             </TextField>
