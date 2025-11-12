@@ -1158,21 +1158,17 @@ const ManualVariantView: React.FC<ManualVariantViewProps> = ({
                     type="text"
                   />
                 </MuiBox>
-                <Controller
-                  name="slug"
-                  control={createControl}
-                  render={({ field }) => (
-                    <MuiButton 
-                      variant="outlined" 
-                      onClick={() => {
-                        const currentSlug = field.value || "";
-                        if (currentSlug) {
-                          setCreateValue("sku", currentSlug, { shouldValidate: true });
-                          showSnackbar("SKU filled with slug value", "success");
-                        } else {
-                          showSnackbar("Please enter a slug first", "warning");
-                        }
-                      }}
+                <MuiButton 
+                  variant="outlined" 
+                  onClick={() => {
+                    const productSlugValue = formData?.slug || "";
+                    if (productSlugValue) {
+                      setCreateValue("sku", productSlugValue, { shouldValidate: true });
+                      showSnackbar("SKU filled with product slug value", "success");
+                    } else {
+                      showSnackbar("Product slug not available", "warning");
+                    }
+                  }}
                       sx={{ 
                         height: '40px',
                         textTransform: 'none',
@@ -1189,8 +1185,6 @@ const ManualVariantView: React.FC<ManualVariantViewProps> = ({
                     >
                       Same as slug
                     </MuiButton>
-                  )}
-                />
               </MuiBox>
             </div>
           
