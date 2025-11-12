@@ -351,6 +351,15 @@ const OrderDetailApp = () => {
                             >
                               {item.product.name}
                             </Typography>
+                            {(item.product as any)?.sku && (
+                              <Typography
+                                variant="caption"
+                                color="text.secondary"
+                                sx={{ display: 'block', mt: 0.25 }}
+                              >
+                                SKU: {(item.product as any).sku}
+                              </Typography>
+                            )}
                             {/* Display Variant Attributes if they exist */}
                             {(item.variant as any)?.variantAttributes && ((item.variant as any).variantAttributes as any[]).length > 0 ? (
                               <Box sx={{ mt: 0.5 }}>

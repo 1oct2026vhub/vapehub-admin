@@ -238,9 +238,8 @@ const VariantDetailsForm: React.FC<VariantDetailsFormProps> = ({
               onClick={() => {
                 const productSlugValue = productSlug || "";
                 if (productSlugValue) {
-                  // Convert product slug to SKU format: uppercase and remove hyphens
-                  const skuValue = productSlugValue.toUpperCase().replace(/-/g, '');
-                  setValue("sku", skuValue, { shouldValidate: true });
+                  // Use the exact product slug value without any transformation
+                  setValue("sku", productSlugValue, { shouldValidate: true });
                   if (showSnackbar) {
                     showSnackbar("SKU filled with product slug value", "success");
                   }
