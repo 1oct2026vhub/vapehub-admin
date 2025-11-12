@@ -120,6 +120,7 @@ export interface ProductType {
   discount_price: string;
   stock_quantity: number | null;
   slug: string;
+  sku?: string | null;
   brand_id: number;
   category_id: number;
   createdAt: string;
@@ -403,6 +404,12 @@ export default function ProductDetailTable() {
                         <RequiredField>Slug</RequiredField>
                       </TableCell>
                       <TableCell>{productDetail.slug}</TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell component="th" className="font-semibold">
+                        SKU
+                      </TableCell>
+                      <TableCell>{productDetail.sku || "N/A"}</TableCell>
                     </TableRow>
                     <TableRow>
                       <TableCell component="th" className="font-semibold">
