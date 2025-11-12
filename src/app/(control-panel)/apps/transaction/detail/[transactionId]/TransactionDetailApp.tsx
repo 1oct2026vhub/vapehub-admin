@@ -486,6 +486,15 @@ const TransactionDetailApp = () => {
                                 >
                                   {item.product.name}
                                 </Typography>
+                                {(item.product as any)?.sku && (
+                                  <Typography
+                                    variant="caption"
+                                    color="text.secondary"
+                                    sx={{ display: 'block', mt: 0.25 }}
+                                  >
+                                    SKU: {(item.product as any).sku}
+                                  </Typography>
+                                )}
                                 {item.variant && (item.variant as any).variantAttributes && ((item.variant as any).variantAttributes as any[]).length > 0 ? (
                                   <Box sx={{ mt: 0.5 }}>
                                     {((item.variant as any).variantAttributes as any[]).map((attr: any, index: number) => (

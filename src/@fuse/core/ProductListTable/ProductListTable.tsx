@@ -57,6 +57,7 @@ export type ProductType = {
   createdAt: string;
   updatedAt: string;
   status: "draft" | "published" | "archived";
+  sku?: string | null;
   Brands?: {
     id: number;
     name: string;
@@ -751,6 +752,11 @@ const ProductListTable = ({
       { 
         accessorKey: "slug", 
         header: "Slug" 
+      },
+      { 
+        accessorKey: "sku", 
+        header: "SKU",
+        Cell: ({ row }) => row.original.sku || "N/A"
       },
       // {
       //   accessorKey: "price",
