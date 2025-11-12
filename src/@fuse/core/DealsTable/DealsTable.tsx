@@ -86,6 +86,11 @@ const DealsTable: React.FC = () => {
     setRowSelection({}); // Clear row selection when filters are cleared
   };
 
+  // Clear row selection when switching between active/deleted views
+  useEffect(() => {
+    setRowSelection({});
+  }, [isDeleted]);
+
   // Debounced search for deals
   useEffect(() => {
     const timer = setTimeout(() => {

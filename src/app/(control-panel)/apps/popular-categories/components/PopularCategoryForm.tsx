@@ -299,7 +299,7 @@ const PopularCategoryForm: React.FC<Props> = ({ item, onSuccess, onCancel }) => 
           label="Status"
           select
         >
-          <MenuItem value="">None</MenuItem>
+          {/* <MenuItem value="">None</MenuItem> */}
           <MenuItem value="active">Active</MenuItem>
           <MenuItem value="inactive">Inactive</MenuItem>
         </FormTextField>

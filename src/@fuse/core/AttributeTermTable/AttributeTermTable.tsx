@@ -148,6 +148,11 @@ const AttributeTermTable = ({
   };
   // --- END ADD ---
 
+  // Clear row selection when switching between active/deleted views
+  useEffect(() => {
+    setRowSelection({});
+  }, [showDeleted]);
+
   // Debounce search input
   useEffect(() => {
     const timer = setTimeout(() => {

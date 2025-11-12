@@ -58,6 +58,11 @@ const ReviewTable: React.FC<ReviewTableProps> = ({ onEditClick }) => {
 
   const debouncedSearch = useDebounce(search, 500);
 
+  // Clear row selection when switching between active/deleted views
+  useEffect(() => {
+    setRowSelection({});
+  }, [deleted]);
+
   const sorting = useMemo<MRT_SortingState>(
     () => [{ id: sortBy, desc: sortOrder === 'DESC' }],
     [sortBy, sortOrder]

@@ -103,6 +103,11 @@ const ProductBrandTable = ({ refreshData }: ProductBrandTableProps) => {
     setLimit(newLimit); // Then update limit
   }, []);
 
+  // Clear row selection when switching between active/deleted views
+  useEffect(() => {
+    setRowSelection({});
+  }, [deleted]);
+
   // Debounce search input
   useEffect(() => {
     const timer = setTimeout(() => {
