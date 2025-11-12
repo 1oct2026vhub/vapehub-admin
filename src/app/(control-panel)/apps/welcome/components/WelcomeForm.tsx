@@ -4,7 +4,7 @@ import React, { useEffect } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { validateImageDimensions } from '@/utils/imageUtils';
+import { validateSquareImage } from '@/utils/imageUtils';
 import FormTextField from '@/components/Shared/FormTextField';
 import FormCKEditor from '@/components/Shared/FormCKEditor';
 import AppButton from '@/components/Shared/AppButton';
@@ -16,6 +16,7 @@ import { useSnackbar } from '@/contexts/SnackbarContext';
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const ACCEPTED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'];
+const MIN_SQUARE_DIMENSION = 500; // Minimum dimension for square image (500x500 px)
 
 const welcomeSchema = z.object({
   title: z.string().min(1, 'Title is required'),
@@ -37,11 +38,12 @@ const welcomeSchema = z.object({
         ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Only .png, .jpg, .jpeg, .webp formats are accepted.' });
         return;
       }
-      const result = await validateImageDimensions(value, 658, 507);
+      // First check if image is square, then check minimum dimensions
+      const result = await validateSquareImage(value, MIN_SQUARE_DIMENSION);
       if (!result.valid) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
-          message: result.message || 'Image must be exactly 658 × 507 px',
+          message: result.message || 'Image must be square with minimum dimensions of 500 × 500 px',
         });
       }
       return;
@@ -175,9 +177,7 @@ const WelcomeForm: React.FC<{}> = () => {
             name="image"
             control={control}
             label="Image"
-            helperText="Optional - Recommended resolution: 658 × 507 px (PNG/JPG/WebP, max 5MB)"
-            exactWidth={658}
-            exactHeight={507}
+            helperText={`Must be square image (width = height) with minimum ${MIN_SQUARE_DIMENSION} × ${MIN_SQUARE_DIMENSION} px (PNG/JPG/WebP, max 5MB)`}
             defaultImage={currentImageUrl}
             onFileChange={handleFileChange}
           />
