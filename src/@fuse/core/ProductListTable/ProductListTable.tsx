@@ -163,6 +163,11 @@ const ProductListTable = ({
     setLimit(newLimit); // Then update limit
   }, []);
 
+  // Clear row selection when switching between active/deleted views
+  useEffect(() => {
+    setRowSelection({});
+  }, [deleted]);
+
   // Add debounce effect for search term
   useEffect(() => {
     const timer = setTimeout(() => {

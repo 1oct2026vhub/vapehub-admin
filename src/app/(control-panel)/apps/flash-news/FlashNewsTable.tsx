@@ -39,6 +39,11 @@ const FlashNewsTable: React.FC = () => {
     setRowSelection({});
   };
 
+  // Clear row selection when switching between active/deleted views
+  useEffect(() => {
+    setRowSelection({});
+  }, [deleted]);
+
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearch(search);
@@ -240,7 +245,10 @@ const FlashNewsTable: React.FC = () => {
           />
           <Select
             value={deleted === null ? 'active' : 'deleted'}
-            onChange={e => setDeleted(e.target.value === 'active' ? null : true)}
+            onChange={e => {
+              setDeleted(e.target.value === 'active' ? null : true);
+              setRowSelection({}); // Clear selection immediately when switching views
+            }}
             size="small"
             sx={{ minWidth: 120, mx: 1 }}
           >
@@ -267,28 +275,47 @@ const FlashNewsTable: React.FC = () => {
             </Button>
           )}
 
-          {/* Bulk Restore Button */}
-          {Object.keys(rowSelection).length > 0 && deleted === true && (
-            <Button
-              variant="contained"
-              color="success"
-              size="small"
-              startIcon={<FuseSvgIcon>heroicons-outline:arrow-path</FuseSvgIcon>}
-              onClick={handleOpenBulkRestoreDialog}
-              sx={{
-                backgroundColor: "#2e7d32",
-                "&:hover": {
-                  backgroundColor: "#1b5e20",
-                },
-              }}
-            >
-              Bulk Restore ({Object.keys(rowSelection).length})
-            </Button>
-          )}
+          {/* Bulk Restore Button - Only show if selected rows are actually deleted items */}
+          {(() => {
+            if (Object.keys(rowSelection).length === 0 || deleted !== true) return null;
+            
+            // Verify that selected rows are actually deleted items
+            const selectedIndices = Object.keys(rowSelection).filter(
+              (key) => rowSelection[key]
+            );
+            const selectedFlashNewsToRestore = flashNews.filter((_, index) =>
+              selectedIndices.includes(index.toString())
+            );
+            const deletedFlashNewsToRestore = selectedFlashNewsToRestore.filter(
+              (item) => item.deleted_at
+            );
+            
+            // Only show restore button if there are actually deleted items selected
+            if (deletedFlashNewsToRestore.length === 0) return null;
+            
+            return (
+              <Button
+                variant="contained"
+                color="success"
+                size="small"
+                startIcon={<FuseSvgIcon>heroicons-outline:arrow-path</FuseSvgIcon>}
+                onClick={handleOpenBulkRestoreDialog}
+                sx={{
+                  backgroundColor: "#2e7d32",
+                  "&:hover": {
+                    backgroundColor: "#1b5e20",
+                  },
+                }}
+              >
+                Bulk Restore ({deletedFlashNewsToRestore.length})
+              </Button>
+            );
+          })()}
 
           {areFiltersActive && <ClearFiltersButton onClick={clearFilters} />}
         </div>
         <DataTable
+          key={`flash-news-${deleted}`}
           data={flashNews}
           columns={columns}
           enableColumnOrdering
