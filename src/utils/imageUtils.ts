@@ -60,4 +60,62 @@ export const validateImageDimensions = (
     };
     img.src = URL.createObjectURL(file);
   });
+};
+
+/**
+ * Validates that an image is square (width === height) and meets minimum dimension requirements.
+ *
+ * @param file The image File object to validate.
+ * @param minDimension Optional. The minimum width and height the square image must be (default: 200px).
+ * @returns A promise that resolves to an object containing:
+ *  - `valid` (boolean): True if image is square and meets minimum dimensions, false otherwise.
+ *  - `message` (string|undefined): An error message if validation fails.
+ *  - `dimensions` (object|undefined): The actual dimensions { width, height } of the image if loaded.
+ */
+export const validateSquareImage = (
+  file: File,
+  minDimension: number = 200
+): Promise<{ valid: boolean; message?: string; dimensions?: { width: number; height: number } }> => {
+  return new Promise((resolve) => {
+    if (!file || !(file instanceof File) || !file.type.startsWith("image/")) {
+      resolve({ valid: false, message: "Invalid image file." });
+      return;
+    }
+
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(img.src);
+      const { width, height } = img;
+      
+      // First check if image is square
+      if (width !== height) {
+        resolve({
+          valid: false,
+          message: `Image must be square (width and height must be equal). Current dimensions: ${width} × ${height} px.`,
+          dimensions: { width, height }
+        });
+        return;
+      }
+      
+      // Then check minimum dimension
+      if (width < minDimension || height < minDimension) {
+        resolve({
+          valid: false,
+          message: `Image dimensions must be at least ${minDimension} × ${minDimension} px. Current dimensions: ${width} × ${height} px.`,
+          dimensions: { width, height }
+        });
+        return;
+      }
+      
+      resolve({ 
+        valid: true, 
+        dimensions: { width, height } 
+      });
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(img.src);
+      resolve({ valid: false, message: "Could not load image to validate dimensions." });
+    };
+    img.src = URL.createObjectURL(file);
+  });
 }; 
