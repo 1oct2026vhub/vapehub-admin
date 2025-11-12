@@ -31,6 +31,7 @@ import {
   Box,
 } from "@mui/material";
 import { listProducts, deleteProduct, restoreProduct, updateProductStatus, bulkDeleteProduct, bulkRestoreProduct } from "@/services/apiProduct";
+import { syncProductToMenu } from "@/services/apiMenu";
 import { listProductCategory } from "@/services/apiProductCategory";
 import { listProductBrand } from "@/services/apiProductBrand";
 import { useFetch } from "@/hooks/useFetch";
@@ -140,6 +141,9 @@ const ProductListTable = ({
   const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
   const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false);
   const [isBulkRestoreDialogOpen, setIsBulkRestoreDialogOpen] = useState(false);
+  const [isMenuSyncDialogOpen, setIsMenuSyncDialogOpen] = useState(false);
+  const [productToSync, setProductToSync] = useState<ProductType | null>(null);
+  const [menuAssociations, setMenuAssociations] = useState<any>(null);
 
   // --- START ADD: Check if Filters are Active ---
   const areFiltersActive = useMemo(() => {
@@ -657,15 +661,78 @@ const ProductListTable = ({
 
   const handleStatusChange = async (productId: number, newStatus: "draft" | "published" | "archived", closeMenu: () => void) => {
     try {
-      await updateProductStatus(productId, newStatus);
-      showSnackbar(`Product status updated to ${newStatus}`, "success");
-      if (refreshData) {
-        await refreshData();
+      const response = await updateProductStatus(productId, newStatus);
+      
+      // Check if status is published and isOnMenu flag is true
+      // isOnMenu is at the top level of the response
+      if (newStatus === "published" && response?.isOnMenu === true) {
+        const menuAssoc = response?.data?.menuAssociations || null;
+        const hasCategories = menuAssoc?.categories && menuAssoc.categories.length > 0;
+        const hasBrands = menuAssoc?.brands && menuAssoc.brands.length > 0;
+        
+        // Only show dialog if at least one (categories or brands) exists
+        if (hasCategories || hasBrands) {
+          // Find the product to sync
+          const product = products.find(p => p.id === productId);
+          if (product) {
+            setProductToSync(product);
+            // Store menu associations from response
+            setMenuAssociations(menuAssoc);
+            setIsMenuSyncDialogOpen(true);
+          }
+        } else {
+          // No categories or brands, just show success message
+          showSnackbar(`Product status updated to ${newStatus}`, "success");
+          if (refreshData) {
+            await refreshData();
+          }
+        }
+      } else {
+        showSnackbar(`Product status updated to ${newStatus}`, "success");
+        if (refreshData) {
+          await refreshData();
+        }
       }
       closeMenu();
     } catch (error) {
       console.error("Error updating product status:", error);
       showSnackbar("Failed to update product status", "error");
+      closeMenu();
+    }
+  };
+
+  const handleConfirmMenuSync = async () => {
+    if (!productToSync) return;
+    
+    try {
+      setIsLoading(true);
+      await syncProductToMenu(productToSync.id);
+      showSnackbar("Product synced to menu successfully", "success");
+      setIsMenuSyncDialogOpen(false);
+      setProductToSync(null);
+      setMenuAssociations(null);
+      
+      // Refresh data after sync
+      if (refreshData) {
+        await refreshData();
+      }
+    } catch (error: any) {
+      console.error("Error syncing product to menu:", error);
+      const errorMessage = error?.message || error?.response?.data?.message || "Failed to sync product to menu";
+      showSnackbar(errorMessage, "error");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleCancelMenuSync = () => {
+    setIsMenuSyncDialogOpen(false);
+    setProductToSync(null);
+    setMenuAssociations(null);
+    // Still show success message for status update
+    showSnackbar("Product status updated successfully", "success");
+    if (refreshData) {
+      refreshData();
     }
   };
 
@@ -1584,6 +1651,102 @@ const ProductListTable = ({
             }}
           >
             Restore
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Menu Sync Confirmation Dialog */}
+      <Dialog
+        open={isMenuSyncDialogOpen}
+        onClose={handleCancelMenuSync}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Update Product in Menu</DialogTitle>
+        <DialogContent>
+          <Typography sx={{ mb: 3 }}>
+            {(() => {
+              const hasCategories = menuAssociations?.categories && menuAssociations.categories.length > 0;
+              const hasBrands = menuAssociations?.brands && menuAssociations.brands.length > 0;
+              
+              let message = "This product is associated with menu items through the following ";
+              
+              if (hasCategories && hasBrands) {
+                message += "categories and brands";
+              } else if (hasCategories) {
+                message += "categories";
+              } else if (hasBrands) {
+                message += "brands";
+              }
+              
+              message += ". Do you want to sync this product to update the menu?";
+              return message;
+            })()}
+          </Typography>
+          
+          {/* Category Associations - Show only if categories exist */}
+          {menuAssociations?.categories && menuAssociations.categories.length > 0 && (
+            <Box sx={{ mb: 2 }}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 1, color: 'text.secondary' }}>
+                Categories:
+              </Typography>
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                {menuAssociations.categories.map((category: any, index: number) => (
+                  <Chip 
+                    key={category.id || index}
+                    label={category.name} 
+                    size="medium"
+                    color="primary"
+                    variant="outlined"
+                  />
+                ))}
+              </Box>
+            </Box>
+          )}
+          
+          {/* Brand Associations - Show only if brands exist */}
+          {menuAssociations?.brands && menuAssociations.brands.length > 0 && (
+            <Box sx={{ mb: 2 }}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 1, color: 'text.secondary' }}>
+                Brands:
+              </Typography>
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                {menuAssociations.brands.map((brand: any, index: number) => (
+                  <Chip 
+                    key={brand.id || index}
+                    label={brand.name} 
+                    size="medium"
+                    color="secondary"
+                    variant="outlined"
+                  />
+                ))}
+              </Box>
+            </Box>
+          )}
+          
+          {/* No associations message - Show only if neither categories nor brands exist */}
+          {(!menuAssociations?.categories || menuAssociations.categories.length === 0) && 
+           (!menuAssociations?.brands || menuAssociations.brands.length === 0) && (
+            <Typography variant="body2" sx={{ color: 'text.secondary', fontStyle: 'italic', mt: 2 }}>
+              No category or brand associations found.
+            </Typography>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCancelMenuSync}>Cancel</Button>
+          <Button
+            onClick={handleConfirmMenuSync}
+            color="primary"
+            variant="contained"
+            disabled={isLoading}
+            sx={{
+              backgroundColor: "#2E9970",
+              "&:hover": {
+                backgroundColor: "#247C5C",
+              },
+            }}
+          >
+            Yes, Sync to Menu
           </Button>
         </DialogActions>
       </Dialog>

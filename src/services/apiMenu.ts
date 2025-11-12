@@ -114,3 +114,17 @@ export const reorderMenus = async (payload: ReorderMenuItemPayload[]): Promise<v
     throw new Error(errorMessage);
   }
 };
+
+/**
+ * Syncs a product to the menu.
+ * POST /api/admin/menus/sync-product
+ */
+export const syncProductToMenu = async (productId: number): Promise<any> => {
+  try {
+    const response = await axiosInstance.post('/api/admin/menus/sync-product', { productId });
+    return response.data;
+  } catch (error: any) {
+    const errorMessage = error.response?.data?.message || error.message || 'An unexpected error occurred while syncing product to menu.';
+    throw new Error(errorMessage);
+  }
+};
