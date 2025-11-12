@@ -31,6 +31,7 @@ import {
   Box,
 } from "@mui/material";
 import { listProducts, deleteProduct, restoreProduct, updateProductStatus, bulkDeleteProduct, bulkRestoreProduct } from "@/services/apiProduct";
+import { syncProductToMenu } from "@/services/apiMenu";
 import { listProductCategory } from "@/services/apiProductCategory";
 import { listProductBrand } from "@/services/apiProductBrand";
 import { useFetch } from "@/hooks/useFetch";
@@ -140,6 +141,8 @@ const ProductListTable = ({
   const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
   const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false);
   const [isBulkRestoreDialogOpen, setIsBulkRestoreDialogOpen] = useState(false);
+  const [isMenuSyncDialogOpen, setIsMenuSyncDialogOpen] = useState(false);
+  const [productToSync, setProductToSync] = useState<ProductType | null>(null);
 
   // --- START ADD: Check if Filters are Active ---
   const areFiltersActive = useMemo(() => {
@@ -657,15 +660,61 @@ const ProductListTable = ({
 
   const handleStatusChange = async (productId: number, newStatus: "draft" | "published" | "archived", closeMenu: () => void) => {
     try {
-      await updateProductStatus(productId, newStatus);
-      showSnackbar(`Product status updated to ${newStatus}`, "success");
-      if (refreshData) {
-        await refreshData();
+      const response = await updateProductStatus(productId, newStatus);
+      
+      // Check if status is published and isOnMenu flag is true
+      // isOnMenu is at the top level of the response
+      if (newStatus === "published" && response?.isOnMenu === true) {
+        // Find the product to sync
+        const product = products.find(p => p.id === productId);
+        if (product) {
+          setProductToSync(product);
+          setIsMenuSyncDialogOpen(true);
+        }
+      } else {
+        showSnackbar(`Product status updated to ${newStatus}`, "success");
+        if (refreshData) {
+          await refreshData();
+        }
       }
       closeMenu();
     } catch (error) {
       console.error("Error updating product status:", error);
       showSnackbar("Failed to update product status", "error");
+      closeMenu();
+    }
+  };
+
+  const handleConfirmMenuSync = async () => {
+    if (!productToSync) return;
+    
+    try {
+      setIsLoading(true);
+      await syncProductToMenu(productToSync.id);
+      showSnackbar("Product synced to menu successfully", "success");
+      setIsMenuSyncDialogOpen(false);
+      setProductToSync(null);
+      
+      // Refresh data after sync
+      if (refreshData) {
+        await refreshData();
+      }
+    } catch (error: any) {
+      console.error("Error syncing product to menu:", error);
+      const errorMessage = error?.message || error?.response?.data?.message || "Failed to sync product to menu";
+      showSnackbar(errorMessage, "error");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleCancelMenuSync = () => {
+    setIsMenuSyncDialogOpen(false);
+    setProductToSync(null);
+    // Still show success message for status update
+    showSnackbar("Product status updated successfully", "success");
+    if (refreshData) {
+      refreshData();
     }
   };
 
@@ -1584,6 +1633,36 @@ const ProductListTable = ({
             }}
           >
             Restore
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Menu Sync Confirmation Dialog */}
+      <Dialog
+        open={isMenuSyncDialogOpen}
+        onClose={handleCancelMenuSync}
+      >
+        <DialogTitle>Update Product in Menu</DialogTitle>
+        <DialogContent>
+          <Typography>
+            Are you want to update this product in menu?
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCancelMenuSync}>Cancel</Button>
+          <Button
+            onClick={handleConfirmMenuSync}
+            color="primary"
+            variant="contained"
+            disabled={isLoading}
+            sx={{
+              backgroundColor: "#2E9970",
+              "&:hover": {
+                backgroundColor: "#247C5C",
+              },
+            }}
+          >
+            Yes
           </Button>
         </DialogActions>
       </Dialog>
