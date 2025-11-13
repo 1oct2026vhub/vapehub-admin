@@ -104,6 +104,7 @@ interface Variant {
   height: string;
   description: string;
   barcode: string;
+  sku?: string | null;
   stock: number;
   low_stock_threshold: number;
   stock_status: string;
@@ -853,6 +854,27 @@ export default function ProductDetailTable() {
                                             </TableCell>
                                             <TableCell>
                                               {variant.barcode || "N/A"}
+                                            </TableCell>
+                                          </TableRow>
+                                          <TableRow>
+                                            <TableCell className="font-semibold">
+                                              SKU
+                                            </TableCell>
+                                            <TableCell>
+                                              {(() => {
+                                                const productSku = productDetail.sku;
+                                                const variantSku = variant.sku;
+                                                
+                                                if (!productSku && !variantSku) return "N/A";
+                                                
+                                                // If both SKUs exist and are different, display both
+                                                if (productSku && variantSku && productSku !== variantSku) {
+                                                  return `Product SKU: ${productSku}, Variant SKU: ${variantSku}`;
+                                                }
+                                                
+                                                // If same or only one exists, display single SKU
+                                                return productSku || variantSku || "N/A";
+                                              })()}
                                             </TableCell>
                                           </TableRow>
                                         </TableBody>

@@ -486,15 +486,37 @@ const TransactionDetailApp = () => {
                                 >
                                   {item.product.name}
                                 </Typography>
-                                {(item.product as any)?.sku && (
-                                  <Typography
-                                    variant="caption"
-                                    color="text.secondary"
-                                    sx={{ display: 'block', mt: 0.25 }}
-                                  >
-                                    SKU: {(item.product as any).sku}
-                                  </Typography>
-                                )}
+                                {(() => {
+                                  const productSku = (item.product as any)?.sku;
+                                  const variantSku = (item.variant as any)?.sku;
+                                  
+                                  if (!productSku && !variantSku) return null;
+                                  
+                                  // If both SKUs exist and are different, display both
+                                  if (productSku && variantSku && productSku !== variantSku) {
+                                    return (
+                                      <Typography
+                                        variant="caption"
+                                        color="text.secondary"
+                                        sx={{ display: 'block', mt: 0.25 }}
+                                      >
+                                        Product SKU: {productSku}, Variant SKU: {variantSku}
+                                      </Typography>
+                                    );
+                                  }
+                                  
+                                  // If same or only one exists, display single SKU
+                                  const skuToDisplay = productSku || variantSku;
+                                  return (
+                                    <Typography
+                                      variant="caption"
+                                      color="text.secondary"
+                                      sx={{ display: 'block', mt: 0.25 }}
+                                    >
+                                      SKU: {skuToDisplay}
+                                    </Typography>
+                                  );
+                                })()}
                                 {item.variant && (item.variant as any).variantAttributes && ((item.variant as any).variantAttributes as any[]).length > 0 ? (
                                   <Box sx={{ mt: 0.5 }}>
                                     {((item.variant as any).variantAttributes as any[]).map((attr: any, index: number) => (
