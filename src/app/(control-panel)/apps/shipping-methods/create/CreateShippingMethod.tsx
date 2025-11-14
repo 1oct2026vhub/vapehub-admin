@@ -8,6 +8,7 @@ import AppButton from "@/components/Shared/AppButton";
 import FormInputField from "@/components/Shared/FormInputField";
 import FormTextareaField from "@/components/Shared/FormTextareaField";
 import FormCheckboxField from "@/components/Shared/FormCheckboxField";
+import FormCKEditor from "@/components/Shared/FormCKEditor";
 import { createShippingMethod, type CreateShippingMethodData } from "@/services/apiShippingMethod";
 import { useSnackbar } from "@/contexts/SnackbarContext";
 import { useState } from "react";
@@ -138,23 +139,6 @@ export default function CreateShippingMethod() {
           />
 
           <FormInputField
-            name="display_text"
-            control={control}
-            label="Display Text"
-            required
-            // helperText="Text shown to customers"
-          />
-
-          <FormTextareaField
-            name="description"
-            control={control}
-            label="Description"
-            required
-            rows={3}
-            // helperText="Detailed description of the shipping method"
-          />
-
-          <FormInputField
             name="shipping_cost"
             control={control}
             label="Shipping Cost"
@@ -187,7 +171,23 @@ export default function CreateShippingMethod() {
             label="Service Code"
             // helperText="Internal service code for the carrier"
           />
+
+          <FormTextareaField
+            name="description"
+            control={control}
+            label="Description"
+            required
+            rows={3}
+            // helperText="Detailed description of the shipping method"
+          />
         </div>
+
+        <FormCKEditor
+          name="display_text"
+          control={control}
+          label="Display Text"
+          required
+        />
 
         <div className="flex items-center space-x-2">
           <FormCheckboxField
