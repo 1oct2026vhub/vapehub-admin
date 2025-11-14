@@ -7,6 +7,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import AppButton from '@/components/Shared/AppButton';
 import FormTextField from '@/components/Shared/FormTextField';
+import FormCKEditor from '@/components/Shared/FormCKEditor';
 import FuseLoading from '@fuse/core/FuseLoading';
 import { FieldError } from 'react-hook-form';
 import { DropzoneRootProps, DropzoneInputProps, useDropzone } from 'react-dropzone';
@@ -1198,16 +1199,12 @@ const ManualVariantView: React.FC<ManualVariantViewProps> = ({
               </div>
             </div>
             <FormTextField name="barcode" control={createControl} label="Barcode" />
-             <div className="mt-2">
-            <Controller
-              name="description"
-              control={createControl}
-              render={({ field, fieldState: { error } }) => (
-                <FormField label="Description" error={(error as FieldError)?.message}>
-                  <textarea {...field} className="w-full border border-gray-300 rounded-lg p-3 h-24 focus:outline-none focus:ring-1 focus:ring-green-500 bg-white" />
-                </FormField>
-              )}
-            />
+            <div className="mt-2">
+              <FormCKEditor
+                name="description"
+                control={createControl}
+                label="Description"
+              />
             </div>
 
             <div className="mt-4">
