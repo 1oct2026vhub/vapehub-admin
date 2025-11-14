@@ -34,6 +34,7 @@ export interface BlogCategory {
   parent?: string;
   children?: string[];
   status: string;
+  show_home_page?: boolean;
   createdAt?: string;
   updatedAt?: string;
   deletedAt?: string | null;
