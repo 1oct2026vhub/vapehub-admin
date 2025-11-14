@@ -4,6 +4,7 @@ import { Paper, Select, MenuItem, FormControl, InputLabel, FormHelperText, Typog
 import { DropzoneRootProps, DropzoneInputProps } from 'react-dropzone';
 import AppButton from '@/components/Shared/AppButton';
 import FormTextField from '@/components/Shared/FormTextField';
+import FormCKEditor from '@/components/Shared/FormCKEditor';
 import FuseLoading from '@fuse/core/FuseLoading';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -285,19 +286,11 @@ const VariantDetailsForm: React.FC<VariantDetailsFormProps> = ({
 
       {/* Description */}
       <div className="mt-2">
-      <Controller
-        name="description"
-        control={control}
-        render={({ field, fieldState: { error } }) => (
-          <FormField label="Description" error={error?.message}>
-            <textarea 
-              {...field} 
-              value={field.value ?? ''}
-              className="w-full border border-gray-300 rounded-lg p-3 h-24 focus:outline-none focus:ring-1 focus:ring-green-500 bg-white"
-            />
-          </FormField>
-        )}
-      />
+        <FormCKEditor
+          name="description"
+          control={control}
+          label="Description"
+        />
       </div>
 
       {/* Image section */}
