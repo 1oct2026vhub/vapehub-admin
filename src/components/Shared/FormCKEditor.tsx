@@ -58,14 +58,51 @@ const FormCKEditor = ({
   const editorWordCountRef = useRef<HTMLDivElement>(null);
   const [isLayoutReady, setIsLayoutReady] = useState(false);
   const [editorError, setEditorError] = useState<string | null>(null);
+  const isMountedRef = useRef(true);
+  const timeoutRefs = useRef<NodeJS.Timeout[]>([]);
 
   // Use CKEditor Cloud hook
   const cloud = useCKEditorCloud({ version: '47.2.0', premium: true, ckbox: { version: '2.6.1' } });
 
   useEffect(() => {
+    isMountedRef.current = true;
     setIsLayoutReady(true);
-    return () => setIsLayoutReady(false);
+    return () => {
+      isMountedRef.current = false;
+      setIsLayoutReady(false);
+      // Clear all timeouts on unmount
+      timeoutRefs.current.forEach(timeout => clearTimeout(timeout));
+      timeoutRefs.current = [];
+      
+      // Cleanup event listeners and observers
+      if (editorRef.current) {
+        try {
+          const editableElement = editorRef.current.ui?.getEditableElement();
+          if (editableElement) {
+            // Remove event listeners
+            if ((editableElement as any).__focusHandler) {
+              editableElement.removeEventListener('focus', (editableElement as any).__focusHandler);
+            }
+            if ((editableElement as any).__blurHandler) {
+              editableElement.removeEventListener('blur', (editableElement as any).__blurHandler);
+            }
+            // Disconnect resize observer
+            if ((editableElement as any).__resizeObserver) {
+              (editableElement as any).__resizeObserver.disconnect();
+            }
+          }
+          
+          const editorElement = editorRef.current.ui?.element;
+          if (editorElement && (editorElement as any).__toolbarResizeObserver) {
+            (editorElement as any).__toolbarResizeObserver.disconnect();
+          }
+        } catch (e) {
+          // Ignore cleanup errors
+        }
+      }
+    };
   }, []);
+
 
   // Memoize editor configuration
   const { ClassicEditor, editorConfig } = useMemo(() => {
@@ -183,6 +220,53 @@ const FormCKEditor = ({
               'undo',
               'redo',
               '|',
+              'heading',
+              '|',
+              'bold',
+              'italic',
+              'underline',
+              '|',
+              'bulletedList',
+              'numberedList',
+              '|',
+              'link',
+              'insertImage',
+              '|',
+              'alignment',
+              '|',
+              'strikethrough',
+              'subscript',
+              'superscript',
+              'code',
+              'removeFormat',
+              '|',
+              'fontSize',
+              'fontFamily',
+              'fontColor',
+              'fontBackgroundColor',
+              '|',
+              'specialCharacters',
+              'horizontalLine',
+              'pageBreak',
+              'insertFootnote',
+              'bookmark',
+              'ckbox',
+              'mediaEmbed',
+              'insertTable',
+              'insertTableLayout',
+              'insertTemplate',
+              'highlight',
+              'blockQuote',
+              'codeBlock',
+              'htmlEmbed',
+              '|',
+              'lineHeight',
+              '|',
+              'multiLevelList',
+              'todoList',
+              'outdent',
+              'indent',
+              '|',
               'importWord',
               'exportWord',
               'exportPdf',
@@ -191,53 +275,9 @@ const FormCKEditor = ({
               'caseChange',
               'findAndReplace',
               'textPartLanguage',
-              'fullscreen',
-              '|',
-              'heading',
-              '|',
-              'fontSize',
-              'fontFamily',
-              'fontColor',
-              'fontBackgroundColor',
-              '|',
-              'bold',
-              'italic',
-              'underline',
-              'strikethrough',
-              'subscript',
-              'superscript',
-              'code',
-              'removeFormat',
-              '|',
-              'specialCharacters',
-              'horizontalLine',
-              'pageBreak',
-              'link',
-              'insertFootnote',
-              'bookmark',
-              'insertImage',
-              'ckbox',
-              'mediaEmbed',
-              'insertTable',
-              'insertTableLayout',
-              // 'tableOfContents', // Requires DocumentOutline plugin
-              'insertTemplate',
-              'highlight',
-              'blockQuote',
-              'codeBlock',
-              'htmlEmbed',
-              '|',
-              'alignment',
-              'lineHeight',
-              '|',
-              'bulletedList',
-              'numberedList',
-              'multiLevelList',
-              'todoList',
-              'outdent',
-              'indent'
+              'fullscreen'
             ],
-            shouldNotGroupWhenFull: true,
+            shouldNotGroupWhenFull: false, // Enable CKEditor's built-in overflow grouping
             removeItems: []
           },
           plugins: [
@@ -583,11 +623,17 @@ const FormCKEditor = ({
 
   // Configure editor on ready
   const configureEditor = (editor: any) => {
+    if (!isMountedRef.current) return;
+    
     editorRef.current = editor;
     
     // Set editor height after initialization - use fixed height to prevent resizing
-    setTimeout(() => {
+    const timeout1 = setTimeout(() => {
+      if (!isMountedRef.current) return;
+      
       const editableElement = editor.ui.getEditableElement();
+      const editorElement = editor.ui.element;
+      
       if (editableElement) {
         editableElement.style.height = '500px';
         editableElement.style.minHeight = '500px';
@@ -595,9 +641,12 @@ const FormCKEditor = ({
         editableElement.style.overflowY = 'auto';
         editableElement.style.paddingLeft = '0';
         editableElement.style.marginLeft = '0';
+        editableElement.style.width = '100%';
+        editableElement.style.maxWidth = '100%';
         
         // Prevent dynamic height changes by observing and resetting height
         const resizeObserver = new ResizeObserver((entries) => {
+          if (!isMountedRef.current) return;
           for (const entry of entries) {
             const element = entry.target as HTMLElement;
             if (element.style.height !== '500px') {
@@ -610,20 +659,117 @@ const FormCKEditor = ({
         
         resizeObserver.observe(editableElement);
         
-        // Also prevent height changes on focus/blur
-        editableElement.addEventListener('focus', () => {
-          editableElement.style.height = '500px';
-          editableElement.style.minHeight = '500px';
-          editableElement.style.maxHeight = '500px';
-        });
+        // Store cleanup
+        (editableElement as any).__resizeObserver = resizeObserver;
         
-        editableElement.addEventListener('blur', () => {
+        // Also prevent height changes on focus/blur
+        const handleFocus = () => {
+          if (!isMountedRef.current) return;
           editableElement.style.height = '500px';
           editableElement.style.minHeight = '500px';
           editableElement.style.maxHeight = '500px';
-        });
+        };
+        
+        const handleBlur = () => {
+          if (!isMountedRef.current) return;
+          editableElement.style.height = '500px';
+          editableElement.style.minHeight = '500px';
+          editableElement.style.maxHeight = '500px';
+        };
+        
+        editableElement.addEventListener('focus', handleFocus);
+        editableElement.addEventListener('blur', handleBlur);
+        
+        // Store cleanup
+        (editableElement as any).__focusHandler = handleFocus;
+        (editableElement as any).__blurHandler = handleBlur;
+      }
+      
+      // Make editor container responsive
+      if (editorElement) {
+        editorElement.style.width = '100%';
+        editorElement.style.maxWidth = '100%';
+        editorElement.style.overflow = 'hidden';
+      }
+      
+      // Make toolbar responsive - CKEditor will handle overflow with built-in grouping
+      const toolbarElement = editor.ui.view.toolbar?.element;
+      if (toolbarElement) {
+        // Remove any width constraints that might prevent overflow grouping
+        toolbarElement.style.width = '100%';
+        toolbarElement.style.minWidth = '0'; // Allow shrinking
+        toolbarElement.style.maxWidth = 'none'; // Remove max width constraint
+        toolbarElement.style.overflowX = 'visible';
+        toolbarElement.style.overflowY = 'hidden';
+        
+        // Ensure toolbar items container allows overflow grouping
+        const toolbarItems = toolbarElement.querySelector('.ck-toolbar__items');
+        if (toolbarItems) {
+          (toolbarItems as HTMLElement).style.width = '100%';
+          (toolbarItems as HTMLElement).style.minWidth = '0';
+          (toolbarItems as HTMLElement).style.maxWidth = 'none';
+          (toolbarItems as HTMLElement).style.overflowX = 'visible';
+        }
+        
+        // Find and configure the overflow panel (dropdown) if it exists
+        const overflowPanel = toolbarElement.querySelector('.ck-toolbar__overflow');
+        if (overflowPanel) {
+          (overflowPanel as HTMLElement).style.display = 'block';
+        }
+        
+        // Function to force toolbar overflow recalculation
+        const recalculateToolbarOverflow = () => {
+          if (!isMountedRef.current) return;
+          try {
+            // Get the toolbar view and force update
+            const toolbar = editor.ui.view.toolbar;
+            if (toolbar) {
+              // Try to trigger toolbar refresh
+              if (typeof (toolbar as any).refresh === 'function') {
+                (toolbar as any).refresh();
+              }
+              // Force update if available
+              if (typeof (toolbar as any).forceUpdate === 'function') {
+                (toolbar as any).forceUpdate();
+              }
+              // Try to access the overflow component
+              const overflowComponent = (toolbar as any).overflow;
+              if (overflowComponent && typeof overflowComponent.update === 'function') {
+                overflowComponent.update();
+              }
+            }
+            // Trigger resize to recalculate overflow
+            window.dispatchEvent(new Event('resize'));
+            
+            // Also try to manually trigger overflow calculation
+            if (editorElement) {
+              const resizeEvent = new Event('resize', { bubbles: true });
+              editorElement.dispatchEvent(resizeEvent);
+            }
+          } catch (e) {
+            console.warn('Could not force toolbar update:', e);
+          }
+        };
+        
+        // Force toolbar to recalculate overflow after a short delay
+        const timeout2 = setTimeout(recalculateToolbarOverflow, 600);
+        timeoutRefs.current.push(timeout2);
+        
+        // Also recalculate when container size changes
+        if (editorElement) {
+          const resizeObserver = new ResizeObserver(() => {
+            if (!isMountedRef.current) return;
+            const timeout3 = setTimeout(recalculateToolbarOverflow, 100);
+            timeoutRefs.current.push(timeout3);
+          });
+          resizeObserver.observe(editorElement);
+          
+          // Store cleanup
+          (editorElement as any).__toolbarResizeObserver = resizeObserver;
+        }
       }
     }, 100);
+    timeoutRefs.current.push(timeout1);
     
     // DocumentOutline is not included in plugins to avoid the container error
     // If you need DocumentOutline, ensure editorOutlineRef is available before config creation
@@ -757,12 +903,32 @@ const FormCKEditor = ({
   };
 
   return (
-    <div className="mb-6" style={{ paddingLeft: 0, marginLeft: 0 }}>
+    <div className="mb-6 w-full" style={{ paddingLeft: 0, marginLeft: 0, minWidth: 0 }}>
       {label && (
         <label className="block mb-2 text-sm font-medium">
           {label} {required && <span style={{ color: "red" }}>*</span>}
         </label>
       )}
+      
+      <style jsx global>{`
+        /* Ensure CKEditor toolbar overflow works correctly */
+        .ck-editor .ck-toolbar {
+          min-width: 0 !important;
+          width: 100% !important;
+        }
+        .ck-editor .ck-toolbar__items {
+          min-width: 0 !important;
+          width: 100% !important;
+        }
+        .ck-editor .ck-toolbar__overflow {
+          display: block !important;
+        }
+        /* Ensure overflow dropdown is visible and accessible */
+        .ck-toolbar__overflow__panel {
+          max-height: 400px !important;
+          overflow-y: auto !important;
+        }
+      `}</style>
       
       <Controller
         name={name}
@@ -786,46 +952,75 @@ const FormCKEditor = ({
 
           return (
             <div className="relative w-full">
-              <div 
-                className="editor-container editor-container_classic-editor editor-container_include-word-count w-full"
-                style={{ height: "600px", minHeight: "600px", maxHeight: "600px", width: "100%", paddingLeft: 0, marginLeft: 0 }}
-              >
-                <div className="editor-container__editor-wrapper w-full" style={{ paddingLeft: 0, marginLeft: 0 }}>
-                  <div className="editor-container__editor w-full" style={{ paddingLeft: 0, marginLeft: 0 }}>
-                    <div ref={editorRef} className="w-full" style={{ paddingLeft: 0, marginLeft: 0 }}>
+            <div 
+              className="editor-container editor-container_classic-editor editor-container_include-word-count w-full"
+              style={{ 
+                height: "600px", 
+                minHeight: "600px", 
+                maxHeight: "600px", 
+                width: "100%", 
+                paddingLeft: 0, 
+                marginLeft: 0,
+                maxWidth: "100%",
+                overflow: "visible"
+              }}
+            >
+              <div className="editor-container__editor-wrapper w-full" style={{ paddingLeft: 0, marginLeft: 0, width: "100%", maxWidth: "100%" }}>
+                <div className="editor-container__editor w-full" style={{ paddingLeft: 0, marginLeft: 0, width: "100%", maxWidth: "100%" }}>
+                  <div ref={editorRef} className="w-full" style={{ paddingLeft: 0, marginLeft: 0, width: "100%", maxWidth: "100%" }}>
                       <CKEditorComponent
                         editor={ClassicEditor}
                         config={editorConfig}
                     data={field.value || defaultValue || ""}
                   onReady={(editor) => {
-                    try {
-                    configureEditor(editor);
+                    if (!isMountedRef.current) return;
                     
-                    // Set initial content if provided
-                    if (defaultValue && !field.value) {
-                      editor.setData(defaultValue);
-                      field.onChange(defaultValue);
+                    try {
+                      configureEditor(editor);
+                      
+                      // Set initial content if provided
+                      if (defaultValue && !field.value) {
+                        editor.setData(defaultValue);
+                        if (isMountedRef.current) {
+                          field.onChange(defaultValue);
+                        }
                       }
                       
                       // Clear any previous errors
-                      setEditorError(null);
+                      if (isMountedRef.current) {
+                        setEditorError(null);
+                      }
+                      
+                      // Update toolbar state after initialization
+                      const timeout = setTimeout(() => {
+                        if (!isMountedRef.current) return;
+                        const toolbarElement = editor.ui.view.toolbar?.element;
+                        if (toolbarElement && (toolbarElement as any).__updateExpandableState) {
+                          (toolbarElement as any).__updateExpandableState();
+                        }
+                      }, 500);
+                      timeoutRefs.current.push(timeout);
                     } catch (error: any) {
                       console.error('CKEditor error:', error);
-                      setEditorError(error?.message || 'Failed to initialize editor');
+                      if (isMountedRef.current) {
+                        setEditorError(error?.message || 'Failed to initialize editor');
+                      }
                     }
                   }}
                   onError={(error: any, { willEditorRestart }: any) => {
                     const errorMessage = error?.message || '';
                     console.error('CKEditor error:', error);
-                    if (!willEditorRestart) {
+                    if (!willEditorRestart && isMountedRef.current) {
                       setEditorError(errorMessage || 'Editor error occurred');
                     }
                   }}
                   onChange={(event, editor) => {
+                    if (!isMountedRef.current) return;
                     const data = editor.getData();
                     field.onChange(data);
                   }}
                   onBlur={(event, editor) => {
+                    if (!isMountedRef.current) return;
                     field.onBlur();
                   }}
                   />

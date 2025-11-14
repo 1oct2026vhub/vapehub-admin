@@ -27,6 +27,7 @@ import AppButton from "@/components/Shared/AppButton";
 import FormInputField from "@/components/Shared/FormInputField";
 import FormTextareaField from "@/components/Shared/FormTextareaField";
 import FormCKEditor from "@/components/Shared/FormCKEditor";
+import FormCheckboxField from "@/components/Shared/FormCheckboxField";
 import { useSnackbar } from "@/contexts/SnackbarContext";
 import { getBlogCategory, updateBlogCategory, getBlogCategories, type BlogCategory } from "@/services/apiBlog";
 import FormFileUploadField from "@/components/Shared/FormFileUploadField";
@@ -91,6 +92,7 @@ const categorySchema = z.object({
     z.number().nullable()
   ),
   status: z.enum(["active", "inactive"]).default("active"),
+  show_home_page: z.boolean().default(false),
   image: z.any()
     .refine(
       (file) => !file || !(file instanceof File) || file.size <= MAX_FILE_SIZE,
@@ -138,6 +140,7 @@ export default function EditBlogCategory() {
       description: "",
       parent_id: null,
       status: "active",
+      show_home_page: false,
     },
     resolver: zodResolver(categorySchema),
   });
@@ -178,6 +181,7 @@ export default function EditBlogCategory() {
           setValue("description", categoryData.description || "");
           setValue("parent_id", categoryData.parent_id || null);
           setValue("status", categoryData.status || "active");
+          setValue("show_home_page", categoryData?.show_home_page || false);
           
           // Also do a reset to make sure form state is updated
           reset({
@@ -186,6 +190,7 @@ export default function EditBlogCategory() {
             description: categoryData.description || "",
             parent_id: categoryData.parent_id || null,
             status: categoryData.status || "active",
+            show_home_page: categoryData?.show_home_page || false,
             image: categoryData.image_url || "",
           }, {
             keepDefaultValues: false
@@ -226,6 +231,7 @@ export default function EditBlogCategory() {
       formData.append("name", data.name);
       formData.append("slug", data.slug);
       formData.append("status", data.status);
+      formData.append("show_home_page", data.show_home_page ? "true" : "false");
       
       // Add description if present
       if (data.description) {
@@ -391,6 +397,14 @@ export default function EditBlogCategory() {
                               </Select>
                             </FormControl>
                           )}
+                        />
+                      </Grid>
+
+                      <Grid item xs={12} md={6}>
+                        <FormCheckboxField
+                          name="show_home_page"
+                          control={control}
+                          label="Show on Home Page"
                         />
                       </Grid>
 
