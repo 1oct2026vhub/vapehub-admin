@@ -45,6 +45,9 @@ function PageBreadcrumb(props: PageBreadcrumbProps) {
   // Split the path and filter out empty parts
   const pathParts = pathname.split("/").filter(Boolean);
 
+  // Track if we skipped an ID to add customLastLabel as a breadcrumb item
+  let skippedId = false;
+
   // Create breadcrumbs without "apps" in the titles
   const crumbs = pathParts.reduce(
     (
@@ -54,6 +57,25 @@ function PageBreadcrumb(props: PageBreadcrumbProps) {
     ) => {
       // Skip "apps" in the breadcrumb display
       if (part === "apps") {
+        return acc;
+      }
+
+      // Skip numeric IDs when customLastLabel is provided (to replace ID with custom name)
+      const isNumericId = Boolean(part.match(/^\d+$/));
+      if (isNumericId && customLastLabel) {
+        skippedId = true;
+        // Add the custom label as a breadcrumb item instead of the ID
+        const parentIndex = index - 1;
+        let crumbUrl = '';
+        if (parentIndex >= 0) {
+          const parentUrlParts = pathParts.slice(0, parentIndex + 1);
+          crumbUrl = `/${parentUrlParts.join("/")}`;
+        }
+        acc.push({
+          title: customLastLabel,
+          url: crumbUrl,
+          isDetailPage: true,
+        });
         return acc;
       }
 
@@ -67,7 +89,7 @@ function PageBreadcrumb(props: PageBreadcrumbProps) {
       const title = navItem?.title || part;
 
       // Check if this is a detail page or has an ID
-      const isDetailPage = part.includes('-detail') || part.includes('-edit') || part.includes('-update') || Boolean(part.match(/^\d+$/));
+      const isDetailPage = part.includes('-detail') || part.includes('-edit') || part.includes('-update') || isNumericId;
       
       // For detail pages, the breadcrumb should navigate to the parent list page
       let crumbUrl = url;
@@ -122,8 +144,8 @@ function PageBreadcrumb(props: PageBreadcrumbProps) {
         // Make breadcrumbs non-clickable if they are detail pages, last item, FAQ, or have empty URL (like update pages)
         const isClickable = !item.isDetailPage && !isLast && !isFaqCrumb && item.url !== '';
         
-        // Use custom label for the last breadcrumb if provided
-        const displayTitle = isLast && customLastLabel ? customLastLabel : item.title;
+        // Use custom label for the last breadcrumb if provided and we didn't already use it to replace an ID
+        const displayTitle = isLast && customLastLabel && !skippedId ? customLastLabel : item.title;
 
         return (
           <Typography
