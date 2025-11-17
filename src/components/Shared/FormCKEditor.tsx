@@ -59,7 +59,6 @@ const FormCKEditor = ({
   const [isLayoutReady, setIsLayoutReady] = useState(false);
   const [editorError, setEditorError] = useState<string | null>(null);
   const isMountedRef = useRef(true);
-  const timeoutRefs = useRef<NodeJS.Timeout[]>([]);
 
   // Use CKEditor Cloud hook
   const cloud = useCKEditorCloud({ version: '47.2.0', premium: true, ckbox: { version: '2.6.1' } });
@@ -70,9 +69,6 @@ const FormCKEditor = ({
     return () => {
       isMountedRef.current = false;
       setIsLayoutReady(false);
-      // Clear all timeouts on unmount
-      timeoutRefs.current.forEach(timeout => clearTimeout(timeout));
-      timeoutRefs.current = [];
       
       // Cleanup event listeners and observers
       if (editorRef.current) {
@@ -277,7 +273,7 @@ const FormCKEditor = ({
               'textPartLanguage',
               'fullscreen'
             ],
-            shouldNotGroupWhenFull: false, // Enable CKEditor's built-in overflow grouping
+            shouldNotGroupWhenFull: true,
             removeItems: []
           },
           plugins: [
@@ -627,149 +623,39 @@ const FormCKEditor = ({
     
     editorRef.current = editor;
     
-    // Set editor height after initialization - use fixed height to prevent resizing
-    const timeout1 = setTimeout(() => {
-      if (!isMountedRef.current) return;
-      
-      const editableElement = editor.ui.getEditableElement();
-      const editorElement = editor.ui.element;
-      
-      if (editableElement) {
-        editableElement.style.height = '500px';
-        editableElement.style.minHeight = '500px';
-        editableElement.style.maxHeight = '500px';
-        editableElement.style.overflowY = 'auto';
-        editableElement.style.paddingLeft = '0';
-        editableElement.style.marginLeft = '0';
-        editableElement.style.width = '100%';
-        editableElement.style.maxWidth = '100%';
-        
-        // Prevent dynamic height changes by observing and resetting height
-        const resizeObserver = new ResizeObserver((entries) => {
-          if (!isMountedRef.current) return;
-          for (const entry of entries) {
-            const element = entry.target as HTMLElement;
-            if (element.style.height !== '500px') {
-              element.style.height = '500px';
-              element.style.minHeight = '500px';
-              element.style.maxHeight = '500px';
-            }
-          }
-        });
-        
-        resizeObserver.observe(editableElement);
-        
-        // Store cleanup
-        (editableElement as any).__resizeObserver = resizeObserver;
-        
-        // Also prevent height changes on focus/blur
-        const handleFocus = () => {
-          if (!isMountedRef.current) return;
-          editableElement.style.height = '500px';
-          editableElement.style.minHeight = '500px';
-          editableElement.style.maxHeight = '500px';
-        };
-        
-        const handleBlur = () => {
-          if (!isMountedRef.current) return;
-          editableElement.style.height = '500px';
-          editableElement.style.minHeight = '500px';
-          editableElement.style.maxHeight = '500px';
-        };
-        
-        editableElement.addEventListener('focus', handleFocus);
-        editableElement.addEventListener('blur', handleBlur);
-        
-        // Store cleanup
-        (editableElement as any).__focusHandler = handleFocus;
-        (editableElement as any).__blurHandler = handleBlur;
+    const editableElement = editor.ui.getEditableElement();
+    const editorElement = editor.ui.element;
+    const toolbarElement = editor.ui.view.toolbar?.element;
+
+    if (editableElement) {
+      editableElement.style.width = '100%';
+      editableElement.style.maxWidth = '100%';
+      editableElement.style.paddingLeft = '0';
+      editableElement.style.marginLeft = '0';
+      editableElement.style.overflowY = 'visible';
+      editableElement.style.height = 'auto';
+      editableElement.style.minHeight = 'auto';
+      editableElement.style.maxHeight = 'none';
+    }
+
+    if (editorElement) {
+      editorElement.style.width = '100%';
+      editorElement.style.maxWidth = '100%';
+      editorElement.style.overflow = 'visible';
+    }
+
+    if (toolbarElement) {
+      toolbarElement.style.width = '100%';
+      toolbarElement.style.minWidth = '0';
+      toolbarElement.style.maxWidth = 'none';
+      toolbarElement.style.overflow = 'visible';
+
+      const toolbarItems = toolbarElement.querySelector('.ck-toolbar__items');
+      if (toolbarItems) {
+        (toolbarItems as HTMLElement).style.flexWrap = 'wrap';
+        (toolbarItems as HTMLElement).style.width = '100%';
       }
-      
-      // Make editor container responsive
-      if (editorElement) {
-        editorElement.style.width = '100%';
-        editorElement.style.maxWidth = '100%';
-        editorElement.style.overflow = 'hidden';
-      }
-      
-      // Make toolbar responsive - CKEditor will handle overflow with built-in grouping
-      const toolbarElement = editor.ui.view.toolbar?.element;
-      if (toolbarElement) {
-        // Remove any width constraints that might prevent overflow grouping
-        toolbarElement.style.width = '100%';
-        toolbarElement.style.minWidth = '0'; // Allow shrinking
-        toolbarElement.style.maxWidth = 'none'; // Remove max width constraint
-        toolbarElement.style.overflowX = 'visible';
-        toolbarElement.style.overflowY = 'hidden';
-        
-        // Ensure toolbar items container allows overflow grouping
-        const toolbarItems = toolbarElement.querySelector('.ck-toolbar__items');
-        if (toolbarItems) {
-          (toolbarItems as HTMLElement).style.width = '100%';
-          (toolbarItems as HTMLElement).style.minWidth = '0';
-          (toolbarItems as HTMLElement).style.maxWidth = 'none';
-          (toolbarItems as HTMLElement).style.overflowX = 'visible';
-        }
-        
-        // Find and configure the overflow panel (dropdown) if it exists
-        const overflowPanel = toolbarElement.querySelector('.ck-toolbar__overflow');
-        if (overflowPanel) {
-          (overflowPanel as HTMLElement).style.display = 'block';
-        }
-        
-        // Function to force toolbar overflow recalculation
-        const recalculateToolbarOverflow = () => {
-          if (!isMountedRef.current) return;
-          try {
-            // Get the toolbar view and force update
-            const toolbar = editor.ui.view.toolbar;
-            if (toolbar) {
-              // Try to trigger toolbar refresh
-              if (typeof (toolbar as any).refresh === 'function') {
-                (toolbar as any).refresh();
-              }
-              // Force update if available
-              if (typeof (toolbar as any).forceUpdate === 'function') {
-                (toolbar as any).forceUpdate();
-              }
-              // Try to access the overflow component
-              const overflowComponent = (toolbar as any).overflow;
-              if (overflowComponent && typeof overflowComponent.update === 'function') {
-                overflowComponent.update();
-              }
-            }
-            // Trigger resize to recalculate overflow
-            window.dispatchEvent(new Event('resize'));
-            
-            // Also try to manually trigger overflow calculation
-            if (editorElement) {
-              const resizeEvent = new Event('resize', { bubbles: true });
-              editorElement.dispatchEvent(resizeEvent);
-            }
-          } catch (e) {
-            console.warn('Could not force toolbar update:', e);
-          }
-        };
-        
-        // Force toolbar to recalculate overflow after a short delay
-        const timeout2 = setTimeout(recalculateToolbarOverflow, 600);
-        timeoutRefs.current.push(timeout2);
-        
-        // Also recalculate when container size changes
-        if (editorElement) {
-          const resizeObserver = new ResizeObserver(() => {
-            if (!isMountedRef.current) return;
-            const timeout3 = setTimeout(recalculateToolbarOverflow, 100);
-            timeoutRefs.current.push(timeout3);
-          });
-          resizeObserver.observe(editorElement);
-          
-          // Store cleanup
-          (editorElement as any).__toolbarResizeObserver = resizeObserver;
-        }
-      }
-    }, 100);
-    timeoutRefs.current.push(timeout1);
+    }
     
     // DocumentOutline is not included in plugins to avoid the container error
     // If you need DocumentOutline, ensure editorOutlineRef is available before config creation
@@ -919,6 +805,7 @@ const FormCKEditor = ({
         .ck-editor .ck-toolbar__items {
           min-width: 0 !important;
           width: 100% !important;
+          flex-wrap: wrap !important;
         }
         .ck-editor .ck-toolbar__overflow {
           display: block !important;
@@ -939,7 +826,7 @@ const FormCKEditor = ({
           // Show loading state
           if (cloud.status === 'loading' || !ClassicEditor || !editorConfig) {
             return (
-              <div className="flex flex-col items-center justify-center p-8 text-gray-500" style={{ height: "600px", minHeight: "600px", maxHeight: "600px" }}>
+              <div className="flex flex-col items-center justify-center p-8 text-gray-500" style={{ width: "100%" }}>
                 <div className="mb-4">Loading editor...</div>
                 {cloud.status === 'error' && (
                   <div className="text-sm text-red-600 mt-2 max-w-md text-center">
@@ -955,9 +842,6 @@ const FormCKEditor = ({
             <div 
               className="editor-container editor-container_classic-editor editor-container_include-word-count w-full"
               style={{ 
-                height: "600px", 
-                minHeight: "600px", 
-                maxHeight: "600px", 
                 width: "100%", 
                 paddingLeft: 0, 
                 marginLeft: 0,
@@ -991,15 +875,6 @@ const FormCKEditor = ({
                         setEditorError(null);
                       }
                       
-                      // Update toolbar state after initialization
-                      const timeout = setTimeout(() => {
-                        if (!isMountedRef.current) return;
-                        const toolbarElement = editor.ui.view.toolbar?.element;
-                        if (toolbarElement && (toolbarElement as any).__updateExpandableState) {
-                          (toolbarElement as any).__updateExpandableState();
-                        }
-                      }, 500);
-                      timeoutRefs.current.push(timeout);
                     } catch (error: any) {
                       console.error('CKEditor error:', error);
                       if (isMountedRef.current) {

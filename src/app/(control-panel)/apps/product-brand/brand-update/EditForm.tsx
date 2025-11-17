@@ -21,6 +21,7 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import AppButton from "@/components/Shared/AppButton";
 import FormInputField from "@/components/Shared/FormInputField";
 import FormFileUploadField from "@/components/Shared/FormFileUploadField";
+import FormCKEditor from "@/components/Shared/FormCKEditor";
 import { usePost, useFetch } from "@/hooks/useFetch";
 import {
   updateBrand,
@@ -309,7 +310,7 @@ const EditBrandForm = ({ brand: initialBrand }: { brand: FormType | null }) => {
   return (
     <div className="md:px-14 p-4">
       <div>
-        <PageBreadcrumb className="mt-8" />
+        <PageBreadcrumb className="mt-8" customLastLabel={initialBrand?.name || ""} />
         <Typography className="text-4xl font-extrabold leading-none tracking-tight mb-4 mt-8">
           Edit Brand
         </Typography>
@@ -348,7 +349,12 @@ const EditBrandForm = ({ brand: initialBrand }: { brand: FormType | null }) => {
                     {nameRemaining < 0 ? "(exceeded maximum)" : ""}
                 </div>
                 <FormInputField name="slug" control={control} label="Slug" type="text" required />
-                <FormInputField name="description" control={control} label="Description" type="text" />
+                <FormCKEditor
+                  name="description"
+                  control={control}
+                  label="Description"
+                  defaultValue={initialBrand.description || ""}
+                />
 
                 <Box sx={{ mt: 2, mb: 2 }}>
                   <FormFileUploadField
