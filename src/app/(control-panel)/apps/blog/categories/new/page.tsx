@@ -189,11 +189,14 @@ export default function CreateBlogCategory() {
         formData.append("description", data.description);
       }
       
-      // Handle parent_id - convert to string explicitly as in the blog post form
+      // Handle parent_id - send empty string when None is selected (backend should parse as null)
       if (data.parent_id !== null && data.parent_id !== undefined) {
-        // Convert number to string (similar to blog post's category/tag IDs handling)
         formData.append("parent_id", data.parent_id.toString());
         console.log("Parent ID added:", data.parent_id, "as string:", data.parent_id.toString());
+      } else {
+        // When "None" is selected, send empty string - backend should parse empty string as null
+        formData.append("parent_id", "");
+        console.log("Parent ID set to empty string (should be parsed as null by backend)");
       }
       
       // Add image if selected
@@ -300,6 +303,10 @@ export default function CreateBlogCategory() {
                             {...field}
                             value={field.value || ""}
                             label="Parent Category (Optional)"
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              field.onChange(value === "" ? null : Number(value));
+                            }}
                           >
                             <MenuItem value="">
                               <em>None</em>
