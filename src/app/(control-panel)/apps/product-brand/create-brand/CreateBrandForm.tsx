@@ -12,6 +12,7 @@ import { useSnackbar } from "@/contexts/SnackbarContext";
 import FormFileUploadField from "@/components/Shared/FormFileUploadField";
 import { useState, useEffect } from "react";
 import PageBreadcrumb from "@/components/PageBreadcrumb";
+import FormCKEditor from "@/components/Shared/FormCKEditor";
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const ACCEPTED_FILE_TYPES = [
@@ -220,7 +221,7 @@ function CreateBrandForm() {
   }
 
   return (
-    <div className="md:px-64 p-4">
+    <div className="md:px-14 p-4">
       <div>
         <PageBreadcrumb className="mt-8" />
         <Typography className="text-4xl font-extrabold leading-none tracking-tight mb-4 mt-8">
@@ -254,13 +255,11 @@ function CreateBrandForm() {
             type="text"
             required
           />
-          <FormInputField
+          <FormCKEditor
             name="description"
             control={control}
             label="Description"
-            type="text"
-            multiline
-            rows={4}
+            defaultValue=""
           />
 
           <Box sx={{ mt: 2, mb: 2 }}>
