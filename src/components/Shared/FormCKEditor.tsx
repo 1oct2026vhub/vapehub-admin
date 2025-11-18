@@ -85,6 +85,10 @@ const FormCKEditor = ({
             if ((editableElement as any).__resizeObserver) {
               (editableElement as any).__resizeObserver.disconnect();
             }
+            // Remove Enter key handler
+            if ((editableElement as any).__enterKeyHandler) {
+              editableElement.removeEventListener('keydown', (editableElement as any).__enterKeyHandler, true);
+            }
           }
           
           const editorElement = editorRef.current.ui?.element;
@@ -181,7 +185,6 @@ const FormCKEditor = ({
         TableToolbar,
         TextPartLanguage,
         TextTransformation,
-        Title,
         TodoList,
         Underline,
         WordCount
@@ -363,7 +366,6 @@ const FormCKEditor = ({
             Template,
             TextPartLanguage,
             TextTransformation,
-            Title,
             TodoList,
             Underline,
             WordCount
@@ -491,7 +493,7 @@ const FormCKEditor = ({
           htmlSupport: {
             allow: [
               {
-                name: /^(div|table|tbody|tr|td|span|img|h1|h2|h3|p|a)$/,
+                name: /^(div|table|tbody|tr|td|span|img|h1|h2|h3|h4|h5|h6|p|a|br|ul|ol|li|blockquote|pre|code)$/,
                 styles: true as any,
                 attributes: true as any,
                 classes: true as any
@@ -635,6 +637,19 @@ const FormCKEditor = ({
       editableElement.style.height = 'auto';
       editableElement.style.minHeight = 'auto';
       editableElement.style.maxHeight = 'none';
+      
+      // Ensure Enter key works properly - prevent parent form from intercepting
+      const handleKeyDown = (e: KeyboardEvent) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          // Allow Enter key to work normally in CKEditor
+          // Don't prevent default - let CKEditor handle it
+          e.stopPropagation();
+        }
+      };
+      editableElement.addEventListener('keydown', handleKeyDown, true);
+      
+      // Store handler for cleanup
+      (editableElement as any).__enterKeyHandler = handleKeyDown;
     }
 
     if (editorElement) {
@@ -813,6 +828,19 @@ const FormCKEditor = ({
         .ck-toolbar__overflow__panel {
           max-height: 400px !important;
           overflow-y: auto !important;
+        }
+        /* Ensure font-size and font-family work properly in CKEditor */
+        /* Inline styles from CKEditor font controls are now preserved */
+        /* The problematic CSS overrides have been removed from index.css */
+        /* Ensure paragraphs are visible and Enter key creates new lines */
+        .ck-content p {
+          display: block !important;
+          margin-top: 0.5em !important;
+          margin-bottom: 0.5em !important;
+          min-height: 1em !important;
+        }
+        .ck-content p:empty {
+          min-height: 1em !important;
         }
       `}</style>
       

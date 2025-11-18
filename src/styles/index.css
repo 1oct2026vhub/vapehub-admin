@@ -306,22 +306,22 @@ input::-ms-clear {
   margin-bottom: 0.5em;
 }
 
-.ck-content [style*="font-size"] {
-  font-size: inherit !important;
-}
-
+/* Allow font-size and font-family to work properly in CKEditor */
+/* Removed font-size override that was preventing it from working */
 .ck-content [style*="font-weight"] {
   font-weight: inherit !important;
 }
 
 /* Override MUI styles that might conflict with CKEditor content */
+/* Removed font-size and font-family overrides to allow CKEditor controls to work */
 .ck-content span, 
 .ck-content p, 
 .ck-content div {
-  font-size: unset !important;
   font-weight: unset !important;
-  font-family: inherit !important;
 }
+
+/* CKEditor font-size and font-family inline styles now work properly */
+/* The previous overrides that prevented them from working have been removed */
 
 .ck-content strong, 
 .ck-content b {
