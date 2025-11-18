@@ -160,7 +160,8 @@ const MenuDialog: React.FC<MenuDialogProps> = ({ open, onClose, onSave, menuItem
 
       let response: any;
       let fetchedEntities: any[] = [];
-      const params: any = { limit: 1000 };
+      // Set limit to 100 for deals, 1000 for all other entity types
+      const params: any = { limit: entityType === 'deal' ? 100 : 1000 };
 
       if (debouncedSearch) {
         if (entityType === 'product') {
@@ -300,13 +301,14 @@ const MenuDialog: React.FC<MenuDialogProps> = ({ open, onClose, onSave, menuItem
             break;
           }
           case 'deal': {
-            const defaultResponse = await getDeals({});
+            const defaultResponse = await getDeals({ limit: 100 });
             fetchedEntity = defaultResponse?.data?.deals?.find((deal: Deal) => deal.id === menuItem.entity_id) || null;
             
             // If not found, try searching by name
             if (!fetchedEntity) {
               const searchResponse = await getDeals({ 
-                search: menuItem.label 
+                search: menuItem.label,
+                limit: 100
               });
               fetchedEntity = searchResponse?.data?.deals?.find((deal: Deal) => deal.id === menuItem.entity_id) || null;
             }
