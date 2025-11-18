@@ -62,7 +62,6 @@ const FormCKEditor = ({
 
   // Use CKEditor Cloud hook
   const cloud = useCKEditorCloud({ version: '47.2.0', premium: true, ckbox: { version: '2.6.1' } });
-
   useEffect(() => {
     isMountedRef.current = true;
     setIsLayoutReady(true);
