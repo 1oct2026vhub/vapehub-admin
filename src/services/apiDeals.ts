@@ -25,6 +25,7 @@ export interface Deal {
   tiered_qty_json: TieredQty[] | null;
   bundle_product_ids_json: number[] | null;
   is_active: boolean;
+  show_home_page?: boolean;
   valid_from: string;
   valid_to: string;
   description?: string | null;
@@ -78,6 +79,7 @@ export interface DealFormData {
   name: string;
   deal_type: 'BUY_MORE_SAVE_MORE' | 'BUY_X_GET_Y_FREE' | 'BUY_N_FOR_FIXED';
   is_active: boolean;
+  show_home_page: boolean;
   valid_from: string;
   valid_to: string;
   required_qty?: number | null;

@@ -47,6 +47,7 @@ const dealSchema = z.object({
     name: z.string().min(1, 'Name is required'),
     deal_type: z.enum(['BUY_N_FOR_FIXED']),
     is_active: z.boolean(),
+    show_home_page: z.boolean(),
     valid_from: z.string().min(1, 'Valid from date is required'),
     valid_to: z.string().min(1, 'Valid to date is required'),
     required_qty: z.coerce.number().min(1, { message: "Quantity is required." }).positive({ message: "Quantity must be a positive number." }).int({ message: "Quantity must be a whole number." }),
@@ -104,6 +105,7 @@ const DealForm: React.FC<DealFormProps> = ({ deal, onDealCreated, hideButtons = 
             name: '',
             deal_type: 'BUY_N_FOR_FIXED',
             is_active: true,
+            show_home_page: false,
             valid_from: '',
             valid_to: '',
             required_qty: null,
@@ -133,6 +135,7 @@ const DealForm: React.FC<DealFormProps> = ({ deal, onDealCreated, hideButtons = 
                 valid_to: deal.valid_to.split('T')[0],
                 bundle_product_ids_json: deal.products.map(p => p.id),
                 image: deal.image_url,
+                show_home_page: deal.show_home_page ?? false,
             });
             setAssociatedProducts(deal.products);
         }
@@ -156,6 +159,7 @@ const DealForm: React.FC<DealFormProps> = ({ deal, onDealCreated, hideButtons = 
                 slug,
                 deal_type: data.deal_type,
                 is_active: data.is_active,
+                show_home_page: data.show_home_page,
                 valid_from: data.valid_from,
                 valid_to: data.valid_to,
                 description: data.description,
@@ -296,12 +300,21 @@ if (error?.errors) {
                                         defaultValue={deal?.description || ''}
                                     />
                                 </Grid>
-                                <Grid item xs={12}>
+                                <Grid item xs={12} md={6}>
                                     <Controller
                                         name="is_active"
                                         control={control}
                                         render={({ field }) => (
                                             <FormControlLabel control={<Switch {...field} checked={field.value} />} label="Active" />
+                                        )}
+                                    />
+                                </Grid>
+                                <Grid item xs={12} md={6}>
+                                    <Controller
+                                        name="show_home_page"
+                                        control={control}
+                                        render={({ field }) => (
+                                            <FormControlLabel control={<Switch {...field} checked={field.value} />} label="Show on Home Page" />
                                         )}
                                     />
                                 </Grid>
