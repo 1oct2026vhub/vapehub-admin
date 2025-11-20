@@ -19,7 +19,7 @@ import FormFileUploadField from '@/components/Shared/FormFileUploadField';
 import { validateImageDimensions } from '@/utils/imageUtils';
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
-const ACCEPTED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'];
+const ACCEPTED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp', 'image/svg+xml'];
 
 // Schema - image validation handled conditionally based on create/edit mode
 const schema = z.object({
@@ -32,10 +32,11 @@ const schema = z.object({
       )
       .refine(
         (file) => ACCEPTED_IMAGE_TYPES.includes(file.type),
-        'Only .png, .jpg, .jpeg, .webp formats are accepted.'
+        'Only .png, .jpg, .jpeg, .webp, .svg formats are accepted.'
       )
       .superRefine(async (file, ctx) => {
-        if (file.type.startsWith('image/')) {
+        // Skip dimension validation for SVG files as they are vector graphics
+        if (file.type.startsWith('image/') && file.type !== 'image/svg+xml') {
           const validation = await validateImageDimensions(file, 43, 43);
           if (!validation.valid) {
             ctx.addIssue({
@@ -330,7 +331,7 @@ const ShopByCategoryForm: React.FC<Props> = ({ item, onSuccess, onCancel }) => {
             }
           }}
           onDeleteDefaultImage={isEditMode ? handleDeleteImage : undefined}
-          helperText="Supported formats: PNG, JPG, JPEG, WebP (max 5MB). Image dimensions must be exactly 43x43 pixels."
+          helperText="Supported formats: PNG, JPG, JPEG, WebP, SVG (max 5MB). Image dimensions must be exactly 43x43 pixels (SVG files are exempt from dimension validation)."
         />
 
         <Controller
