@@ -220,7 +220,7 @@ const VariantDetailsForm: React.FC<VariantDetailsFormProps> = ({
       <div className="grid grid-cols-3 gap-4 mb-4">
         <FormTextField name="stock" control={control} label="Stock" required type="number" inputProps={{ step: "1" }} />
         <FormTextField name="lowStockThreshold" control={control} label="Low Stock Threshold" type="number" inputProps={{ step: "1" }} />
-        <FormTextField name="slug" control={control} label="Slug" required />
+        {/* <FormTextField name="slug" control={control} label="Slug" required /> */}
       </div>
 
       <div className="mb-4">
