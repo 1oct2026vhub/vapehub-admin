@@ -152,8 +152,10 @@ export interface CreateProductData {
   name: string;
   slug: string;
   description?: string;
+  key_highlights?: string;
   category_ids?: number[];
   brand_ids?: number[];
+  linked_product_ids?: number[];
   is_new?: boolean;
 }
 
