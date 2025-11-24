@@ -12,13 +12,9 @@ const CKEditorComponent = dynamic(
 );
 
 // CKEditor 5 License Key
-const LICENSE_KEY = process.env.NEXT_PUBLIC_CKEDITOR_LICENSE_KEY || 
-  "eyJhbGciOiJFUzI1NiJ9.eyJleHAiOjE3NjM2ODMxOTksImp0aSI6IjU4ZDA0YThhLTNkZWUtNDMwZS1hZDk3LTc3YjlhYjg5ZThlYyIsInVzYWdlRW5kcG9pbnQiOiJodHRwczovL3Byb3h5LWV2ZW50LmNrZWRpdG9yLmNvbSIsImRpc3RyaWJ1dGlvbkNoYW5uZWwiOlsiY2xvdWQiLCJkcnVwYWwiLCJzaCJdLCJ3aGl0ZUxhYmVsIjp0cnVlLCJsaWNlbnNlVHlwZSI6InRyaWFsIiwiZmVhdHVyZXMiOlsiKiJdLCJ2YyI6Ijk4MTcxNDQwIn0.iOw2TsiMlv6OsJhu99_2yzhfKJJ3qc-Abkws2ZURMXYa-RkNklf1PkS2SCfZ5OE2-py1qgYzuh4QfQ9gV-oGug";
-
+const LICENSE_KEY = process.env.NEXT_PUBLIC_CKEDITOR_LICENSE_KEY || ""
 // Cloud Services Token URL (you may need to set this up)
-const CLOUD_SERVICES_TOKEN_URL = process.env.NEXT_PUBLIC_CKEDITOR_CLOUD_SERVICES_TOKEN_URL || 
-  "https://die0s2qo2na3.cke-cs.com/token/dev/c31a9524f742d00ae4124a77351585c9bb8bc94b61a0c93f85ba9b741c44?limit=10";
-
+const CLOUD_SERVICES_TOKEN_URL = process.env.NEXT_PUBLIC_CKEDITOR_CLOUD_SERVICES_TOKEN_URL ||""
 // Default hex colors for color pickers
 const DEFAULT_HEX_COLORS = [
 	{ color: '#000000', label: 'Black' },
