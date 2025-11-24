@@ -10,6 +10,7 @@ import {
   getProduct,
   type CreateProductData,
   updateProduct,
+  listProducts,
 } from "@/services/apiProduct";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -42,8 +43,10 @@ const schema = z.object({
     ),
   sku: z.string().optional(),
   description: z.string().optional().default(""),
+  key_highlights: z.string().optional().default(""),
   category_ids: z.array(z.number()).min(1, "At least one category is required"),
   brand_ids: z.array(z.number()).min(1, "At least one brand is required"),
+  linked_product_ids: z.array(z.number()).optional().default([]),
   is_new: z.boolean().optional(),
 });
 
@@ -177,6 +180,12 @@ function BasicInfoTab() {
   const [brandSearchInput, setBrandSearchInput] = useState("");
   const [selectedBrandNames, setSelectedBrandNames] = useState<string[]>([]);
 
+  // State for linked products
+  const [linkedProductLoading, setLinkedProductLoading] = useState(false);
+  const [linkedProductOptions, setLinkedProductOptions] = useState<Option[]>([]);
+  const [linkedProductError, setLinkedProductError] = useState("");
+  const [linkedProductSearchInput, setLinkedProductSearchInput] = useState("");
+
   // Determine if we're in edit mode
   const isEditMode = Boolean(productId && productId > 0);
 
@@ -196,22 +205,26 @@ function BasicInfoTab() {
       slug: formData.slug || "",
       sku: formData.sku || "",
       description: formData.description || "",
+      key_highlights: formData.key_highlights || "",
       category_ids: formData.category_ids || [],
       brand_ids: formData.brand_ids || [],
+      linked_product_ids: formData.linked_product_ids || [],
       // is_new: formData.is_new ?? true,
     },
     resolver: zodResolver(schema),
   });
 
-  // Fetch initial category and brand options
+  // Fetch initial category, brand, and linked product options
   useEffect(() => {
     fetchCategories("");
     fetchBrands("");
+    fetchLinkedProducts("");
   }, []);
 
   // Watch form values and trigger validation when category_ids or brand_ids change
   const watchedCategoryIds = watch("category_ids");
   const watchedBrandIds = watch("brand_ids");
+  const watchedLinkedProductIds = watch("linked_product_ids");
 
   useEffect(() => {
     console.log("Category IDs changed:", watchedCategoryIds);
@@ -226,6 +239,14 @@ function BasicInfoTab() {
       trigger("brand_ids");
     }
   }, [watchedBrandIds, trigger]);
+
+  // Prevent current product from being in linked products
+  useEffect(() => {
+    if (productId && watchedLinkedProductIds && watchedLinkedProductIds.includes(productId)) {
+      const filteredIds = watchedLinkedProductIds.filter(id => id !== productId);
+      setValue("linked_product_ids", filteredIds);
+    }
+  }, [watchedLinkedProductIds, productId, setValue]);
 
   // Debug: Log form state and errors
   useEffect(() => {
@@ -378,8 +399,102 @@ function BasicInfoTab() {
     [watchedBrandIds]
   );
 
-  // Fetch selected category and brand on edit
-  const fetchSelectedOptions = async (category_id: number[], brand_id: number[]) => {
+  // Fetch linked products based on search query (only published and not deleted)
+  const fetchLinkedProducts = useMemo(
+    () =>
+      debounce(async (query: string) => {
+        try {
+          setLinkedProductLoading(true);
+          setLinkedProductError("");
+          
+          // Filter for published and not deleted products, exclude current product if editing
+          const params: any = {
+            keyword: query,
+            status: "published",
+            deleted: false,
+            limit: 1000
+          };
+          
+          // Exclude current product from linked products to avoid circular references
+          if (productId) {
+            params.exclude_ids = [productId];
+          }
+          
+          const response = await listProducts(params);
+          
+          if (response?.data?.products && response.data.products.length > 0) {
+            // Filter out deleted products, only include published ones, and exclude current product
+            const validProducts = response.data.products.filter((product: any) => 
+              product.status === "published" && 
+              !product.deletedAt &&
+              product.id !== productId
+            );
+            
+            // Deduplicate products based on ID
+            const uniqueProducts = deduplicateById(validProducts);
+            
+            // Sort intelligently based on search query
+            let sortedProducts = [...uniqueProducts];
+            if (query && query.length >= 1) {
+              sortedProducts = sortSearchResults(sortedProducts, query, 'name');
+            }
+            
+            // Map the products from the API response
+            const options = sortedProducts.map((product: any) => ({
+              value: product.id,
+              label: product.name,
+            }));
+            
+            // Always include currently selected products in the options
+            setLinkedProductOptions(prev => {
+              const currentSelectedIds = watchedLinkedProductIds || [];
+              const selectedOptions = currentSelectedIds.map(id => {
+                // Skip if it's the current product
+                if (id === productId) return null;
+                const existingOption = prev.find(opt => opt.value === id);
+                return existingOption || { value: id, label: `Product ${id}` };
+              }).filter((opt): opt is Option => opt !== null);
+              
+              // Merge selected options with new options, avoiding duplicates
+              const mergedOptions = [...selectedOptions];
+              options.forEach(newOption => {
+                // Don't add current product
+                if (newOption.value !== productId && !mergedOptions.some(opt => opt.value === newOption.value)) {
+                  mergedOptions.push(newOption);
+                }
+              });
+              
+              return mergedOptions;
+            });
+          } else {
+            // Even when no search results, keep currently selected options (excluding current product)
+            setLinkedProductOptions(prev => {
+              const currentSelectedIds = watchedLinkedProductIds || [];
+              return prev.filter(option => 
+                currentSelectedIds.includes(Number(option.value)) && 
+                option.value !== productId
+              );
+            });
+          }
+        } catch (error) {
+          console.error("Error fetching linked products:", error);
+          // Keep currently selected options even on error (excluding current product)
+          setLinkedProductOptions(prev => {
+            const currentSelectedIds = watchedLinkedProductIds || [];
+            return prev.filter(option => 
+              currentSelectedIds.includes(Number(option.value)) && 
+              option.value !== productId
+            );
+          });
+        } finally {
+          setLinkedProductLoading(false);
+        }
+      }, 400),
+    [watchedLinkedProductIds, productId]
+  );
+
+  // Fetch selected category, brand, and linked products on edit
+  const fetchSelectedOptions = async (category_id: number[], brand_id: number[], linked_product_id: number[]) => {
     if (category_id?.length > 0) {
       try {
         const response = await listProductCategory({ 
@@ -435,6 +550,37 @@ function BasicInfoTab() {
         showSnackbar("Failed to load brand details", "error");
       }
     }
+
+    if (linked_product_id?.length > 0) {
+      try {
+        const response = await listProducts({ 
+          ids: linked_product_id,
+          status: "published",
+          deleted: false
+        });
+        
+        if (response?.data?.products && response.data.products.length > 0) {
+          // Filter for published and not deleted products
+          const validProducts = response.data.products.filter((product: any) => 
+            product.status === "published" && !product.deletedAt
+          );
+          
+          // Add to options if not already present
+          setLinkedProductOptions(prev => {
+            const newOptions = [...prev];
+            validProducts.forEach((product: any) => {
+              if (!newOptions.some(option => option.value === product.id)) {
+                newOptions.push({ value: product.id, label: product.name });
+              }
+            });
+            return newOptions;
+          });
+        }
+      } catch (error) {
+        console.error("Error fetching selected linked products:", error);
+        showSnackbar("Failed to load linked product details", "error");
+      }
+    }
   };
 
   // Fetch product data when component mounts or productId changes
@@ -455,12 +601,18 @@ function BasicInfoTab() {
              setValue("slug", productData.slug || "");
              setValue("sku", productData.sku || "");
              setValue("description", productData.description || "");
+             setValue("key_highlights", productData.key_highlights || "");
              setValue("category_ids", productData.Categories?.map(c => c.id) || []);
              setValue("brand_ids", productData.Brands?.map(b => b.id) || []);
+             setValue("linked_product_ids", productData.LinkedProducts?.map(p => p.id) || []);
              setValue("is_new", productData.is_new ?? true);
 
-            // Fetch selected category and brand details
-            await fetchSelectedOptions(productData.Categories?.map(c => c.id), productData.Brands?.map(b => b.id));
+            // Fetch selected category, brand, and linked product details
+            await fetchSelectedOptions(
+              productData.Categories?.map(c => c.id) || [],
+              productData.Brands?.map(b => b.id) || [],
+              productData.LinkedProducts?.map(p => p.id) || []
+            );
 
                          // Update form context
              updateFormData({
@@ -468,8 +620,10 @@ function BasicInfoTab() {
                slug: productData.slug || "",
                sku: productData.sku || "",
                description: productData.description || "",
+               key_highlights: productData.key_highlights || "",
                category_ids: productData.Categories?.map(c => c.id) || [],
                brand_ids: productData.Brands?.map(b => b.id) || [],
+               linked_product_ids: productData.LinkedProducts?.map(p => p.id) || [],
                is_new: productData.is_new ?? true,
                productId: Number(finalProductId),
              });
@@ -503,8 +657,10 @@ function BasicInfoTab() {
          slug: data.slug.trim(),
          ...(data.sku && { sku: data.sku.trim() }),
          description: data.description || "",
+         key_highlights: data.key_highlights || "",
          category_ids: data.category_ids,
          brand_ids: data.brand_ids,
+         linked_product_ids: data.linked_product_ids || [],
          is_new: Boolean(data.is_new),
        };
 
@@ -795,6 +951,37 @@ function BasicInfoTab() {
             label="Description"
             defaultValue={formData.description || ""}
           />
+        </Grid>
+        
+        <Grid item xs={12}>
+          <FormInputField
+            name="key_highlights"
+            control={control}
+            label="Key Highlights"
+            type="text"
+            multiline
+            rows={4}
+          />
+        </Grid>
+        
+        <Grid item xs={12}>
+          <MuiBox sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+            <FormMultiSelectWithMapping
+              name="linked_product_ids"
+              control={control}
+              label="Linked Products"
+              options={linkedProductOptions}
+              error={!!errors.linked_product_ids}
+              errorMessage={linkedProductError || errors.linked_product_ids?.message?.toString()}
+              onInputChange={(query) => {
+                setLinkedProductSearchInput(query);
+                fetchLinkedProducts(query);
+              }}
+              loading={linkedProductLoading}
+              placeholder="Search for a product..."
+              searchTerm={linkedProductSearchInput}
+            />
+          </MuiBox>
         </Grid>
         
         <Grid item xs={12} sx={{ mt: 2 }}>
