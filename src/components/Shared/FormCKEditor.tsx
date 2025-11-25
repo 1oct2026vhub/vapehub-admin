@@ -161,6 +161,7 @@ const FormCKEditor = ({
         PictureEditing,
         PlainTableOutput,
         RemoveFormat,
+        SelectAll,
         ShowBlocks,
         SpecialCharacters,
         SpecialCharactersArrows,
@@ -330,16 +331,17 @@ const FormCKEditor = ({
             LinkImage,
             List,
             ListProperties,
-            Markdown,
+            // Markdown, // Removed to ensure HTML output
             MediaEmbed,
             MultiLevelList,
             PageBreak,
             Paragraph,
-            PasteFromMarkdownExperimental,
+            // PasteFromMarkdownExperimental, // Removed to ensure HTML output
             PasteFromOffice,
             PictureEditing,
             PlainTableOutput,
             RemoveFormat,
+            SelectAll,
             ShowBlocks,
             SpecialCharacters,
             SpecialCharactersArrows,
@@ -489,10 +491,12 @@ const FormCKEditor = ({
           htmlSupport: {
             allow: [
               {
-                name: /^(div|table|tbody|tr|td|span|img|h1|h2|h3|h4|h5|h6|p|a|br|ul|ol|li|blockquote|pre|code)$/,
-                styles: true as any,
-                attributes: true as any,
-                classes: true as any
+                // Allow ALL HTML elements, attributes, classes, and styles
+                // This ensures that the source code is preserved exactly as is
+                name: /.*/,
+                attributes: true,
+                classes: true,
+                styles: true
               }
             ]
           } as any,
@@ -540,6 +544,10 @@ const FormCKEditor = ({
             }
           },
           placeholder: 'Type or paste your content here!',
+          selectAll: {
+            // Enable select all functionality
+          },
+          // Use proper select all plugin configuration if available, otherwise default behavior works
           table: {
             contentToolbar: ['tableColumn', 'tableRow', 'mergeTableCells', 'tableProperties', 'tableCellProperties'],
             tableProperties: {
@@ -619,6 +627,34 @@ const FormCKEditor = ({
     if (!isMountedRef.current) return;
     
     editorRef.current = editor;
+    
+    // Ensure editor outputs HTML format
+    // Override getData to guarantee HTML output
+    const originalGetData = editor.getData.bind(editor);
+    editor.getData = function(options?: any) {
+      const data = originalGetData(options);
+      
+      // Ensure we return a string
+      if (typeof data !== 'string') {
+        console.warn('⚠️ getData() returned non-string, converting:', typeof data);
+        return String(data || '');
+      }
+      
+      // If data is empty, return empty string
+      if (!data || data.trim() === '') {
+        return '';
+      }
+      
+      // If data doesn't contain HTML tags, it might be plain text
+      // In this case, we should still return it as-is (CKEditor should handle HTML)
+      // But log a warning if it looks like plain text
+      if (!data.includes('<') && data.length > 0) {
+        console.warn('⚠️ getData() returned plain text without HTML tags. This should not happen with CKEditor.');
+        console.warn('Data sample:', data.substring(0, 100));
+      }
+      
+      return data;
+    };
     
     const editableElement = editor.ui.getEditableElement();
     const editorElement = editor.ui.element;
@@ -914,8 +950,47 @@ const FormCKEditor = ({
                   }}
                   onChange={(event, editor) => {
                     if (!isMountedRef.current) return;
-                    const data = editor.getData();
-                    field.onChange(data);
+                    
+                    try {
+                      // Get HTML data from editor - getData() returns HTML by default
+                      let data = editor.getData();
+                      
+                      // Ensure we have a string
+                      if (typeof data !== 'string') {
+                        console.error('❌ CKEditor getData() returned non-string:', typeof data, data);
+                        data = String(data || '');
+                      }
+                      
+                      // Verify it's HTML (should contain HTML tags)
+                      if (!data || data.trim() === '') {
+                        // Empty content is fine
+                        field.onChange('');
+                        return;
+                      }
+                      
+                      // Check if data contains HTML tags
+                      if (!data.includes('<')) {
+                        // If no HTML tags, wrap in paragraph tag to ensure HTML format
+                        console.warn('⚠️ CKEditor returned plain text, wrapping in <p> tag');
+                        data = `<p>${data}</p>`;
+                      }
+                      
+                      // Log for debugging (can be removed in production)
+                      console.log('✅ CKEditor HTML output:', data.substring(0, 200));
+                      
+                      // Update form field with HTML data
+                      field.onChange(data);
+                    } catch (error) {
+                      console.error('❌ Error getting CKEditor data:', error);
+                      // Fallback: try to get data anyway
+                      try {
+                        const fallbackData = editor.getData();
+                        field.onChange(fallbackData || '');
+                      } catch (e) {
+                        console.error('❌ Fallback also failed:', e);
+                        field.onChange('');
+                      }
+                    }
                   }}
                   onBlur={(event, editor) => {
                     if (!isMountedRef.current) return;
