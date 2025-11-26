@@ -953,7 +953,7 @@ function BasicInfoTab() {
           />
         </Grid>
         
-        <Grid item xs={12}>
+        {/* <Grid item xs={12}>
           <FormInputField
             name="key_highlights"
             control={control}
@@ -962,7 +962,7 @@ function BasicInfoTab() {
             multiline
             rows={4}
           />
-        </Grid>
+        </Grid> */}
         
         <Grid item xs={12}>
           <MuiBox sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
