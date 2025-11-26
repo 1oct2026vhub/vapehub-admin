@@ -78,7 +78,7 @@ const schema = z.object({
 
   is_free_shipping: z.boolean().optional().default(false),
 
-  free_delivery_price: z
+  free_shipping_threshold: z
     .union([z.string(), z.number()])
     .optional()
     .transform((val) => {
@@ -111,7 +111,7 @@ const defaultValues: FormType = {
   service_code: "",
   carrier_code: "",
   is_free_shipping: false,
-  free_delivery_price: undefined,
+  free_shipping_threshold: undefined,
 };
 
 
@@ -170,8 +170,8 @@ export default function EditShippingMethod() {
           service_code: shippingMethod.service_code,
           carrier_code: shippingMethod.carrier_code,
           is_free_shipping: (shippingMethod as any).is_free_shipping || false,
-          free_delivery_price: (shippingMethod as any).free_delivery_price 
-            ? parseFloat((shippingMethod as any).free_delivery_price) 
+          free_shipping_threshold: (shippingMethod as any).free_shipping_threshold 
+            ? parseFloat((shippingMethod as any).free_shipping_threshold) 
             : undefined
         });
       }
@@ -306,9 +306,9 @@ export default function EditShippingMethod() {
           {isFreeShipping && (
             <div className="mt-2">
               <FormInputField
-                name="free_delivery_price"
+                name="free_shipping_threshold"
                 control={control}
-                label="Free Delivery Price"
+                label="Free Shipping Threshold"
                 type="number"
                 inputProps={{ step: "0.01", min: "0" }}
                 helperText="Minimum order amount to qualify for free shipping"

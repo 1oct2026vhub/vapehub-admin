@@ -74,7 +74,7 @@ const schema = z.object({
 
   is_free_shipping: z.boolean().optional().default(false),
 
-  free_delivery_price: z
+  free_shipping_threshold: z
     .union([z.string(), z.number()])
     .optional()
     .transform((val) => {
@@ -88,11 +88,11 @@ const schema = z.object({
     .refine((val) => {
       if (val === undefined) return true;
       return val >= 0;
-    }, "Free Delivery Price must be a positive number")
+    }, "Free Shipping Threshold must be a positive number")
     .refine((val) => {
       if (val === undefined) return true;
       return val <= 999.99;
-    }, "Free Delivery Price must be less than 1000")
+    }, "Free Shipping Threshold must be less than 1000")
 });
 
 export type FormType = z.infer<typeof schema>;
@@ -107,7 +107,7 @@ const defaultValues: FormType = {
   service_code: "",
   carrier_code: "",
   is_free_shipping: false,
-  free_delivery_price: undefined,
+  free_shipping_threshold: undefined,
 };
 
 
@@ -252,9 +252,9 @@ export default function CreateShippingMethod() {
           {isFreeShipping && (
             <div className="mt-2">
               <FormInputField
-                name="free_delivery_price"
+                name="free_shipping_threshold"
                 control={control}
-                label="Free Delivery Price"
+                label="Free Shipping Threshold"
                 type="number"
                 inputProps={{ step: "0.01", min: "0" }}
                 helperText="Minimum order amount to qualify for free shipping"
