@@ -27,6 +27,8 @@ export interface CreateShippingMethodData {
   is_enabled: boolean;
   service_code?: string;
   carrier_code?: string;
+  is_free_shipping?: boolean;
+  free_delivery_price?: number;
 }
 
 export interface UpdateShippingMethodData {
@@ -38,6 +40,8 @@ export interface UpdateShippingMethodData {
   is_enabled?: boolean;
   service_code?: string;
   carrier_code?: string;
+  is_free_shipping?: boolean;
+  free_delivery_price?: number;
 }
 
 export interface MethodOrderUpdate {
