@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Controller } from "react-hook-form";
 import {
   Box,
@@ -159,6 +159,8 @@ const FormFileUploadField: React.FC<FormFileUploadFieldProps> = ({
     };
   }, [previewUrl, defaultImage]);
 
+  const inputRef = useRef<HTMLInputElement | null>(null);
+
   return (
     <Controller
       name={name}
@@ -175,7 +177,7 @@ const FormFileUploadField: React.FC<FormFileUploadFieldProps> = ({
           {/* Upload button/area - Always shown */}
           <Box
             className="border-2 border-dashed border-[#2E9970] rounded-none p-6 text-center cursor-pointer hover:border-[#1E7A56] transition-colors mb-2"
-            onClick={() => document.getElementById(name)?.click()}
+            onClick={() => inputRef.current?.click()}
             sx={{
               "&:hover": {
                 "& .MuiSvgIcon-root": {
@@ -186,6 +188,7 @@ const FormFileUploadField: React.FC<FormFileUploadFieldProps> = ({
           >
             <input
               id={name}
+              ref={inputRef}
               type="file"
               accept={accept}
               onChange={(e) => handleFileChange(e, onChange)}
