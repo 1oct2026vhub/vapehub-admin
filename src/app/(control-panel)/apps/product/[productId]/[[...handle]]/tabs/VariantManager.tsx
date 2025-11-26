@@ -158,9 +158,10 @@ interface VariantAttributeField {
 // --- EDIT: Simplify schema to use simple nullable numeric types --- 
 const variantSchema = z.object({
   slug: z.string()
-    .min(1, "Slug is required")
     .max(100, "Slug cannot exceed 100 characters") 
-    .regex(/^[a-z0-9-]+$/, "Slug must contain only lowercase letters, numbers, and hyphens"),
+    .regex(/^[a-z0-9-]*$/, "Slug must contain only lowercase letters, numbers, and hyphens")
+    .optional()
+    .nullable(),
   sku: z.string().optional(), 
   regular_price: z.preprocess(
     (val) => {
@@ -1764,7 +1765,7 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
       // --- EDIT: Build API payload only with non-null values --- 
       // Type for the variant payload to be sent to the API
       interface ProductVariant {
-        slug: string;
+        // slug removed - not needed for variant create/update API
         price: number;
         regular_price: number;
         stock: number;
@@ -1775,7 +1776,6 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
 
       // Base payload with required fields
       const variantPayload: ProductVariant = {
-        slug: data.slug,
         price: Number(data.regular_price),
         regular_price: Number(data.regular_price),
         stock: Number(data.stock),
@@ -1839,7 +1839,7 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
       const newVariant: Variant = {
         id: createdVariantId ? Number(createdVariantId) : 0,
         product_id: Number(formData.productId),
-        slug: data.slug,
+        slug: data.slug || '', // Keep for local state display, but not sent to API
         regular_price: String(transformOptionalNumber(data.regular_price)),
         stock: Number(transformOptionalNumber(data.stock)),
         status: data.status === 'active' ? 'Active' : 'Inactive',
@@ -2556,7 +2556,7 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
       let hasChanges = false;
 
       // Required fields (compare simple types)
-      if (data.slug !== originalVariant.slug) { apiPayload.slug = data.slug; hasChanges = true; }
+      // Slug removed from API payload - not needed for variant updates
       if ((data.sku || null) !== (originalVariant.sku || null)) { apiPayload.sku = data.sku || null; hasChanges = true; }
       if (transformOptionalNumber(data.regular_price) !== transformOptionalNumber(originalVariant.regular_price)) { apiPayload.regular_price = transformOptionalNumber(data.regular_price); hasChanges = true; }
       if (transformOptionalNumber(data.stock) !== transformOptionalNumber(originalVariant.stock)) { apiPayload.stock = transformOptionalNumber(data.stock); hasChanges = true; }
@@ -2687,7 +2687,7 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
                         
             const updatedVariant: Variant = { 
               ...v, 
-              slug: data.slug,
+              slug: data.slug || v.slug, // Keep existing slug if not provided, but not sent to API
               sku: data.sku || null,
               regular_price: String(transformOptionalNumber(data.regular_price)), 
               stock: Number(transformOptionalNumber(data.stock)), 

@@ -127,9 +127,10 @@ const FormField = ({
 // Add variant schema (same as in VariantManager)
 const variantSchema = z.object({
   slug: z.string()
-    .min(1, "Slug is required")
     .max(100, "Slug cannot exceed 100 characters")
-    .regex(/^[a-z0-9-]+$/, "Slug must contain only lowercase letters, numbers, and hyphens"),
+    .regex(/^[a-z0-9-]*$/, "Slug must contain only lowercase letters, numbers, and hyphens")
+    .optional()
+    .nullable(),
   sku: z.string().optional(),
   regular_price: z.preprocess(
     (val) => {
@@ -1217,7 +1218,7 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
       console.log("[onSubmit] Submitted data:", data);
 
       // Dynamically add fields to payload ONLY if they are dirty
-      if (dirtyFields.slug) apiPayload.slug = data.slug;
+      // Slug removed from API payload - not needed for variant updates
       if (dirtyFields.sku) apiPayload.sku = data.sku || null;
       if (dirtyFields.regular_price) apiPayload.regular_price = transformOptionalNumber(data.regular_price);
       if (dirtyFields.stock) apiPayload.stock = transformOptionalNumber(data.stock);
@@ -1255,7 +1256,7 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
       }));
 
       // --- Safety check: Include required fields if they weren't dirty ---
-      if (apiPayload.slug === undefined && data.slug !== undefined) apiPayload.slug = data.slug;
+      // Slug removed from API payload - not needed for variant updates
       if (apiPayload.regular_price === undefined && data.regular_price !== undefined) apiPayload.regular_price = transformOptionalNumber(data.regular_price);
       if (apiPayload.stock === undefined && data.stock !== undefined) apiPayload.stock = transformOptionalNumber(data.stock);
 
@@ -1277,7 +1278,7 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
           if (variant.id === selectedVariant.id) {
             return {
               ...variant,
-              slug: data.slug,
+              slug: data.slug || variant.slug, // Keep existing slug if not provided, but not sent to API
               sku: data.sku || '',
               regular_price: String(data.regular_price || 0),
               stock: Number(data.stock || 0),

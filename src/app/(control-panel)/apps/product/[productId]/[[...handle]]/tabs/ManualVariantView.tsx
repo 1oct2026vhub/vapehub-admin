@@ -160,9 +160,10 @@ interface ManualVariantData {
 // Zod schema for variant editing form (copied from GenerateVariantsView, adjust if manual variants have different rules)
 const variantEditSchema = z.object({
   slug: z.string()
-    .min(1, "Slug is required")
     .max(100, "Slug cannot exceed 100 characters")
-    .regex(/^[a-z0-9-]+$/, "Slug must contain only lowercase letters, numbers, and hyphens"),
+    .regex(/^[a-z0-9-]*$/, "Slug must contain only lowercase letters, numbers, and hyphens")
+    .optional()
+    .nullable(),
   sku: z.string().optional(),
   regular_price: z.preprocess(
     (val) => {
@@ -860,7 +861,7 @@ const ManualVariantView: React.FC<ManualVariantViewProps> = ({
     const heightValue = data.height;
 
     const updateRequestData: any = {
-      slug: data.slug,
+      // Slug removed from API payload - not needed for variant updates
       sku: data.sku || null,
       regular_price: priceValue,
       stock: data.stock, 
