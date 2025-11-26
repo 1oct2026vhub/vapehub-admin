@@ -232,9 +232,10 @@ type BulkUpdateFormData = z.infer<typeof bulkUpdateSchema>;
 
 const individualVariantEditSchema = z.object({
   slug: z.string()
-    .min(1, "Slug is required")
     .max(100, "Slug cannot exceed 100 characters")
-    .regex(/^[a-z0-9-]+$/, "Slug must contain only lowercase letters, numbers, and hyphens"),
+    .regex(/^[a-z0-9-]*$/, "Slug must contain only lowercase letters, numbers, and hyphens")
+    .optional()
+    .nullable(),
   sku: z.string().optional(),
   regular_price: z.preprocess(
     (val) => (val === "" || val === null || val === undefined ? null : Number(val)),
@@ -691,7 +692,7 @@ const BulkUpdateView: React.FC<BulkUpdateViewProps> = ({
     setIsUpdatingSelectedVariant(true);
     try {
       const updateRequestData: Partial<UpdateProductVariantRequest> = {
-        slug: data.slug,
+        // Slug removed from API payload - not needed for variant updates
         sku: data.sku || null,
         regular_price: getEditNumericValue(data.regular_price),
         stock: getEditNumericValue(data.stock), // Ensure this is a number
