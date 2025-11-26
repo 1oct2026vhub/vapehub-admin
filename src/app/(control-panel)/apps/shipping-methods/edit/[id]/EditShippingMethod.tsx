@@ -74,7 +74,29 @@ const schema = z.object({
 
   carrier_code: z
     .string()
+    .optional(),
+
+  is_free_shipping: z.boolean().optional().default(false),
+
+  free_shipping_threshold: z
+    .union([z.string(), z.number()])
     .optional()
+    .transform((val) => {
+      if (val === "" || val === null || val === undefined) {
+        return undefined;
+      }
+      const num = typeof val === 'string' ? parseFloat(val) : val;
+      if (isNaN(num)) return undefined;
+      return num;
+    })
+    .refine((val) => {
+      if (val === undefined) return true;
+      return val >= 0;
+    }, "Free Delivery Price must be a positive number")
+    .refine((val) => {
+      if (val === undefined) return true;
+      return val <= 999.99;
+    }, "Free Delivery Price must be less than 1000")
 });
 
 export type FormType = z.infer<typeof schema>;
@@ -88,6 +110,8 @@ const defaultValues: FormType = {
   is_enabled: true,
   service_code: "",
   carrier_code: "",
+  is_free_shipping: false,
+  free_shipping_threshold: undefined,
 };
 
 
@@ -103,12 +127,25 @@ export default function EditShippingMethod() {
     control,
     handleSubmit,
     reset,
+    watch,
+    setValue,
     formState: { errors, isValid },
   } = useForm<FormType>({
     mode: "all",
     defaultValues,
     resolver: zodResolver(schema),
   });
+
+  // Watch the free shipping checkbox
+  const isFreeShipping = watch("is_free_shipping");
+  const shippingCost = watch("shipping_cost");
+
+  // Reset shipping cost to 0 when free shipping is enabled
+  useEffect(() => {
+    if (isFreeShipping && shippingCost !== 0) {
+      setValue("shipping_cost", 0, { shouldValidate: true });
+    }
+  }, [isFreeShipping, shippingCost, setValue]);
 
   useEffect(() => {
     if (params?.id) {
@@ -131,7 +168,11 @@ export default function EditShippingMethod() {
           method_order: shippingMethod.method_order,
           is_enabled: shippingMethod.is_enabled,
           service_code: shippingMethod.service_code,
-          carrier_code: shippingMethod.carrier_code
+          carrier_code: shippingMethod.carrier_code,
+          is_free_shipping: (shippingMethod as any).is_free_shipping || false,
+          free_shipping_threshold: (shippingMethod as any).free_shipping_threshold 
+            ? parseFloat((shippingMethod as any).free_shipping_threshold) 
+            : undefined
         });
       }
     } catch (error: any) {
@@ -193,9 +234,15 @@ export default function EditShippingMethod() {
             control={control}
             label="Shipping Cost"
             type="number"
-            required
-            inputProps={{ step: "0.01", min: "0" }}
-            // helperText="Cost in pounds (£)"
+            required={!isFreeShipping}
+            inputProps={{ step: "0.01", min: "0", readOnly: isFreeShipping }}
+            sx={isFreeShipping ? { 
+              "& .MuiOutlinedInput-root": { 
+                backgroundColor: "#f5f5f5",
+                "& fieldset": { borderColor: "#d0d0d0" }
+              } 
+            } : undefined}
+            helperText={isFreeShipping ? "Shipping cost is set to 0 for free shipping" : "Cost in pounds (£)"}
           />
 
           <FormInputField
@@ -239,12 +286,35 @@ export default function EditShippingMethod() {
           required
         />
 
-        <div className="flex items-center space-x-2">
-          <FormCheckboxField
-            name="is_enabled"
-            control={control}
-            label="Enabled"
-          />
+        <div className="flex flex-col space-y-4">
+          <div className="flex items-center space-x-2">
+            <FormCheckboxField
+              name="is_enabled"
+              control={control}
+              label="Enabled"
+            />
+          </div>
+
+          <div className="flex items-center space-x-2">
+            <FormCheckboxField
+              name="is_free_shipping"
+              control={control}
+              label="Free Shipping"
+            />
+          </div>
+
+          {isFreeShipping && (
+            <div className="mt-2">
+              <FormInputField
+                name="free_shipping_threshold"
+                control={control}
+                label="Free Shipping Threshold"
+                type="number"
+                inputProps={{ step: "0.01", min: "0" }}
+                helperText="Minimum order amount to qualify for free shipping"
+              />
+            </div>
+          )}
         </div>
 
         {/* {Object.keys(errors).length > 0 && (
