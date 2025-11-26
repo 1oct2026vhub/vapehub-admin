@@ -220,7 +220,7 @@ export const updatePrimaryImage = async (
 };
 
 export interface ProductVariant {
-  slug: string;
+  slug?: string; // Made optional - not required for variant create/update
   price: number;
   discount_price?: number;
   purchase_price?: number;
@@ -290,7 +290,7 @@ export const updateProductAttributes = async (
 };
 
 export interface UpdateProductVariantRequest {
-  slug: string;
+  slug?: string; // Made optional - not required for variant updates
   sku?: string | null;
   regular_price: number | null;
   discount_price?: number | null;
