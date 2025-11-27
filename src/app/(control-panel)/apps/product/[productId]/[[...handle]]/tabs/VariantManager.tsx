@@ -300,7 +300,14 @@ const variantSchema = z.object({
     .optional()
     .nullable(), // Allow null
   description: z.string()
-    .max(1000, "Description cannot exceed 1000 characters") 
+    .refine(val => {
+      if (!val) return true; // Allow null/empty
+      // Strip HTML tags to count only actual text content
+      const textContent = val.replace(/<[^>]*>/g, '').trim();
+      return textContent.length <= 10000;
+    }, { 
+      message: "Description cannot exceed 10000 characters (excluding HTML formatting)" 
+    })
     .optional()
     .nullable(), // Allow null
 });
@@ -476,7 +483,14 @@ const bulkUpdateSchema = z.object({
     .optional() 
     .nullable(), // Allow null to mean "no change"
   description: z.string()
-    .max(1000, "Description cannot exceed 1000 characters") 
+    .refine(val => {
+      if (!val) return true; // Allow null/empty
+      // Strip HTML tags to count only actual text content
+      const textContent = val.replace(/<[^>]*>/g, '').trim();
+      return textContent.length <= 10000;
+    }, { 
+      message: "Description cannot exceed 10000 characters (excluding HTML formatting)" 
+    })
     .optional() 
     .nullable(), // Allow null to mean "no change"
 });
