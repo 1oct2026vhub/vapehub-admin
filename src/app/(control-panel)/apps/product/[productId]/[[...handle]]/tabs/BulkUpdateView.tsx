@@ -294,7 +294,16 @@ const individualVariantEditSchema = z.object({
   barcode: z.string()
     .refine(val => !val || (val.length >= 3 && val.length <= 50), { message: "Barcode must be between 3 and 50 characters if provided" })
     .optional().nullable(),
-  description: z.string().max(1000, "Description cannot exceed 1000 characters").optional().nullable(),
+  description: z.string()
+    .refine(val => {
+      if (!val) return true; // Allow null/empty
+      // Strip HTML tags to count only actual text content
+      const textContent = val.replace(/<[^>]*>/g, '').trim();
+      return textContent.length <= 10000;
+    }, { 
+      message: "Description cannot exceed 10000 characters (excluding HTML formatting)" 
+    })
+    .optional().nullable(),
 });
 type EditVariantFormData = z.infer<typeof individualVariantEditSchema>;
 

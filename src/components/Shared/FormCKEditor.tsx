@@ -665,10 +665,10 @@ const FormCKEditor = ({
       editableElement.style.maxWidth = '100%';
       editableElement.style.paddingLeft = '0';
       editableElement.style.marginLeft = '0';
-      editableElement.style.overflowY = 'visible';
-      editableElement.style.height = 'auto';
-      editableElement.style.minHeight = 'auto';
-      editableElement.style.maxHeight = 'none';
+      editableElement.style.overflowY = 'auto';
+      editableElement.style.height = '300px';
+      editableElement.style.minHeight = '300px';
+      editableElement.style.maxHeight = '300px';
       
       // Ensure Enter key works properly - prevent parent form from intercepting
       const handleKeyDown = (e: KeyboardEvent) => {
@@ -859,6 +859,19 @@ const FormCKEditor = ({
         /* Ensure overflow dropdown is visible and accessible */
         .ck-toolbar__overflow__panel {
           max-height: 400px !important;
+          overflow-y: auto !important;
+        }
+        /* Fixed height for CKEditor content area */
+        .ck-editor .ck-editor__editable {
+          min-height: 300px !important;
+          max-height: 300px !important;
+          height: 300px !important;
+          overflow-y: auto !important;
+        }
+        .ck-editor .ck-content {
+          min-height: 300px !important;
+          max-height: 300px !important;
+          height: 300px !important;
           overflow-y: auto !important;
         }
         /* Ensure font-size and font-family work properly in CKEditor */
