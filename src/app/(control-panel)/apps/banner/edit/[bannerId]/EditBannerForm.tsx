@@ -60,11 +60,11 @@ const bannerEditFormSchema = z.object({
     .nullable()
     .superRefine(async (file, ctx) => {
       if (!file) return; // Only validate if a new file is provided
-      const { valid, message } = await validateImageDimensions(file, 450, 385);
+      const { valid, message } = await validateImageDimensions(file, 450, 450);
       if (!valid) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
-          message: message || 'Mobile image dimensions must be 450x385px.',
+          message: message || 'Mobile image dimensions must be 450x450px.',
         });
       }
     }),
@@ -238,10 +238,10 @@ const EditBannerForm: React.FC<EditBannerFormProps> = ({ initialBannerData }) =>
             <FormFileUploadField
               name="image_low" // This name in form state will hold the new File if selected
               control={control}
-              label="New Mobile Image (Mobile: 450 x 385 px)"
-              helperText="Mobile: 450 x 385 px. PNG, JPG, WebP. Max 5MB. Leave empty to keep existing."
+              label="New Mobile Image (Mobile: 450 x 450 px)"
+              helperText="Mobile: 450 x 450 px. PNG, JPG, WebP. Max 5MB. Leave empty to keep existing."
               exactWidth={450}
-              exactHeight={385}
+              exactHeight={450}
               defaultImage={initialBannerData?.image_url_low} // Show current image
             />
           </Grid>
