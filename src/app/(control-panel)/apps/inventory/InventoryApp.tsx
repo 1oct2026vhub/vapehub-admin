@@ -1,78 +1,62 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
-import { Box, Typography } from '@mui/material';
+import { Box } from '@mui/material';
 import {
-    getInventoryDashboard,
-    InventoryDashboardResponse,
-    InventoryParams,
+    getProducts,
+    ProductsResponse,
+    ProductsParams,
 } from '@/services/apiInventory';
-import InventoryHeader from './InventoryHeader';
 import InventoryTable from './InventoryTable';
 import FuseLoading from '@fuse/core/FuseLoading';
 import PageBreadcrumbs from '@/components/PageBreadcrumb';
 
 function InventoryApp() {
-    const [data, setData] = useState<InventoryDashboardResponse['data'] | null>(null);
+    const [products, setProducts] = useState<ProductsResponse['data']>([]);
     const [loading, setLoading] = useState(true);
-    const [params, setParams] = useState<InventoryParams>({
-        page: 1,
-        limit: 10,
-        sort_by: 'created_at',
-        sort_order: 'DESC',
+    const [params, setParams] = useState<ProductsParams>({
+        q: undefined,
     });
 
-    const fetchInventory = useCallback(async () => {
+    const fetchProducts = useCallback(async () => {
         setLoading(true);
         try {
-            const res = await getInventoryDashboard(params);
-            setData(res.data);
+            const res = await getProducts(params);
+            setProducts(res.data);
         } catch (error) {
-            console.error('Failed to fetch inventory data', error);
+            console.error('Failed to fetch products data', error);
         } finally {
             setLoading(false);
         }
     }, [params]);
 
     useEffect(() => {
-        fetchInventory();
-    }, [fetchInventory]);
+        fetchProducts();
+    }, [fetchProducts]);
 
-    const handleParamsChange = (newParams: Partial<InventoryParams>) => {
+    const handleParamsChange = useCallback((newParams: Partial<ProductsParams>) => {
         setParams(prev => {
-            const updatedParams: InventoryParams = { ...prev, ...newParams, page: 1 };
-            if (newParams.sort_by) {
-                if (prev.sort_by === newParams.sort_by && prev.sort_order === 'ASC') {
-                    updatedParams.sort_order = 'DESC';
-                } else {
-                    updatedParams.sort_order = 'ASC';
-                }
+            // Only update if the value actually changed
+            const newQ = newParams.q;
+            if (prev.q === newQ) {
+                return prev;
             }
-            return updatedParams;
+            return { ...prev, ...newParams };
         });
-    };
-    
-    const handlePageChange = (page: number) => {
-        setParams(prev => ({ ...prev, page }));
-    };
+    }, []);
 
-    if (loading && !data) {
+    if (loading && products.length === 0) {
         return <FuseLoading />;
     }
     
     return (
         <Box className="w-full p-4 md:p-12">
           <PageBreadcrumbs/>
-            {data?.summary && <InventoryHeader summary={data.summary} onRefresh={fetchInventory} />}  
-            {data && (
-                 <InventoryTable
-                    inventory={data.inventory}
-                    pagination={data.pagination}
-                    params={params}
-                    onParamsChange={handleParamsChange}
-                    onPageChange={handlePageChange}
-                    loading={loading}
-                 />
-            )}
+            <InventoryTable
+                products={products}
+                params={params}
+                onParamsChange={handleParamsChange}
+                loading={loading}
+            />
         </Box>
     );
 }
