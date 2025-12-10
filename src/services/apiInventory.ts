@@ -145,4 +145,81 @@ export interface BulkUpdateByQuantityPayload {
 export const bulkUpdateByQuantity = async (payload: BulkUpdateByQuantityPayload) => {
   const response = await axiosInstance.post('/api/admin/inventory/bulk-update-by-quantity', payload);
   return response.data;
-} 
+}
+
+export interface ProductsParams {
+  q?: string;
+}
+
+export interface Product {
+  id: number;
+  name: string;
+  slug: string;
+  image: string | null;
+  currentStock: number | null;
+  stockOnHold: number | null;
+  reservedStock: number | null;
+  salesLast28Days: number | null;
+  stockWillLastDays: number | null;
+}
+
+export interface ProductsResponse {
+  success: boolean;
+  message: string;
+  data: Product[];
+}
+
+export const getProducts = async (params: ProductsParams = {}): Promise<ProductsResponse> => {
+  const response = await axiosInstance.get('/api/admin/inventory/products', { params });
+  return response.data;
+}
+
+export interface ProductVariantsParams {
+  stock_status?: 'in_stock' | 'out_of_stock' | 'low_stock';
+}
+
+export interface ProductVariant {
+  id: number;
+  slug: string;
+  barcode: string | null;
+  sku: string | null;
+  currentStock: number;
+  lowStockThreshold: number;
+  isInStock: boolean;
+  isOutOfStock: boolean;
+  isLowStock: boolean;
+  salesLast28Days: number;
+  stockWillLastDays: number | null;
+  price: string;
+  regular_price: string;
+  discount_price: string | null;
+  image: string | null;
+  created_at: string;
+  updated_at: string;
+  [key: string]: any;
+}
+
+export interface ProductVariantsResponse {
+  success: boolean;
+  message: string;
+  data: {
+    product: {
+      id: number;
+      name: string;
+      slug: string;
+      totalStock: number;
+      salesLast28Days: number;
+      stockWillLastDays: number | null;
+    };
+    variants: ProductVariant[];
+    totalVariants: number;
+  };
+}
+
+export const getProductVariants = async (
+  productId: number,
+  params: ProductVariantsParams = {}
+): Promise<ProductVariantsResponse> => {
+  const response = await axiosInstance.get(`/api/admin/inventory/products/${productId}/variants`, { params });
+  return response.data;
+}
