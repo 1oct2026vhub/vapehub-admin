@@ -1,57 +1,62 @@
 'use client';
 import {
     Paper,
-    Chip,
     Avatar,
     Box,
     TextField,
-    MenuItem,
-    Checkbox,
-    FormControlLabel,
     InputAdornment,
-    PaginationItem,
-    Pagination,
-    ListItemIcon
+    ListItemIcon,
+    IconButton,
+    Typography,
+    Table,
+    TableBody,
+    TableCell,
+    TableContainer,
+    TableHead,
+    TableRow,
+    Chip,
+    CircularProgress
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
-import { InventoryItem, Pagination as IPagination, InventoryParams } from '@/services/apiInventory';
-import { useState, useEffect, useMemo } from 'react';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import ExpandLessIcon from '@mui/icons-material/ExpandLess';
+import { Product, ProductsParams, getProductVariants, ProductVariant } from '@/services/apiInventory';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import DataTable from '@/components/data-table/DataTable';
 import { type MRT_ColumnDef } from 'material-react-table';
 import ClearFiltersButton from '@/components/Shared/ClearFiltersButton';
 import { useRouter } from 'next/navigation';
 import FuseSvgIcon from '@fuse/core/FuseSvgIcon';
+import { MenuItem } from '@mui/material';
 interface InventoryTableProps {
-    inventory: InventoryItem[];
-    pagination: IPagination;
+    products: Product[];
     loading: boolean;
-    params: InventoryParams;
-    onParamsChange: (params: Partial<InventoryParams>) => void;
-    onPageChange: (page: number) => void;
+    params: ProductsParams;
+    onParamsChange: (params: Partial<ProductsParams>) => void;
 }
 const InventoryTable: React.FC<InventoryTableProps> = ({
-    inventory,
-    pagination,
+    products,
     loading,
     params,
     onParamsChange,
-    onPageChange,
 }) => {
     const [search, setSearch] = useState('');
     const [debouncedSearch, setDebouncedSearch] = useState('');
     const router = useRouter();
+    const lastSearchRef = useRef<string | undefined>(undefined);
+    const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({});
+    const [variantsData, setVariantsData] = useState<Record<number, ProductVariant[]>>({});
+    const [loadingVariants, setLoadingVariants] = useState<Set<number>>(new Set());
+  const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
 
     const areFiltersActive = useMemo(() => {
-        return debouncedSearch !== '' || params.stock_status || params.top_selling;
-    }, [debouncedSearch, params.stock_status, params.top_selling]);
+        return debouncedSearch !== '';
+    }, [debouncedSearch]);
 
     const clearFilters = () => {
         setSearch('');
         onParamsChange({
-            search: undefined,
-            stock_status: undefined,
-            top_selling: false,
-            page: 1,
+            q: undefined,
         });
     };
     
@@ -63,32 +68,182 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
       }, [search]);
     
       useEffect(() => {
-        onParamsChange({ search: debouncedSearch ? debouncedSearch : undefined, page: 1 });
-      }, [debouncedSearch]);
-    
-    const handleFilterChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-        const value = event.target.value;
-        onParamsChange({ stock_status: value ? value as InventoryParams['stock_status'] : undefined });
+        // Only update if the search value is different from what we last sent
+        const newQ = debouncedSearch || undefined;
+        if (lastSearchRef.current !== newQ) {
+          lastSearchRef.current = newQ;
+          onParamsChange({ q: newQ });
+        }
+      }, [debouncedSearch, onParamsChange]);
+
+    const handleRowExpand = async (productId: number, isExpanded: boolean) => {
+        if (isExpanded) {
+            // Fetch variants if not already loaded
+            if (!variantsData[productId]) {
+                setLoadingVariants(prev => new Set(prev).add(productId));
+                try {
+                    const response = await getProductVariants(productId);
+                    setVariantsData(prev => ({
+                        ...prev,
+                        [productId]: response.data.variants
+                    }));
+                } catch (error) {
+                    console.error('Failed to fetch variants', error);
+                } finally {
+                    setLoadingVariants(prev => {
+                        const newSet = new Set(prev);
+                        newSet.delete(productId);
+                        return newSet;
+                    });
+                }
+            }
+        }
     };
 
-    const handleTopSellingChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-        onParamsChange({ top_selling: event.target.checked });
+    const renderVariantDetails = (variants: ProductVariant[]) => {
+        if (variants.length === 0) {
+            return (
+                <Box sx={{ p: 2 }}>
+                    <Typography variant="body2" color="text.secondary">
+                        No variants found
+                    </Typography>
+                </Box>
+            );
+        }
+
+        return (
+            <Box sx={{ p: 2, backgroundColor: '#f5f5f5' }}>
+                <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 'bold' }}>
+                    Variants ({variants.length})
+                </Typography>
+                <TableContainer>
+                    <Table size="small">
+                        <TableHead>
+                            <TableRow>
+                                <TableCell>Image</TableCell>
+                                <TableCell>SKU</TableCell>
+                                <TableCell>Barcode</TableCell>
+                                <TableCell align="center">Current Stock</TableCell>
+                                <TableCell align="center">Low Stock Threshold</TableCell>
+                                <TableCell align="center">Stock Status</TableCell>
+                                <TableCell align="center">Price</TableCell>
+                                <TableCell align="center">Sales (28 days)</TableCell>
+                                <TableCell align="center">Stock Will Last (Days)</TableCell>
+                            </TableRow>
+                        </TableHead>
+                        <TableBody>
+                            {variants.map((variant) => (
+                                <TableRow key={variant.id}>
+                                    <TableCell>
+                                        {variant.image ? (
+                                            <Avatar src={variant.image} sx={{ width: 40, height: 40 }} />
+                                        ) : (
+                                            <Avatar sx={{ width: 40, height: 40 }}>N/A</Avatar>
+                                        )}
+                                    </TableCell>
+                                    <TableCell>{variant.sku || 'N/A'}</TableCell>
+                                    <TableCell>{variant.barcode || 'N/A'}</TableCell>
+                                    <TableCell align="center">
+                                        {variant.currentStock !== null && variant.currentStock !== undefined 
+                                            ? variant.currentStock 
+                                            : 'N/A'}
+                                    </TableCell>
+                                    <TableCell align="center">
+                                        {variant.lowStockThreshold !== null && variant.lowStockThreshold !== undefined 
+                                            ? variant.lowStockThreshold 
+                                            : 'N/A'}
+                                    </TableCell>
+                                    <TableCell align="center">
+                                        {variant.isOutOfStock ? (
+                                            <Chip label="Out of Stock" color="error" size="small" />
+                                        ) : variant.isLowStock ? (
+                                            <Chip label="Low Stock" color="warning" size="small" />
+                                        ) : (
+                                            <Chip label="In Stock" color="success" size="small" />
+                                        )}
+                                    </TableCell>
+                                    <TableCell align="center">
+                                        {variant.discount_price ? (
+                                            <Box>
+                                                <Typography variant="body2" sx={{ textDecoration: 'line-through', color: 'text.secondary' }}>
+                                                    £{variant.regular_price}
+                                                </Typography>
+                                                <Typography variant="body2" color="error">
+                                                    £{variant.discount_price}
+                                                </Typography>
+                                            </Box>
+                                        ) : (
+                                            `£${variant.price}`
+                                        )}
+                                    </TableCell>
+                                    <TableCell align="center">
+                                        {variant.salesLast28Days !== null && variant.salesLast28Days !== undefined 
+                                            ? variant.salesLast28Days 
+                                            : 'N/A'}
+                                    </TableCell>
+                                    <TableCell align="center">
+                                        {variant.stockWillLastDays !== null && variant.stockWillLastDays !== undefined 
+                                            ? variant.stockWillLastDays 
+                                            : 'N/A'}
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                </TableContainer>
+            </Box>
+        );
     };
 
-    const columns = useMemo<MRT_ColumnDef<InventoryItem>[]>(
+    const columns = useMemo<MRT_ColumnDef<Product>[]>(
         () => [
             {
                 accessorKey: 'name',
-                header: 'Product variant name',
+                header: 'Product Name',
                 size: 300,
                 enableSorting: false,
                 enableColumnActions: false,
-                Cell: ({ row }) => (
+                Cell: ({ row, table }) => {
+                    const productId = row.original.id;
+                    const rowId = productId.toString();
+                    const isExpanded = row.getIsExpanded();
+
+                    return (
                     <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                        <Avatar src={row.original.image || undefined} sx={{ mr: 2 }}>{row.original.name?.charAt(0)}</Avatar>
-                        {row.original.name}
+                            <IconButton
+                                size="small"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    
+                                    // Use the table instance to toggle expansion state
+                                    table.setExpanded({
+                                        ...expandedRows,
+                                        [rowId]: !isExpanded,
+                                    });
+                                }}
+                                sx={{ 
+                                    mr: 1, 
+                                    p: 0.5, 
+                                    cursor: 'pointer',
+                                    '&:hover': {
+                                        backgroundColor: 'rgba(0, 0, 0, 0.04)'
+                                    }
+                                }}
+                                aria-label={isExpanded ? "Close variant list" : "Open variant list"}
+                            >
+                                {isExpanded ? (
+                                    <ExpandLessIcon fontSize="small" color="action" /> // Up arrow - click to close
+                                ) : (
+                                    <ExpandMoreIcon fontSize="small" color="action" /> // Down arrow - click to open
+                                )}
+                            </IconButton>
+                            <Avatar src={row.original.image || undefined} sx={{ mr: 2 }}>
+                                {row.original.name?.charAt(0) || 'N/A'}
+                            </Avatar>
+                            {row.original.name || 'N/A'}
                     </Box>
-                ),
+                    );
+                },
             },
             { 
                 accessorKey: 'currentStock', 
@@ -97,39 +252,37 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
                 muiTableBodyCellProps: { align: 'center' },
                 enableSorting: false,
                 enableColumnActions: false,
+                Cell: ({ row }) => (
+                    row.original.currentStock !== null && row.original.currentStock !== undefined 
+                        ? row.original.currentStock 
+                        : 'N/A'
+                ),
             },
             { 
-                accessorKey: 'lowStockThreshold', 
-                header: 'Low Stock Threshold',
+                accessorKey: 'stockOnHold', 
+                header: 'Stock On Hold',
                 muiTableHeadCellProps: { align: 'center' },
                 muiTableBodyCellProps: { align: 'center' },
                 enableSorting: false,
                 enableColumnActions: false,
+                Cell: ({ row }) => (
+                    row.original.stockOnHold !== null && row.original.stockOnHold !== undefined 
+                        ? row.original.stockOnHold 
+                        : 'N/A'
+                ),
             },
             { 
-                accessorKey: 'totalSales', 
-                header: 'Total Sales',
+                accessorKey: 'reservedStock', 
+                header: 'Reserved Stock',
                 muiTableHeadCellProps: { align: 'center' },
                 muiTableBodyCellProps: { align: 'center' },
                 enableSorting: false,
                 enableColumnActions: false,
-            },
-
-            {
-                accessorKey: 'isOutOfStock',
-                header: 'Stock Status',
-                muiTableHeadCellProps: { align: 'center' },
-                muiTableBodyCellProps: { align: 'center' },
-                enableSorting: false,
-                enableColumnActions: false,
-                Cell: ({ row }) =>
-                    row.original.isOutOfStock ? (
-                        <Chip label="Out of Stock" color="error" size="small" />
-                    ) : row.original.isLowStock ? (
-                        <Chip label="Low Stock" color="warning" size="small" />
-                    ) : (
-                        <Chip label="In Stock" color="success" size="small" />
-                    )
+                Cell: ({ row }) => (
+                    row.original.reservedStock !== null && row.original.reservedStock !== undefined 
+                        ? row.original.reservedStock 
+                        : 'N/A'
+                ),
             },
             { 
                 accessorKey: 'salesLast28Days', 
@@ -138,6 +291,24 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
                 muiTableBodyCellProps: { align: 'center' },
                 enableSorting: false,
                 enableColumnActions: false,
+                Cell: ({ row }) => (
+                    row.original.salesLast28Days !== null && row.original.salesLast28Days !== undefined 
+                        ? row.original.salesLast28Days 
+                        : 'N/A'
+                ),
+            },
+            { 
+                accessorKey: 'stockWillLastDays', 
+                header: 'Stock Will Last (Days)',
+                muiTableHeadCellProps: { align: 'center' },
+                muiTableBodyCellProps: { align: 'center' },
+                enableSorting: false,
+                enableColumnActions: false,
+                Cell: ({ row }) => (
+                    row.original.stockWillLastDays !== null && row.original.stockWillLastDays !== undefined 
+                        ? row.original.stockWillLastDays 
+                        : 'N/A'
+                ),
             },
         ],
         []
@@ -147,7 +318,7 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
         <Paper sx={{ width: '100%', overflow: 'hidden', p:2, backgroundColor: 'white' }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', p: 2, flexWrap: 'wrap', gap: 2 }}>
                 <TextField
-                    label="Search by product variant"
+                    label="Search by product name"
                     variant="outlined"
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
@@ -173,43 +344,101 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
                     }}
                 />
                 <Box className="flex items-center flex-wrap gap-2">
-                    <TextField
-                        select
-                        label="Stock Status"
-                        value={params.stock_status || ''}
-                        onChange={handleFilterChange as any}
-                        size="small"
-                        sx={{ width: '150px' }}
-                    >
-                        <MenuItem value="">All</MenuItem>
-                        <MenuItem value="in_stock">In Stock</MenuItem>
-                        <MenuItem value="out_of_stock">Out of Stock</MenuItem>
-                        <MenuItem value="low_stock">Low Stock</MenuItem>
-                    </TextField>
-                    <TextField
-                        select
-                        label="Sort Order"
-                        value={params.sort_order || 'DESC'}
-                        onChange={(e) => onParamsChange({ sort_order: e.target.value as 'ASC' | 'DESC' })}
-                        size="small"
-                        sx={{ width: '150px' }}
-                    >
-                        <MenuItem value="ASC">Ascending</MenuItem>
-                        <MenuItem value="DESC">Descending</MenuItem>
-                    </TextField>
-                    <FormControlLabel
-                        control={<Checkbox checked={params.top_selling || false} onChange={handleTopSellingChange} />}
-                        label="Top Selling"
-                    />
                     {areFiltersActive && <ClearFiltersButton onClick={clearFilters} />}
                 </Box>
             </Box>
 
             <DataTable
-                data={inventory}
+                data={products}
                 columns={columns}
-                state={{ isLoading: loading }}
+                state={{ isLoading: loading, expanded: expandedRows }}
                 enableColumnDragging={false}
+                enableExpanding={true}
+                enableRowSelection={false}
+                onRowSelectionChange={setRowSelection}
+                getRowId={(row) => row.id.toString()}
+                initialState={{
+                    columnVisibility: { 'mrt-row-expand': false }, // Hide the expand column
+                    columnPinning: {
+                        right: ['mrt-row-actions'], // Pin the actions column to the right
+                    },
+                }}
+                onExpandedChange={(updater) => {
+                    let newExpanded: Record<string, boolean>;
+                    if (typeof updater === 'function') {
+                        newExpanded = updater(expandedRows) as Record<string, boolean>;
+                    } else {
+                        newExpanded = updater as Record<string, boolean>;
+                    }
+                    
+                    // Compare previous state with new state to detect actual expansion (not collapse)
+                    Object.entries(newExpanded).forEach(([productIdStr, isExpanded]) => {
+                        const productId = parseInt(productIdStr);
+                        const wasExpanded = expandedRows[productIdStr] || false;
+                        
+                        // Only fetch if:
+                        // 1. Row is being expanded (was false, now true)
+                        // 2. Variants not already cached
+                        // 3. Not currently loading
+                        if (isExpanded && !wasExpanded && !variantsData[productId] && !loadingVariants.has(productId)) {
+                            handleRowExpand(productId, true);
+                        }
+                        // If collapsing (was true, now false), do nothing - just update state
+                    });
+                    
+                    // Update state - this controls the accordion
+                    setExpandedRows(newExpanded);
+                }}
+                getRowCanExpand={() => true}
+                enableExpandAll={false}
+                renderDetailPanel={({ row }) => {
+                    const productId = row.original.id;
+                    const isExpanded = row.getIsExpanded(); // Use MRT's built-in state
+                    
+                    // Accordion: Only show detail panel when expanded
+                    if (!isExpanded) {
+                        return null;
+                    }
+                    
+                    const isLoading = loadingVariants.has(productId);
+                    const variants = variantsData[productId];
+
+                    // Show loading spinner while fetching variants
+                    if (isLoading) {
+                        return (
+                            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', p: 3, minHeight: 100 }}>
+                                <CircularProgress size={24} />
+                                <Typography variant="body2" sx={{ ml: 2 }} color="text.secondary">
+                                    Loading variants...
+                                </Typography>
+                            </Box>
+                        );
+                    }
+
+                    // Show variant details if loaded
+                    if (variants && variants.length > 0) {
+                        return renderVariantDetails(variants);
+                    }
+
+                    // Show message if no variants found
+                    if (variants && variants.length === 0) {
+                        return (
+                            <Box sx={{ p: 3 }}>
+                                <Typography variant="body2" color="text.secondary" align="center">
+                                    No variants found for this product
+                                </Typography>
+                            </Box>
+                        );
+                    }
+
+                    // If variants haven't been fetched yet, show loading
+                    // This should only happen briefly before the API call starts
+                    return (
+                        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', p: 3, minHeight: 100 }}>
+                            <CircularProgress size={24} />
+                        </Box>
+                    );
+                }}
                 renderRowActionMenuItems={({ closeMenu, row }) => [
                     <MenuItem
                       key="view"
@@ -225,30 +454,6 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
                     </MenuItem>,
                   ]}
             />
-            <div className="flex justify-center p-4">
-                <Pagination
-                    count={pagination.totalPages}
-                    page={pagination.page}
-                    onChange={(_, newPage) => onPageChange(newPage)}
-                    shape="rounded"
-                    color="primary"
-                    renderItem={(item) => (
-                    <PaginationItem
-                        {...item}
-                        className="text-gray-600 hover:text-[#2E9970]"
-                        sx={{
-                        '&.Mui-selected': {
-                            backgroundColor: '#2E9970',
-                            color: '#fff',
-                            '&:hover': {
-                            backgroundColor: '#247C5C',
-                            },
-                        },
-                        }}
-                    />
-                    )}
-                />
-            </div>
         </Paper>
     );
 };
