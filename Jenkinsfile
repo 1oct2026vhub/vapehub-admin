@@ -49,7 +49,7 @@ pipeline {
                     // Use SSH credentials with sshagent
                     sshagent([sshCredentials]) {
                         // SSH into the server and run commands
-                        sh "ssh ubuntu@${server} \"cd /var/www/Admin/ && git pull\""
+                        sh "ssh ubuntu@${server} \"cd /var/www/vapehub/admin/ && git pull\""
                         // Writes lock-file to cache based on the GIT_COMMIT hash
                         writeFile file: "next-lock.cache", text: "$GIT_COMMIT"
 
@@ -60,7 +60,7 @@ pipeline {
                                 cacheValidityDecidingFile: "package-lock.json"
                             )
                         ]) {
-                            sh "ssh ubuntu@${server} \"cd /var/www/Admin/ && source ~/.nvm/nvm.sh && nvm use 22.16.0 && npm install\""
+                            sh "ssh ubuntu@${server} \"cd /var/www/vapehub/admin/ && npm install\""
                         }
 
                         cache(caches: [
@@ -71,9 +71,9 @@ pipeline {
                             )
                         ]) {
                             // aka `next build`
-                            sh "ssh ubuntu@${server} \"cd /var/www/Admin/ && source ~/.nvm/nvm.sh && nvm use 22.16.0 && export NODE_OPTIONS=--max-old-space-size=4096 && npm run build\""
+                            sh "ssh ubuntu@${server} \"cd /var/www/vapehub/admin/ && export NODE_OPTIONS=--max-old-space-size=4096 && npm run build\""
                         }
-                        sh "ssh ubuntu@${server} \"source ~/.nvm/nvm.sh && pm2 restart 'Admin' \"" 
+                        sh "ssh ubuntu@${server} \"pm2 restart 'Admin' \"" 
                     }
 }
             }
