@@ -15,7 +15,8 @@ import {
     TableHead,
     TableRow,
     Chip,
-    CircularProgress
+    CircularProgress,
+    Menu
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
@@ -28,17 +29,31 @@ import ClearFiltersButton from '@/components/Shared/ClearFiltersButton';
 import { useRouter } from 'next/navigation';
 import FuseSvgIcon from '@fuse/core/FuseSvgIcon';
 import { MenuItem } from '@mui/material';
+import GenerateReportButton from './components/GenerateReportButton';
+import TablePagination from '@/components/Shared/TablePagination';
 interface InventoryTableProps {
     products: Product[];
     loading: boolean;
     params: ProductsParams;
     onParamsChange: (params: Partial<ProductsParams>) => void;
+    page: number;
+    totalPages: number;
+    limit: number;
+    totalRecords: number;
+    onPageChange: (page: number) => void;
+    onLimitChange: (limit: number) => void;
 }
 const InventoryTable: React.FC<InventoryTableProps> = ({
     products,
     loading,
     params,
     onParamsChange,
+    page,
+    totalPages,
+    limit,
+    totalRecords,
+    onPageChange,
+    onLimitChange,
 }) => {
     const [search, setSearch] = useState('');
     const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -47,7 +62,8 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
     const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({});
     const [variantsData, setVariantsData] = useState<Record<number, ProductVariant[]>>({});
     const [loadingVariants, setLoadingVariants] = useState<Set<number>>(new Set());
-  const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
+    const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
+    const [variantMenuAnchor, setVariantMenuAnchor] = useState<{ element: HTMLElement; productId: number; variantId: number } | null>(null);
 
     const areFiltersActive = useMemo(() => {
         return debouncedSearch !== '';
@@ -57,6 +73,7 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
         setSearch('');
         onParamsChange({
             q: undefined,
+            page: 1,
         });
     };
     
@@ -72,7 +89,8 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
         const newQ = debouncedSearch || undefined;
         if (lastSearchRef.current !== newQ) {
           lastSearchRef.current = newQ;
-          onParamsChange({ q: newQ });
+          // Reset to page 1 when search changes
+          onParamsChange({ q: newQ, page: 1 });
         }
       }, [debouncedSearch, onParamsChange]);
 
@@ -100,7 +118,22 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
         }
     };
 
-    const renderVariantDetails = (variants: ProductVariant[]) => {
+    const handleVariantMenuOpen = (event: React.MouseEvent<HTMLElement>, productId: number, variantId: number) => {
+        event.stopPropagation();
+        setVariantMenuAnchor({ element: event.currentTarget, productId, variantId });
+    };
+
+    const handleVariantMenuClose = () => {
+        setVariantMenuAnchor(null);
+    };
+
+    const handleVariantViewDetails = (variantId: number) => {
+        // Navigate to variant details page
+        router.push(`/apps/inventory/${variantId}`);
+        handleVariantMenuClose();
+    };
+
+    const renderVariantDetails = (variants: ProductVariant[], productId: number) => {
         if (variants.length === 0) {
             return (
                 <Box sx={{ p: 2 }}>
@@ -110,6 +143,10 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
                 </Box>
             );
         }
+
+        const currentMenu = variantMenuAnchor?.productId === productId 
+            ? variantMenuAnchor 
+            : null;
 
         return (
             <Box sx={{ p: 2, backgroundColor: '#f5f5f5' }}>
@@ -129,6 +166,7 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
                                 <TableCell align="center">Price</TableCell>
                                 <TableCell align="center">Sales (28 days)</TableCell>
                                 <TableCell align="center">Stock Will Last (Days)</TableCell>
+                                <TableCell align="center">Actions</TableCell>
                             </TableRow>
                         </TableHead>
                         <TableBody>
@@ -185,6 +223,37 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
                                         {variant.stockWillLastDays !== null && variant.stockWillLastDays !== undefined 
                                             ? variant.stockWillLastDays 
                                             : 'N/A'}
+                                    </TableCell>
+                                    <TableCell align="center">
+                                        <IconButton
+                                            size="small"
+                                            onClick={(e) => handleVariantMenuOpen(e, productId, variant.id)}
+                                            aria-label="variant actions"
+                                        >
+                                            <FuseSvgIcon>heroicons-outline:ellipsis-vertical</FuseSvgIcon>
+                                        </IconButton>
+                                        <Menu
+                                            anchorEl={currentMenu?.variantId === variant.id ? currentMenu.element : null}
+                                            open={currentMenu?.variantId === variant.id}
+                                            onClose={handleVariantMenuClose}
+                                            anchorOrigin={{
+                                                vertical: 'bottom',
+                                                horizontal: 'right',
+                                            }}
+                                            transformOrigin={{
+                                                vertical: 'top',
+                                                horizontal: 'right',
+                                            }}
+                                        >
+                                            <MenuItem
+                                                onClick={() => handleVariantViewDetails(variant.id)}
+                                            >
+                                                <ListItemIcon>
+                                                    <FuseSvgIcon>heroicons-outline:eye</FuseSvgIcon>
+                                                </ListItemIcon>
+                                                View Details
+                                            </MenuItem>
+                                        </Menu>
                                     </TableCell>
                                 </TableRow>
                             ))}
@@ -258,19 +327,19 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
                         : 'N/A'
                 ),
             },
-            { 
-                accessorKey: 'stockOnHold', 
-                header: 'Stock On Hold',
-                muiTableHeadCellProps: { align: 'center' },
-                muiTableBodyCellProps: { align: 'center' },
-                enableSorting: false,
-                enableColumnActions: false,
-                Cell: ({ row }) => (
-                    row.original.stockOnHold !== null && row.original.stockOnHold !== undefined 
-                        ? row.original.stockOnHold 
-                        : 'N/A'
-                ),
-            },
+            // { 
+            //     accessorKey: 'stockOnHold', 
+            //     header: 'Stock On Hold',
+            //     muiTableHeadCellProps: { align: 'center' },
+            //     muiTableBodyCellProps: { align: 'center' },
+            //     enableSorting: false,
+            //     enableColumnActions: false,
+            //     Cell: ({ row }) => (
+            //         row.original.stockOnHold !== null && row.original.stockOnHold !== undefined 
+            //             ? row.original.stockOnHold 
+            //             : 'N/A'
+            //     ),
+            // },
             { 
                 accessorKey: 'reservedStock', 
                 header: 'Reserved Stock',
@@ -315,43 +384,57 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
       );
     
     return (
-        <Paper sx={{ width: '100%', overflow: 'hidden', p:2, backgroundColor: 'white' }}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', p: 2, flexWrap: 'wrap', gap: 2 }}>
-                <TextField
-                    label="Search by product name"
-                    variant="outlined"
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    size="small"
-                    InputProps={{
-                        endAdornment: (
-                            <InputAdornment position="start">
-                                <SearchIcon />
-                            </InputAdornment>
-                        ),
-                    }}
-                    sx={{
-                        minWidth: 300,
-                        '& .MuiOutlinedInput-root': {
-                            '&.Mui-focused fieldset': {
-                              borderColor: '#2E9970',
-                              borderWidth: '2px',
-                            },
-                          },
-                          '& .MuiInputLabel-root.Mui-focused': {
-                            color: '#2E9970',
-                          },
-                    }}
-                />
-                <Box className="flex items-center flex-wrap gap-2">
-                    {areFiltersActive && <ClearFiltersButton onClick={clearFilters} />}
+        <div>
+            <div className="flex items-end justify-end mb-4">
+                <Box>
+                    <GenerateReportButton disabled={loading} />
                 </Box>
-            </Box>
+            </div>
+            <Paper sx={{ width: '100%', overflow: 'hidden', p:2, backgroundColor: 'white' }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', p: 2, flexWrap: 'wrap', gap: 2 }}>
+                    <TextField
+                        label="Search by product name"
+                        variant="outlined"
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        size="small"
+                        InputProps={{
+                            endAdornment: (
+                                <InputAdornment position="start">
+                                    <SearchIcon />
+                                </InputAdornment>
+                            ),
+                        }}
+                        sx={{
+                            minWidth: 300,
+                            '& .MuiOutlinedInput-root': {
+                                '&.Mui-focused fieldset': {
+                                  borderColor: '#2E9970',
+                                  borderWidth: '2px',
+                                },
+                              },
+                              '& .MuiInputLabel-root.Mui-focused': {
+                                color: '#2E9970',
+                              },
+                        }}
+                    />
+                    <Box className="flex items-center flex-wrap gap-2">
+                        {areFiltersActive && <ClearFiltersButton onClick={clearFilters} />}
+                    </Box>
+                </Box>
 
             <DataTable
                 data={products}
                 columns={columns}
-                state={{ isLoading: loading, expanded: expandedRows }}
+                manualPagination={true}
+                state={{ 
+                    isLoading: loading, 
+                    expanded: expandedRows,
+                    pagination: {
+                        pageIndex: 0,
+                        pageSize: products.length || limit || 10
+                    }
+                }}
                 enableColumnDragging={false}
                 enableExpanding={true}
                 enableRowSelection={false}
@@ -417,7 +500,7 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
 
                     // Show variant details if loaded
                     if (variants && variants.length > 0) {
-                        return renderVariantDetails(variants);
+                        return renderVariantDetails(variants, productId);
                     }
 
                     // Show message if no variants found
@@ -440,21 +523,20 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
                     );
                 }}
                 renderRowActionMenuItems={({ closeMenu, row }) => [
-                    <MenuItem
-                      key="view"
-                      onClick={() => {
-                        router.push(`/apps/inventory/${row.original.id}?name=${encodeURIComponent(row.original.name)}`);
-                        closeMenu();
-                      }}
-                    >
-                      <ListItemIcon>
-                        <FuseSvgIcon>heroicons-outline:eye</FuseSvgIcon>
-                      </ListItemIcon>
-                      View Details
-                    </MenuItem>,
+                    // View Details removed from product row - now only in variant rows
                   ]}
             />
+
+            <TablePagination
+                page={page}
+                totalPages={totalPages}
+                limit={limit}
+                totalRecords={totalRecords}
+                onPageChange={onPageChange}
+                onLimitChange={onLimitChange}
+            />
         </Paper>
+        </div>
     );
 };
 
