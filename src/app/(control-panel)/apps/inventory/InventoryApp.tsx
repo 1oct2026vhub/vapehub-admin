@@ -13,8 +13,14 @@ import PageBreadcrumbs from '@/components/PageBreadcrumb';
 function InventoryApp() {
     const [products, setProducts] = useState<ProductsResponse['data']>([]);
     const [loading, setLoading] = useState(true);
+    const [page, setPage] = useState(1);
+    const [limit, setLimit] = useState(10);
+    const [totalPages, setTotalPages] = useState(1);
+    const [totalRecords, setTotalRecords] = useState(0);
     const [params, setParams] = useState<ProductsParams>({
         q: undefined,
+        page: 1,
+        limit: 10,
     });
 
     const fetchProducts = useCallback(async () => {
@@ -22,6 +28,12 @@ function InventoryApp() {
         try {
             const res = await getProducts(params);
             setProducts(res.data);
+            if (res.pagination) {
+                setTotalPages(res.pagination.total_pages);
+                setTotalRecords(res.pagination.total_count);
+                setPage(res.pagination.current_page);
+                setLimit(res.pagination.limit);
+            }
         } catch (error) {
             console.error('Failed to fetch products data', error);
         } finally {
@@ -37,12 +49,23 @@ function InventoryApp() {
         setParams(prev => {
             // Only update if the value actually changed
             const newQ = newParams.q;
-            if (prev.q === newQ) {
+            if (prev.q === newQ && prev.page === newParams.page && prev.limit === newParams.limit) {
                 return prev;
             }
             return { ...prev, ...newParams };
         });
     }, []);
+
+    const handlePageChange = useCallback((newPage: number) => {
+        setPage(newPage);
+        handleParamsChange({ page: newPage });
+    }, [handleParamsChange]);
+
+    const handleLimitChange = useCallback((newLimit: number) => {
+        setLimit(newLimit);
+        setPage(1);
+        handleParamsChange({ limit: newLimit, page: 1 });
+    }, [handleParamsChange]);
 
     if (loading && products.length === 0) {
         return <FuseLoading />;
@@ -56,6 +79,12 @@ function InventoryApp() {
                 params={params}
                 onParamsChange={handleParamsChange}
                 loading={loading}
+                page={page}
+                totalPages={totalPages}
+                limit={limit}
+                totalRecords={totalRecords}
+                onPageChange={handlePageChange}
+                onLimitChange={handleLimitChange}
             />
         </Box>
     );

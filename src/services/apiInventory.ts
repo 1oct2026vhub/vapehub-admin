@@ -149,6 +149,8 @@ export const bulkUpdateByQuantity = async (payload: BulkUpdateByQuantityPayload)
 
 export interface ProductsParams {
   q?: string;
+  page?: number;
+  limit?: number;
 }
 
 export interface Product {
@@ -163,10 +165,18 @@ export interface Product {
   stockWillLastDays: number | null;
 }
 
+export interface ProductsPagination {
+  total_count: number;
+  total_pages: number;
+  current_page: number;
+  limit: number;
+}
+
 export interface ProductsResponse {
   success: boolean;
   message: string;
   data: Product[];
+  pagination: ProductsPagination;
 }
 
 export const getProducts = async (params: ProductsParams = {}): Promise<ProductsResponse> => {
@@ -222,4 +232,61 @@ export const getProductVariants = async (
 ): Promise<ProductVariantsResponse> => {
   const response = await axiosInstance.get(`/api/admin/inventory/products/${productId}/variants`, { params });
   return response.data;
+}
+
+export interface ExportPurchaseOrderParams {
+  format?: 'excel' | 'csv';
+}
+
+export const exportPurchaseOrder = async (params: ExportPurchaseOrderParams = {}): Promise<void> => {
+  try {
+    const format: 'excel' | 'csv' = params?.format || 'excel';
+    const requestParams: Record<string, string> = {
+      format: format,
+    };
+    
+    const response = await axiosInstance.get('/api/admin/inventory/export/purchase-order', {
+      params: requestParams,
+      responseType: 'blob',
+    });
+
+    // Create a temporary link element
+    const blob = new Blob([response.data]);
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+
+    // Set filename
+    const contentDisposition = response.headers["content-disposition"];
+    let filename = "purchase-order.xlsx";
+
+    if (contentDisposition) {
+      const filenameMatch = contentDisposition.match(
+        /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/
+      );
+      if (filenameMatch && filenameMatch[1]) {
+        filename = filenameMatch[1].replace(/['"]/g, "");
+      }
+    } else {
+      // Fallback filename with date
+      const today = new Date().toISOString().split("T")[0];
+      filename = `purchase-order-${today}.${
+        format === "csv" ? "csv" : "xlsx"
+      }`;
+    }
+
+    link.download = filename;
+
+    // Append to body, click, and remove
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    // Clean up the URL
+    URL.revokeObjectURL(link.href);
+
+    return;
+  } catch (error) {
+    console.error("Error downloading purchase order:", error);
+    throw error;
+  }
 }

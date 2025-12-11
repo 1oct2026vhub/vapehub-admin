@@ -58,6 +58,9 @@ export type UserType = {
   deletedAt: string | null;
   email_verified_at: string | null;
   createdAt: string | null;
+  aov: number | null;
+  total_order_count: number | null;
+  total_spend: number | null;
 };
 
 const CustomerTable = () => {
@@ -302,28 +305,28 @@ const CustomerTable = () => {
       { accessorKey: "last_name", header: "Last Name" },
       { accessorKey: "email", header: "Email" },
       {
-        accessorKey: "verification_status",
-        header: "Verification Status",
+        accessorKey: "aov",
+        header: "AOV",
         Cell: ({ row }) => {
-          return (
-            <Chip
-              label={row.original.email_verified_at ? "Verified" : "Pending"}
-              color={row.original.email_verified_at ? "success" : "warning"}
-            />
-          );
+          const aov = row.original.aov;
+          return aov != null ? `£${aov.toFixed(2)}` : 'N/A';
         },
       },
       {
-        accessorKey: "createdAt",
-        header: "Created At",
-        Cell: ({ row }) => row.original.createdAt ? formatDate(row.original.createdAt) : 'N/A',
+        accessorKey: "total_order_count",
+        header: "Total Order Count",
+        Cell: ({ row }) => {
+          const count = row.original.total_order_count;
+          return count != null ? count : 'N/A';
+        },
       },
-      { accessorKey: "phone", header: "Contact" },
-      { accessorKey: "gender", header: "Gender" },
       {
-        accessorKey: "dob",
-        header: "Date of Birth",
-        Cell: ({ row }) => row.original.dob ? formatDate(row.original.dob) : 'N/A',
+        accessorKey: "total_spend",
+        header: "Total Spend",
+        Cell: ({ row }) => {
+          const spend = row.original.total_spend;
+          return spend != null ? `£${spend.toFixed(2)}` : 'N/A';
+        },
       },
       {
         accessorKey: "status",
