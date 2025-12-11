@@ -25,10 +25,18 @@ interface SeoFormProps {
 
 const seoFormSchema = z.object({
     title: z.string().min(1, 'Title is required'),
-    description: z.string().optional(),
-    focusKeyword: z.string().min(1, 'Focus Keyword is required'),
-    canonicalUrl: z.string().url({ message: 'Please enter a valid URL' }).optional().or(z.literal('')),
-    ogImage: z.string().url({ message: 'Please enter a valid URL' }).optional().or(z.literal('')),
+    description: z.string().nullable().optional(),
+    focusKeyword: z.string().nullable().optional(),
+    canonicalUrl: z.union([
+      z.string().url({ message: 'Please enter a valid URL' }),
+      z.literal(''),
+      z.null()
+    ]).optional(),
+    ogImage: z.union([
+      z.string().url({ message: 'Please enter a valid URL' }),
+      z.literal(''),
+      z.null()
+    ]).optional(),
     noIndex: z.boolean().default(false),
 });
 
@@ -145,8 +153,10 @@ function SeoForm({ entityType, entityId, entityName, entitySlug, fullWidth = fal
         entityType,
         entityId: String(entityId),
         slug: entitySlug,
-        canonicalUrl: data.canonicalUrl,
-        ogImage: data.ogImage,
+        description: data.description || '',
+        focusKeyword: data.focusKeyword || '',
+        canonicalUrl: data.canonicalUrl || '',
+        ogImage: data.ogImage || '',
         noIndex: data.noIndex,
     };
 
@@ -180,11 +190,11 @@ function SeoForm({ entityType, entityId, entityName, entitySlug, fullWidth = fal
                 <FormTextField name="description" label="Meta Description" control={control} fullWidth multiline rows={4} />
               </Grid>
               <Grid item xs={12}>
-                <FormTextField name="focusKeyword" label="Focus Keyword" control={control} fullWidth required/>
+                <FormTextField name="focusKeyword" label="Focus Keyword" control={control} fullWidth />
               </Grid>
-              <Grid item xs={12}>
+              {/* <Grid item xs={12}>
                 <FormTextField name="canonicalUrl" label="Canonical URL" control={control} fullWidth />
-              </Grid>
+              </Grid> */}
               <Grid item xs={12}>
                 <FormTextField name="ogImage" label="OG Image URL" control={control} fullWidth />
               </Grid>
