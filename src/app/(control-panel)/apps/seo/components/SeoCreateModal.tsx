@@ -33,11 +33,19 @@ const seoSchema = z.object({
   entityType: z.enum(['page', 'product', 'category', 'brand', 'blog_post', 'blog_category']),
   entityId: z.string().min(1, 'Entity ID is required'),
   title: z.string().min(1, 'Title is required'),
-  description: z.string().optional(),
-  focusKeyword: z.string().optional(),
+  description: z.string().nullable().optional(),
+  focusKeyword: z.string().nullable().optional(),
   slug: z.string().min(1, 'Slug is required'),
-  canonicalUrl: z.string().url({ message: 'Invalid URL' }).optional().or(z.literal('')),
-  ogImage: z.string().url({ message: 'Invalid URL' }).optional().or(z.literal('')),
+  canonicalUrl: z.union([
+    z.string().url({ message: 'Invalid URL' }),
+    z.literal(''),
+    z.null()
+  ]).optional(),
+  ogImage: z.union([
+    z.string().url({ message: 'Invalid URL' }),
+    z.literal(''),
+    z.null()
+  ]).optional(),
   noIndex: z.boolean().default(false),
 });
 
@@ -74,7 +82,13 @@ function SeoFormModal({ open, onClose, onSaved, initialData }: SeoFormModalProps
 
   const onSubmit = async (data: SeoFormType) => {
     try {
-      const payload: Partial<SeoData> = { ...data };
+      const payload: Partial<SeoData> = {
+        ...data,
+        description: data.description || '',
+        focusKeyword: data.focusKeyword || '',
+        canonicalUrl: data.canonicalUrl || '',
+        ogImage: data.ogImage || '',
+      };
       const response = await createOrUpdateSeo(payload);
       showSnackbar(response.message, 'success');
       onSaved();
@@ -129,9 +143,9 @@ function SeoFormModal({ open, onClose, onSaved, initialData }: SeoFormModalProps
             <Grid item xs={12}>
               <FormTextField name="focusKeyword" label="Focus Keyword" control={control} fullWidth />
             </Grid>
-            <Grid item xs={12}>
+            {/* <Grid item xs={12}>
               <FormTextField name="canonicalUrl" label="Canonical URL" control={control} fullWidth />
-            </Grid>
+            </Grid> */}
             <Grid item xs={12}>
               <FormTextField name="ogImage" label="OG Image URL" control={control} fullWidth />
             </Grid>

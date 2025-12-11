@@ -45,11 +45,19 @@ const seoSchema = z
     entityType: z.enum(['page', 'product', 'category', 'brand', 'blog_post', 'blog_category']),
     entityId: z.string().optional(),
     title: z.string().min(1, 'Title is required'),
-    description: z.string().optional(),
-    focusKeyword: z.string().min(1, 'Focus Keyword is required'),
+    description: z.string().nullable().optional(),
+    focusKeyword: z.string().nullable().optional(),
     slug: z.string().min(1, 'Slug is required'),
-    canonicalUrl: z.string().url({ message: 'Invalid URL' }).optional().or(z.literal('')),
-    ogImage: z.string().url({ message: 'Invalid URL' }).optional().or(z.literal('')),
+    canonicalUrl: z.union([
+      z.string().url({ message: 'Invalid URL' }),
+      z.literal(''),
+      z.null()
+    ]).optional(),
+    ogImage: z.union([
+      z.string().url({ message: 'Invalid URL' }),
+      z.literal(''),
+      z.null()
+    ]).optional(),
     noIndex: z.boolean().default(false),
   })
   .refine((data) => {
@@ -236,12 +244,12 @@ function SeoFormModal({ open, onClose, onSaved, initialData }: SeoFormModalProps
       const payload: Partial<SeoData> = {
         entityType: data.entityType,
         title: data.title,
-        description: data.description,
-        focusKeyword: data.focusKeyword,
+        description: data.description || '',
+        focusKeyword: data.focusKeyword || '',
         slug: data.slug,
-        canonicalUrl: data.canonicalUrl,
+        canonicalUrl: data.canonicalUrl || '',
         noIndex: data.noIndex,
-        ogImage: data.ogImage || '', // Always include ogImage, even if empty
+        ogImage: data.ogImage || '',
       };
 
       console.log('🚀 [SEO FORM] Final Payload being sent:', payload);
@@ -389,9 +397,9 @@ function SeoFormModal({ open, onClose, onSaved, initialData }: SeoFormModalProps
                 <Grid item xs={12}>
                   <FormTextField name="focusKeyword" label="Focus Keyword" control={control} fullWidth />
                 </Grid>
-                <Grid item xs={12}>
+                {/* <Grid item xs={12}>
                   <FormTextField name="canonicalUrl" label="Canonical URL" control={control} fullWidth />
-                </Grid>
+                </Grid> */}
                 {entityType !== 'page' && (
                   <Grid item xs={12}>
                     <FormTextField name="ogImage" label="OG Image URL" control={control} fullWidth />
