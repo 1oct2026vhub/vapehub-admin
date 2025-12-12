@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Controller, Control } from "react-hook-form";
+import { Controller, Control, RegisterOptions } from "react-hook-form";
 import TextField from "@mui/material/TextField";
 import InputAdornment from "@mui/material/InputAdornment";
 import IconButton from "@mui/material/IconButton";
@@ -19,6 +19,7 @@ export interface ReusableTextFieldProps {
   onChange?: (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
   helperText?: string;
   sx?: SxProps<Theme>;
+  rules?: RegisterOptions;
 }
 
 const FormInputField: React.FC<ReusableTextFieldProps> = ({
@@ -34,6 +35,7 @@ const FormInputField: React.FC<ReusableTextFieldProps> = ({
   onChange,
   helperText,
   sx,
+  rules,
 }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [touched, setTouched] = useState(false);
@@ -49,11 +51,17 @@ const FormInputField: React.FC<ReusableTextFieldProps> = ({
     name.toLowerCase().includes("width") ||
     name.toLowerCase().includes("height");
 
+  // Merge required rule with custom rules
+  const validationRules: RegisterOptions = {
+    ...(required && { required: `${label} is required` }),
+    ...rules,
+  };
+
   return (
     <Controller
       name={name}
       control={control}
-      rules={{ required: required ? `${label} is required` : false }}
+      rules={validationRules}
       render={({ field, fieldState: { error } }) => (
         <TextField
           {...field}
@@ -67,7 +75,7 @@ const FormInputField: React.FC<ReusableTextFieldProps> = ({
               ? showPassword
                 ? "text"
                 : "password"
-              : "text"
+              : type
           }
           autoFocus={autoFocus}
           error={touched && !!error}

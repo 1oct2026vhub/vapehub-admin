@@ -16,12 +16,17 @@ import {
     TableRow,
     Chip,
     CircularProgress,
-    Menu
+    Menu,
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    DialogActions,
+    Button
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
-import { Product, ProductsParams, getProductVariants, ProductVariant } from '@/services/apiInventory';
+import { Product, ProductsParams, getProductVariants, ProductVariant, addStock } from '@/services/apiInventory';
 import { useState, useEffect, useMemo, useRef } from 'react';
 import DataTable from '@/components/data-table/DataTable';
 import { type MRT_ColumnDef } from 'material-react-table';
@@ -31,6 +36,10 @@ import FuseSvgIcon from '@fuse/core/FuseSvgIcon';
 import { MenuItem } from '@mui/material';
 import GenerateReportButton from './components/GenerateReportButton';
 import TablePagination from '@/components/Shared/TablePagination';
+import { useForm } from 'react-hook-form';
+import FormInputField from '@/components/Shared/FormInputField';
+import { useSnackbar } from '@/contexts/SnackbarContext';
+import AppButton from '@/components/Shared/AppButton';
 interface InventoryTableProps {
     products: Product[];
     loading: boolean;
@@ -64,6 +73,20 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
     const [loadingVariants, setLoadingVariants] = useState<Set<number>>(new Set());
     const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
     const [variantMenuAnchor, setVariantMenuAnchor] = useState<{ element: HTMLElement; productId: number; variantId: number } | null>(null);
+    const [addStockDialog, setAddStockDialog] = useState<{ open: boolean; variantId: number | null; productId: number | null }>({
+        open: false,
+        variantId: null,
+        productId: null,
+    });
+    const { showSnackbar } = useSnackbar();
+    
+    // Form for adding stock
+    const { control, handleSubmit, reset, formState: { errors, isValid } } = useForm<{ quantity: number }>({
+        defaultValues: {
+            quantity: 0,
+        },
+        mode: 'onChange',
+    });
 
     const areFiltersActive = useMemo(() => {
         return debouncedSearch !== '';
@@ -133,6 +156,70 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
         handleVariantMenuClose();
     };
 
+    const handleCurrentStockClick = (productId: number, variantId: number) => {
+        setAddStockDialog({
+            open: true,
+            variantId,
+            productId,
+        });
+        reset({ quantity: 0 });
+    };
+
+    const handleAddStockClose = () => {
+        setAddStockDialog({
+            open: false,
+            variantId: null,
+            productId: null,
+        });
+        reset({ quantity: 0 });
+    };
+
+    const onSubmitAddStock = async (data: { quantity: number | string }) => {
+        if (!addStockDialog.variantId) return;
+
+        // Convert quantity to number if it's a string
+        const quantity = typeof data.quantity === 'string' ? Number(data.quantity) : data.quantity;
+
+        if (isNaN(quantity) || quantity <= 0) {
+            showSnackbar('Please enter a valid positive quantity', 'error');
+            return;
+        }
+
+        try {
+            await addStock({
+                variant_id: addStockDialog.variantId,
+                quantity: quantity,
+            });
+            
+            showSnackbar(`Successfully added ${quantity} units to stock`, 'success');
+            
+            // Refresh variant data for the product
+            if (addStockDialog.productId) {
+                setLoadingVariants(prev => new Set(prev).add(addStockDialog.productId!));
+                try {
+                    const response = await getProductVariants(addStockDialog.productId);
+                    setVariantsData(prev => ({
+                        ...prev,
+                        [addStockDialog.productId!]: response.data.variants
+                    }));
+                } catch (error) {
+                    console.error('Failed to refresh variants', error);
+                } finally {
+                    setLoadingVariants(prev => {
+                        const newSet = new Set(prev);
+                        newSet.delete(addStockDialog.productId!);
+                        return newSet;
+                    });
+                }
+            }
+            
+            handleAddStockClose();
+        } catch (error: any) {
+            console.error('Failed to add stock', error);
+            showSnackbar(error?.response?.data?.message || 'Failed to add stock', 'error');
+        }
+    };
+
     const renderVariantDetails = (variants: ProductVariant[], productId: number) => {
         if (variants.length === 0) {
             return (
@@ -157,9 +244,10 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
                     <Table size="small">
                         <TableHead>
                             <TableRow>
-                                <TableCell>Image</TableCell>
-                                <TableCell>SKU</TableCell>
-                                <TableCell>Barcode</TableCell>
+                                <TableCell align="center">ID</TableCell>
+                                {/* <TableCell>Image</TableCell> */}
+                                {/* <TableCell>SKU</TableCell>                               */}
+                                {/* <TableCell>Barcode</TableCell> */}
                                 <TableCell align="center">Current Stock</TableCell>
                                 <TableCell align="center">Low Stock Threshold</TableCell>
                                 <TableCell align="center">Stock Status</TableCell>
@@ -172,16 +260,26 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
                         <TableBody>
                             {variants.map((variant) => (
                                 <TableRow key={variant.id}>
-                                    <TableCell>
+                                   <TableCell align="center">{variant.id}</TableCell>
+                                    {/* <TableCell>
                                         {variant.image ? (
                                             <Avatar src={variant.image} sx={{ width: 40, height: 40 }} />
                                         ) : (
                                             <Avatar sx={{ width: 40, height: 40 }}>N/A</Avatar>
                                         )}
-                                    </TableCell>
-                                    <TableCell>{variant.sku || 'N/A'}</TableCell>
-                                    <TableCell>{variant.barcode || 'N/A'}</TableCell>
-                                    <TableCell align="center">
+                                    </TableCell> */}
+                                    {/* <TableCell>{variant.sku || 'N/A'}</TableCell> */}
+                                    {/* <TableCell>{variant.barcode || 'N/A'}</TableCell> */}
+                                    <TableCell 
+                                        align="center"
+                                        onClick={() => handleCurrentStockClick(productId, variant.id)}
+                                        sx={{
+                                            cursor: 'pointer',
+                                            '&:hover': {
+                                                backgroundColor: 'rgba(0, 0, 0, 0.04)',
+                                            },
+                                        }}
+                                    >
                                         {variant.currentStock !== null && variant.currentStock !== undefined 
                                             ? variant.currentStock 
                                             : 'N/A'}
@@ -536,6 +634,67 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
                 onLimitChange={onLimitChange}
             />
         </Paper>
+
+        {/* Add Stock Dialog */}
+        <Dialog 
+            open={addStockDialog.open} 
+            onClose={handleAddStockClose}
+            maxWidth="sm"
+            fullWidth
+            PaperProps={{
+                sx: {
+                    backgroundColor: '#ffffff',
+                }
+            }}
+        >
+            <DialogTitle>Add Stock</DialogTitle>
+            <form onSubmit={handleSubmit(onSubmitAddStock)}>
+                <DialogContent>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
+                        <FormInputField
+                            name="quantity"
+                            control={control}
+                            label="Quantity"
+                            type="number"
+                            required
+                            inputProps={{
+                                min: 1,
+                                step: 1,
+                            }}
+                            rules={{
+                                required: 'Quantity is required',
+                                validate: {
+                                    positive: (value) => {
+                                        const numValue = typeof value === 'string' ? Number(value) : value;
+                                        if (value === '' || value === null || value === undefined) {
+                                            return 'Quantity is required';
+                                        }
+                                        if (isNaN(numValue) || numValue <= 0) {
+                                            return 'Quantity must be a positive number';
+                                        }
+                                        if (!Number.isInteger(numValue)) {
+                                            return 'Quantity must be a whole number';
+                                        }
+                                        return true;
+                                    },
+                                },
+                            }}
+                            helperText="Enter the number of units to add (must be a positive whole number)"
+                        />
+                    </Box>
+                </DialogContent>
+                <DialogActions sx={{ p: '16px 24px' }}>
+                    <Button onClick={handleAddStockClose}>
+                        Cancel
+                    </Button>
+                    <AppButton
+                        type="submit"
+                        label="Add Stock"
+                        disabled={!isValid}
+                    />
+                </DialogActions>
+            </form>
+        </Dialog>
         </div>
     );
 };
