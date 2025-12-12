@@ -14,13 +14,13 @@ function InventoryApp() {
     const [products, setProducts] = useState<ProductsResponse['data']>([]);
     const [loading, setLoading] = useState(true);
     const [page, setPage] = useState(1);
-    const [limit, setLimit] = useState(10);
+    const [limit, setLimit] = useState(100);
     const [totalPages, setTotalPages] = useState(1);
     const [totalRecords, setTotalRecords] = useState(0);
     const [params, setParams] = useState<ProductsParams>({
         q: undefined,
         page: 1,
-        limit: 10,
+        limit: 100,
     });
 
     const fetchProducts = useCallback(async () => {
