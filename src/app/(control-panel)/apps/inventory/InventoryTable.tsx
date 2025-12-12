@@ -245,7 +245,7 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
                         <TableHead>
                             <TableRow>
                                 <TableCell align="center">ID</TableCell>
-                                {/* <TableCell>Image</TableCell> */}
+                                <TableCell>Image</TableCell>
                                 {/* <TableCell>SKU</TableCell>                               */}
                                 {/* <TableCell>Barcode</TableCell> */}
                                 <TableCell align="center">Current Stock</TableCell>
@@ -261,13 +261,13 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
                             {variants.map((variant) => (
                                 <TableRow key={variant.id}>
                                    <TableCell align="center">{variant.id}</TableCell>
-                                    {/* <TableCell>
+                                    <TableCell>
                                         {variant.image ? (
                                             <Avatar src={variant.image} sx={{ width: 40, height: 40 }} />
                                         ) : (
                                             <Avatar sx={{ width: 40, height: 40 }}>N/A</Avatar>
                                         )}
-                                    </TableCell> */}
+                                    </TableCell>
                                     {/* <TableCell>{variant.sku || 'N/A'}</TableCell> */}
                                     {/* <TableCell>{variant.barcode || 'N/A'}</TableCell> */}
                                     <TableCell 
