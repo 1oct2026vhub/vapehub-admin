@@ -28,7 +28,7 @@ import {
   FormHelperText,
 } from '@mui/material';
 import { Controller } from 'react-hook-form';
-import { validateImageDimensions } from "@/utils/imageUtils";
+import { validateDesktopBannerImage, validateImageDimensions } from "@/utils/imageUtils";
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const ACCEPTED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'];
@@ -46,11 +46,11 @@ const bannerEditFormSchema = z.object({
     .nullable()
     .superRefine(async (file, ctx) => {
       if (!file) return; // Only validate if a new file is provided
-      const { valid, message } = await validateImageDimensions(file, 1920, 700);
+      const { valid, message } = await validateDesktopBannerImage(file);
       if (!valid) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
-          message: message || 'Desktop image dimensions must be 1920x700px.',
+          message: message || 'Desktop image must be square (450×450 to 700×700 px) or rectangle (1920×700 px).',
         });
       }
     }),
@@ -225,10 +225,8 @@ const EditBannerForm: React.FC<EditBannerFormProps> = ({ initialBannerData }) =>
             <FormFileUploadField
               name="image" // This name in form state will hold the new File if selected
               control={control}
-              label="New Desktop Image (Web: 1920 x 700 px)"
-              helperText="Web: 1920 x 700 px. PNG, JPG, WebP. Max 5MB. Leave empty to keep existing."
-              exactWidth={1920}
-              exactHeight={700}
+              label="New Desktop Image"
+              helperText="Square images: 450×450 to 700×700 px (same dimensions). Rectangle images: 1920×700 px. PNG, JPG, WebP. Max 5MB. Leave empty to keep existing."
               defaultImage={initialBannerData?.image_url} // Show current image
             />
           </Grid>

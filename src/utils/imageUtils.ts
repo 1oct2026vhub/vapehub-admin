@@ -118,4 +118,123 @@ export const validateSquareImage = (
     };
     img.src = URL.createObjectURL(file);
   });
+};
+
+/**
+ * Validates image dimensions to allow both square and rectangle images within maximum bounds.
+ * For rectangle images: width <= maxWidth AND height <= maxHeight
+ * For square images: both dimensions must be within the bounds (width <= maxWidth AND height <= maxHeight)
+ *
+ * @param file The image File object to validate.
+ * @param maxWidth The maximum allowed width in pixels.
+ * @param maxHeight The maximum allowed height in pixels.
+ * @returns A promise that resolves to an object containing:
+ *  - `valid` (boolean): True if dimensions are within bounds, false otherwise.
+ *  - `message` (string|undefined): An error message if validation fails.
+ *  - `dimensions` (object|undefined): The actual dimensions { width, height } of the image if loaded.
+ */
+export const validateImageDimensionsWithinBounds = (
+  file: File,
+  maxWidth: number,
+  maxHeight: number
+): Promise<{ valid: boolean; message?: string; dimensions?: { width: number; height: number } }> => {
+  return new Promise((resolve) => {
+    if (!file || !(file instanceof File) || !file.type.startsWith("image/")) {
+      // Not an image file or no file, so dimension validation doesn't strictly apply here.
+      // Other validations (e.g., required, file type) should handle these cases.
+      resolve({ valid: true });
+      return;
+    }
+
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(img.src);
+      const { width, height } = img;
+      
+      // Check if dimensions are within bounds
+      // Both width and height must be within the maximum bounds
+      // This allows both square and rectangle images
+      if (width > maxWidth || height > maxHeight) {
+        const isSquare = width === height;
+        const imageType = isSquare ? 'square' : 'rectangle';
+        resolve({
+          valid: false,
+          message: `${imageType.charAt(0).toUpperCase() + imageType.slice(1)} image dimensions must be within ${maxWidth} × ${maxHeight} px. Current dimensions: ${width} × ${height} px.`,
+          dimensions: { width, height }
+        });
+        return;
+      }
+      
+      resolve({ 
+        valid: true, 
+        dimensions: { width, height } 
+      });
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(img.src);
+      resolve({ valid: false, message: "Could not load image to validate dimensions." });
+    };
+    img.src = URL.createObjectURL(file);
+  });
+};
+
+/**
+ * Validates desktop banner image dimensions with specific rules:
+ * - Square images: dimensions must be between 450x450 and 700x700 (inclusive, same dimensions)
+ * - Rectangle images: dimensions must be exactly 1920x700
+ *
+ * @param file The image File object to validate.
+ * @returns A promise that resolves to an object containing:
+ *  - `valid` (boolean): True if dimensions are valid, false otherwise.
+ *  - `message` (string|undefined): An error message if validation fails.
+ *  - `dimensions` (object|undefined): The actual dimensions { width, height } of the image if loaded.
+ */
+export const validateDesktopBannerImage = (
+  file: File
+): Promise<{ valid: boolean; message?: string; dimensions?: { width: number; height: number } }> => {
+  return new Promise((resolve) => {
+    if (!file || !(file instanceof File) || !file.type.startsWith("image/")) {
+      resolve({ valid: false, message: "Invalid image file." });
+      return;
+    }
+
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(img.src);
+      const { width, height } = img;
+      const isSquare = width === height;
+      
+      if (isSquare) {
+        // Square images: dimensions must be between 450x450 and 700x700 (inclusive)
+        if (width < 450 || width > 700 || height < 450 || height > 700) {
+          resolve({
+            valid: false,
+            message: `Square image dimensions must be between 450 × 450 and 700 × 700 px (same dimensions). Current dimensions: ${width} × ${height} px.`,
+            dimensions: { width, height }
+          });
+          return;
+        }
+      } else {
+        // Rectangle images: dimensions must be exactly 1920x700
+        if (width !== 1920 || height !== 700) {
+          resolve({
+            valid: false,
+            message: `Rectangle image dimensions must be exactly 1920 × 700 px. Current dimensions: ${width} × ${height} px.`,
+            dimensions: { width, height }
+          });
+          return;
+        }
+      }
+      
+      resolve({ 
+        valid: true, 
+        dimensions: { width, height } 
+      });
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(img.src);
+      resolve({ valid: false, message: "Could not load image to validate dimensions." });
+    };
+    img.src = URL.createObjectURL(file);
+  });
 }; 
