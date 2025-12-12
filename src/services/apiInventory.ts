@@ -236,13 +236,16 @@ export const getProductVariants = async (
 
 export interface ExportPurchaseOrderParams {
   format?: 'excel' | 'csv';
+  days?: number;
 }
 
 export const exportPurchaseOrder = async (params: ExportPurchaseOrderParams = {}): Promise<void> => {
   try {
     const format: 'excel' | 'csv' = params?.format || 'excel';
-    const requestParams: Record<string, string> = {
+    const days: number = params?.days ?? 28;
+    const requestParams: Record<string, string | number> = {
       format: format,
+      days: days,
     };
     
     const response = await axiosInstance.get('/api/admin/inventory/export/purchase-order', {
