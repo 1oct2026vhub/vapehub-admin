@@ -52,26 +52,28 @@ const DealsTab: React.FC = () => {
     
     setLoading(true);
     try {
-      const response = await getDeals({ 
+      // Fetch deals that contain this product
+      const productDealsResponse = await getDeals({ 
         page: 1, 
         limit: 100,
-        search: formData.name || ''
+        product_id: formData.productId,
       });
       
-      // Filter deals that contain the current product
-      const productDeals = response.data.deals.filter(deal => 
-        deal.products.some(product => product.id === formData.productId)
-      );
+      // Fetch all deals for the available deals list
+      const allDealsResponse = await getDeals({ 
+        page: 1, 
+        limit: 100,
+      });
       
-      setDeals(productDeals);
-      setAllDeals(response.data.deals);
+      setDeals(productDealsResponse.data.deals);
+      setAllDeals(allDealsResponse.data.deals);
     } catch (error) {
       console.error('Error fetching deals:', error);
       showSnackbar('Failed to fetch deals', 'error');
     } finally {
       setLoading(false);
     }
-  }, [formData.productId, formData.name, showSnackbar]);
+  }, [formData.productId, showSnackbar]);
 
   useEffect(() => {
     fetchProductDeals();
@@ -83,7 +85,7 @@ const DealsTab: React.FC = () => {
     try {
       // First, check if the product is already in another deal
       const existingDeal = deals.find(deal => 
-        deal.products.some(product => product.id === formData.productId)
+        deal.products && deal.products.some(product => product.id === formData.productId)
       );
       
       if (existingDeal) {
@@ -291,7 +293,7 @@ const DealsTab: React.FC = () => {
                 <List>
                   {(deals.length === 0 
                     ? allDeals 
-                    : allDeals.filter(deal => !deal.products.some(product => product.id === formData.productId))
+                    : allDeals.filter(deal => !deal.products || !deal.products.some(product => product.id === formData.productId))
                   ).map((deal, index, arr) => (
                     <React.Fragment key={deal.id}>
                       <ListItem>
@@ -341,7 +343,7 @@ const DealsTab: React.FC = () => {
                 </List>
                 {(deals.length === 0 
                   ? allDeals 
-                  : allDeals.filter(deal => !deal.products.some(product => product.id === formData.productId))
+                  : allDeals.filter(deal => !deal.products || !deal.products.some(product => product.id === formData.productId))
                 ).length === 0 && (
                   <Box p={3} textAlign="center">
                     <Typography variant="body2" color="text.secondary">
@@ -379,7 +381,7 @@ const DealsTab: React.FC = () => {
           )}
           <List>
             {allDeals
-              .filter(deal => !deal.products.some(product => product.id === formData.productId))
+              .filter(deal => !deal.products || !deal.products.some(product => product.id === formData.productId))
               .map((deal) => (
                 <ListItem key={deal.id}>
                   <ListItemText
@@ -423,7 +425,7 @@ const DealsTab: React.FC = () => {
                 </ListItem>
               ))}
           </List>
-          {allDeals.filter(deal => !deal.products.some(product => product.id === formData.productId)).length === 0 && (
+          {allDeals.filter(deal => !deal.products || !deal.products.some(product => product.id === formData.productId)).length === 0 && (
             <Alert severity="info" sx={{ mt: 2 }}>
               This product is already added to all available deals.
             </Alert>
