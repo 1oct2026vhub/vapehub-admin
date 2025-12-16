@@ -35,8 +35,8 @@ import SeoForm from "@/app/(control-panel)/apps/seo/components/SeoForm";
 import PageBreadcrumb from "@/components/PageBreadcrumb";
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB in bytes
-const MAX_IMAGE_WIDTH = 322;
-const MAX_IMAGE_HEIGHT = 512;
+const MAX_IMAGE_WIDTH = 450;
+const MAX_IMAGE_HEIGHT = 440;
 
 // Helper function to validate image dimensions (used by the Zod schema)
 const validateImageDimensions = (file: File): Promise<{ valid: boolean; dimensions?: { width: number; height: number } }> => {
@@ -425,7 +425,7 @@ export default function EditBlogCategory() {
                             setValue("image", file, { shouldValidate: true });
                           }}
                           accept="image/png,image/jpeg,image/jpg,image/webp"
-                          helperText="Recommended size: 322 × 512 px. Supported formats: PNG, JPG, JPEG, WebP"
+                          helperText="Recommended size: 450 × 450 px. Supported formats: PNG, JPG, JPEG, WebP"
                           defaultImage={category?.image_url}
                         />
                       </Grid>
