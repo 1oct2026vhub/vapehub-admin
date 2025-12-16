@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useMemo } from "react";
 import { Controller } from "react-hook-form";
 import dynamic from "next/dynamic";
 import { CKEditor, useCKEditorCloud } from "@ckeditor/ckeditor5-react";
+import { getCKEditorToken } from "@/services/apiService";
 
 // Dynamically import CKEditor to avoid SSR issues
 const CKEditorComponent = dynamic(
@@ -369,7 +370,29 @@ const FormCKEditor = ({
             WordCount
           ],
           cloudServices: {
-            tokenUrl: CLOUD_SERVICES_TOKEN_URL
+            tokenUrl: async () => {
+              try {
+                console.log("🔑 Fetching CKEditor Cloud Services token...");
+                const response = await getCKEditorToken();
+                console.log("✅ CKEditor Token Response:", response);
+                
+                // The API might return the token directly or in a data field
+                const token = response?.token || response?.data?.token || response?.data || response;
+                
+                if (typeof token === 'string') {
+                  console.log("✅ CKEditor Token retrieved successfully");
+                  return token;
+                } else {
+                  console.warn("⚠️ Unexpected token format:", token);
+                  // If response is an object, try to stringify it or return the tokenUrl as fallback
+                  return CLOUD_SERVICES_TOKEN_URL || '';
+                }
+              } catch (error) {
+                console.error("❌ Error fetching CKEditor token:", error);
+                // Fallback to environment variable if API call fails
+                return CLOUD_SERVICES_TOKEN_URL || '';
+              }
+            }
           },
           // documentOutline container will be set after editor is ready
           // because refs are not available during useMemo
@@ -574,7 +597,29 @@ const FormCKEditor = ({
             showPreviews: true
           },
           ckbox: {
-            tokenUrl: CLOUD_SERVICES_TOKEN_URL,
+            tokenUrl: async () => {
+              try {
+                console.log("🔑 Fetching CKEditor CKBox token...");
+                const response = await getCKEditorToken();
+                console.log("✅ CKEditor CKBox Token Response:", response);
+                
+                // The API might return the token directly or in a data field
+                const token = response?.token || response?.data?.token || response?.data || response;
+                
+                if (typeof token === 'string') {
+                  console.log("✅ CKEditor CKBox Token retrieved successfully");
+                  return token;
+                } else {
+                  console.warn("⚠️ Unexpected token format:", token);
+                  // If response is an object, try to stringify it or return the tokenUrl as fallback
+                  return CLOUD_SERVICES_TOKEN_URL || '';
+                }
+              } catch (error) {
+                console.error("❌ Error fetching CKEditor CKBox token:", error);
+                // Fallback to environment variable if API call fails
+                return CLOUD_SERVICES_TOKEN_URL || '';
+              }
+            },
             serviceOrigin: 'https://ckbox.cloud',
             allowExternalImagesEditing: [ /^data:/, /^https?:/ ],
             forceDemoLabel: false
@@ -587,6 +632,79 @@ const FormCKEditor = ({
       return {};
     }
   }, [cloud, isLayoutReady]);
+
+  /**
+   * Removes default font-size styling from heading tags (h1-h6) while preserving
+   * manually selected font-size on other elements.
+   * 
+   * CKEditor automatically applies default font-sizes to headings, but we want
+   * those to use CSS from tailwind config instead. However, if a user manually
+   * selects a font-size (via the font-size dropdown), that should be preserved.
+   * 
+   * Strategy: Remove font-size from all heading tags, keep it on everything else.
+   */
+  const removeDefaultHeadingFontSizes = (html: string): string => {
+    if (!html || typeof html !== 'string') {
+      return html;
+    }
+
+    try {
+      // Use DOMParser to safely parse and manipulate HTML
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, 'text/html');
+      
+      // Find all heading elements (h1-h6)
+      const headings = doc.querySelectorAll('h1, h2, h3, h4, h5, h6');
+      
+      headings.forEach((heading) => {
+        if (heading instanceof HTMLElement) {
+          // Remove font-size from inline style
+          if (heading.style.fontSize) {
+            heading.style.removeProperty('font-size');
+          }
+          
+          // Also check for font-size in style attribute and remove it
+          const styleAttr = heading.getAttribute('style');
+          if (styleAttr) {
+            // Remove font-size from style attribute (case-insensitive)
+            const updatedStyle = styleAttr
+              .split(';')
+              .filter(declaration => {
+                const trimmed = declaration.trim();
+                if (!trimmed) return false;
+                // Remove font-size declarations (case-insensitive)
+                const lowerTrimmed = trimmed.toLowerCase();
+                return !lowerTrimmed.startsWith('font-size') && !lowerTrimmed.startsWith('font-size:');
+              })
+              .join(';')
+              .trim();
+            
+            if (updatedStyle) {
+              heading.setAttribute('style', updatedStyle);
+            } else {
+              heading.removeAttribute('style');
+            }
+          }
+        }
+      });
+      
+      // Serialize back to HTML string
+      // Get the body content (DOMParser wraps in html/body)
+      // Use outerHTML for each top-level element to preserve structure
+      const body = doc.body;
+      if (body.children.length === 0 && body.textContent) {
+        // If body only has text content, return it as-is
+        return body.innerHTML;
+      }
+      
+      // Return innerHTML which preserves all nested structure
+      return body.innerHTML;
+    } catch (error) {
+      console.warn('⚠️ Error processing HTML to remove heading font-sizes:', error);
+      // Return original HTML if processing fails
+      return html;
+    }
+  };
 
   // Convert image to base64 for upload
   // This adapter enables "Upload image from computer" functionality
@@ -936,9 +1054,11 @@ const FormCKEditor = ({
                       
                       // Set initial content if provided
                       if (defaultValue && !field.value) {
-                        editor.setData(defaultValue);
+                        // Process initial data to remove heading font-sizes
+                        const processedDefaultValue = removeDefaultHeadingFontSizes(defaultValue);
+                        editor.setData(processedDefaultValue);
                         if (isMountedRef.current) {
-                          field.onChange(defaultValue);
+                          field.onChange(processedDefaultValue);
                         }
                       }
                       
@@ -988,17 +1108,24 @@ const FormCKEditor = ({
                         data = `<p>${data}</p>`;
                       }
                       
-                      // Log for debugging (can be removed in production)
-                      console.log('✅ CKEditor HTML output:', data.substring(0, 200));
+                      // Remove default font-size from heading tags (h1-h6)
+                      // This ensures headings use CSS from tailwind config instead of inline styles
+                      // Manual font-size selections on non-heading elements are preserved
+                      data = removeDefaultHeadingFontSizes(data);
                       
-                      // Update form field with HTML data
+                      // Log for debugging (can be removed in production)
+                      console.log('✅ CKEditor HTML output (processed):', data.substring(0, 200));
+                      
+                      // Update form field with processed HTML data
                       field.onChange(data);
                     } catch (error) {
                       console.error('❌ Error getting CKEditor data:', error);
                       // Fallback: try to get data anyway
                       try {
                         const fallbackData = editor.getData();
-                        field.onChange(fallbackData || '');
+                        // Still process the fallback data to remove heading font-sizes
+                        const processedData = removeDefaultHeadingFontSizes(fallbackData || '');
+                        field.onChange(processedData);
                       } catch (e) {
                         console.error('❌ Fallback also failed:', e);
                         field.onChange('');
