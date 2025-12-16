@@ -76,3 +76,9 @@ export const listRole = async (params = {}) => {
   const response = await fetcher("/api/admin/user/roles", params);
   return response?.data || response; // Ensure correct data format
 };
+
+// CKEditor Cloud Services Token
+export const getCKEditorToken = async () => {
+  const response = await fetcher("/api/auth/ckeditor-token");
+  return response;
+};
