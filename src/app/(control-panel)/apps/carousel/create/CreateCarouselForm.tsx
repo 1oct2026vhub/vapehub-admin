@@ -59,11 +59,11 @@ const carouselFormSchema = z.object({
     )
     .superRefine(async (file, ctx) => {
       if (!file) return;
-      const { valid, message } = await validateImageDimensions(file, 450, 385);
+      const { valid, message } = await validateImageDimensions(file, 450, 450);
       if (!valid) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
-          message: message || 'Mobile image dimensions must be 450x385px.',
+          message: message || 'Mobile image dimensions must be 450x450px.',
         });
       }
     }),
@@ -171,11 +171,11 @@ const CreateCarouselForm: React.FC = () => {
             <FormFileUploadField
               name="image_low"
               control={control}
-              label="Mobile Image (Mobile: 450 x 385 px)"
-              helperText="Mobile: 450 x 385 px. PNG, JPG, WebP. Max 5MB."
+              label="Mobile Image (Mobile: 450 x 450 px)"
+              helperText="Mobile: 450 x 450 px. PNG, JPG, WebP. Max 5MB."
               required
               exactWidth={450}
-              exactHeight={385}
+              exactHeight={450}
             />
           </Grid>
 
