@@ -224,7 +224,7 @@ export const createEntityBanner = (bannerData: any) => {
       .then((res) => res.data);
   } else {
     // Send as JSON when there's no file
-    const payload = {
+    const payload: any = {
       type: type,
       deal_id: bannerData.deal_id,
       alt: bannerData.alt !== undefined && bannerData.alt !== null ? bannerData.alt.toString() : "",

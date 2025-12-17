@@ -8,11 +8,15 @@ import AppButton from "@/components/Shared/AppButton";
 import FormInputField from "@/components/Shared/FormInputField";
 import FormCKEditor from "@/components/Shared/FormCKEditor";
 import { usePost } from "@/hooks/useFetch";
-import { createCategory, createEntityBanner } from "@/services/apiProductCategory";
+import { createCategory, getEntityBanners, createEntityBanner, updateEntityBanner, deleteEntityBanner } from "@/services/apiProductCategory";
 import { useSnackbar } from "@/contexts/SnackbarContext";
 import FormFileUploadField from "@/components/Shared/FormFileUploadField";
 import { useState, useEffect } from "react";
 import PageBreadcrumb from "@/components/PageBreadcrumb";
+import BannerModal from "../components/BannerModal";
+import { Grid, IconButton, Card, CardMedia, CardContent, CardActions } from "@mui/material";
+import EditIcon from "@mui/icons-material/Edit";
+import DeleteIcon from "@mui/icons-material/Delete";
 
 // const schema = z.object({
 //   name: z.string().min(1, "Brand Name is required"),
@@ -103,26 +107,6 @@ const schema = z.object({
     z.undefined()
   ]).optional().nullable(),
 
-  // Banner fields
-  bannerImage: z.union([
-    z.undefined(),
-    z.null(),
-    z.instanceof(File)
-      .refine(
-        (file) => file.size <= MAX_FILE_SIZE,
-        "Banner file size must be less than 5MB"
-      )
-      .refine(
-        (file) => ACCEPTED_FILE_TYPES.includes(file.type),
-        "Only .jpg, .jpeg, .png, and .webp formats are supported"
-      )
-  ]).optional().nullable(),
-  bannerAlt: z.string().optional(),
-  bannerUrl: z.union([
-    z.string().url("Banner URL must be a valid URL"),
-    z.literal(""),
-  ]).optional(),
-  bannerOrder: z.number().int().min(0, "Order must be a non-negative integer").optional(),
 });
 
 // Infer the type from the Zod schema
@@ -134,10 +118,6 @@ const defaultValues: InferredSchemaType = {
   description: "",
   logo: null,
   parent_id: null,
-  bannerImage: undefined,
-  bannerAlt: "",
-  bannerUrl: "",
-  bannerOrder: 0,
 };
 
 // Align FormType with Zod schema or use InferredSchemaType directly
@@ -147,11 +127,13 @@ function CreateCategoryForm() {
   const router = useRouter();
   const { showSnackbar } = useSnackbar();
   const [isLoading, setIsLoading] = useState(false);
-  const [isSavingBanner, setIsSavingBanner] = useState(false);
   const [hasImageError, setHasImageError] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [selectedBannerFile, setSelectedBannerFile] = useState<File | null>(null);
   const [createdCategoryId, setCreatedCategoryId] = useState<number | null>(null);
+  const [banners, setBanners] = useState<any[]>([]);
+  const [isBannerModalOpen, setIsBannerModalOpen] = useState(false);
+  const [editingBanner, setEditingBanner] = useState<any | null>(null);
+  const [isDeletingBanner, setIsDeletingBanner] = useState<number | null>(null);
 
   const { control, formState, handleSubmit, setValue, watch } = useForm<InferredSchemaType>({
     mode: "all",
@@ -236,60 +218,93 @@ function CreateCategoryForm() {
     }
   }
 
-  async function onSaveBanner() {
-    if (!createdCategoryId) {
-      showSnackbar("Please create the category first before saving the banner", "error");
+  // Fetch banners when category is created
+  useEffect(() => {
+    const fetchBanners = async () => {
+      if (!createdCategoryId) return;
+      
+      try {
+        const response = await getEntityBanners({ type: "category", category_id: createdCategoryId });
+        if (response?.data?.entityBanners) {
+          setBanners(response.data.entityBanners);
+        }
+      } catch (error) {
+        console.error("Error fetching banners:", error);
+      }
+    };
+
+    fetchBanners();
+  }, [createdCategoryId]);
+
+  const handleCreateBanner = () => {
+    if (banners.length >= 3) {
+      showSnackbar("Maximum 3 banners allowed", "error");
+      return;
+    }
+    setEditingBanner(null);
+    setIsBannerModalOpen(true);
+  };
+
+  const handleEditBanner = (banner: any) => {
+    setEditingBanner(banner);
+    setIsBannerModalOpen(true);
+  };
+
+  const handleDeleteBanner = async (bannerId: number) => {
+    if (!createdCategoryId) return;
+    
+    if (!window.confirm("Are you sure you want to delete this banner?")) {
       return;
     }
 
-    setIsSavingBanner(true);
+    setIsDeletingBanner(bannerId);
     try {
-      const formData = watch();
-      
-      if (!selectedBannerFile && !formData.bannerAlt && !formData.bannerUrl) {
-        showSnackbar("Please provide at least banner image, alt text, or URL", "error");
-        setIsSavingBanner(false);
-        return;
-      }
-
-      await createEntityBanner({
-        type: "category",
-        category_id: createdCategoryId,
-        image: selectedBannerFile instanceof File ? selectedBannerFile : undefined,
-        alt: formData.bannerAlt || "",
-        url: formData.bannerUrl || "",
-        order: formData.bannerOrder || 0,
-      });
-
-      showSnackbar("Banner saved successfully!", "success");
-      router.push("/apps/product-category");
+      await deleteEntityBanner(bannerId);
+      setBanners(banners.filter(b => b.id !== bannerId));
+      showSnackbar("Banner deleted successfully!", "success");
     } catch (error: any) {
-      console.error("Error saving banner:", error);
-      const errorResponse = error?.response?.data || error;
-      
-      // Handle validation errors from the API
-      if (errorResponse?.errors && Array.isArray(errorResponse.errors)) {
-        errorResponse.errors.forEach((validationError: any) => {
-          if (validationError.path && validationError.msg) {
-            showSnackbar(validationError.msg, "error");
-          }
-        });
-      } else if (errorResponse?.error && Array.isArray(errorResponse.error)) {
-        errorResponse.error.forEach((validationError: any) => {
-          if (validationError.path && validationError.message) {
-            showSnackbar(validationError.message, "error");
-          }
-        });
-      } else if (errorResponse?.errors && !Array.isArray(errorResponse.errors)) {
-        showSnackbar(errorResponse.errors[0]?.msg || errorResponse.errors, "error");
-      } else {
-        const errorMessage = errorResponse?.message || error?.message || "An unexpected error occurred";
-        showSnackbar(errorMessage, "error");
-      }
+      console.error("Error deleting banner:", error);
+      const errorMessage = error?.response?.data?.message || error?.message || "Failed to delete banner";
+      showSnackbar(errorMessage, "error");
     } finally {
-      setIsSavingBanner(false);
+      setIsDeletingBanner(null);
     }
-  }
+  };
+
+  const handleSaveBanner = async (data: any) => {
+    if (!createdCategoryId) {
+      throw new Error("Category ID is missing");
+    }
+
+    const bannerData = {
+      type: "category",
+      category_id: createdCategoryId,
+      image: data.imageFile instanceof File ? data.imageFile : (data.image || undefined),
+      alt: data.alt || "",
+      url: data.url || "",
+      order: data.order || 0,
+    };
+
+    if (editingBanner?.id) {
+      // Update existing banner
+      await updateEntityBanner(editingBanner.id, bannerData);
+      showSnackbar("Banner updated successfully!", "success");
+    } else {
+      // Check limit before creating
+      if (banners.length >= 3) {
+        throw new Error("Maximum 3 banners allowed");
+      }
+      // Create new banner
+      await createEntityBanner(bannerData);
+      showSnackbar("Banner created successfully!", "success");
+    }
+
+    // Refresh banners list
+    const response = await getEntityBanners({ type: "category", category_id: createdCategoryId });
+    if (response?.data?.entityBanners) {
+      setBanners(response.data.entityBanners);
+    }
+  };
 
   return (
     <div className="md:px-64 p-4">
@@ -365,64 +380,91 @@ function CreateCategoryForm() {
       </form>
 
       {/* Banner Section - Outside the main form */}
-      <Box sx={{ mt: 4, mb: 2, p: 3, border: "1px solid #e0e0e0", borderRadius: 1 }}>
-        <Typography variant="h6" sx={{ mb: 2, fontWeight: "bold" }}>
-          Category Banner (Optional)
-        </Typography>
-        
-        <Box sx={{ mt: 2, mb: 2 }}>
-          <FormFileUploadField
-            name="bannerImage"
-            control={control}
-            label="Banner Image"
-            onFileChange={(file) => {
-              setSelectedBannerFile(file);
-              setValue("bannerImage", file, { shouldValidate: true });
+      {createdCategoryId && (
+        <Box sx={{ mt: 4, mb: 2, p: 3, border: "1px solid #e0e0e0", borderRadius: 1 }}>
+          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
+            <Typography variant="h6" sx={{ fontWeight: "bold" }}>
+              Category Banners ({banners.length}/3)
+            </Typography>
+            <AppButton
+              label="Create Banner"
+              type="button"
+              onClick={handleCreateBanner}
+              disabled={banners.length >= 3}
+              size="medium"
+              disableGradient
+              sx={{ 
+                backgroundColor: "#2E9970", 
+                "&:hover": { backgroundColor: "#1E7A56" },
+                color: "#fff"
+              }}
+            />
+          </Box>
+
+          {banners.length === 0 ? (
+            <Typography variant="body2" color="textSecondary" sx={{ textAlign: "center", py: 3 }}>
+              No banners created yet. Click "Create Banner" to add one.
+            </Typography>
+          ) : (
+            <Grid container spacing={2}>
+              {banners.map((banner) => (
+                <Grid item xs={12} sm={6} md={4} key={banner.id}>
+                  <Card>
+                    {banner.image && (
+                      <CardMedia
+                        component="img"
+                        height="140"
+                        image={banner.image}
+                        alt={banner.alt || "Banner"}
+                        sx={{ objectFit: "contain" }}
+                      />
+                    )}
+                    <CardContent>
+                      <Typography variant="body2" color="textSecondary">
+                        Alt: {banner.alt || "N/A"}
+                      </Typography>
+                      <Typography variant="body2" color="textSecondary">
+                        URL: {banner.url || "N/A"}
+                      </Typography>
+                      <Typography variant="body2" color="textSecondary">
+                        Order: {banner.order ?? 0}
+                      </Typography>
+                    </CardContent>
+                    <CardActions>
+                      <IconButton
+                        size="small"
+                        onClick={() => handleEditBanner(banner)}
+                        color="primary"
+                      >
+                        <EditIcon />
+                      </IconButton>
+                      <IconButton
+                        size="small"
+                        onClick={() => handleDeleteBanner(banner.id)}
+                        color="error"
+                        disabled={isDeletingBanner === banner.id}
+                      >
+                        <DeleteIcon />
+                      </IconButton>
+                    </CardActions>
+                  </Card>
+                </Grid>
+              ))}
+            </Grid>
+          )}
+
+          <BannerModal
+            open={isBannerModalOpen}
+            onClose={() => {
+              setIsBannerModalOpen(false);
+              setEditingBanner(null);
             }}
-            helperText="Upload a banner image (Max size: 5MB). Supported formats: PNG, JPG, JPEG, WebP"
+            onSave={handleSaveBanner}
+            initialData={editingBanner}
+            isEdit={!!editingBanner}
           />
         </Box>
-
-        <FormInputField
-          name="bannerAlt"
-          control={control}
-          label="Banner Alt Text"
-          type="text"
-        />
-
-        <FormInputField
-          name="bannerUrl"
-          control={control}
-          label="Banner URL"
-          type="url"
-          helperText="URL to redirect when banner is clicked"
-        />
-
-        <FormInputField
-          name="bannerOrder"
-          control={control}
-          label="Banner Order"
-          type="number"
-          helperText="Display order (0 = first)"
-        />
-
-        <AppButton
-          label="Save Banner"
-          loading={isSavingBanner}
-          type="button"
-          onClick={onSaveBanner}
-          fullWidth
-          size="large"
-          disabled={isSavingBanner || !createdCategoryId}
-          className="mt-4 w-full"
-          disableGradient
-          sx={{ 
-            backgroundColor: "#2E9970", 
-            "&:hover": { backgroundColor: "#1E7A56" },
-            color: "#fff"
-          }}
-        />
-      </Box>
+      )}
     </div>
   );
 }

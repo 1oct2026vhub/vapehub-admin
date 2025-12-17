@@ -121,7 +121,7 @@ export const createEntityBanner = (bannerData) => {
       .then((res) => res.data);
   } else {
     // Send as JSON when there's no file
-    const payload = {
+    const payload: any = {
       type: type,
       brand_id: bannerData.brand_id,
       alt: bannerData.alt !== undefined && bannerData.alt !== null ? bannerData.alt.toString() : "",
@@ -169,7 +169,7 @@ export const updateEntityBanner = (id, bannerData) => {
       .then((res) => res.data);
   } else {
     // Send as JSON when there's no file
-    const payload = {
+    const payload: any = {
       type: type,
       alt: bannerData.alt !== undefined && bannerData.alt !== null ? bannerData.alt.toString() : "",
       url: bannerData.url !== undefined && bannerData.url !== null && bannerData.url !== "" ? bannerData.url.toString() : "",
