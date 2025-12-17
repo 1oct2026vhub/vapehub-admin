@@ -154,7 +154,7 @@ const DealForm: React.FC<DealFormProps> = ({ deal, onDealCreated, hideButtons = 
             if (!dealId) return;
             
             try {
-                const response = await getEntityBanners({ type: "deal", deal_id: dealId });
+                const response = await getEntityBanners({ type: "deal", deals_id: dealId });
                 if (response?.data?.entityBanners) {
                     setBanners(response.data.entityBanners);
                 }
@@ -337,7 +337,7 @@ if (error?.errors) {
 
         const bannerData = {
             type: "deal",
-            deal_id: dealId,
+            deals_id: dealId,
             image: data.imageFile instanceof File ? data.imageFile : (data.image || undefined),
             alt: data.alt || "",
             url: data.url || "",
@@ -359,7 +359,7 @@ if (error?.errors) {
         }
 
         // Refresh banners list
-        const response = await getEntityBanners({ type: "deal", deal_id: dealId });
+        const response = await getEntityBanners({ type: "deal", deals_id: dealId });
         if (response?.data?.entityBanners) {
             setBanners(response.data.entityBanners);
         }
