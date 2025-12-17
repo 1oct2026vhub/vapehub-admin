@@ -213,7 +213,7 @@ export const createEntityBanner = (bannerData: any) => {
   if (bannerData.image instanceof File) {
     const formData = new FormData();
     formData.append("type", type);
-    formData.append("deal_id", bannerData.deal_id.toString());
+    formData.append("deals_id", bannerData.deals_id.toString());
     formData.append("image", bannerData.image);
     formData.append("alt", bannerData.alt !== undefined && bannerData.alt !== null ? bannerData.alt.toString() : "");
     formData.append("url", bannerData.url !== undefined && bannerData.url !== null && bannerData.url !== "" ? bannerData.url.toString() : "");
@@ -226,7 +226,7 @@ export const createEntityBanner = (bannerData: any) => {
     // Send as JSON when there's no file
     const payload: any = {
       type: type,
-      deal_id: bannerData.deal_id,
+      deals_id: bannerData.deals_id,
       alt: bannerData.alt !== undefined && bannerData.alt !== null ? bannerData.alt.toString() : "",
       url: bannerData.url !== undefined && bannerData.url !== null && bannerData.url !== "" ? bannerData.url.toString() : "",
       order: bannerData.order !== undefined && bannerData.order !== null ? bannerData.order : 0,
@@ -258,8 +258,8 @@ export const updateEntityBanner = (id: number, bannerData: any) => {
     const formData = new FormData();
     formData.append("type", type);
     
-    if (bannerData.deal_id !== undefined && bannerData.deal_id !== null) {
-      formData.append("deal_id", bannerData.deal_id.toString());
+    if (bannerData.deals_id !== undefined && bannerData.deals_id !== null) {
+      formData.append("deals_id", bannerData.deals_id.toString());
     }
     
     formData.append("image", bannerData.image);
@@ -280,8 +280,8 @@ export const updateEntityBanner = (id: number, bannerData: any) => {
     };
 
     // Include deal_id if provided
-    if (bannerData.deal_id !== undefined && bannerData.deal_id !== null) {
-      payload.deal_id = bannerData.deal_id;
+    if (bannerData.deals_id !== undefined && bannerData.deals_id !== null) {
+      payload.deals_id = bannerData.deals_id;
     }
 
     // If image is a URL string, include it
