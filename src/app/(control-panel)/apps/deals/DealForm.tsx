@@ -31,7 +31,10 @@ import {
     DealFormData,
     Deal,
     ProductInDeal,
-    removeProductsFromDeal
+    removeProductsFromDeal,
+    getEntityBanners,
+    createEntityBanner,
+    updateEntityBanner
 } from '@/services/apiDeals';
 import FormTextField from '@/components/Shared/FormTextField';
 import AppButton from '@/components/Shared/AppButton';
@@ -39,6 +42,7 @@ import FuseSvgIcon from '@fuse/core/FuseSvgIcon';
 import ProductSelector from './ProductSelector';
 import FormFileUploadField from '@/components/Shared/FormFileUploadField';
 import FormCKEditor from '@/components/Shared/FormCKEditor';
+import FormInputField from '@/components/Shared/FormInputField';
 import { ACCEPTED_IMAGE_TYPES, MAX_FILE_SIZE } from '@/utils/fileValidation';
 import { validateImageDimensions } from '@/utils/imageUtils';
 import { id } from 'date-fns/locale';
@@ -77,6 +81,28 @@ const dealSchema = z.object({
             const dimensions = await validateImageDimensions(file, 660, 250);
             return dimensions.valid;
         }, "Image must be 660x250px."),
+    // Banner fields
+    bannerImage: z.union([
+        z.undefined(),
+        z.null(),
+        z.string(), // For existing banner image URLs
+        z.instanceof(File)
+            .refine(
+                (file) => file.size <= MAX_FILE_SIZE,
+                "Banner file size must be less than 5MB"
+            )
+            .refine(
+                (file) => ACCEPTED_IMAGE_TYPES.includes(file.type),
+                "Only .jpg, .jpeg, .png, and .webp formats are supported"
+            )
+    ]).optional().nullable(),
+    bannerAlt: z.string().optional(),
+    bannerUrl: z.union([
+        z.string().url("Banner URL must be a valid URL"),
+        z.literal(""),
+    ]).optional(),
+    bannerOrder: z.number().int().min(0, "Order must be a non-negative integer").optional(),
+    bannerId: z.number().optional(), // For existing banner ID
 });
 
 interface DealFormProps {
@@ -89,16 +115,27 @@ const DealForm: React.FC<DealFormProps> = ({ deal, onDealCreated, hideButtons = 
     const router = useRouter();
     const { showSnackbar } = useSnackbar();
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isSavingBanner, setIsSavingBanner] = useState(false);
     const [associatedProducts, setAssociatedProducts] = useState<ProductInDeal[]>([]);
     const [productToRemove, setProductToRemove] = useState<ProductInDeal | null>(null);
+    const [selectedBannerFile, setSelectedBannerFile] = useState<File | null>(null);
+    const [bannerPreview, setBannerPreview] = useState<string | null>(null);
+    const [existingBanner, setExistingBanner] = useState<any>(null);
 
     const {
         control,
         handleSubmit,
         formState: { errors, isValid, isDirty },
         watch,
-        reset
-    } = useForm<DealFormData>({
+        reset,
+        setValue
+    } = useForm<DealFormData & {
+        bannerImage?: File | string | null | undefined;
+        bannerAlt?: string;
+        bannerUrl?: string;
+        bannerOrder?: number;
+        bannerId?: number;
+    }>({
         resolver: zodResolver(dealSchema),
         mode: 'all',
         defaultValues: {
@@ -116,6 +153,11 @@ const DealForm: React.FC<DealFormProps> = ({ deal, onDealCreated, hideButtons = 
             bundle_product_ids_json: [],
             description: '',
             image: null,
+            bannerImage: undefined,
+            bannerAlt: '',
+            bannerUrl: '',
+            bannerOrder: 0,
+            bannerId: undefined,
         },
     });
 
@@ -125,6 +167,30 @@ const DealForm: React.FC<DealFormProps> = ({ deal, onDealCreated, hideButtons = 
     });
 
     const dealType = watch('deal_type');
+
+    // Fetch existing banner data
+    useEffect(() => {
+        const fetchBanner = async () => {
+            if (!deal?.id) return;
+            
+            try {
+                const response = await getEntityBanners({ type: "deal", deal_id: deal.id });
+                if (response?.data?.entityBanners && response.data.entityBanners.length > 0) {
+                    const banner = response.data.entityBanners[0];
+                    setExistingBanner(banner);
+                    // Note: We can't set banner fields in reset since they're not part of DealFormData
+                    // We'll handle this separately
+                }
+            } catch (error) {
+                console.error("Error fetching banner:", error);
+                // Banner might not exist yet, which is fine
+            }
+        };
+
+        if (deal?.id) {
+            fetchBanner();
+        }
+    }, [deal?.id]);
 
     useEffect(() => {
         if (deal) {
@@ -138,8 +204,18 @@ const DealForm: React.FC<DealFormProps> = ({ deal, onDealCreated, hideButtons = 
                 show_home_page: deal.show_home_page ?? false,
             });
             setAssociatedProducts(deal.products);
+            
+            // Set banner fields if banner exists
+            if (existingBanner) {
+                setValue("bannerImage" as any, existingBanner.image);
+                setValue("bannerAlt" as any, existingBanner.alt || "");
+                setValue("bannerUrl" as any, existingBanner.url || "");
+                setValue("bannerOrder" as any, existingBanner.order || 0);
+                setValue("bannerId" as any, existingBanner.id);
+                setBannerPreview(existingBanner.image);
+            }
         }
-    }, [deal, reset]);
+    }, [deal, reset, existingBanner]);
 
 
     const onSubmit = async (data: DealFormData) => {
@@ -185,13 +261,15 @@ const DealForm: React.FC<DealFormProps> = ({ deal, onDealCreated, hideButtons = 
                 // Debug: Log the response to see the structure
                 console.log('Created deal response:', createdDeal);
                 
+                // Store deal ID for banner creation
+                const dealId = createdDeal?.id || (createdDeal as any)?.data?.id || (createdDeal as any)?.deal?.id;
+                
                 if (onDealCreated) {
                     onDealCreated();
                 } else {
-                    // Handle different possible response structures
-                    const dealId = createdDeal?.id || (createdDeal as any)?.data?.id || (createdDeal as any)?.deal?.id;
                     if (dealId) {
-                        router.push(`/apps/deals/deal-edit/${dealId}`);
+                        // Don't redirect immediately, allow user to save banner if needed
+                        // router.push(`/apps/deals/deal-edit/${dealId}`);
                     } else {
                         // Fallback: redirect to deals list if we can't get the ID
                         console.error('Could not get deal ID from response:', createdDeal);
@@ -245,6 +323,77 @@ if (error?.errors) {
             showSnackbar(err.message || 'Failed to remove product', 'error');
         } finally {
             setProductToRemove(null);
+        }
+    };
+
+    const onSaveBanner = async () => {
+        const dealId = deal?.id;
+        if (!dealId) {
+            showSnackbar("Please create or select a deal first before saving the banner", "error");
+            return;
+        }
+
+        setIsSavingBanner(true);
+        try {
+            const formData = watch() as any;
+            
+            if (!selectedBannerFile && !formData.bannerAlt && !formData.bannerUrl && !existingBanner) {
+                showSnackbar("Please provide at least banner image, alt text, or URL", "error");
+                setIsSavingBanner(false);
+                return;
+            }
+
+            const bannerData = {
+                type: "deal",
+                deal_id: dealId,
+                image: selectedBannerFile instanceof File ? selectedBannerFile : undefined,
+                alt: formData.bannerAlt || "",
+                url: formData.bannerUrl || "",
+                order: formData.bannerOrder || 0,
+            };
+
+            if (existingBanner?.id) {
+                // Update existing banner
+                await updateEntityBanner(existingBanner.id, bannerData);
+                showSnackbar("Banner updated successfully!", "success");
+            } else {
+                // Create new banner
+                await createEntityBanner(bannerData);
+                showSnackbar("Banner created successfully!", "success");
+                // Refresh banner data
+                const response = await getEntityBanners({ type: "deal", deal_id: dealId });
+                if (response?.data?.entityBanners && response.data.entityBanners.length > 0) {
+                    const banner = response.data.entityBanners[0];
+                    setExistingBanner(banner);
+                    setValue("bannerId" as any, banner.id);
+                    setBannerPreview(banner.image);
+                }
+            }
+        } catch (error: any) {
+            console.error("Error saving banner:", error);
+            const errorResponse = error?.response?.data || error;
+            
+            // Handle validation errors from the API
+            if (errorResponse?.errors && Array.isArray(errorResponse.errors)) {
+                errorResponse.errors.forEach((validationError: any) => {
+                    if (validationError.path && validationError.msg) {
+                        showSnackbar(validationError.msg, "error");
+                    }
+                });
+            } else if (errorResponse?.error && Array.isArray(errorResponse.error)) {
+                errorResponse.error.forEach((validationError: any) => {
+                    if (validationError.path && validationError.message) {
+                        showSnackbar(validationError.message, "error");
+                    }
+                });
+            } else if (errorResponse?.errors && !Array.isArray(errorResponse.errors)) {
+                showSnackbar(errorResponse.errors[0]?.msg || errorResponse.errors, "error");
+            } else {
+                const errorMessage = errorResponse?.message || error?.message || "An unexpected error occurred";
+                showSnackbar(errorMessage, "error");
+            }
+        } finally {
+            setIsSavingBanner(false);
         }
     };
 
@@ -327,6 +476,92 @@ if (error?.errors) {
                                 </div>
                             {/* )} */}
                         </form>
+
+                        {/* Banner Section - Outside the main form */}
+                        <Box sx={{ mt: 4, mb: 2, p: 3, border: "1px solid #e0e0e0", borderRadius: 1 }}>
+                            <Typography variant="h6" sx={{ mb: 2, fontWeight: "bold" }}>
+                                Deal Banner (Optional)
+                            </Typography>
+                            
+                            <Box sx={{ mt: 2, mb: 2 }}>
+                                <FormFileUploadField
+                                    name="bannerImage"
+                                    control={control}
+                                    label="Banner Image"
+                                    onFileChange={(file) => {
+                                        setSelectedBannerFile(file);
+                                        setValue("bannerImage" as any, file, { shouldValidate: true });
+                                        if (file) {
+                                            setBannerPreview(URL.createObjectURL(file));
+                                        } else {
+                                            setBannerPreview(null);
+                                        }
+                                    }}
+                                    helperText="Upload a banner image (Max size: 5MB). Supported formats: PNG, JPG, JPEG, WebP"
+                                    defaultImage={typeof (watch() as any).bannerImage === 'string' ? (watch() as any).bannerImage as string : undefined}
+                                    hidePreview
+                                />
+                                {bannerPreview && bannerPreview !== ((watch() as any).bannerImage as string) ? (
+                                    <Box sx={{ mt: 2, border: '1px solid #ddd', p: 1, position: 'relative', display: 'inline-block' }}>
+                                        <img
+                                            src={bannerPreview}
+                                            alt="New banner preview"
+                                            style={{ maxWidth: 300, maxHeight: 200, objectFit: 'contain' }}
+                                        />
+                                    </Box>
+                                ) : (
+                                    existingBanner?.image && (
+                                        <Box sx={{ mt: 2, border: '1px solid #ddd', p: 1, display: 'inline-block' }}>
+                                            <img
+                                                src={existingBanner.image}
+                                                alt={existingBanner.alt || "Current banner"}
+                                                style={{ maxWidth: 300, maxHeight: 200, objectFit: 'contain' }}
+                                            />
+                                        </Box>
+                                    )
+                                )}
+                            </Box>
+
+                            <FormInputField
+                                name="bannerAlt"
+                                control={control}
+                                label="Banner Alt Text"
+                                type="text"
+                            />
+
+                            <FormInputField
+                                name="bannerUrl"
+                                control={control}
+                                label="Banner URL"
+                                type="url"
+                                helperText="URL to redirect when banner is clicked"
+                            />
+
+                            <FormInputField
+                                name="bannerOrder"
+                                control={control}
+                                label="Banner Order"
+                                type="number"
+                                helperText="Display order (0 = first)"
+                            />
+
+                            <AppButton
+                                label="Save Banner"
+                                loading={isSavingBanner}
+                                type="button"
+                                onClick={onSaveBanner}
+                                fullWidth
+                                size="large"
+                                disabled={isSavingBanner}
+                                className="mt-4 w-full"
+                                disableGradient
+                                sx={{ 
+                                    backgroundColor: "#2E9970", 
+                                    "&:hover": { backgroundColor: "#1E7A56" },
+                                    color: "#fff"
+                                }}
+                            />
+                        </Box>
                     </Paper>
                 </Grid>
                 {deal && (
