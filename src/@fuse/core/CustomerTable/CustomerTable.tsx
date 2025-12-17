@@ -58,6 +58,7 @@ export type UserType = {
   deletedAt: string | null;
   email_verified_at: string | null;
   createdAt: string | null;
+  last_ordered_at?: string | null;
   aov: number | null;
   total_order_count: number | null;
   total_spend: number | null;
@@ -329,6 +330,14 @@ const CustomerTable = () => {
         },
       },
       {
+        accessorKey: "last_ordered_at",
+        header: "Last Order At",
+        Cell: ({ row }) =>
+          row.original.last_ordered_at
+            ? formatDate(row.original.last_ordered_at)
+            : "N/A",
+      },
+      {
         accessorKey: "status",
         header: "Status",
         Cell: ({ row }) => {
@@ -371,6 +380,8 @@ const CustomerTable = () => {
     email: user.email || "N/A",
     phone: user.phone || "N/A",
     gender: user.gender || "N/A",
+    // API field can vary; prefer last_ordered_at but fall back to last_order_at
+    last_ordered_at: user.last_ordered_at ?? user.last_order_at ?? null,
   }));
 
   console.log("customers", customers);
