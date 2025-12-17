@@ -90,6 +90,12 @@ export interface DealFormData {
   bundle_product_ids_json?: number[] | null;
   description?: string | null;
   image?: File | null | string;
+  // Banner fields
+  bannerImage?: File | string | null | undefined;
+  bannerAlt?: string;
+  bannerUrl?: string;
+  bannerOrder?: number;
+  bannerId?: number;
 }
 
 const buildFormData = (data: Partial<DealFormData>): FormData => {
@@ -193,5 +199,108 @@ export async function bulkRestoreDeals(ids: number[]): Promise<any> {
   });
   return response.data;
 }
+
+// Entity Banner functions for deals
+export const getEntityBanners = (params = {}) => {
+  return fetcher('/api/entity-banners', params);
+};
+
+export const createEntityBanner = (bannerData: any) => {
+  // Ensure type is lowercase and trimmed - this is critical for validation
+  const type = (bannerData.type || "deal").toString().toLowerCase().trim();
+  
+  // If there's a file to upload, use FormData
+  if (bannerData.image instanceof File) {
+    const formData = new FormData();
+    formData.append("type", type);
+    formData.append("deal_id", bannerData.deal_id.toString());
+    formData.append("image", bannerData.image);
+    formData.append("alt", bannerData.alt !== undefined && bannerData.alt !== null ? bannerData.alt.toString() : "");
+    formData.append("url", bannerData.url !== undefined && bannerData.url !== null && bannerData.url !== "" ? bannerData.url.toString() : "");
+    formData.append("order", (bannerData.order !== undefined && bannerData.order !== null ? bannerData.order : 0).toString());
+
+    return axiosInstance
+      .post("/api/entity-banners", formData)
+      .then((res) => res.data);
+  } else {
+    // Send as JSON when there's no file
+    const payload = {
+      type: type,
+      deal_id: bannerData.deal_id,
+      alt: bannerData.alt !== undefined && bannerData.alt !== null ? bannerData.alt.toString() : "",
+      url: bannerData.url !== undefined && bannerData.url !== null && bannerData.url !== "" ? bannerData.url.toString() : "",
+      order: bannerData.order !== undefined && bannerData.order !== null ? bannerData.order : 0,
+    };
+
+    // If image is a URL string, include it
+    if (bannerData.image && typeof bannerData.image === "string") {
+      payload.image = bannerData.image;
+    }
+
+    console.log("Creating entity banner with JSON payload:", payload);
+
+    return axiosInstance
+      .post("/api/entity-banners", payload, {
+        headers: {
+          "Content-Type": "application/json",
+        },
+      })
+      .then((res) => res.data);
+  }
+};
+
+export const updateEntityBanner = (id: number, bannerData: any) => {
+  // Ensure type is lowercase and trimmed - this is critical for validation
+  const type = (bannerData.type || "deal").toString().toLowerCase().trim();
+  
+  // If there's a file to upload, use FormData
+  if (bannerData.image instanceof File) {
+    const formData = new FormData();
+    formData.append("type", type);
+    
+    if (bannerData.deal_id !== undefined && bannerData.deal_id !== null) {
+      formData.append("deal_id", bannerData.deal_id.toString());
+    }
+    
+    formData.append("image", bannerData.image);
+    formData.append("alt", bannerData.alt !== undefined && bannerData.alt !== null ? bannerData.alt.toString() : "");
+    formData.append("url", bannerData.url !== undefined && bannerData.url !== null && bannerData.url !== "" ? bannerData.url.toString() : "");
+    formData.append("order", (bannerData.order !== undefined && bannerData.order !== null ? bannerData.order : 0).toString());
+
+    return axiosInstance
+      .put(`/api/entity-banners/${id}`, formData)
+      .then((res) => res.data);
+  } else {
+    // Send as JSON when there's no file
+    const payload: any = {
+      type: type,
+      alt: bannerData.alt !== undefined && bannerData.alt !== null ? bannerData.alt.toString() : "",
+      url: bannerData.url !== undefined && bannerData.url !== null && bannerData.url !== "" ? bannerData.url.toString() : "",
+      order: bannerData.order !== undefined && bannerData.order !== null ? bannerData.order : 0,
+    };
+
+    // Include deal_id if provided
+    if (bannerData.deal_id !== undefined && bannerData.deal_id !== null) {
+      payload.deal_id = bannerData.deal_id;
+    }
+
+    // If image is a URL string, include it
+    if (bannerData.image && typeof bannerData.image === "string") {
+      payload.image = bannerData.image;
+    }
+
+    console.log("Updating entity banner with JSON payload:", payload);
+
+    return axiosInstance
+      .put(`/api/entity-banners/${id}`, payload, {
+        headers: {
+          "Content-Type": "application/json",
+        },
+      })
+      .then((res) => res.data);
+  }
+};
+
+export const deleteEntityBanner = (id: number) => deleter(`/api/entity-banners/${id}`);
 
 
