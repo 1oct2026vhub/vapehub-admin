@@ -18,6 +18,7 @@ import FormInputField from "@/components/Shared/FormInputField";
 import FormFileUploadField from "@/components/Shared/FormFileUploadField";
 import { useSnackbar } from "@/contexts/SnackbarContext";
 import { MAX_FILE_SIZE, ACCEPTED_IMAGE_TYPES } from "@/utils/fileValidation";
+import { validateImageDimensions } from "@/utils/imageUtils";
 
 const bannerSchema = z.object({
   image: z.union([
@@ -33,6 +34,15 @@ const bannerSchema = z.object({
         (file) => ACCEPTED_IMAGE_TYPES.includes(file.type),
         "Only .jpg, .jpeg, .png, and .webp formats are supported"
       )
+      .superRefine(async (file, ctx) => {
+        const { valid, message } = await validateImageDimensions(file, 444, 165);
+        if (!valid) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: message || "Banner image dimensions must be exactly 444 × 165 px.",
+          });
+        }
+      })
   ]).optional().nullable(),
   alt: z.string().optional(),
   url: z.union([
@@ -148,7 +158,7 @@ export default function BannerModal({
                   setImagePreview(initialData?.image || null);
                 }
               }}
-              helperText="Upload a banner image (Max size: 5MB). Supported formats: PNG, JPG, JPEG, WebP"
+              helperText="Upload a banner image (Dimensions: 444 × 165 px, Max size: 5MB). Supported formats: PNG, JPG, JPEG, WebP"
               defaultImage={typeof watch("image") === 'string' ? watch("image") as string : undefined}
               hidePreview
             />
