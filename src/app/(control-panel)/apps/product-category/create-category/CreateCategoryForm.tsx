@@ -14,6 +14,7 @@ import FormFileUploadField from "@/components/Shared/FormFileUploadField";
 import { useState, useEffect } from "react";
 import PageBreadcrumb from "@/components/PageBreadcrumb";
 import BannerModal from "../components/BannerModal";
+import DeleteConfirmationModal from "@/components/Shared/DeleteConfirmationModal";
 import { Grid, IconButton, Card, CardMedia, CardContent, CardActions } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -134,6 +135,8 @@ function CreateCategoryForm() {
   const [isBannerModalOpen, setIsBannerModalOpen] = useState(false);
   const [editingBanner, setEditingBanner] = useState<any | null>(null);
   const [isDeletingBanner, setIsDeletingBanner] = useState<number | null>(null);
+  const [bannerToDelete, setBannerToDelete] = useState<number | null>(null);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
   const { control, formState, handleSubmit, setValue, watch } = useForm<InferredSchemaType>({
     mode: "all",
@@ -250,17 +253,22 @@ function CreateCategoryForm() {
     setIsBannerModalOpen(true);
   };
 
-  const handleDeleteBanner = async (bannerId: number) => {
-    if (!createdCategoryId) return;
-    
-    if (!window.confirm("Are you sure you want to delete this banner?")) {
+  const handleDeleteBanner = (bannerId: number) => {
+    setBannerToDelete(bannerId);
+    setIsDeleteModalOpen(true);
+  };
+
+  const handleConfirmDeleteBanner = async () => {
+    if (!bannerToDelete || !createdCategoryId) {
+      setIsDeleteModalOpen(false);
+      setBannerToDelete(null);
       return;
     }
 
-    setIsDeletingBanner(bannerId);
+    setIsDeletingBanner(bannerToDelete);
     try {
-      await deleteEntityBanner(bannerId);
-      setBanners(banners.filter(b => b.id !== bannerId));
+      await deleteEntityBanner(bannerToDelete);
+      setBanners(banners.filter(b => b.id !== bannerToDelete));
       showSnackbar("Banner deleted successfully!", "success");
     } catch (error: any) {
       console.error("Error deleting banner:", error);
@@ -268,7 +276,14 @@ function CreateCategoryForm() {
       showSnackbar(errorMessage, "error");
     } finally {
       setIsDeletingBanner(null);
+      setIsDeleteModalOpen(false);
+      setBannerToDelete(null);
     }
+  };
+
+  const handleCloseDeleteModal = () => {
+    setIsDeleteModalOpen(false);
+    setBannerToDelete(null);
   };
 
   const handleSaveBanner = async (data: any) => {
@@ -462,6 +477,14 @@ function CreateCategoryForm() {
             onSave={handleSaveBanner}
             initialData={editingBanner}
             isEdit={!!editingBanner}
+          />
+
+          <DeleteConfirmationModal
+            open={isDeleteModalOpen}
+            onClose={handleCloseDeleteModal}
+            onConfirm={handleConfirmDeleteBanner}
+            message="Are you sure you want to delete this banner?"
+            loading={isDeletingBanner !== null}
           />
         </Box>
       )}

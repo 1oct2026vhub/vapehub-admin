@@ -46,7 +46,7 @@ const bannerSchema = z.object({
     z.string().url("Banner URL must be a valid URL"),
     z.literal(""),
   ]).optional(),
-  order: z.number().int().min(0, "Order must be a non-negative integer").optional(),
+  order: z.coerce.number().int().min(0, "Order must be a non-negative integer").optional(),
 });
 
 type BannerFormData = z.infer<typeof bannerSchema>;

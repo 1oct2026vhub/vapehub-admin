@@ -48,6 +48,7 @@ import { ACCEPTED_IMAGE_TYPES, MAX_FILE_SIZE } from '@/utils/fileValidation';
 import { validateImageDimensions } from '@/utils/imageUtils';
 import { id } from 'date-fns/locale';
 import BannerModal from './components/BannerModal';
+import DeleteConfirmationModal from '@/components/Shared/DeleteConfirmationModal';
 import { Card, CardMedia, CardContent, CardActions } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -104,6 +105,8 @@ const DealForm: React.FC<DealFormProps> = ({ deal, onDealCreated, hideButtons = 
     const [isBannerModalOpen, setIsBannerModalOpen] = useState(false);
     const [editingBanner, setEditingBanner] = useState<any | null>(null);
     const [isDeletingBanner, setIsDeletingBanner] = useState<number | null>(null);
+    const [bannerToDelete, setBannerToDelete] = useState<number | null>(null);
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [createdDealId, setCreatedDealId] = useState<number | null>(null);
 
     const {
@@ -307,18 +310,23 @@ if (error?.errors) {
         setIsBannerModalOpen(true);
     };
 
-    const handleDeleteBanner = async (bannerId: number) => {
+    const handleDeleteBanner = (bannerId: number) => {
+        setBannerToDelete(bannerId);
+        setIsDeleteModalOpen(true);
+    };
+
+    const handleConfirmDeleteBanner = async () => {
         const dealId = deal?.id || createdDealId;
-        if (!dealId) return;
-        
-        if (!window.confirm("Are you sure you want to delete this banner?")) {
+        if (!bannerToDelete || !dealId) {
+            setIsDeleteModalOpen(false);
+            setBannerToDelete(null);
             return;
         }
 
-        setIsDeletingBanner(bannerId);
+        setIsDeletingBanner(bannerToDelete);
         try {
-            await deleteEntityBanner(bannerId);
-            setBanners(banners.filter(b => b.id !== bannerId));
+            await deleteEntityBanner(bannerToDelete);
+            setBanners(banners.filter(b => b.id !== bannerToDelete));
             showSnackbar("Banner deleted successfully!", "success");
         } catch (error: any) {
             console.error("Error deleting banner:", error);
@@ -326,7 +334,14 @@ if (error?.errors) {
             showSnackbar(errorMessage, "error");
         } finally {
             setIsDeletingBanner(null);
+            setIsDeleteModalOpen(false);
+            setBannerToDelete(null);
         }
+    };
+
+    const handleCloseDeleteModal = () => {
+        setIsDeleteModalOpen(false);
+        setBannerToDelete(null);
     };
 
     const handleSaveBanner = async (data: any) => {
@@ -528,6 +543,14 @@ if (error?.errors) {
                                     onSave={handleSaveBanner}
                                     initialData={editingBanner}
                                     isEdit={!!editingBanner}
+                                />
+
+                                <DeleteConfirmationModal
+                                    open={isDeleteModalOpen}
+                                    onClose={handleCloseDeleteModal}
+                                    onConfirm={handleConfirmDeleteBanner}
+                                    message="Are you sure you want to delete this banner?"
+                                    loading={isDeletingBanner !== null}
                                 />
                             </Box>
                         )}
