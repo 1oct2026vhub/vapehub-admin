@@ -28,6 +28,7 @@ import PageBreadcrumb from "@/components/PageBreadcrumb";
 import FaqAccordion from "../../faq/FaqAccordion";
 import SeoForm from "@/app/(control-panel)/apps/seo/components/SeoForm";
 import BannerModal from "../components/BannerModal";
+import DeleteConfirmationModal from "@/components/Shared/DeleteConfirmationModal";
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const ACCEPTED_FILE_TYPES = [
@@ -162,6 +163,8 @@ const EditCategoryForm = ({
   const [isBannerModalOpen, setIsBannerModalOpen] = useState(false);
   const [editingBanner, setEditingBanner] = useState<any | null>(null);
   const [isDeletingBanner, setIsDeletingBanner] = useState<number | null>(null);
+  const [bannerToDelete, setBannerToDelete] = useState<number | null>(null);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<number>(0); // 0 for Details, 1 for FAQ, 2 for SEO
 
   const categoryRef = useRef<FormType>(initialCategory);
@@ -362,17 +365,22 @@ const EditCategoryForm = ({
     setIsBannerModalOpen(true);
   };
 
-  const handleDeleteBanner = async (bannerId: number) => {
-    if (!categoryId) return;
-    
-    if (!window.confirm("Are you sure you want to delete this banner?")) {
+  const handleDeleteBanner = (bannerId: number) => {
+    setBannerToDelete(bannerId);
+    setIsDeleteModalOpen(true);
+  };
+
+  const handleConfirmDeleteBanner = async () => {
+    if (!bannerToDelete || !categoryId) {
+      setIsDeleteModalOpen(false);
+      setBannerToDelete(null);
       return;
     }
 
-    setIsDeletingBanner(bannerId);
+    setIsDeletingBanner(bannerToDelete);
     try {
-      await deleteEntityBanner(bannerId);
-      setBanners(banners.filter(b => b.id !== bannerId));
+      await deleteEntityBanner(bannerToDelete);
+      setBanners(banners.filter(b => b.id !== bannerToDelete));
       showSnackbar("Banner deleted successfully!", "success");
     } catch (error: any) {
       console.error("Error deleting banner:", error);
@@ -380,7 +388,14 @@ const EditCategoryForm = ({
       showSnackbar(errorMessage, "error");
     } finally {
       setIsDeletingBanner(null);
+      setIsDeleteModalOpen(false);
+      setBannerToDelete(null);
     }
+  };
+
+  const handleCloseDeleteModal = () => {
+    setIsDeleteModalOpen(false);
+    setBannerToDelete(null);
   };
 
   const handleSaveBanner = async (data: any) => {
@@ -594,6 +609,14 @@ const EditCategoryForm = ({
                 onSave={handleSaveBanner}
                 initialData={editingBanner}
                 isEdit={!!editingBanner}
+              />
+
+              <DeleteConfirmationModal
+                open={isDeleteModalOpen}
+                onClose={handleCloseDeleteModal}
+                onConfirm={handleConfirmDeleteBanner}
+                message="Are you sure you want to delete this banner?"
+                loading={isDeletingBanner !== null}
               />
             </Box>
           )}
