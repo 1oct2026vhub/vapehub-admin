@@ -18,7 +18,7 @@ import FormFileUploadField from "@/components/Shared/FormFileUploadField";
 
 // Image validation constants
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
-const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
+const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp", "image/svg+xml"];
 const REQUIRED_WIDTH = 58;
 const REQUIRED_HEIGHT = 58;
 
@@ -54,7 +54,7 @@ const schema = z.object({
     .refine((file) => !file || file.size <= MAX_FILE_SIZE, `Max image size is 5MB.`)
     .refine(
       (file) => !file || ACCEPTED_IMAGE_TYPES.includes(file.type),
-      "Only .jpg, .jpeg, .png, and .webp formats are supported."
+      "Only .jpg, .jpeg, .png, .webp, and .svg formats are supported."
     )
     .refine(async (file) => {
       if (!file) return true; // Optional image
@@ -220,7 +220,7 @@ function CreateAttribute() {
           control={control}
           label="Attribute Image (Optional)"
           onFileChange={handleFileChange}
-          accept="image/jpeg, image/png, image/webp, image/jpg"
+          accept="image/jpeg, image/png, image/webp, image/jpg, image/svg+xml"
           helperText={`Upload an image for the attribute (max 5MB, ${REQUIRED_WIDTH}x${REQUIRED_HEIGHT}px).`}
           defaultImage={typeof control._getWatch("image") === 'string' ? control._getWatch("image") : undefined}
         />
