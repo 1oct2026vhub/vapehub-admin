@@ -1,7 +1,6 @@
 export const ckEditorStyles = `
   /* Ensure content renders properly */
   .ck-content {
-    font-family: Arial, sans-serif;
     line-height: 1.5;
     color: #333;
   }
