@@ -31,6 +31,7 @@ const ACCEPTED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/jpg', 'image/web
 const carouselFormSchema = z.object({
   title: z.string().min(1, 'Title is required').max(100, 'Title must be 100 characters or less'),
   description: z.string().max(500, 'Description must be 500 characters or less').optional(),
+  alt_text: z.string().optional(),
   status: z.enum(['active', 'inactive'], { required_error: 'Status is required' }),
   redirect_url: z.string().url('Invalid URL format').optional().or(z.literal('')),
   image: z
@@ -80,16 +81,20 @@ const CreateCarouselForm: React.FC = () => {
     control,
     handleSubmit,
     formState: { errors, isValid },
+    watch,
   } = useForm<CarouselFormValues>({
     resolver: zodResolver(carouselFormSchema),
     mode: 'onChange',
     defaultValues: {
       title: '',
       description: '',
+      alt_text: '',
       redirect_url: '',
       status: 'active',
     },
   });
+
+  const imageValue = watch("image");
 
   const onSubmit = async (data: CarouselFormValues) => {
     setIsSubmitting(true);
@@ -101,6 +106,9 @@ const CreateCarouselForm: React.FC = () => {
       formData.append('image_low', data.image_low);
       if (data.description) {
         formData.append('description', data.description);
+      }
+      if (data.alt_text) {
+        formData.append('alt_text', data.alt_text);
       }
       if (data.redirect_url) {
         formData.append('redirect_url', data.redirect_url);
@@ -165,6 +173,16 @@ const CreateCarouselForm: React.FC = () => {
               exactHeight={700}
             />
           </Grid>
+
+          {(imageValue instanceof File) && (
+            <Grid item xs={12}>
+              <FormTextField<CarouselFormValues>
+                name="alt_text"
+                control={control}
+                label="Alt Text (Optional)"
+              />
+            </Grid>
+          )}
 
           <Grid item xs={12} sx={{ mt: 1 }}>
             <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'medium' }}>Mobile Carousel Image</Typography>
