@@ -56,6 +56,7 @@ const categorySchema = z.object({
   name: z.string().min(1, "Name is required").max(255),
   slug: z.string().min(1, "Slug is required").max(50).regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Invalid slug format"),
   description: z.string().optional(),
+  alt_text: z.string().optional(),
   parent_id: z.preprocess(
     (val) => (val === null || val === undefined || val === "" ? null : Number(val)),
     z.number().nullable()
@@ -110,6 +111,7 @@ export default function AddCategoryModal({ open, onClose, onCategoryCreated }: A
       name: "",
       slug: "",
       description: "",
+      alt_text: "",
       parent_id: null,
       status: "active",
       category_modal_image_upload: null,
@@ -155,6 +157,7 @@ export default function AddCategoryModal({ open, onClose, onCategoryCreated }: A
       formData.append("slug", data.slug);
       formData.append("status", data.status);
       if (data.description) formData.append("description", data.description);
+      if (data.alt_text) formData.append("alt_text", data.alt_text);
       if (data.parent_id !== null) formData.append("parent_id", data.parent_id.toString());
       
       if (selectedFile) {
@@ -249,6 +252,14 @@ export default function AddCategoryModal({ open, onClose, onCategoryCreated }: A
                 name="description"
                 control={control}
                 label="Description"
+              />
+            </Grid>
+
+            <Grid item xs={12}>
+              <FormInputField
+                name="alt_text"
+                control={control}
+                label="Alt Text"
               />
             </Grid>
 

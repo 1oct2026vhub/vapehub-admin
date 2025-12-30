@@ -18,6 +18,7 @@ const schema = z.object({
     (val) => val === '' || z.string().url().safeParse(val).success,
     { message: 'Please enter a valid URL' }
   ).optional(),
+  alt_text: z.string().optional(),
   status: z.enum(['active', 'inactive']).default('active')
 });
 
@@ -59,6 +60,7 @@ const CreateFeatureContentForm: React.FC<Props> = ({ item, onSuccess, onCancel }
       subtitle: item?.subtitle || '',
       icon_id: (item?.icon_id as number) || (undefined as unknown as number),
       link: item?.link || '',
+      alt_text: (item as any)?.alt_text || '',
       status: (item?.status as any) || 'active'
     }
   });
@@ -87,12 +89,13 @@ const CreateFeatureContentForm: React.FC<Props> = ({ item, onSuccess, onCancel }
         subtitle: item.subtitle,
         icon_id: item.icon_id as number,
         link: item.link || '',
+        alt_text: (item as any).alt_text || '',
         status: item.status as any,
       });
       setSelectedIconName(item.icon?.file_name || '');
       setSelectedIconUrl(item.icon?.icon_url || '');
     } else {
-      reset({ title: '', subtitle: '', icon_id: undefined as unknown as number, link: '', status: 'active' });
+      reset({ title: '', subtitle: '', icon_id: undefined as unknown as number, link: '', alt_text: '', status: 'active' });
       setSelectedIconName('');
       setSelectedIconUrl('');
     }
@@ -168,7 +171,8 @@ const CreateFeatureContentForm: React.FC<Props> = ({ item, onSuccess, onCancel }
         subtitle, 
         status: data.status, 
         icon_id: Number(data.icon_id),
-        ...(link && { link })
+        ...(link && { link }),
+        ...(data.alt_text && { alt_text: data.alt_text })
       } as const;
       const res = item?.id ? await updateFeatureContent(item.id, payload) : await createFeatureContent(payload);
       if (res?.success === false) {

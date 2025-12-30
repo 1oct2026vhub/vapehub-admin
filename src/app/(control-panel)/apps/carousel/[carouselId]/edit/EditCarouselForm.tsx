@@ -32,6 +32,7 @@ const ACCEPTED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/jpg', 'image/web
 const carouselFormSchema = z.object({
   title: z.string().min(1, 'Title is required').max(100, 'Title must be 100 characters or less'),
   description: z.string().max(500, 'Description must be 500 characters or less').optional(),
+  alt_text: z.string().optional(),
   status: z.enum(['active', 'inactive'], { required_error: 'Status is required' }),
   redirect_url: z.string().url('Invalid URL format').optional().or(z.literal('')),
   image: z
@@ -101,6 +102,7 @@ const EditCarouselForm: React.FC<EditCarouselFormProps> = ({ initialCarouselData
       const defaultValues = {
         title: initialCarouselData.title || '',
         description: initialCarouselData.description || '',
+        alt_text: (initialCarouselData as any).alt_text || '',
         status: initialCarouselData.status || 'active',
         redirect_url: initialCarouselData.redirect_url || '',
       };
@@ -111,6 +113,7 @@ const EditCarouselForm: React.FC<EditCarouselFormProps> = ({ initialCarouselData
 
   // Watch form values
   const formValues = watch();
+  const imageValue = watch("image");
   useEffect(() => {
     console.log('Current Form Values:', formValues);
   }, [formValues]);
@@ -125,6 +128,7 @@ const EditCarouselForm: React.FC<EditCarouselFormProps> = ({ initialCarouselData
       const payload: any = {};
       if (dirtyFields.title) payload.title = data.title;
       if (dirtyFields.description) payload.description = data.description;
+      if (dirtyFields.alt_text) payload.alt_text = data.alt_text;
       if (dirtyFields.status) payload.status = data.status;
       if (dirtyFields.redirect_url) payload.redirect_url = data.redirect_url;
       
@@ -234,6 +238,16 @@ const EditCarouselForm: React.FC<EditCarouselFormProps> = ({ initialCarouselData
               defaultImage={initialCarouselData?.image_url}
             />
           </Grid>
+
+          {((imageValue instanceof File) || initialCarouselData?.image_url) && (
+            <Grid item xs={12}>
+              <FormTextField<CarouselFormValues>
+                name="alt_text"
+                control={control}
+                label="Alt Text (Optional)"
+              />
+            </Grid>
+          )}
 
           <Grid item xs={12} sx={{ mt: 1 }}>
             <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'medium' }}>Mobile Carousel Image</Typography>
