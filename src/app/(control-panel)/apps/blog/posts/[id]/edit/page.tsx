@@ -64,6 +64,7 @@ const postSchema = z.object({
     .min(1, "Title is required")
     .max(255, "Title must not exceed 255 characters"),
   content: z.string().min(1, "Content is required"),
+  alt_text: z.string().optional(),
   slug: z
     .string()
     .min(1, "Slug is required")
@@ -151,6 +152,7 @@ export default function EditBlogPost() {
       title: "",
       content: "",
       slug: "",
+      alt_text: "",
       status: "draft",
       published_at: null,
       categories: [],
@@ -213,6 +215,7 @@ export default function EditBlogPost() {
             title: response.data.title,
             content: response.data.content,
             slug: response.data.slug,
+            alt_text: (response.data as any).alt_text || "",
             status: response.data.status || "draft",
             published_at: response.data.published_at || null,
             categories: response.data.categories || [],
@@ -305,6 +308,10 @@ export default function EditBlogPost() {
       formData.append("slug", data.slug);
       formData.append("status", data.status);
       formData.append("is_active", data.is_active.toString());
+
+      if (data.alt_text) {
+        formData.append("alt_text", data.alt_text);
+      }
 
       if (data.published_at) {
         formData.append("published_at", data.published_at);

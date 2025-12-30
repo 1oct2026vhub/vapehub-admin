@@ -70,6 +70,7 @@ const dealSchema = z.object({
     })).optional().nullable(),
     bundle_product_ids_json: z.array(z.number()).optional().nullable(),
     description: z.string().optional().nullable(),
+    alt_text: z.string().optional().nullable(),
     image: z.any().optional()
         .refine((file) => {
             if (typeof file === 'string' || !file) return true;
@@ -139,6 +140,7 @@ const DealForm: React.FC<DealFormProps> = ({ deal, onDealCreated, hideButtons = 
             tiered_qty_json: [],
             bundle_product_ids_json: [],
             description: '',
+            alt_text: '',
             image: null,
         },
     });
@@ -181,6 +183,7 @@ const DealForm: React.FC<DealFormProps> = ({ deal, onDealCreated, hideButtons = 
                 bundle_product_ids_json: deal.products.map(p => p.id),
                 image: deal.image_url,
                 show_home_page: deal.show_home_page ?? false,
+                alt_text: (deal as any).alt_text || '',
             });
             setAssociatedProducts(deal.products);
         }
@@ -208,6 +211,7 @@ const DealForm: React.FC<DealFormProps> = ({ deal, onDealCreated, hideButtons = 
                 valid_from: data.valid_from,
                 valid_to: data.valid_to,
                 description: data.description,
+                alt_text: data.alt_text,
                 image: data.image,
             };
 
@@ -431,6 +435,9 @@ if (error?.errors) {
                                         label="Description"
                                         defaultValue={deal?.description || ''}
                                     />
+                                </Grid>
+                                <Grid item xs={12}>
+                                    <FormTextField name="alt_text" control={control} label="Alt Text" />
                                 </Grid>
                                 <Grid item xs={12} md={6}>
                                     <Controller

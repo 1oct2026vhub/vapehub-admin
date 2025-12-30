@@ -16,6 +16,7 @@ export interface CreateAttributeData {
   name: string;
   slug: string;
   description?: string;
+  alt_text?: string;
   type: string;
   sort_order: string;
   image?: File;
@@ -25,6 +26,7 @@ export interface UpdateAttributeData {
   name?: string;
   slug?: string;
   description?: string;
+  alt_text?: string;
   type?: string;
   sort_order?: string;
   image?: File | null;
@@ -108,6 +110,9 @@ export const createAttribute = async (data: CreateAttributeData) => {
   if (data.description) {
     formData.append('description', data.description);
   }
+  if (data.alt_text) {
+    formData.append('alt_text', data.alt_text);
+  }
   formData.append('type', data.type);
   formData.append('sort_order', data.sort_order);
   if (data.image) {
@@ -133,6 +138,7 @@ export const updateAttribute = async (
   if (data.name !== undefined) formData.append('name', data.name);
   if (data.slug !== undefined) formData.append('slug', data.slug);
   if (data.description !== undefined) formData.append('description', data.description);
+  if (data.alt_text !== undefined) formData.append('alt_text', data.alt_text);
   if (data.type !== undefined) formData.append('type', data.type);
   if (data.sort_order !== undefined) formData.append('sort_order', data.sort_order);
 

@@ -6,6 +6,7 @@ export interface FeatureContent {
     title: string;
     subtitle: string;
     icon_id: number;
+    alt_text?: string;
     link?: string;
     status: string;
     updated_by: number;
@@ -58,6 +59,7 @@ export interface CreateFeatureContentPayload {
     title: string;
     subtitle: string;
     icon_id: number;
+    alt_text?: string;
     link?: string;
     status: 'active' | 'inactive';
 }

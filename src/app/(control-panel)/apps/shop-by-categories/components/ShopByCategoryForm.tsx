@@ -24,6 +24,7 @@ const ACCEPTED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/jpg', 'image/web
 // Schema - image validation handled conditionally based on create/edit mode
 const schema = z.object({
   category_id: z.number().min(1, 'Category is required'),
+  alt_text: z.string().optional(),
   image: z.union([
     z.instanceof(File)
       .refine(
@@ -70,6 +71,7 @@ const ShopByCategoryForm: React.FC<Props> = ({ item, onSuccess, onCancel }) => {
     resolver: zodResolver(schema),
     defaultValues: {
       category_id: item?.category_id || undefined,
+      alt_text: (item as any)?.alt_text || '',
       image: undefined,
       status: item?.status === true || (typeof item?.status === 'string' && item.status === 'active') ? true : false,
     }
@@ -139,6 +141,7 @@ const ShopByCategoryForm: React.FC<Props> = ({ item, onSuccess, onCancel }) => {
             setCurrentImageUrl(category.image_url);
             reset({
               category_id: category.category_id || undefined,
+              alt_text: (category as any).alt_text || '',
               image: undefined, // Don't set image file, use defaultImage prop instead
               status: category.status === true || (typeof category.status === 'string' && category.status === 'active') ? true : false,
             });
@@ -192,6 +195,7 @@ const ShopByCategoryForm: React.FC<Props> = ({ item, onSuccess, onCancel }) => {
         const payload = {
           category_id: data.category_id,
           image: imageFile,
+          ...(data.alt_text && { alt_text: data.alt_text }),
           ...(data.status !== undefined && { status: data.status }),
         };
 
@@ -209,6 +213,7 @@ const ShopByCategoryForm: React.FC<Props> = ({ item, onSuccess, onCancel }) => {
         const payload: any = {
           ...(data.category_id !== undefined && data.category_id !== null && { category_id: data.category_id }),
           ...(imageFile && { image: imageFile }),
+          ...(data.alt_text && { alt_text: data.alt_text }),
           ...(data.status !== undefined && { status: data.status }),
         };
 
@@ -333,6 +338,14 @@ const ShopByCategoryForm: React.FC<Props> = ({ item, onSuccess, onCancel }) => {
           onDeleteDefaultImage={isEditMode ? handleDeleteImage : undefined}
           helperText="Supported formats: PNG, JPG, JPEG, WebP, SVG (max 5MB). Image dimensions must be exactly 43x43 pixels (SVG files are exempt from dimension validation)."
         />
+
+        {(selectedFile || imageValue instanceof File || currentImageUrl) && (
+          <FormTextField<FormValues>
+            name="alt_text"
+            control={control}
+            label="Alt Text"
+          />
+        )}
 
         <Controller
           name="status"

@@ -102,6 +102,8 @@ const schema = z.object({
 
   description: z.string().optional(),
 
+  alt_text: z.string().optional(),
+
   logo: z.union([
     z.undefined(),
     z.null(),
@@ -131,6 +133,7 @@ const defaultValues = {
   name: "",
   slug: "",
   description: "",
+  alt_text: "",
   logo: undefined,
 };
 
@@ -190,6 +193,11 @@ function CreateBrandForm() {
         formDataObj.append("description", formData.description);
       }
 
+      // Append alt_text if it exists
+      if (formData.alt_text) {
+        formDataObj.append("alt_text", formData.alt_text);
+      }
+
       // Only append logo if it's a File instance
       if (selectedFile instanceof File) {
         formDataObj.append("logo", selectedFile);
@@ -202,7 +210,7 @@ function CreateBrandForm() {
       showSnackbar("Brand created successfully!", "success");
       
       // Don't redirect immediately, allow user to save banner if needed
-      // router.push("/apps/product-brand");
+      router.push("/apps/product-brand");
     } catch (error: any) {
       // Handle validation errors from the API
       if (error?.error && Array.isArray(error.error)) {
@@ -392,6 +400,15 @@ function CreateBrandForm() {
               helperText={`Upload a brand logo (Min: ${MIN_IMAGE_WIDTH}×${MIN_IMAGE_HEIGHT}px, Max: ${MAX_IMAGE_WIDTH}×${MAX_IMAGE_HEIGHT}px, Max size: 5MB). Only square or rectangle images allowed. Supported formats: PNG, JPG, JPEG, WebP`}
             />
           </Box>
+
+          {(selectedFile || logoValue) && (
+            <FormInputField
+              name="alt_text"
+              control={control}
+              label="Alt Text"
+              type="text"
+            />
+          )}
 
           <AppButton
             label="Create"

@@ -83,6 +83,7 @@ const categorySchema = z.object({
       "Slug must be in valid format (lowercase letters, numbers, and hyphens)"
     ),
   description: z.string().optional(),
+  alt_text: z.string().optional(),
   parent_id: z.preprocess(
     (val) => {
       if (val === null || val === undefined || val === "") return null;
@@ -138,6 +139,7 @@ export default function EditBlogCategory() {
       name: "",
       slug: "",
       description: "",
+      alt_text: "",
       parent_id: null,
       status: "active",
       show_home_page: false,
@@ -179,6 +181,7 @@ export default function EditBlogCategory() {
           setValue("name", categoryData.name || "");
           setValue("slug", categoryData.slug || "");
           setValue("description", categoryData.description || "");
+          setValue("alt_text", (categoryData as any).alt_text || "");
           setValue("parent_id", categoryData.parent_id || null);
           setValue("status", categoryData.status || "active");
           setValue("show_home_page", categoryData?.show_home_page || false);
@@ -188,6 +191,7 @@ export default function EditBlogCategory() {
             name: categoryData.name || "",
             slug: categoryData.slug || "",
             description: categoryData.description || "",
+            alt_text: (categoryData as any).alt_text || "",
             parent_id: categoryData.parent_id || null,
             status: categoryData.status || "active",
             show_home_page: categoryData?.show_home_page || false,
@@ -236,6 +240,11 @@ export default function EditBlogCategory() {
       // Add description if present
       if (data.description) {
         formData.append("description", data.description);
+      }
+      
+      // Add alt_text if present
+      if (data.alt_text) {
+        formData.append("alt_text", data.alt_text);
       }
       
       // Handle parent_id - send empty string when None is selected (backend should parse as null)
