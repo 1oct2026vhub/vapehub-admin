@@ -85,6 +85,7 @@ const schema = z.object({
       "Slug must be a valid URL-friendly string (lowercase letters, numbers, and hyphens only)"
     ),
   description: z.string().optional(),
+  alt_text: z.string().optional(),
   logo: z
     .union([
       z.undefined(),
@@ -129,6 +130,7 @@ const defaultValues: InferredSchemaType = {
   name: "",
   slug: "",
   description: "",
+  alt_text: "",
   logo: undefined,
   parent_id: undefined,
 };
@@ -137,6 +139,7 @@ export type FormType = {
   name: string;
   slug: string;
   description?: string;
+  alt_text?: string;
   logo?: File | string | null | undefined;
   logo_url?: string;
   parent_id?: number | null;
@@ -238,6 +241,7 @@ const EditCategoryForm = ({
       setValue("name", initialCategory.name);
       setValue("slug", initialCategory.slug);
       setValue("description", initialCategory.description || "");
+      setValue("alt_text", initialCategory.alt_text || "");
       if (
         initialCategory.parent_id !== undefined &&
         initialCategory.parent_id !== null
@@ -274,6 +278,10 @@ const EditCategoryForm = ({
 
       if (formData.description) {
         formDataObj.append("description", formData.description);
+      }
+
+      if (formData.alt_text) {
+        formDataObj.append("alt_text", formData.alt_text);
       }
 
       // Handle parent_id properly
@@ -515,6 +523,15 @@ const EditCategoryForm = ({
                 defaultImage={categoryRef.current?.logo_url || undefined}
               />
             </Box>
+
+            {(selectedFile || logoValue || categoryRef.current?.logo_url) && (
+              <FormInputField
+                name="alt_text"
+                control={control}
+                label="Alt Text"
+                type="text"
+              />
+            )}
             <AppButton
               label="Update Category Details"
               loading={isLoading}

@@ -80,6 +80,8 @@ const schema = z.object({
 
   description: z.string().optional(),
 
+  alt_text: z.string().optional(),
+
   logo: z.union([
     z.undefined(),
     z.null(),
@@ -117,6 +119,7 @@ const defaultValues: InferredSchemaType = {
   name: "",
   slug: "",
   description: "",
+  alt_text: "",
   logo: null,
   parent_id: null,
 };
@@ -199,7 +202,7 @@ function CreateCategoryForm() {
 
       showSnackbar("Category created successfully!", "success");
       // Don't redirect immediately, allow user to save banner if needed
-      // router.push("/apps/product-category");
+      router.push("/apps/product-category");
     } catch (error) {
       if (error?.errors) {
         showSnackbar(error?.errors[0]?.msg, "error");
@@ -373,6 +376,15 @@ function CreateCategoryForm() {
             helperText={`Upload a category slider image (${MAX_IMAGE_WIDTH} × ${MAX_IMAGE_HEIGHT} px, Max size: 5MB). Supported formats: PNG, JPG, JPEG, WebP`}
           />
         </Box>
+
+        {(selectedFile || logoValue) && (
+          <FormInputField
+            name="alt_text"
+            control={control}
+            label="Alt Text"
+            type="text"
+          />
+        )}
 
         <div className="mt-6">
           <FormInputField
