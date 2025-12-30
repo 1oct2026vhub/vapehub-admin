@@ -5,6 +5,7 @@ export interface ShopByCategory {
   id: number;
   category_id?: number;
   image_url?: string;
+  alt_text?: string;
   status?: boolean | string;
   order?: number;
   createdAt: string;
@@ -42,6 +43,7 @@ export const listShopByCategory = (params: FetchShopByCategoryParams = {}): Prom
 export interface CreateShopByCategoryPayload {
   category_id: number;
   image: File;
+  alt_text?: string;
   status?: boolean;
   order?: number;
 }
@@ -49,6 +51,7 @@ export interface CreateShopByCategoryPayload {
 export interface UpdateShopByCategoryPayload {
   category_id?: number;
   image?: File | null;
+  alt_text?: string;
   status?: boolean;
   order?: number;
 }
@@ -57,6 +60,9 @@ export const createShopByCategory = async (payload: CreateShopByCategoryPayload)
   const formData = new FormData();
   formData.append('category_id', payload.category_id.toString());
   formData.append('image', payload.image);
+  if (payload.alt_text) {
+    formData.append('alt_text', payload.alt_text);
+  }
   if (payload.status !== undefined) {
     formData.append('status', payload.status.toString());
   }
@@ -80,6 +86,9 @@ export const updateShopByCategory = async (id: number, payload: UpdateShopByCate
   }
   if (payload.image instanceof File) {
     formData.append('image', payload.image);
+  }
+  if (payload.alt_text !== undefined) {
+    formData.append('alt_text', payload.alt_text);
   }
   if (payload.status !== undefined) {
     formData.append('status', payload.status.toString());

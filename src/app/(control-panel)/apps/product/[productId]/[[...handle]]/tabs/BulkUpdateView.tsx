@@ -19,6 +19,7 @@ import {
   uploadVariantImages,
   setVariantPrimaryImage,
   deleteVariantImage,
+  updateVariantImageAltText,
   UpdateProductVariantRequest,
   getProductVariants
 } from '@/services/apiProduct';
@@ -838,6 +839,14 @@ const BulkUpdateView: React.FC<BulkUpdateViewProps> = ({
     if (!selectedVariantForEdit || !productId) return;
 
     try {
+      // Call API to update alt text
+      await updateVariantImageAltText(
+        productId,
+        selectedVariantForEdit.id,
+        imageId,
+        { alt_text: altText }
+      );
+
       // Update local state
       setVariants(prev => prev.map(variant => {
         if (variant.id === selectedVariantForEdit.id) {
@@ -849,18 +858,10 @@ const BulkUpdateView: React.FC<BulkUpdateViewProps> = ({
         return variant;
       }));
 
-      // Update selectedVariantForEdit state
-      if (selectedVariantForEdit) {
-        setSelectedVariantForEdit(prev => {
-          if (!prev || prev.id !== selectedVariantForEdit.id) return prev;
-          const updatedImages = prev.variantImages.map(img => 
-            img.id === imageId ? { ...img, alt_text: altText } : img
-          );
-          return { ...prev, variantImages: updatedImages };
-        });
-      }
+      showSnackbar("Alt text updated successfully", "success");
     } catch (error) {
-      console.error("Error updating alt_text in local state:", error);
+      console.error("Error updating alt_text:", error);
+      showSnackbar("Failed to update alt text", "error");
     }
   };
 

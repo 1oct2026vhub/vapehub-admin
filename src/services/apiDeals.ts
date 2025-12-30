@@ -35,6 +35,7 @@ export interface Deal {
   updatedAt: string;
   products: ProductInDeal[];
   image_url?: string;
+  alt_text?: string;
 }
 
 
@@ -90,6 +91,7 @@ export interface DealFormData {
   bundle_product_ids_json?: number[] | null;
   description?: string | null;
   image?: File | null | string;
+  alt_text?: string;
   // Banner fields
   bannerImage?: File | string | null | undefined;
   bannerAlt?: string;

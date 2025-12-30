@@ -1053,7 +1053,8 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
         const processedImages: VariantImage[] = newImages.map((img: any) => ({
           id: Number(img.id || img.image_id),
           image_url: img.image_url || img.url || img.image_url,
-          is_primary: !!img.is_primary
+          is_primary: !!img.is_primary,
+          alt_text: img.alt_text || ''
         }));
         
         if (processedImages.length === 0) {
@@ -1559,7 +1560,8 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
               ? apiVariant.variantImages.map((img: any) => ({
                   id: img.id,
                   image_url: img.image_url,
-                  is_primary: img.is_primary
+                  is_primary: img.is_primary,
+                  alt_text: img.alt_text || ''
                 }))
               : [],
             errors: {}
@@ -1700,7 +1702,8 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
       const processedImages: VariantImage[] = newImagesFromAPI.map((img: any) => ({
         id: Number(img.id || img.image_id),
         image_url: img.image_url || img.url || img.image_url,
-        is_primary: !!img.is_primary
+        is_primary: !!img.is_primary,
+        alt_text: img.alt_text || ''
       }));
 
       if (processedImages.length > 0) {

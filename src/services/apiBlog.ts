@@ -9,6 +9,7 @@ export interface BlogPost {
   slug: string;
   image?: string;
   image_url?: string;
+  alt_text?: string;
   published_at?: string;
   is_active: boolean;
   status?: string;
@@ -30,6 +31,7 @@ export interface BlogCategory {
   slug: string;
   description?: string;
   image_url?: string;
+  alt_text?: string;
   parent_id?: number;
   parent?: string;
   children?: string[];

@@ -186,8 +186,12 @@ const VariantDetailsForm: React.FC<VariantDetailsFormProps> = ({
 
   // Handle opening edit alt_text dialog
   const handleEditAltText = (image: VariantImage) => {
-    const defaultAltText = image.alt_text || selectedVariant?.slug || '';
-    setEditingImage(image);
+    // Get the latest image data from selectedVariant.variantImages to ensure we have the most up-to-date alt_text
+    // This ensures that after editing, when reopening the dialog, it shows the updated alt_text
+    const latestImage = selectedVariant?.variantImages?.find(img => img.id === image.id) || image;
+    // Use alt_text from variant image if it exists, otherwise fall back to variant slug
+    const defaultAltText = latestImage.alt_text || selectedVariant?.slug || '';
+    setEditingImage(latestImage);
     setEditAltText(defaultAltText);
     setEditDialogOpen(true);
   };
