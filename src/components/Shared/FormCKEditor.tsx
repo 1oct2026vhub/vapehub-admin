@@ -784,6 +784,7 @@ const FormCKEditor = ({
       editableElement.style.paddingLeft = '0';
       editableElement.style.marginLeft = '0';
       editableElement.style.overflowY = 'auto';
+      editableElement.style.overflowX = 'auto';
       editableElement.style.height = '300px';
       editableElement.style.minHeight = '300px';
       editableElement.style.maxHeight = '300px';
@@ -1004,6 +1005,112 @@ const FormCKEditor = ({
         }
         .ck-content p:empty {
           min-height: 1em !important;
+        }
+        /* Table styles for proper display */
+        .ck-content table {
+          display: table !important;
+          width: 100% !important;
+          max-width: 100% !important;
+          border-collapse: collapse !important;
+          border-spacing: 0 !important;
+          margin: 1em 0 !important;
+          table-layout: fixed !important;
+        }
+        .ck-content table td,
+        .ck-content table th {
+          display: table-cell !important;
+          padding: 8px 12px !important;
+          border: 1px solid #ddd !important;
+          text-align: left !important;
+          vertical-align: top !important;
+          word-wrap: break-word !important;
+          overflow-wrap: break-word !important;
+          word-break: normal !important;
+          white-space: normal !important;
+          writing-mode: horizontal-tb !important;
+          text-orientation: mixed !important;
+          min-width: 100px !important;
+          width: auto !important;
+          max-width: none !important;
+        }
+        /* Prevent vertical text breaking in table cells */
+        .ck-content table td *,
+        .ck-content table th * {
+          writing-mode: horizontal-tb !important;
+          text-orientation: mixed !important;
+          white-space: normal !important;
+          word-break: normal !important;
+          display: inline !important;
+        }
+        .ck-content table th {
+          font-weight: 600 !important;
+          background-color: #f5f5f5 !important;
+        }
+        .ck-content table tbody tr {
+          display: table-row !important;
+        }
+        .ck-content table thead {
+          display: table-header-group !important;
+        }
+        .ck-content table tbody {
+          display: table-row-group !important;
+        }
+        .ck-content table tfoot {
+          display: table-footer-group !important;
+        }
+        /* Ensure table wrapper allows horizontal scroll if needed */
+        .ck-editor .ck-editor__editable {
+          overflow-x: auto !important;
+        }
+        /* Fix for table column resize */
+        .ck-content .table {
+          width: 100% !important;
+          max-width: 100% !important;
+        }
+        /* Table wrapper to ensure proper scrolling */
+        .ck-editor__editable .table-wrapper {
+          width: 100% !important;
+          overflow-x: auto !important;
+          margin: 1em 0 !important;
+        }
+        /* Ensure table cells don't break layout */
+        .ck-content table tr {
+          page-break-inside: avoid !important;
+        }
+        /* Better table appearance */
+        .ck-content table {
+          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
+        }
+        /* Force horizontal text flow in all table elements */
+        .ck-content table,
+        .ck-content table * {
+          writing-mode: horizontal-tb !important;
+          direction: ltr !important;
+        }
+        /* Ensure table cells don't force vertical layout */
+        .ck-content table td,
+        .ck-content table th {
+          unicode-bidi: embed !important;
+          direction: ltr !important;
+        }
+        /* Prevent any vertical text rendering */
+        .ck-content table td span,
+        .ck-content table th span,
+        .ck-content table td p,
+        .ck-content table th p,
+        .ck-content table td div,
+        .ck-content table th div {
+          writing-mode: horizontal-tb !important;
+          text-orientation: mixed !important;
+          display: inline-block !important;
+          width: auto !important;
+          max-width: 100% !important;
+        }
+        /* Ensure table columns have adequate width */
+        .ck-content table colgroup,
+        .ck-content table col {
+          width: auto !important;
+          min-width: 100px !important;
         }
       `}</style>
       
