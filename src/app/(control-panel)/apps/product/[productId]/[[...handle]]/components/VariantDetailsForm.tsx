@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Control, Controller, UseFormHandleSubmit, FieldErrors, SubmitHandler, UseFormGetValues, UseFormSetValue } from 'react-hook-form';
-import { Paper, Select, MenuItem, FormControl, InputLabel, FormHelperText, Typography, Button as MuiButton, Box as MuiBox } from '@mui/material';
+import { Paper, Select, MenuItem, FormControl, InputLabel, FormHelperText, Typography, Button as MuiButton, Box as MuiBox, Dialog, DialogTitle, DialogContent, DialogActions, TextField, Button } from '@mui/material';
 import { DropzoneRootProps, DropzoneInputProps } from 'react-dropzone';
 import AppButton from '@/components/Shared/AppButton';
 import FormTextField from '@/components/Shared/FormTextField';
@@ -8,14 +8,17 @@ import FormCKEditor from '@/components/Shared/FormCKEditor';
 import FuseLoading from '@fuse/core/FuseLoading';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import DeleteIcon from '@mui/icons-material/Delete';
+import EditIcon from '@mui/icons-material/Edit';
 import IconButton from '@mui/material/IconButton';
 import { Add as AddIcon } from "@mui/icons-material";
+import { updateVariantImageAltText } from '@/services/apiProduct';
 
 // Assuming these types might be moved or refined
 export interface VariantImage {
   id: number;
   image_url: string;
   is_primary: boolean;
+  alt_text?: string;
   validationError?: string;
 }
 // Define constants for validation
@@ -142,6 +145,8 @@ interface VariantDetailsFormProps {
   setValue?: UseFormSetValue<VariantFormData>;
   showSnackbar?: (message: string, severity: 'success' | 'error' | 'warning' | 'info') => void;
   productSlug?: string; // Product slug for "Same as slug" button
+  productId?: string | number; // Product ID for alt_text API calls
+  variantId?: string | number; // Variant ID for alt_text API calls
 
   // Image handling props
   imageGetRootProps: (props?: any) => DropzoneRootProps;
@@ -150,6 +155,7 @@ interface VariantDetailsFormProps {
   isImageUploading: boolean; 
   onSetPrimaryImage: (imageId: number) => void;
   onDeleteImage: (imageId: number) => void;
+  onUpdateImageAltText?: (imageId: number, altText: string) => void; // Optional callback for parent to handle alt_text updates
 }
 
 const VariantDetailsForm: React.FC<VariantDetailsFormProps> = ({
@@ -162,13 +168,68 @@ const VariantDetailsForm: React.FC<VariantDetailsFormProps> = ({
   setValue,
   showSnackbar,
   productSlug,
+  productId,
+  variantId,
   imageGetRootProps,
   imageGetInputProps,
   isImageDragActive,
   isImageUploading,
   onSetPrimaryImage,
   onDeleteImage,
+  onUpdateImageAltText,
 }) => {
+  // State for alt_text edit dialog
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editingImage, setEditingImage] = useState<VariantImage | null>(null);
+  const [editAltText, setEditAltText] = useState<string>('');
+  const [isUpdatingAltText, setIsUpdatingAltText] = useState(false);
+
+  // Handle opening edit alt_text dialog
+  const handleEditAltText = (image: VariantImage) => {
+    const defaultAltText = image.alt_text || selectedVariant?.slug || '';
+    setEditingImage(image);
+    setEditAltText(defaultAltText);
+    setEditDialogOpen(true);
+  };
+
+  // Handle closing edit dialog
+  const handleCloseEditDialog = () => {
+    setEditDialogOpen(false);
+    setEditingImage(null);
+    setEditAltText('');
+  };
+
+  // Handle updating alt_text
+  const handleUpdateAltText = async () => {
+    if (!editingImage || !productId || !variantId) {
+      return;
+    }
+
+    setIsUpdatingAltText(true);
+    try {
+      // Update on server
+      await updateVariantImageAltText(productId, variantId, editingImage.id, { 
+        alt_text: editAltText 
+      });
+
+      // If parent provided callback, use it; otherwise just show success
+      if (onUpdateImageAltText) {
+        onUpdateImageAltText(editingImage.id, editAltText);
+      }
+
+      if (showSnackbar) {
+        showSnackbar("Alt text updated successfully", "success");
+      }
+      handleCloseEditDialog();
+    } catch (error: any) {
+      console.error("Error updating alt_text:", error);
+      if (showSnackbar) {
+        showSnackbar(error?.message || "Failed to update alt text", "error");
+      }
+    } finally {
+      setIsUpdatingAltText(false);
+    }
+  };
 
   
   return (
@@ -303,7 +364,7 @@ const VariantDetailsForm: React.FC<VariantDetailsFormProps> = ({
                 <div key={image.id} className="relative border rounded p-1">
                   <img 
                     src={image.image_url} 
-                    alt={`Variant ${selectedVariant.id}`}
+                    alt={image.alt_text || selectedVariant?.slug || `Variant ${selectedVariant.id}`}
                     className="w-full h-24 object-contain" 
                   />
                   <div className="absolute top-1 right-1">
@@ -333,6 +394,40 @@ const VariantDetailsForm: React.FC<VariantDetailsFormProps> = ({
                         {image.validationError}
                       </div>
                     )}
+                    {/* Alt Text Display with Edit Button */}
+                    <MuiBox 
+                      sx={{ 
+                        mt: 1, 
+                        width: '100%', 
+                        maxWidth: '100%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 0.5,
+                        cursor: 'pointer',
+                        '&:hover': {
+                          backgroundColor: 'rgba(0, 0, 0, 0.04)',
+                        },
+                        padding: '4px 8px',
+                        borderRadius: '4px',
+                      }}
+                      onClick={() => handleEditAltText(image)}
+                    >
+                      <Typography 
+                        variant="caption" 
+                        sx={{ 
+                          flex: 1,
+                          fontSize: '0.7rem',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                          color: 'text.secondary',
+                        }}
+                        title={image.alt_text || selectedVariant?.slug || 'Click to edit alt text'}
+                      >
+                        {image.alt_text || selectedVariant?.slug || 'Click to edit alt text'}
+                      </Typography>
+                      <EditIcon sx={{ fontSize: '0.9rem', color: 'text.secondary' }} />
+                    </MuiBox>
                 </div>
               ))}
             </div>
@@ -380,6 +475,46 @@ const VariantDetailsForm: React.FC<VariantDetailsFormProps> = ({
           </div>
         </div>
       )}
+
+      {/* Edit Alt Text Dialog */}
+      <Dialog 
+        open={editDialogOpen} 
+        onClose={handleCloseEditDialog}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Edit Alt Text</DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            margin="dense"
+            label="Alt Text"
+            fullWidth
+            variant="outlined"
+            value={editAltText}
+            onChange={(e) => setEditAltText(e.target.value)}
+            placeholder={selectedVariant?.slug || "Enter alt text"}
+            helperText="Alt text helps with accessibility and SEO. If left empty, variant slug will be used."
+            sx={{ mt: 2 }}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseEditDialog} disabled={isUpdatingAltText}>
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleUpdateAltText} 
+            variant="contained"
+            disabled={isUpdatingAltText}
+            sx={{ 
+              bgcolor: '#2E9970',
+              '&:hover': { bgcolor: '#1E7A56' }
+            }}
+          >
+            {isUpdatingAltText ? 'Updating...' : 'Update'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Paper>
   );
 };

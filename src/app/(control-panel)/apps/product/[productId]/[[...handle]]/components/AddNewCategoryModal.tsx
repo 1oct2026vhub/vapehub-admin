@@ -76,6 +76,7 @@ const categorySchema = z.object({
       "Slug must be a valid URL-friendly string (lowercase letters, numbers, and hyphens only)"
     ),
   description: z.string().optional(),
+  alt_text: z.string().optional(),
   logo: z
     .union([
       z.undefined(),
@@ -114,6 +115,7 @@ const defaultValues: CategoryFormData = {
   name: "",
   slug: "",
   description: "",
+  alt_text: "",
   logo: null,
   parent_id: null,
 };
@@ -172,6 +174,9 @@ function AddNewCategoryModal({
       formDataObj.append("slug", formData.slug.toLowerCase());
       if (formData.description) {
         formDataObj.append("description", formData.description);
+      }
+      if (formData.alt_text) {
+        formDataObj.append("alt_text", formData.alt_text);
       }
       if (selectedFile instanceof File) {
         formDataObj.append("logo", selectedFile, selectedFile.name);
@@ -268,6 +273,16 @@ function AddNewCategoryModal({
                     helperText={`Upload a category image (${MAX_IMAGE_WIDTH}×${MAX_IMAGE_HEIGHT} px, Max size: 5MB). Supported formats: PNG, JPG, JPEG, WebP`}
                 />
             </Grid>
+            {(selectedFile || watch("logo")) && (
+              <Grid item xs={12}>
+                <FormInputField
+                  name="alt_text"
+                  control={control}
+                  label="Alt Text"
+                  type="text"
+                />
+              </Grid>
+            )}
             <Grid item xs={12}>
               <FormInputField
                 name="parent_id"
