@@ -80,6 +80,7 @@ const categorySchema = z.object({
       "Slug must be in valid format (lowercase letters, numbers, and hyphens)"
     ),
   description: z.string().optional(),
+  alt_text: z.string().optional(),
   parent_id: z.preprocess(
     (val) => {
       if (val === null || val === undefined || val === "") return null;
@@ -148,6 +149,7 @@ export default function CreateBlogCategory() {
       name: "",
       slug: "",
       description: "",
+      alt_text: "",
       parent_id: null,
       status: "active",
       show_home_page: false,
@@ -187,6 +189,11 @@ export default function CreateBlogCategory() {
       // Add description if present
       if (data.description) {
         formData.append("description", data.description);
+      }
+      
+      // Add alt_text if present
+      if (data.alt_text) {
+        formData.append("alt_text", data.alt_text);
       }
       
       // Handle parent_id - send empty string when None is selected (backend should parse as null)
@@ -359,6 +366,16 @@ export default function CreateBlogCategory() {
                       helperText="Recommended size: 450 × 450 px. Supported formats: PNG, JPG, JPEG, WebP"
                     />
                   </Grid>
+
+                  {selectedFile && (
+                    <Grid item xs={12}>
+                      <FormInputField
+                        name="alt_text"
+                        control={control}
+                        label="Alt Text"
+                      />
+                    </Grid>
+                  )}
 
                   <Grid item xs={12}>
                     <Box

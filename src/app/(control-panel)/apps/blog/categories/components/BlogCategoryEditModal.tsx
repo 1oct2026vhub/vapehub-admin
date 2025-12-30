@@ -38,6 +38,7 @@ const categorySchema = z.object({
       "Slug must be in valid format (lowercase letters, numbers, and hyphens)"
     ),
   description: z.string().optional(),
+  alt_text: z.string().optional(),
   parent_id: z.preprocess(
     (val) => {
       if (val === null || val === undefined || val === "") return null;
@@ -77,6 +78,7 @@ export default function BlogCategoryEditModal({
       name: category?.name || "",
       slug: category?.slug || "",
       description: category?.description || "",
+      alt_text: (category as any)?.alt_text || "",
       parent_id: category?.parent_id || null,
       status: category?.status || "active",
     },
@@ -92,6 +94,7 @@ export default function BlogCategoryEditModal({
         name: category.name,
         slug: category.slug,
         description: category.description || "",
+        alt_text: (category as any).alt_text || "",
         parent_id: category.parent_id || null,
         status: category.status || "active",
       });
@@ -100,6 +103,7 @@ export default function BlogCategoryEditModal({
         name: "",
         slug: "",
         description: "",
+        alt_text: "",
         parent_id: null,
         status: "active",
       });
@@ -140,6 +144,10 @@ export default function BlogCategoryEditModal({
           formData.append("description", data.description);
         }
 
+        if (data.alt_text) {
+          formData.append("alt_text", data.alt_text);
+        }
+
         // Convert parent_id to a JSON string and set special header
         if (data.parent_id !== null && data.parent_id !== undefined) {
           formData.append("parent_id", Number(data.parent_id).toString());
@@ -167,6 +175,10 @@ export default function BlogCategoryEditModal({
         
         if (data.description) {
           jsonData.description = data.description;
+        }
+        
+        if (data.alt_text) {
+          jsonData.alt_text = data.alt_text;
         }
         
         if (data.parent_id !== null && data.parent_id !== undefined) {
@@ -277,6 +289,14 @@ export default function BlogCategoryEditModal({
                 helperText="Upload a category image (PNG, JPG, JPEG, WebP)"
                 defaultImage={category?.image_url}
               />
+
+              {(selectedFile || category?.image_url) && (
+                <FormInputField
+                  name="alt_text"
+                  control={methods.control}
+                  label="Alt Text"
+                />
+              )}
 
               <FormControl fullWidth sx={{ mb: 3 }}>
                 <InputLabel id="status-label">Status</InputLabel>
