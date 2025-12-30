@@ -31,6 +31,7 @@ const ACCEPTED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/jpg', 'image/web
 const bannerFormSchema = z.object({
   title: z.string().min(1, 'Title is required').max(100, 'Title must be 100 characters or less'),
   description: z.string().max(500, 'Description must be 500 characters or less').optional(),
+  alt_text: z.string().optional(),
   status: z.enum(['active', 'inactive'], { required_error: 'Status is required' }),
   redirect_url: z.string().url('Invalid URL format').optional().or(z.literal('')),
   display_order: z.coerce.number().int().min(0, 'Display order must be 0 or greater').optional(),
@@ -89,10 +90,14 @@ const CreateBannerForm: React.FC = () => {
     defaultValues: {
       title: '',
       description: '',
+      alt_text: '',
       status: 'active',
       redirect_url: '',
     },
   });
+
+  const imageValue = watch("image");
+  const imageLowValue = watch("image_low");
 
   const onSubmit = async (data: BannerFormValues) => {
     setIsSubmitting(true);
@@ -103,6 +108,7 @@ const CreateBannerForm: React.FC = () => {
         image: data.image,
         image_low: data.image_low,
         description: data.description,
+        alt_text: data.alt_text,
         redirect_url: data.redirect_url,
       };
       await createBanner(payload);
@@ -194,6 +200,16 @@ const CreateBannerForm: React.FC = () => {
               required
             />
           </Grid>
+
+          {(imageValue instanceof File) && (
+            <Grid item xs={12}>
+              <FormTextField<BannerFormValues>
+                name="alt_text"
+                control={control}
+                label="Alt Text (Optional)"
+              />
+            </Grid>
+          )}
 
           <Grid item xs={12} sx={{ mt: 1 }}>
              <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'medium' }}>Mobile Banner Image</Typography>
