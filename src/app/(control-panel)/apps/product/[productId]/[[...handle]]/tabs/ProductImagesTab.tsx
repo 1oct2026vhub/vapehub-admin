@@ -9,6 +9,7 @@ import {
   getProduct,
   updatePrimaryImage,
   deleteProductImage,
+  updateProductImageAltText,
 } from "@/services/apiProduct";
 import { useProductForm } from "../ProductFormContext";
 import AppButton from "@/components/Shared/AppButton";
@@ -20,9 +21,15 @@ import {
   Box,
   IconButton,
   CircularProgress,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+  Button,
 } from "@mui/material";
 import BrokenImageIcon from "@mui/icons-material/BrokenImage";
-import { Delete as DeleteIcon, Add as AddIcon } from "@mui/icons-material";
+import { Delete as DeleteIcon, Add as AddIcon, Edit as EditIcon } from "@mui/icons-material";
 import FuseLoading from "@fuse/core/FuseLoading";
 
 // Define constants for validation
@@ -35,6 +42,7 @@ interface ProductImage {
   id: number | string;
   url: string;
   is_primary: boolean;
+  alt_text?: string;
   isUploading?: boolean;
   validationError?: string;
   isTemp?: boolean;
@@ -56,6 +64,7 @@ const mapApiImageToProductImage = (apiImage: any): ProductImage => {
     id: apiImage.id,
     url: apiImage.image_url,
     is_primary: apiImage.is_primary,
+    alt_text: apiImage.alt_text || '',
   };
 };
 
@@ -97,7 +106,8 @@ function getFormattedProductImages(images: ProductImage[]) {
     .map(img => ({
       id: Number(img.id),
       url: img.url,
-      is_primary: img.is_primary
+      is_primary: img.is_primary,
+      alt_text: img.alt_text || ''
     }));
 }
 
@@ -105,6 +115,11 @@ function ProductImagesTab() {
   const [files, setFiles] = useState<NewFile[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [uploadedImages, setUploadedImages] = useState<ProductImage[]>([]);
+  const [productName, setProductName] = useState<string>('');
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editingImage, setEditingImage] = useState<ProductImage | null>(null);
+  const [editAltText, setEditAltText] = useState<string>('');
+  const [isUpdatingAltText, setIsUpdatingAltText] = useState(false);
   const { showSnackbar } = useSnackbar();
   const { formData, updateFormData, nextStep, previousStep } = useProductForm();
   const router = useRouter();
@@ -139,6 +154,13 @@ function ProductImagesTab() {
     setIsLoading(true);
     try {
       const response = await getProduct(Number(productId));
+
+      // Get product name from response
+      if (response?.data?.name) {
+        setProductName(response.data.name);
+      } else if (formData.name) {
+        setProductName(formData.name);
+      }
 
       if (
         response?.data?.ProductImages &&
@@ -524,6 +546,69 @@ function ProductImagesTab() {
     }
   };
 
+  // Handle opening edit alt_text dialog
+  const handleEditAltText = (image: ProductImage) => {
+    const defaultAltText = image.alt_text || productName || '';
+    setEditingImage(image);
+    setEditAltText(defaultAltText);
+    setEditDialogOpen(true);
+  };
+
+  // Handle closing edit dialog
+  const handleCloseEditDialog = () => {
+    setEditDialogOpen(false);
+    setEditingImage(null);
+    setEditAltText('');
+  };
+
+  // Handle updating alt_text
+  const handleUpdateAltText = async () => {
+    if (!editingImage || !productId) {
+      return;
+    }
+
+    // Check if this is a temporary image
+    const isTemp = typeof editingImage.id === 'string' && editingImage.id.startsWith('temp-');
+
+    if (isTemp) {
+      // For temp images, just update local state
+      setUploadedImages(prev => prev.map(img => 
+        img.id === editingImage.id ? { ...img, alt_text: editAltText } : img
+      ));
+      handleCloseEditDialog();
+      return;
+    }
+
+    setIsUpdatingAltText(true);
+    try {
+      // Update on server
+      await updateProductImageAltText(Number(productId), editingImage.id as number, { 
+        alt_text: editAltText 
+      });
+
+      // Update local state
+      setUploadedImages(prev => prev.map(img => 
+        img.id === editingImage.id ? { ...img, alt_text: editAltText } : img
+      ));
+
+      // Update form context
+      const updatedImages = uploadedImages.map(img => 
+        img.id === editingImage.id ? { ...img, alt_text: editAltText } : img
+      );
+      updateFormData({
+        productImages: getFormattedProductImages(updatedImages),
+      });
+
+      showSnackbar("Alt text updated successfully", "success");
+      handleCloseEditDialog();
+    } catch (error: any) {
+      console.error("Error updating alt_text:", error);
+      showSnackbar(error?.message || "Failed to update alt text", "error");
+    } finally {
+      setIsUpdatingAltText(false);
+    }
+  };
+
   // Handle deleting an image
   const handleDeleteImage = async (imageId: number | string) => {
     if (!productId) {
@@ -695,7 +780,7 @@ function ProductImagesTab() {
                       <div className="w-full h-full flex items-center justify-center">
                         <ImageWithFallback
                           src={image.url}
-                          alt={`Product image ${image.id}`}
+                          alt={image.alt_text || productName || `Product image ${image.id}`}
                         />
                       </div>
                       <div className="absolute top-1 left-1 bg-white/90 px-1 py-0.5 rounded">
@@ -741,6 +826,41 @@ function ProductImagesTab() {
                         {image.validationError}
                       </div>
                     )}
+                    
+                    {/* Alt Text Display with Edit Button */}
+                    <Box 
+                      sx={{ 
+                        mt: 1, 
+                        width: '100%', 
+                        maxWidth: '150px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 0.5,
+                        cursor: 'pointer',
+                        '&:hover': {
+                          backgroundColor: 'rgba(0, 0, 0, 0.04)',
+                        },
+                        padding: '4px 8px',
+                        borderRadius: '4px',
+                      }}
+                      onClick={() => handleEditAltText(image)}
+                    >
+                      <Typography 
+                        variant="caption" 
+                        sx={{ 
+                          flex: 1,
+                          fontSize: '0.7rem',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                          color: 'text.secondary',
+                        }}
+                        title={image.alt_text || productName || 'Click to edit alt text'}
+                      >
+                        {image.alt_text || productName || 'Click to edit alt text'}
+                      </Typography>
+                      <EditIcon sx={{ fontSize: '0.9rem', color: 'text.secondary' }} />
+                    </Box>
                   </div>
                 ))}
               </div>
@@ -769,6 +889,46 @@ function ProductImagesTab() {
           </div>
         </>
       )}
+
+      {/* Edit Alt Text Dialog */}
+      <Dialog 
+        open={editDialogOpen} 
+        onClose={handleCloseEditDialog}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Edit Alt Text</DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            margin="dense"
+            label="Alt Text"
+            fullWidth
+            variant="outlined"
+            value={editAltText}
+            onChange={(e) => setEditAltText(e.target.value)}
+            placeholder={productName || "Enter alt text"}
+            helperText="Alt text helps with accessibility and SEO. If left empty, product name will be used."
+            sx={{ mt: 2 }}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseEditDialog} disabled={isUpdatingAltText}>
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleUpdateAltText} 
+            variant="contained"
+            disabled={isUpdatingAltText}
+            sx={{ 
+              bgcolor: '#2E9970',
+              '&:hover': { bgcolor: '#1E7A56' }
+            }}
+          >
+            {isUpdatingAltText ? 'Updating...' : 'Update'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </div>
   );
 }

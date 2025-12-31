@@ -333,6 +333,18 @@ export const deleteProductImage = async (
   return response.data;
 };
 
+export const updateProductImageAltText = async (
+  productId: number,
+  imageId: number,
+  data: { alt_text?: string }
+) => {
+  const response = await axiosInstance.put(
+    `/api/admin/products/${productId}/image/${imageId}/alt-text`,
+    data
+  );
+  return response.data;
+};
+
 export const deleteProductAttributeTerm = async (
   productId: number,
   attributeTermId: number
@@ -426,6 +438,25 @@ export const setVariantPrimaryImage = async (
     return data;
   } catch (error) {
     console.error("Error setting primary variant image:", error);
+    throw error;
+  }
+};
+
+// Update variant image alt text
+export const updateVariantImageAltText = async (
+  productId: string | number,
+  variantId: string | number,
+  imageId: string | number,
+  data: { alt_text?: string }
+): Promise<any> => {
+  try {
+    const { data: response } = await axiosInstance.put(
+      `/api/admin/product-variants/product/${productId}/variants/${variantId}/images/${imageId}/alt-text`,
+      data
+    );
+    return response;
+  } catch (error) {
+    console.error("Error updating variant image alt text:", error);
     throw error;
   }
 };

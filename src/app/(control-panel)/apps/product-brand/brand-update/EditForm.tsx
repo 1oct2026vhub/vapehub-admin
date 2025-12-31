@@ -130,6 +130,7 @@ const schema = z.object({
       "Slug must be a valid URL-friendly string (lowercase letters, numbers, and hyphens only)"
     ),
   description: z.string().optional(),
+  alt_text: z.string().optional(),
   logo: z
     .union([
       z.undefined(),
@@ -169,6 +170,7 @@ const defaultValues: InferredSchemaType = {
   name: "",
   slug: "",
   description: "",
+  alt_text: "",
   logo: undefined,
 };
 
@@ -176,6 +178,7 @@ export type FormType = {
   name: string;
   slug: string;
   description?: string;
+  alt_text?: string;
   logo?: File | string | null | undefined;
   logo_url?: string;
   banner?: {
@@ -266,6 +269,7 @@ const EditBrandForm = ({ brand: initialBrand }: { brand: FormType | null }) => {
       setValue("name", initialBrand.name);
       setValue("slug", initialBrand.slug);
       setValue("description", initialBrand.description || "");
+      setValue("alt_text", initialBrand.alt_text || "");
       if (initialBrand.logo_url) {
         setValue("logo", initialBrand.logo_url as LogoFieldValue);
       } else {
@@ -285,6 +289,9 @@ const EditBrandForm = ({ brand: initialBrand }: { brand: FormType | null }) => {
       formDataObj.append("slug", formData.slug.toLowerCase().replace(/\s+/g, "-"));
       if (formData.description) {
         formDataObj.append("description", formData.description);
+      }
+      if (formData.alt_text) {
+        formDataObj.append("alt_text", formData.alt_text);
       }
       if (selectedFile instanceof File) {
         formDataObj.append("logo", selectedFile);
@@ -535,6 +542,16 @@ const EditBrandForm = ({ brand: initialBrand }: { brand: FormType | null }) => {
                       )}
                     </Grid>
                   </Box>
+
+                  {(selectedFile || (typeof logoValue === 'string' && logoValue) || initialBrand?.logo_url || brandRef.current?.logo_url) && (
+                    <FormInputField
+                      name="alt_text"
+                      control={control}
+                      label="Alt Text"
+                      type="text"
+                    />
+                  )}
+
                   <AppButton
                     label="Update Brand Details"
                     loading={isLoading} // Use top-level isLoading for form submission

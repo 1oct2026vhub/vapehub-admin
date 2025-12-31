@@ -63,6 +63,8 @@ export interface CreateBannerPayload {
   image: File;
   image_low: File;
   description?: string;
+  alt_text?: string;
+  alt_text_mobile?: string;
   redirect_url?: string;
   display_order?: number; // Optional, as API docs for POST don't specify it
 }
@@ -79,6 +81,12 @@ export const createBanner = async (payload: CreateBannerPayload): Promise<Banner
   formData.append('image_low', payload.image_low);
   if (payload.description) {
     formData.append('description', payload.description);
+  }
+  if (payload.alt_text) {
+    formData.append('alt_text', payload.alt_text);
+  }
+  if (payload.alt_text_mobile) {
+    formData.append('alt_text_mobile', payload.alt_text_mobile);
   }
   if (payload.redirect_url) {
     formData.append('redirect_url', payload.redirect_url);
@@ -117,6 +125,8 @@ export interface UpdateBannerPayload {
   image?: File | null; // File for new image, null/undefined if not changing
   image_low?: File | null; // File for new image, null/undefined if not changing
   description?: string;
+  alt_text?: string;
+  alt_text_mobile?: string;
   redirect_url?: string;
   display_order?: number;
 }
@@ -155,6 +165,8 @@ export const updateBanner = async (id: number, payload: UpdateBannerPayload): Pr
   if (payload.title !== undefined) formData.append('title', payload.title);
   if (payload.status !== undefined) formData.append('status', payload.status);
   if (payload.description !== undefined) formData.append('description', payload.description);
+  if (payload.alt_text !== undefined) formData.append('alt_text', payload.alt_text);
+  if (payload.alt_text_mobile !== undefined) formData.append('alt_text_mobile', payload.alt_text_mobile);
   if (payload.redirect_url !== undefined) formData.append('redirect_url', payload.redirect_url);
   if (payload.display_order !== undefined) formData.append('display_order', payload.display_order.toString());
   

@@ -21,6 +21,7 @@ const MIN_SQUARE_DIMENSION = 500; // Minimum dimension for square image (500x500
 const welcomeSchema = z.object({
   title: z.string().min(1, 'Title is required'),
   content: z.string().min(1, 'Content is required'),
+  alt_text: z.string().optional(),
   image: z.any().optional().superRefine(async (value, ctx) => {
     // Image is optional, so if no value is provided, skip validation
     if (!value || value === null || value === undefined) {
@@ -55,11 +56,12 @@ const welcomeSchema = z.object({
 type WelcomeFormData = z.infer<typeof welcomeSchema>;
 
 const WelcomeForm: React.FC<{}> = () => {
-  const { control, handleSubmit, reset, setValue, formState: { errors } } = useForm<WelcomeFormData>({
+  const { control, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm<WelcomeFormData>({
     resolver: zodResolver(welcomeSchema),
     mode: 'onChange',
   });
   const { showSnackbar } = useSnackbar();
+  const imageValue = watch("image");
   const [welcomeContentId, setWelcomeContentId] = React.useState<number | null>(null);
   const [isDeletingImage, setIsDeletingImage] = React.useState(false);
   const [currentImageUrl, setCurrentImageUrl] = React.useState<string | undefined>();
@@ -79,6 +81,7 @@ const WelcomeForm: React.FC<{}> = () => {
           reset({
             title: content.title,
             content: content.content,
+            alt_text: (content as any).alt_text || '',
             image: content.image_url,
           });
         }
@@ -103,6 +106,9 @@ const WelcomeForm: React.FC<{}> = () => {
     const formData = new FormData();
     formData.append('title', data.title);
     formData.append('content', data.content);
+    if (data.alt_text) {
+      formData.append('alt_text', data.alt_text);
+    }
     if (data.image instanceof File) {
       formData.append('image', data.image);
     }
@@ -219,6 +225,15 @@ const WelcomeForm: React.FC<{}> = () => {
             </Box>
           )}
         </div>
+        {(currentImageUrl || (imageValue instanceof File)) && (
+          <div className="mb-4">
+            <FormTextField
+              name="alt_text"
+              control={control}
+              label="Alt Text (Optional)"
+            />
+          </div>
+        )}
         <div className="mb-4">
           <FormCKEditor
             name="content"

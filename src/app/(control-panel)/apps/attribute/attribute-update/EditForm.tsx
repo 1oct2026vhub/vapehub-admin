@@ -28,6 +28,7 @@ const schema = z.object({
     .max(50, "Slug must be at most 50 characters")
     .regex(/^[a-z0-9-]+$/, "Slug must be a valid URL-friendly string (lowercase letters, numbers, and hyphens only)"),
   description: z.string().optional(),
+  alt_text: z.string().optional(),
   type: z.string().min(1, "Type is required"),
   sort_order: z.string().min(1, "Sort order is required"),
   image: z
@@ -72,6 +73,7 @@ export type FormType = {
   name: string;
   slug: string;
   description?: string;
+  alt_text?: string;
   type: string;
   sort_order: string;
   image?: File | string | null;
@@ -81,6 +83,7 @@ const defaultValues: Partial<FormType> = {
   name: "",
   slug: "",
   description: "",
+  alt_text: "",
   type: "select",
   sort_order: "custom",
   image: undefined,
@@ -117,13 +120,14 @@ const EditAttributeForm = ({ attribute: initialAttributeData }: { attribute?: At
   // The API returns data directly, not nested under 'attribute'
   const attribute = fetchedAttribute?.data || initialAttributeData;
 
-  const { control, formState, handleSubmit, setValue, reset, setError } = useForm<FormType>({
+  const { control, formState, handleSubmit, setValue, reset, setError, watch } = useForm<FormType>({
     mode: "all",
     defaultValues,
     resolver: zodResolver(schema),
   });
 
   const { isValid, dirtyFields, errors } = formState;
+  const imageValue = watch("image");
 
   const { trigger: triggerUpdateAttribute, isMutating } = usePost(
     `updateAttribute-${id}`,
@@ -138,6 +142,7 @@ const EditAttributeForm = ({ attribute: initialAttributeData }: { attribute?: At
         name: attribute.name || "",
         slug: attribute.slug || "",
         description: attribute.description || "",
+        alt_text: (attribute as any).alt_text || "",
         type: attribute.type || "select",
         sort_order: attribute.sort_order?.toString() || "custom",
         image: defaultImageData,
@@ -166,6 +171,7 @@ const EditAttributeForm = ({ attribute: initialAttributeData }: { attribute?: At
     if (dirtyFields.name) dataToUpdate.name = formData.name;
     if (dirtyFields.slug) dataToUpdate.slug = formData.slug;
     if (dirtyFields.description || formData.description === '') dataToUpdate.description = formData.description;
+    if (dirtyFields.alt_text || formData.alt_text === '') dataToUpdate.alt_text = formData.alt_text;
     if (dirtyFields.type) dataToUpdate.type = formData.type;
     if (dirtyFields.sort_order) dataToUpdate.sort_order = formData.sort_order;
     
@@ -175,9 +181,10 @@ const EditAttributeForm = ({ attribute: initialAttributeData }: { attribute?: At
       // This case is handled by the separate DELETE API call via handleDeleteExistingImage
     }
 
-    const hasTextChanges = (dirtyFields.name || dirtyFields.slug || dirtyFields.description || dirtyFields.type || dirtyFields.sort_order);
+    const hasTextChanges = (dirtyFields.name || dirtyFields.slug || dirtyFields.description || dirtyFields.alt_text || dirtyFields.type || dirtyFields.sort_order);
+    const hasChanges = hasTextChanges || newImageFile || formData.image === null || Object.keys(dataToUpdate).length > 0;
 
-    if (!hasTextChanges && !newImageFile && formData.image !== null) {
+    if (!hasChanges) {
       showSnackbar("No changes detected.", "info");
       setIsLoading(false);
       return;
@@ -306,6 +313,15 @@ const EditAttributeForm = ({ attribute: initialAttributeData }: { attribute?: At
           helperText={`Upload an image for the attribute (max 5MB, ${REQUIRED_WIDTH}x${REQUIRED_HEIGHT}px).`}
           defaultImage={typeof control._getWatch("image") === 'string' ? control._getWatch("image") : undefined}
         />
+
+        {(imageValue instanceof File || (typeof imageValue === 'string' && imageValue) || newImageFile) && (
+          <FormInputField
+            name="alt_text"
+            control={control}
+            label="Alt Text"
+            type="text"
+          />
+        )}
 
         <AppButton
           label="Update"

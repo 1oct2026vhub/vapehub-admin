@@ -34,6 +34,7 @@ interface VariantImage {
   variant_id: number;
   image_url: string;
   is_primary: boolean;
+  alt_text?: string;
   isPreview?: boolean;
 }
 
@@ -85,7 +86,12 @@ const mapVariantForDisplayCard = (variant: GeneratedVariant) => ({
   regular_price: variant.regular_price,
   stock: variant.stock,
   status: variant.status,
-  variantImages: variant.variantImages?.map(img => ({ id: img.id, image_url: img.image_url, is_primary: img.is_primary })),
+  variantImages: variant.variantImages?.map(img => ({ 
+    id: img.id, 
+    image_url: img.image_url, 
+    is_primary: img.is_primary,
+    alt_text: img.alt_text || ''
+  })),
   variantAttributes: variant.variantAttributes.map(attr => ({
     id: attr.id, // or attr.term.id if more appropriate for key
     attribute_name: attr.attribute.name,
@@ -99,7 +105,12 @@ const mapVariantForDetailsForm = (variant: GeneratedVariant | null) => {
   return {
     id: variant.id,
     slug: variant.slug,
-    variantImages: variant.variantImages?.map(img => ({ id: img.id, image_url: img.image_url, is_primary: img.is_primary })),
+    variantImages: variant.variantImages?.map(img => ({ 
+      id: img.id, 
+      image_url: img.image_url, 
+      is_primary: img.is_primary,
+      alt_text: img.alt_text || ''
+    })),
   };
 };
 
@@ -570,6 +581,7 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
             variant_id: Number(variantId),
             image_url: imageUrl,
             is_primary: isPrimary,
+            alt_text: rawImg.alt_text || '',
             // NO isPreview flag here, these are persisted images
           };
         }).filter(img => img !== null) as VariantImage[];
@@ -799,6 +811,37 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
     }
   };
 
+  // Handle updating variant image alt_text
+  const handleUpdateImageAltText = async (imageId: number, altText: string) => {
+    if (!selectedVariant || !productId) return;
+
+    try {
+      // Update local state
+      setGeneratedVariants(prev => prev.map(variant => {
+        if (variant.id === selectedVariant.id) {
+          const updatedImages = variant.variantImages.map(img => 
+            img.id === imageId ? { ...img, alt_text: altText } : img
+          );
+          return { ...variant, variantImages: updatedImages };
+        }
+        return variant;
+      }));
+
+      // Update selectedVariant state
+      if (selectedVariant) {
+        setSelectedVariant(prev => {
+          if (!prev || prev.id !== selectedVariant.id) return prev;
+          const updatedImages = prev.variantImages.map(img => 
+            img.id === imageId ? { ...img, alt_text: altText } : img
+          );
+          return { ...prev, variantImages: updatedImages };
+        });
+      }
+    } catch (error) {
+      console.error("Error updating alt_text in local state:", error);
+    }
+  };
+
   const handleDeleteImage = async (imageId: number) => {
     if (!selectedVariant) return;
 
@@ -1010,7 +1053,12 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
             low_stock_threshold: variant.low_stock_threshold || null,
             stock_status: variant.stock_status || 'out_of_stock',
             status: variant.status || 'inactive',
-            variantImages: variant.variantImages || [],
+            variantImages: variant.variantImages?.map((img: any) => ({
+              id: img.id,
+              image_url: img.image_url,
+              is_primary: img.is_primary,
+              alt_text: img.alt_text || ''
+            })) || [],
             variantAttributes: variant.variantAttributes || []
           };
           
@@ -1555,6 +1603,9 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
                     setValue={setValue}
                     showSnackbar={showSnackbar}
                     productSlug={formData?.slug || ""}
+                    productId={productId}
+                    variantId={selectedVariant?.id}
+                    onUpdateImageAltText={handleUpdateImageAltText}
                   />
                 </div>
               )}

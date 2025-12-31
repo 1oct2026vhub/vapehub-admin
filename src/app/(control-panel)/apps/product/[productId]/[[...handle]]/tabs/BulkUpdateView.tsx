@@ -19,6 +19,7 @@ import {
   uploadVariantImages,
   setVariantPrimaryImage,
   deleteVariantImage,
+  updateVariantImageAltText,
   UpdateProductVariantRequest,
   getProductVariants
 } from '@/services/apiProduct';
@@ -96,6 +97,7 @@ interface LocalVariantImage {
   id: number;
   image_url: string;
   is_primary: boolean;
+  alt_text?: string;
   // variant_id?: number; // Optional, might not be needed for frontend state if parent variant is known
 }
 
@@ -399,7 +401,12 @@ const mapVariantForDetailsFormBulk = (variant: EditableVariantData | null) => {
   return {
     id: variant.id,
     slug: variant.slug, 
-    variantImages: variant.variantImages?.map(img => ({ id: img.id, image_url: img.image_url, is_primary: img.is_primary })),
+    variantImages: variant.variantImages?.map(img => ({ 
+      id: img.id, 
+      image_url: img.image_url, 
+      is_primary: img.is_primary,
+      alt_text: img.alt_text || ''
+    })),
   };
 };
 
@@ -584,11 +591,26 @@ const BulkUpdateView: React.FC<BulkUpdateViewProps> = ({
           let uploadedApiImages: LocalVariantImage[] = [];
           // Standardized response checking, similar to GenerateVariantsView
           if (response.data?.variantImages && Array.isArray(response.data.variantImages)) {
-            uploadedApiImages = response.data.variantImages.map((img: any) => ({ id: img.id, image_url: img.image_url, is_primary: img.is_primary }));
+            uploadedApiImages = response.data.variantImages.map((img: any) => ({ 
+              id: img.id, 
+              image_url: img.image_url, 
+              is_primary: img.is_primary,
+              alt_text: img.alt_text || ''
+            }));
           } else if (response.data?.variant?.variantImages && Array.isArray(response.data.variant.variantImages)) {
-            uploadedApiImages = response.data.variant.variantImages.map((img: any) => ({ id: img.id, image_url: img.image_url, is_primary: img.is_primary }));
+            uploadedApiImages = response.data.variant.variantImages.map((img: any) => ({ 
+              id: img.id, 
+              image_url: img.image_url, 
+              is_primary: img.is_primary,
+              alt_text: img.alt_text || ''
+            }));
           } else if (Array.isArray(response.data)) { // Handle if response.data is directly the array of images
-            uploadedApiImages = response.data.map((img: any) => ({ id: img.id, image_url: img.image_url, is_primary: img.is_primary }));
+            uploadedApiImages = response.data.map((img: any) => ({ 
+              id: img.id, 
+              image_url: img.image_url, 
+              is_primary: img.is_primary,
+              alt_text: img.alt_text || ''
+            }));
           } else {
             showSnackbar("Images uploaded but response structure was unexpected.", "warning");
             setIsEditImageUploading(false);
@@ -809,6 +831,37 @@ const BulkUpdateView: React.FC<BulkUpdateViewProps> = ({
       showSnackbar(errorMsg, "error");
     } finally {
       setIsUpdatingSelectedVariant(false);
+    }
+  };
+
+  // Handle updating variant image alt_text
+  const handleBulkUpdateImageAltText = async (imageId: number, altText: string) => {
+    if (!selectedVariantForEdit || !productId) return;
+
+    try {
+      // Call API to update alt text
+      await updateVariantImageAltText(
+        productId,
+        selectedVariantForEdit.id,
+        imageId,
+        { alt_text: altText }
+      );
+
+      // Update local state
+      setVariants(prev => prev.map(variant => {
+        if (variant.id === selectedVariantForEdit.id) {
+          const updatedImages = variant.variantImages.map(img => 
+            img.id === imageId ? { ...img, alt_text: altText } : img
+          );
+          return { ...variant, variantImages: updatedImages };
+        }
+        return variant;
+      }));
+
+      showSnackbar("Alt text updated successfully", "success");
+    } catch (error) {
+      console.error("Error updating alt_text:", error);
+      showSnackbar("Failed to update alt text", "error");
     }
   };
 
@@ -1104,6 +1157,7 @@ const BulkUpdateView: React.FC<BulkUpdateViewProps> = ({
                 id: img.id,
                 image_url: img.image_url,
                 is_primary: img.is_primary,
+                alt_text: img.alt_text || '',
               })) || [],
             }));
             setVariants(mappedData as EditableVariantData[]); // Update parent state
@@ -1566,6 +1620,9 @@ const BulkUpdateView: React.FC<BulkUpdateViewProps> = ({
                   setValue={setEditDetailValue}
                   showSnackbar={showSnackbar}
                   productSlug={formData?.slug || ""}
+                  productId={productId}
+                  variantId={selectedVariantForEdit?.id}
+                  onUpdateImageAltText={handleBulkUpdateImageAltText}
                 />
               </div>
             )}

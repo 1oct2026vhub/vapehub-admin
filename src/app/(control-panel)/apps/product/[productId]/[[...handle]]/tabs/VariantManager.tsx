@@ -119,6 +119,7 @@ interface VariantImage {
   id: number;
   image_url: string;
   is_primary: boolean;
+  alt_text?: string;
 }
 
 // --- EDIT: Align Variant type with BulkUpdateView's EditableVariantData expectations ---
@@ -720,7 +721,12 @@ const mapVariantForDetailsForm = (variant: Variant | null) => {
   return {
     id: variant.id,
     slug: variant.slug,
-    variantImages: variant.variantImages || [],
+    variantImages: variant.variantImages?.map(img => ({
+      id: img.id,
+      image_url: img.image_url,
+      is_primary: img.is_primary,
+      alt_text: img.alt_text || ''
+    })) || [],
     // Add other fields needed by VariantDetailsForm if any, e.g., attributes for display
   };
 };
@@ -1047,7 +1053,8 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
         const processedImages: VariantImage[] = newImages.map((img: any) => ({
           id: Number(img.id || img.image_id),
           image_url: img.image_url || img.url || img.image_url,
-          is_primary: !!img.is_primary
+          is_primary: !!img.is_primary,
+          alt_text: img.alt_text || ''
         }));
         
         if (processedImages.length === 0) {
@@ -1308,7 +1315,8 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
             variantImages: apiVariant.variantImages?.map((img: any) => ({ 
                   id: Number(img.id),
                   image_url: img.image_url,
-                  is_primary: img.is_primary
+                  is_primary: img.is_primary,
+                  alt_text: img.alt_text || ''
                 })) || [],
             errors: {}
           };
@@ -1552,7 +1560,8 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
               ? apiVariant.variantImages.map((img: any) => ({
                   id: img.id,
                   image_url: img.image_url,
-                  is_primary: img.is_primary
+                  is_primary: img.is_primary,
+                  alt_text: img.alt_text || ''
                 }))
               : [],
             errors: {}
@@ -1693,7 +1702,8 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
       const processedImages: VariantImage[] = newImagesFromAPI.map((img: any) => ({
         id: Number(img.id || img.image_id),
         image_url: img.image_url || img.url || img.image_url,
-        is_primary: !!img.is_primary
+        is_primary: !!img.is_primary,
+        alt_text: img.alt_text || ''
       }));
 
       if (processedImages.length > 0) {
@@ -2380,6 +2390,34 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
         // Restore original state if API call fails
         setVariants(originalVariants);
       });
+  };
+
+  // Handle updating variant image alt_text
+  const handleUpdateImageAltText = async (imageId: number, altText: string) => {
+    if (!selectedVariant) return;
+    
+    const productId = searchParams ? searchParams.get('productId') : null;
+    const variantId = selectedVariant.id;
+    
+    if (!productId || !variantId) {
+      showSnackbar("Missing product or variant ID", "error");
+      return;
+    }
+
+    try {
+      // Update local state
+      setVariants(prev => prev.map(variant => {
+        if (variant.id === selectedVariant.id) {
+          const updatedImages = variant.variantImages.map(img => 
+            img.id === imageId ? { ...img, alt_text: altText } : img
+          );
+          return { ...variant, variantImages: updatedImages };
+        }
+        return variant;
+      }));
+    } catch (error) {
+      console.error("Error updating alt_text in local state:", error);
+    }
   };
 
   // Handle deleting an image
@@ -3510,6 +3548,9 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
                         setValue={setEditValue as any}
                         showSnackbar={showSnackbar}
                         productSlug={formData?.slug || ""}
+                        productId={searchParams ? searchParams.get('productId') : formData?.productId}
+                        variantId={selectedVariant?.id}
+                        onUpdateImageAltText={handleUpdateImageAltText}
                       />
                       </div>
                     </>

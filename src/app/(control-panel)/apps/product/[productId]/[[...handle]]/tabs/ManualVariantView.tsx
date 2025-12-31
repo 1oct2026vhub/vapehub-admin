@@ -111,6 +111,7 @@ interface ManualVariantImage {
   variant_id: number;
   image_url: string;
   is_primary: boolean;
+  alt_text?: string;
 }
 
 interface ManualVariantAttributeTerm {
@@ -518,7 +519,12 @@ const mapManualVariantForDisplayCard = (variant: ManualVariantData) => ({
   regular_price: variant.regular_price,
   stock: variant.stock,
   status: variant.status, // 'active' or 'inactive'
-  variantImages: variant.variantImages?.map(img => ({ id: img.id, image_url: img.image_url, is_primary: img.is_primary })),
+    variantImages: variant.variantImages?.map(img => ({ 
+      id: img.id, 
+      image_url: img.image_url, 
+      is_primary: img.is_primary,
+      alt_text: img.alt_text || ''
+    })),
   variantAttributes: variant.variantAttributes?.map(attr => ({
     id: attr.id,
     attribute_name: attr.attribute.name,
@@ -532,7 +538,12 @@ const mapManualVariantForDetailsForm = (variant: ManualVariantData | null) => {
   return {
     id: variant.id,
     slug: variant.slug, // For alt text, if needed by form
-    variantImages: variant.variantImages?.map(img => ({ id: img.id, image_url: img.image_url, is_primary: img.is_primary })),
+    variantImages: variant.variantImages?.map(img => ({ 
+      id: img.id, 
+      image_url: img.image_url, 
+      is_primary: img.is_primary,
+      alt_text: img.alt_text || ''
+    })),
   };
 };
 
@@ -910,6 +921,37 @@ const ManualVariantView: React.FC<ManualVariantViewProps> = ({
       showSnackbar("Error updating manual variant", "error");
     } finally {
       setIsUpdatingManualVariant(false);
+    }
+  };
+
+  // Handle updating variant image alt_text
+  const handleManualUpdateImageAltText = async (imageId: number, altText: string) => {
+    if (!selectedManualVariant || !productId) return;
+
+    try {
+      // Update local state
+      setManualVariants(prev => prev.map(variant => {
+        if (variant.id === selectedManualVariant.id) {
+          const updatedImages = variant.variantImages.map(img => 
+            img.id === imageId ? { ...img, alt_text: altText } : img
+          );
+          return { ...variant, variantImages: updatedImages };
+        }
+        return variant;
+      }));
+
+      // Update selectedManualVariant state
+      if (selectedManualVariant) {
+        setSelectedManualVariant(prev => {
+          if (!prev || prev.id !== selectedManualVariant.id) return prev;
+          const updatedImages = prev.variantImages.map(img => 
+            img.id === imageId ? { ...img, alt_text: altText } : img
+          );
+          return { ...prev, variantImages: updatedImages };
+        });
+      }
+    } catch (error) {
+      console.error("Error updating alt_text in local state:", error);
     }
   };
 
@@ -1298,6 +1340,9 @@ const ManualVariantView: React.FC<ManualVariantViewProps> = ({
                   onSetPrimaryImage={handleManualSetPrimaryImage}
                   onDeleteImage={handleManualDeleteImage}
                   productSlug={formData?.slug || ""}
+                  productId={productId}
+                  variantId={selectedManualVariant?.id}
+                  onUpdateImageAltText={handleManualUpdateImageAltText}
                 />
               </div>
             )}

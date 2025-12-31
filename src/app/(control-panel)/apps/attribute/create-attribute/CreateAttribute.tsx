@@ -39,6 +39,10 @@ const schema = z.object({
     .string()
     .optional(),
 
+  alt_text: z
+    .string()
+    .optional(),
+
   type: z.enum(["select", "radio", "text", "image"], {
     message: "Type is required",
   }),
@@ -84,6 +88,7 @@ const defaultValues: FormType = {
   name: "",
   slug: "",
   description: "",
+  alt_text: "",
   type: "select",
   sort_order: "custom",
   image: undefined, // Initialize image field
@@ -115,6 +120,7 @@ function CreateAttribute() {
 
   const { isValid, dirtyFields, errors } = formState;
   const imageError = errors.image?.message;
+  const imageValue = watch("image");
 
   const { trigger: triggerCreateAttribute, isMutating } = usePost(
     "createAttribute",
@@ -224,6 +230,15 @@ function CreateAttribute() {
           helperText={`Upload an image for the attribute (max 5MB, ${REQUIRED_WIDTH}x${REQUIRED_HEIGHT}px).`}
           defaultImage={typeof control._getWatch("image") === 'string' ? control._getWatch("image") : undefined}
         />
+
+        {(imageValue instanceof File || (typeof imageValue === 'string' && imageValue)) && (
+          <FormInputField
+            name="alt_text"
+            control={control}
+            label="Alt Text"
+            type="text"
+          />
+        )}
       
 
         <AppButton

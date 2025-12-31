@@ -30,6 +30,7 @@ const postSchema = z.object({
     .min(1, "Title is required")
     .max(150, "Title must not exceed 150 characters"),
   content: z.string().min(1, "Content is required"),
+  alt_text: z.string().optional(),
   slug: z
     .string()
     .min(1, "Slug is required")
@@ -74,6 +75,7 @@ export default function BlogPostEditModal({
       title: post?.title || "",
       content: post?.content || "",
       slug: post?.slug || "",
+      alt_text: (post as any)?.alt_text || "",
       published_at: post?.published_at || null,
       categories: post?.categories?.map((cat) => cat.name) || [],
       tags: post?.tags?.map((tag) => tag.name) || [],
@@ -91,6 +93,7 @@ export default function BlogPostEditModal({
         title: post.title,
         content: post.content,
         slug: post.slug,
+        alt_text: (post as any).alt_text || "",
         published_at: post.published_at || null,
         categories: post.categories?.map((cat) => cat.name) || [],
         tags: post.tags?.map((tag) => tag.name) || [],
@@ -101,6 +104,7 @@ export default function BlogPostEditModal({
         title: "",
         content: "",
         slug: "",
+        alt_text: "",
         published_at: null,
         categories: [],
         tags: [],
@@ -135,6 +139,10 @@ export default function BlogPostEditModal({
       formData.append("content", data.content);
       formData.append("slug", data.slug);
       formData.append("is_active", data.is_active.toString());
+
+      if (data.alt_text) {
+        formData.append("alt_text", data.alt_text);
+      }
 
       if (data.published_at) {
         formData.append("published_at", data.published_at);
@@ -220,6 +228,14 @@ export default function BlogPostEditModal({
                 helperText="Upload a featured image for the blog post"
                 defaultImage={post?.image_url}
               />
+
+              {(selectedFile || post?.image_url) && (
+                <FormInputField
+                  name="alt_text"
+                  control={methods.control}
+                  label="Alt Text"
+                />
+              )}
 
               <FormDateTimeField
                 name="published_at"
