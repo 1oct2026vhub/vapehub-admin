@@ -149,6 +149,7 @@ export default function EditBlogCategory() {
 
   const nameValue = watch("name");
   const slugValue = watch("slug");
+  const imageValue = watch("image");
 
   // Fetch categories for parent selection
   useEffect(() => {
@@ -438,6 +439,16 @@ export default function EditBlogCategory() {
                           defaultImage={category?.image_url}
                         />
                       </Grid>
+
+                      {(category?.image_url || (imageValue instanceof File)) && (
+                        <Grid item xs={12}>
+                          <FormInputField
+                            name="alt_text"
+                            control={control}
+                            label="Alt Text (Optional)"
+                          />
+                        </Grid>
+                      )}
 
                       <Grid item xs={12}>
                         <Box
