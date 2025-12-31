@@ -6,6 +6,7 @@ export interface Carousel {
   title: string;
   description: string;
   alt_text?: string;
+  alt_text_mobile?: string;
   status: 'active' | 'inactive';
   redirect_url: string;
   updated_by: number;
@@ -20,6 +21,7 @@ export interface CarouselCreate {
   title: string;
   description: string;
   alt_text?: string;
+  alt_text_mobile?: string;
   status: 'active' | 'inactive';
   redirect_url: string;
 }
@@ -30,6 +32,7 @@ export interface CarouselUpdate {
   title?: string;
   description?: string;
   alt_text?: string;
+  alt_text_mobile?: string;
   status?: 'active' | 'inactive';
   redirect_url?: string;
 }
