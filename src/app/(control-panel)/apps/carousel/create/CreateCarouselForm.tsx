@@ -32,6 +32,7 @@ const carouselFormSchema = z.object({
   title: z.string().min(1, 'Title is required').max(100, 'Title must be 100 characters or less'),
   description: z.string().max(500, 'Description must be 500 characters or less').optional(),
   alt_text: z.string().optional(),
+  alt_text_mobile: z.string().optional(),
   status: z.enum(['active', 'inactive'], { required_error: 'Status is required' }),
   redirect_url: z.string().url('Invalid URL format').optional().or(z.literal('')),
   image: z
@@ -89,12 +90,14 @@ const CreateCarouselForm: React.FC = () => {
       title: '',
       description: '',
       alt_text: '',
+      alt_text_mobile: '',
       redirect_url: '',
       status: 'active',
     },
   });
 
   const imageValue = watch("image");
+  const imageLowValue = watch("image_low");
 
   const onSubmit = async (data: CarouselFormValues) => {
     setIsSubmitting(true);
@@ -109,6 +112,9 @@ const CreateCarouselForm: React.FC = () => {
       }
       if (data.alt_text) {
         formData.append('alt_text', data.alt_text);
+      }
+      if (data.alt_text_mobile) {
+        formData.append('alt_text_mobile', data.alt_text_mobile);
       }
       if (data.redirect_url) {
         formData.append('redirect_url', data.redirect_url);
@@ -196,6 +202,16 @@ const CreateCarouselForm: React.FC = () => {
               exactHeight={450}
             />
           </Grid>
+
+          {(imageLowValue instanceof File) && (
+            <Grid item xs={12}>
+              <FormTextField<CarouselFormValues>
+                name="alt_text_mobile"
+                control={control}
+                label="Alt Text Mobile (Optional)"
+              />
+            </Grid>
+          )}
 
           {/* <Grid item xs={12} sm={6}>
             <FormControl fullWidth error={!!errors.status} size="small">
