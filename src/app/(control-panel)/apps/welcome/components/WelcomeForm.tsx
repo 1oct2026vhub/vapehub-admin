@@ -56,11 +56,12 @@ const welcomeSchema = z.object({
 type WelcomeFormData = z.infer<typeof welcomeSchema>;
 
 const WelcomeForm: React.FC<{}> = () => {
-  const { control, handleSubmit, reset, setValue, formState: { errors } } = useForm<WelcomeFormData>({
+  const { control, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm<WelcomeFormData>({
     resolver: zodResolver(welcomeSchema),
     mode: 'onChange',
   });
   const { showSnackbar } = useSnackbar();
+  const imageValue = watch("image");
   const [welcomeContentId, setWelcomeContentId] = React.useState<number | null>(null);
   const [isDeletingImage, setIsDeletingImage] = React.useState(false);
   const [currentImageUrl, setCurrentImageUrl] = React.useState<string | undefined>();
@@ -224,6 +225,15 @@ const WelcomeForm: React.FC<{}> = () => {
             </Box>
           )}
         </div>
+        {(currentImageUrl || (imageValue instanceof File)) && (
+          <div className="mb-4">
+            <FormTextField
+              name="alt_text"
+              control={control}
+              label="Alt Text (Optional)"
+            />
+          </div>
+        )}
         <div className="mb-4">
           <FormCKEditor
             name="content"

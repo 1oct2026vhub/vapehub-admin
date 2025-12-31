@@ -181,9 +181,10 @@ const EditAttributeForm = ({ attribute: initialAttributeData }: { attribute?: At
       // This case is handled by the separate DELETE API call via handleDeleteExistingImage
     }
 
-    const hasTextChanges = (dirtyFields.name || dirtyFields.slug || dirtyFields.description || dirtyFields.type || dirtyFields.sort_order);
+    const hasTextChanges = (dirtyFields.name || dirtyFields.slug || dirtyFields.description || dirtyFields.alt_text || dirtyFields.type || dirtyFields.sort_order);
+    const hasChanges = hasTextChanges || newImageFile || formData.image === null || Object.keys(dataToUpdate).length > 0;
 
-    if (!hasTextChanges && !newImageFile && formData.image !== null) {
+    if (!hasChanges) {
       showSnackbar("No changes detected.", "info");
       setIsLoading(false);
       return;

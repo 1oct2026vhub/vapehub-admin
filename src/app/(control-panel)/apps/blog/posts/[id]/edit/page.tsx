@@ -164,6 +164,7 @@ export default function EditBlogPost() {
   const titleValue = watch("title");
   const slugValue = watch("slug");
   const currentStatus = watch("status");
+  const imageValue = watch("image");
 
   const fetchCategories = debounce(async (searchTerm: string) => {
     try {
@@ -450,6 +451,17 @@ export default function EditBlogPost() {
                           errorMessage={imageError}
                         />
                       </Grid>
+
+                      {(post?.image_url || (imageValue instanceof File)) && (
+                        <Grid item xs={12}>
+                          <FormInputField
+                            name="alt_text"
+                            control={control}
+                            label="Alt Text (Optional)"
+                            sx={commonFieldStyles}
+                          />
+                        </Grid>
+                      )}
 
                       <Grid item xs={12} md={currentStatus === "published" ? 6 : 12}>
                         <FormControl fullWidth>
