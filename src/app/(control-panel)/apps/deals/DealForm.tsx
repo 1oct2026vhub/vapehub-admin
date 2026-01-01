@@ -354,14 +354,18 @@ if (error?.errors) {
             throw new Error("Deal ID is missing");
         }
 
-        const bannerData = {
+        const bannerData: any = {
             type: "deal",
             deals_id: dealId,
             image: data.imageFile instanceof File ? data.imageFile : (data.image || undefined),
             alt: data.alt || "",
-            url: data.url || "",
             order: data.order || 0,
         };
+        
+        // Only include url if it has a non-empty value
+        if (data.url && typeof data.url === 'string' && data.url.trim() !== '') {
+            bannerData.url = data.url;
+        }
 
         if (editingBanner?.id) {
             // Update existing banner
