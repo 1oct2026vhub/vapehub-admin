@@ -126,10 +126,19 @@ export default function BannerModal({
   const onSubmit = async (data: BannerFormData) => {
     setIsSaving(true);
     try {
-      await onSave({
-        ...data,
+      // Exclude url field if it's empty to avoid API validation issues
+      const { url, ...restData } = data;
+      const payload: any = {
+        ...restData,
         imageFile: selectedFile,
-      });
+      };
+      
+      // Only include url if it has a non-empty value
+      if (url && typeof url === 'string' && url.trim() !== '') {
+        payload.url = url;
+      }
+      
+      await onSave(payload);
       handleClose();
     } catch (error: any) {
       console.error("Error saving banner:", error);

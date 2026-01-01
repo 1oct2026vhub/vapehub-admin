@@ -411,14 +411,18 @@ const EditCategoryForm = ({
       throw new Error("Category ID is missing");
     }
 
-    const bannerData = {
+    const bannerData: any = {
       type: "category",
       category_id: categoryId,
       image: data.imageFile instanceof File ? data.imageFile : (data.image || undefined),
       alt: data.alt || "",
-      url: data.url || "",
       order: data.order || 0,
     };
+    
+    // Only include url if it has a non-empty value
+    if (data.url && typeof data.url === 'string' && data.url.trim() !== '') {
+      bannerData.url = data.url;
+    }
 
     if (editingBanner?.id) {
       // Update existing banner
