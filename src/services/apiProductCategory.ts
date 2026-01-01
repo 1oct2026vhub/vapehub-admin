@@ -113,7 +113,10 @@ export const createEntityBanner = (bannerData) => {
     formData.append("category_id", bannerData.category_id.toString());
     formData.append("image", bannerData.image);
     formData.append("alt", bannerData.alt !== undefined && bannerData.alt !== null ? bannerData.alt.toString() : "");
-    formData.append("url", bannerData.url !== undefined && bannerData.url !== null && bannerData.url !== "" ? bannerData.url.toString() : "");
+    // Only append url if it has a non-empty value
+    if (bannerData.url && typeof bannerData.url === 'string' && bannerData.url.trim() !== '') {
+      formData.append("url", bannerData.url.toString());
+    }
     formData.append("order", (bannerData.order !== undefined && bannerData.order !== null ? bannerData.order : 0).toString());
 
     return axiosInstance
@@ -125,9 +128,13 @@ export const createEntityBanner = (bannerData) => {
       type: type,
       category_id: bannerData.category_id,
       alt: bannerData.alt !== undefined && bannerData.alt !== null ? bannerData.alt.toString() : "",
-      url: bannerData.url !== undefined && bannerData.url !== null && bannerData.url !== "" ? bannerData.url.toString() : "",
       order: bannerData.order !== undefined && bannerData.order !== null ? bannerData.order : 0,
     };
+
+    // Only include url if it has a non-empty value
+    if (bannerData.url && typeof bannerData.url === 'string' && bannerData.url.trim() !== '') {
+      payload.url = bannerData.url.toString();
+    }
 
     // Always include image if it's a URL string
     if (bannerData.image && typeof bannerData.image === "string") {
@@ -161,7 +168,10 @@ export const updateEntityBanner = (id, bannerData) => {
     
     formData.append("image", bannerData.image);
     formData.append("alt", bannerData.alt !== undefined && bannerData.alt !== null ? bannerData.alt.toString() : "");
-    formData.append("url", bannerData.url !== undefined && bannerData.url !== null && bannerData.url !== "" ? bannerData.url.toString() : "");
+    // Only append url if it has a non-empty value
+    if (bannerData.url && typeof bannerData.url === 'string' && bannerData.url.trim() !== '') {
+      formData.append("url", bannerData.url.toString());
+    }
     formData.append("order", (bannerData.order !== undefined && bannerData.order !== null ? bannerData.order : 0).toString());
 
     return axiosInstance
@@ -172,9 +182,13 @@ export const updateEntityBanner = (id, bannerData) => {
     const payload: any = {
       type: type,
       alt: bannerData.alt !== undefined && bannerData.alt !== null ? bannerData.alt.toString() : "",
-      url: bannerData.url !== undefined && bannerData.url !== null && bannerData.url !== "" ? bannerData.url.toString() : "",
       order: bannerData.order !== undefined && bannerData.order !== null ? bannerData.order : 0,
     };
+
+    // Only include url if it has a non-empty value
+    if (bannerData.url && typeof bannerData.url === 'string' && bannerData.url.trim() !== '') {
+      payload.url = bannerData.url.toString();
+    }
 
     // Always include category_id if provided
     if (bannerData.category_id !== undefined && bannerData.category_id !== null) {
