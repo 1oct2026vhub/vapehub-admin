@@ -69,7 +69,7 @@ const CustomerTable = () => {
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [order, setOrder] = useState<"ASC" | "DESC">("DESC");
-  const [sortBy, setSortBy] = useState("id");
+  const [sortBy, setSortBy] = useState("");
   const [deleted, setDeleted] = useState<boolean | null>(null);
   const [verified, setVerified] = useState<boolean | null>(null);
   const [blocked, setBlocked] = useState<boolean | null>(null);
@@ -90,7 +90,7 @@ const CustomerTable = () => {
   const { showSnackbar } = useSnackbar();
 
   const sorting = useMemo<MRT_SortingState>(
-    () => [{ id: sortBy, desc: order === "DESC" }],
+    () => sortBy ? [{ id: sortBy, desc: order === "DESC" }] : [],
     [sortBy, order],
   );
 
@@ -100,6 +100,10 @@ const CustomerTable = () => {
       const { id, desc } = newSorting[0];
       setSortBy(id);
       setOrder(desc ? "DESC" : "ASC");
+    } else {
+      // Clear sorting when no sort is applied
+      setSortBy("");
+      setOrder("DESC");
     }
   };
 
@@ -113,13 +117,12 @@ const CustomerTable = () => {
 
     return (
       search !== "" ||
-      order !== defaultOrder ||
-      sortBy !== "createdAt" ||
+      sortBy !== "" ||
       deleted !== defaultDeleted ||
       verified !== defaultVerified ||
       blocked !== defaultBlocked
     );
-  }, [search, order, sortBy, deleted, verified, blocked]);
+  }, [search, sortBy, deleted, verified, blocked]);
   // --- END ADD ---
 
   // --- START ADD: Clear Filters Function ---
@@ -127,7 +130,7 @@ const CustomerTable = () => {
     setSearch("");
     setDebouncedSearch("");
     setOrder("DESC");
-    setSortBy("createdAt");
+    setSortBy("");
     setDeleted(null);
     setVerified(null);
     setBlocked(null);
@@ -145,10 +148,10 @@ const CustomerTable = () => {
   const queryParams = useMemo(
     () => ({
       search: debouncedSearch,
-      order,
       page,
       limit,
-      sort_by: sortBy,
+      order,
+      ...(sortBy && { sort_by: sortBy }),
       ...(verified !== null && { verified }),
       ...(deleted !== null && { deleted }),
       ...(blocked !== null && { blocked }),
@@ -429,10 +432,11 @@ const CustomerTable = () => {
           {/* Desktop Filters */}
           <div className="hidden md:flex gap-2">
             <Select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
+              value={sortBy || "none"}
+              onChange={(e) => setSortBy(e.target.value === "none" ? "" : e.target.value)}
               size="small"
             >
+              <MenuItem value="none">None</MenuItem>
               <MenuItem value="id">Id</MenuItem>
               <MenuItem value="first_name">First Name</MenuItem>
               <MenuItem value="last_name">Last Name</MenuItem>
@@ -642,10 +646,11 @@ const CustomerTable = () => {
         <List>
           <ListItem>
             <Select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
+              value={sortBy || "none"}
+              onChange={(e) => setSortBy(e.target.value === "none" ? "" : e.target.value)}
               size="small"
             >
+              <MenuItem value="none">None</MenuItem>
               <MenuItem value="id">Id</MenuItem>
               <MenuItem value="first_name">First Name</MenuItem>
               <MenuItem value="last_name">Last Name</MenuItem>
