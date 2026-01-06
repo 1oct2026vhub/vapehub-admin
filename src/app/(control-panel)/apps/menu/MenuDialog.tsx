@@ -46,6 +46,7 @@ const menuSchema = z
     hide_mobile_view: z.boolean().optional(),
     hide_desktop_view: z.boolean().optional(),
     list_on_active_product: z.boolean().optional(),
+    alt_text: z.string().optional().nullable(),
     image: z
       .union([z.instanceof(File), z.null()])
       .optional()
@@ -137,6 +138,7 @@ const MenuDialog: React.FC<MenuDialogProps> = ({ open, onClose, onSave, menuItem
       hide_mobile_view: false,
       hide_desktop_view: false,
       list_on_active_product: false,
+      alt_text: '',
       image: null,
       // icon_position: 'left',
       // icon: '',
@@ -144,6 +146,7 @@ const MenuDialog: React.FC<MenuDialogProps> = ({ open, onClose, onSave, menuItem
   });
 
   const entityType = watch('entity_type');
+  const image = watch('image');
   const [entities, setEntities] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
@@ -353,6 +356,7 @@ const MenuDialog: React.FC<MenuDialogProps> = ({ open, onClose, onSave, menuItem
           hide_mobile_view: menuItem.hide_mobile_view,
           hide_desktop_view: menuItem.hide_desktop_view,
           list_on_active_product: menuItem.list_on_active_product || false,
+          alt_text: (menuItem as any).alt_text || '',
           image: null,
           // icon_position: menuItem.icon_position,
           // icon: menuItem.icon,
@@ -369,6 +373,7 @@ const MenuDialog: React.FC<MenuDialogProps> = ({ open, onClose, onSave, menuItem
           hide_mobile_view: false,
           hide_desktop_view: false,
           list_on_active_product: false,
+          alt_text: '',
           image: null,
           // icon_position: 'left',
           // icon: '',
@@ -395,6 +400,7 @@ const MenuDialog: React.FC<MenuDialogProps> = ({ open, onClose, onSave, menuItem
         formData.append('hide_mobile_view', String(data.hide_mobile_view || false));
         formData.append('hide_desktop_view', String(data.hide_desktop_view || false));
         formData.append('list_on_active_product', String(data.list_on_active_product || false));
+        if (data.alt_text) formData.append('alt_text', data.alt_text);
         formData.append('image', data.image);
         
         if (isEditing && menuItem) {
@@ -411,6 +417,10 @@ const MenuDialog: React.FC<MenuDialogProps> = ({ open, onClose, onSave, menuItem
         };
         // Remove image from payload if it's null
         delete (payload as any).image;
+        // Include alt_text if it exists
+        if (!data.alt_text) {
+          delete (payload as any).alt_text;
+        }
         
         if (isEditing && menuItem) {
           await updateMenu(menuItem.id, payload);
@@ -619,6 +629,17 @@ const MenuDialog: React.FC<MenuDialogProps> = ({ open, onClose, onSave, menuItem
                 errorMessage={errors.image?.message as string}
               />
             </Grid>
+            {(image instanceof File || (menuItem && (menuItem.image || menuItem.image_url))) && (
+              <Grid item xs={12}>
+                <FormTextField 
+                  name="alt_text" 
+                  label="Alt Text" 
+                  control={control} 
+                  fullWidth 
+                  helperText="Alternative text for the image (for accessibility)"
+                />
+              </Grid>
+            )}
           </Grid>
         </DialogContent>
         <DialogActions sx={{ p: 3 }}>
