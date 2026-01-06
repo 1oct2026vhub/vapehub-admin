@@ -19,6 +19,7 @@ import {
   SelectChangeEvent,
   TextField,
   Autocomplete,
+  Tooltip,
 } from "@mui/material";
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
@@ -70,6 +71,34 @@ const getStatusCountColor = (status: string | undefined | null): string => {
     case 'packed': return '#8BC34A';    // Light Green
     default: return '#333';           // Default dark color
   }
+};
+
+// Helper function to format large numbers (truncate if >= 6 digits)
+const formatCount = (count: number | string | undefined | null): string => {
+  if (count === null || count === undefined) return '0';
+  const num = typeof count === 'string' ? parseInt(count, 10) : count;
+  if (isNaN(num)) return '0';
+  
+  const countStr = num.toString();
+  // If number has 6 or more digits, format it
+  if (countStr.length >= 6) {
+    if (num >= 1000000) {
+      // Millions: 2015740 -> 2.0M
+      return (num / 1000000).toFixed(1) + 'M';
+    } else {
+      // Hundred thousands: 201574 -> 201.6K
+      return (num / 1000).toFixed(1) + 'K';
+    }
+  }
+  return countStr;
+};
+
+// Helper function to check if number has more than 5 digits
+const shouldShowTooltip = (count: number | string | undefined | null): boolean => {
+  if (count === null || count === undefined) return false;
+  const num = typeof count === 'string' ? parseInt(count, 10) : count;
+  if (isNaN(num)) return false;
+  return num.toString().length > 5;
 };
 
 const AdminDashboardApp = () => {
@@ -298,16 +327,32 @@ setStartDate(null);
                       height: '100%'
                     }}
                   >
-                    <Typography 
-                      variant="h5" 
-                      sx={{ 
-                        fontWeight: '600',
-                        color: '#2E7D32',
-                        mb: 1
-                      }}
-                    >
-                      {stats?.products.totalProducts || 0}
-                    </Typography>
+                    {shouldShowTooltip(stats?.products.totalProducts) ? (
+                      <Tooltip title={(stats?.products.totalProducts || 0).toLocaleString()} arrow>
+                        <Typography 
+                          variant="h5" 
+                          sx={{ 
+                            fontWeight: '600',
+                            color: '#2E7D32',
+                            mb: 1,
+                            cursor: 'help'
+                          }}
+                        >
+                          {formatCount(stats?.products.totalProducts || 0)}
+                        </Typography>
+                      </Tooltip>
+                    ) : (
+                      <Typography 
+                        variant="h5" 
+                        sx={{ 
+                          fontWeight: '600',
+                          color: '#2E7D32',
+                          mb: 1
+                        }}
+                      >
+                        {formatCount(stats?.products.totalProducts || 0)}
+                      </Typography>
+                    )}
                     <Typography sx={{ fontSize: '0.813rem', color: 'text.secondary', textAlign: 'center' }}>
                       Total Products
                     </Typography>
@@ -326,16 +371,32 @@ setStartDate(null);
                       height: '100%'
                     }}
                   >
-                    <Typography 
-                      variant="h5" 
-                      sx={{ 
-                        fontWeight: '600',
-                        color: '#1976D2',
-                        mb: 1
-                      }}
-                    >
-                      {stats?.products.inStock || 0}
-                    </Typography>
+                    {shouldShowTooltip(stats?.products.inStock) ? (
+                      <Tooltip title={(stats?.products.inStock || 0).toLocaleString()} arrow>
+                        <Typography 
+                          variant="h5" 
+                          sx={{ 
+                            fontWeight: '600',
+                            color: '#1976D2',
+                            mb: 1,
+                            cursor: 'help'
+                          }}
+                        >
+                          {formatCount(stats?.products.inStock || 0)}
+                        </Typography>
+                      </Tooltip>
+                    ) : (
+                      <Typography 
+                        variant="h5" 
+                        sx={{ 
+                          fontWeight: '600',
+                          color: '#1976D2',
+                          mb: 1
+                        }}
+                      >
+                        {formatCount(stats?.products.inStock || 0)}
+                      </Typography>
+                    )}
                     <Typography sx={{ fontSize: '0.813rem', color: 'text.secondary', textAlign: 'center' }}>
                       In Stock
                     </Typography>
@@ -354,16 +415,32 @@ setStartDate(null);
                       height: '100%'
                     }}
                   >
-                    <Typography 
-                      variant="h5" 
-                      sx={{ 
-                        fontWeight: '600',
-                        color: '#388E3C',
-                        mb: 1
-                      }}
-                    >
-                      {stats?.products.healthyStock || 0}
-                    </Typography>
+                    {shouldShowTooltip(stats?.products.healthyStock) ? (
+                      <Tooltip title={(stats?.products.healthyStock || 0).toLocaleString()} arrow>
+                        <Typography 
+                          variant="h5" 
+                          sx={{ 
+                            fontWeight: '600',
+                            color: '#388E3C',
+                            mb: 1,
+                            cursor: 'help'
+                          }}
+                        >
+                          {formatCount(stats?.products.healthyStock || 0)}
+                        </Typography>
+                      </Tooltip>
+                    ) : (
+                      <Typography 
+                        variant="h5" 
+                        sx={{ 
+                          fontWeight: '600',
+                          color: '#388E3C',
+                          mb: 1
+                        }}
+                      >
+                        {formatCount(stats?.products.healthyStock || 0)}
+                      </Typography>
+                    )}
                     <Typography sx={{ fontSize: '0.813rem', color: 'text.secondary', textAlign: 'center' }}>
                       Healthy Stock
                     </Typography>
@@ -382,16 +459,32 @@ setStartDate(null);
                       height: '100%'
                     }}
                   >
-                    <Typography 
-                      variant="h5" 
-                      sx={{ 
-                        fontWeight: '600',
-                        color: '#FF9800',
-                        mb: 1
-                      }}
-                    >
-                      {stats?.products.lowStock || 0}
-                    </Typography>
+                    {shouldShowTooltip(stats?.products.lowStock) ? (
+                      <Tooltip title={(stats?.products.lowStock || 0).toLocaleString()} arrow>
+                        <Typography 
+                          variant="h5" 
+                          sx={{ 
+                            fontWeight: '600',
+                            color: '#FF9800',
+                            mb: 1,
+                            cursor: 'help'
+                          }}
+                        >
+                          {formatCount(stats?.products.lowStock || 0)}
+                        </Typography>
+                      </Tooltip>
+                    ) : (
+                      <Typography 
+                        variant="h5" 
+                        sx={{ 
+                          fontWeight: '600',
+                          color: '#FF9800',
+                          mb: 1
+                        }}
+                      >
+                        {formatCount(stats?.products.lowStock || 0)}
+                      </Typography>
+                    )}
                     <Typography sx={{ fontSize: '0.813rem', color: 'text.secondary', textAlign: 'center' }}>
                       Low Stock
                     </Typography>
@@ -410,16 +503,32 @@ setStartDate(null);
                       height: '100%'
                     }}
                   >
-                    <Typography 
-                      variant="h5" 
-                      sx={{ 
-                        fontWeight: '600',
-                        color: '#D32F2F',
-                        mb: 1
-                      }}
-                    >
-                      {stats?.products.outOfStock || 0}
-                    </Typography>
+                    {shouldShowTooltip(stats?.products.outOfStock) ? (
+                      <Tooltip title={(stats?.products.outOfStock || 0).toLocaleString()} arrow>
+                        <Typography 
+                          variant="h5" 
+                          sx={{ 
+                            fontWeight: '600',
+                            color: '#D32F2F',
+                            mb: 1,
+                            cursor: 'help'
+                          }}
+                        >
+                          {formatCount(stats?.products.outOfStock || 0)}
+                        </Typography>
+                      </Tooltip>
+                    ) : (
+                      <Typography 
+                        variant="h5" 
+                        sx={{ 
+                          fontWeight: '600',
+                          color: '#D32F2F',
+                          mb: 1
+                        }}
+                      >
+                        {formatCount(stats?.products.outOfStock || 0)}
+                      </Typography>
+                    )}
                     <Typography sx={{ fontSize: '0.813rem', color: 'text.secondary', textAlign: 'center' }}>
                       Out of Stock
                     </Typography>
@@ -438,16 +547,32 @@ setStartDate(null);
                       height: '100%'
                     }}
                   >
-                    <Typography 
-                      variant="h5" 
-                      sx={{ 
-                        fontWeight: '600',
-                        color: '#C2185B',
-                        mb: 1
-                      }}
-                    >
-                      {stats?.products.outOfStockStatus || 0}
-                    </Typography>
+                    {shouldShowTooltip(stats?.products.outOfStockStatus) ? (
+                      <Tooltip title={(stats?.products.outOfStockStatus || 0).toLocaleString()} arrow>
+                        <Typography 
+                          variant="h5" 
+                          sx={{ 
+                            fontWeight: '600',
+                            color: '#C2185B',
+                            mb: 1,
+                            cursor: 'help'
+                          }}
+                        >
+                          {formatCount(stats?.products.outOfStockStatus || 0)}
+                        </Typography>
+                      </Tooltip>
+                    ) : (
+                      <Typography 
+                        variant="h5" 
+                        sx={{ 
+                          fontWeight: '600',
+                          color: '#C2185B',
+                          mb: 1
+                        }}
+                      >
+                        {formatCount(stats?.products.outOfStockStatus || 0)}
+                      </Typography>
+                    )}
                     <Typography sx={{ fontSize: '0.813rem', color: 'text.secondary', textAlign: 'center' }}>
                      Out Of Stock Status    
                     </Typography>
@@ -494,16 +619,32 @@ setStartDate(null);
                         {/* Use formatStatusText */}
                         {formatStatusText(order.status || "Unknown")}
                       </Typography>
-                      <Typography 
-                        sx={{ 
-                          fontWeight: 600,
-                          fontSize: '1.375rem',
-                          // Use the helper function for color
-                          color: getStatusCountColor(order.status)
-                        }}
-                      >
-                        {order.count}
-                      </Typography>
+                      {shouldShowTooltip(order.count) ? (
+                        <Tooltip title={order.count?.toLocaleString() || '0'} arrow>
+                          <Typography 
+                            sx={{ 
+                              fontWeight: 600,
+                              fontSize: '1.375rem',
+                              // Use the helper function for color
+                              color: getStatusCountColor(order.status),
+                              cursor: 'help'
+                            }}
+                          >
+                            {formatCount(order.count)}
+                          </Typography>
+                        </Tooltip>
+                      ) : (
+                        <Typography 
+                          sx={{ 
+                            fontWeight: 600,
+                            fontSize: '1.375rem',
+                            // Use the helper function for color
+                            color: getStatusCountColor(order.status)
+                          }}
+                        >
+                          {formatCount(order.count)}
+                        </Typography>
+                      )}
                     </Box>
                   </Grid>
                 ))}
@@ -545,15 +686,30 @@ setStartDate(null);
                     >
                       {userGroup?.role?.replace('_', ' ')}
                     </Typography>
-                    <Typography 
-                      variant="h5" 
-                      sx={{ 
-                        fontWeight: 600,
-                        color: '#333'
-                      }}
-                    >
-                      {userGroup.count}
-                    </Typography>
+                    {shouldShowTooltip(userGroup.count) ? (
+                      <Tooltip title={userGroup.count?.toLocaleString() || '0'} arrow>
+                        <Typography 
+                          variant="h5" 
+                          sx={{ 
+                            fontWeight: 600,
+                            color: '#333',
+                            cursor: 'help'
+                          }}
+                        >
+                          {formatCount(userGroup.count)}
+                        </Typography>
+                      </Tooltip>
+                    ) : (
+                      <Typography 
+                        variant="h5" 
+                        sx={{ 
+                          fontWeight: 600,
+                          color: '#333'
+                        }}
+                      >
+                        {formatCount(userGroup.count)}
+                      </Typography>
+                    )}
                   </Box>
 
                   {/* Status Metrics Grid */}
@@ -585,9 +741,28 @@ setStartDate(null);
                           <Typography sx={{ fontSize: '0.875rem', color: '#555' }}>
                             {item.label}
                           </Typography>
-                          <Typography sx={{ fontSize: '1.375rem', fontWeight: 500, color: item.color, lineHeight: 1.2 }}>
-                            {item.value}
-                          </Typography>
+                          {shouldShowTooltip(item.value) ? (
+                            <Tooltip title={item.value?.toLocaleString() || '0'} arrow>
+                              <Typography sx={{ 
+                                fontSize: '1.375rem', 
+                                fontWeight: 500, 
+                                color: item.color, 
+                                lineHeight: 1.2,
+                                cursor: 'help'
+                              }}>
+                                {formatCount(item.value)}
+                              </Typography>
+                            </Tooltip>
+                          ) : (
+                            <Typography sx={{ 
+                              fontSize: '1.375rem', 
+                              fontWeight: 500, 
+                              color: item.color, 
+                              lineHeight: 1.2
+                            }}>
+                              {formatCount(item.value)}
+                            </Typography>
+                          )}
                         </Box>
                       </Grid>
                     ))}
