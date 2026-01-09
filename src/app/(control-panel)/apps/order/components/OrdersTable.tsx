@@ -13,8 +13,20 @@ import {
   IconButton,
   Box,
   Typography,
+  Button,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  FormControl,
+  InputLabel,
+  Select,
+  LinearProgress,
+  Chip,
+  Alert,
 } from "@mui/material";
-import { getOrders, OrderStatus, PaymentStatus } from "@/services/apiOrder";
+import { getOrders, OrderStatus, PaymentStatus, bulkUpdateOrderStatus } from "@/services/apiOrder";
+import { useSnackbar } from "@/contexts/SnackbarContext";
 import { useFetch } from "@/hooks/useFetch";
 import { mutate } from "swr";
 import { useRouter } from "next/navigation";
@@ -69,6 +81,7 @@ const OrdersTable = ({
   endDate: initialEndDate,
 }: OrdersTableProps) => {
   const router = useRouter();
+  const { showSnackbar } = useSnackbar();
   const [order, setOrder] = useState<"ASC" | "DESC">("DESC");
   const [sortBy, setSortBy] = useState<string>("id");
   const [openDrawer, setOpenDrawer] = useState(false);
@@ -85,6 +98,12 @@ const OrdersTable = ({
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus | "">("");
   const searchDebounceRef = useRef<NodeJS.Timeout | null>(null);
   const [hasUserFiltered, setHasUserFiltered] = useState(false);
+  
+  // Bulk status update state
+  const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
+  const [bulkStatusDialogOpen, setBulkStatusDialogOpen] = useState(false);
+  const [selectedBulkStatus, setSelectedBulkStatus] = useState<OrderStatus | "">("");
+  const [isBulkUpdating, setIsBulkUpdating] = useState(false);
 
   // Handle limit change with proper state batching
   const handleLimitChange = useCallback((newLimit: number) => {
@@ -385,8 +404,20 @@ const OrdersTable = ({
         className="mb-6"
       />
       
-      <div className="flex items-end justify-end mb-4">
-        <Box className="flex items-end gap-2 juustify-end">
+      <div className="flex items-center justify-between mb-4">
+        <Box className="flex items-center gap-2">
+          {Object.keys(rowSelection).filter(key => rowSelection[key]).length > 0 && (
+            <Button
+              variant="contained"
+              color="primary"
+              onClick={() => setBulkStatusDialogOpen(true)}
+              disabled={isBulkUpdating}
+            >
+              Update Status ({Object.keys(rowSelection).filter(key => rowSelection[key]).length} selected)
+            </Button>
+          )}
+        </Box>
+        <Box className="flex items-end gap-2">
           <GenerateReportButton 
             status={status || undefined}
             paymentStatus={paymentStatus || undefined}
@@ -439,7 +470,8 @@ const OrdersTable = ({
         <DataTable
           data={orders}
           columns={columns}
-          hideRowSelectionCheckboxes={true}
+          enableRowSelection
+          onRowSelectionChange={setRowSelection}
           renderRowActionMenuItems={({ closeMenu, row }) => [
             <MenuItem
               key="view"
@@ -458,6 +490,7 @@ const OrdersTable = ({
           onColumnOrderChange={onColumnOrderChange}
           manualPagination={true}
           state={{ 
+            rowSelection,
             columnOrder,
             pagination: {
               pageIndex: 0,
@@ -498,6 +531,126 @@ const OrdersTable = ({
         areFiltersActive={areFiltersActive}
         hasUserFiltered={hasUserFiltered}
       />
+
+      {/* Bulk Status Update Dialog */}
+      <Dialog
+        open={bulkStatusDialogOpen}
+        onClose={() => !isBulkUpdating && setBulkStatusDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Update Order Status</DialogTitle>
+        <DialogContent>
+          <Box sx={{ pt: 2 }}>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              You have selected {Object.keys(rowSelection).filter(key => rowSelection[key]).length} order(s). 
+              Choose a new status to update all selected orders.
+            </Typography>
+            <FormControl fullWidth>
+              <InputLabel id="bulk-status-label">Status</InputLabel>
+              <Select
+                labelId="bulk-status-label"
+                id="bulk-status-select"
+                value={selectedBulkStatus}
+                label="Status"
+                onChange={(e) => setSelectedBulkStatus(e.target.value as OrderStatus)}
+                disabled={isBulkUpdating}
+              >
+                <MenuItem value="draft">Draft</MenuItem>
+                <MenuItem value="pending">Pending</MenuItem>
+                <MenuItem value="processing">Processing</MenuItem>
+                <MenuItem value="packed">Packed</MenuItem>
+                <MenuItem value="shipped">Shipped</MenuItem>
+                <MenuItem value="out_for_delivery">Out for Delivery</MenuItem>
+                <MenuItem value="delivered">Delivered</MenuItem>
+                <MenuItem value="completed">Completed</MenuItem>
+                <MenuItem value="fail">Failed</MenuItem>
+                <MenuItem value="cancel">Cancelled</MenuItem>
+                <MenuItem value="return_requested">Return Requested</MenuItem>
+                <MenuItem value="return_approved">Return Approved</MenuItem>
+                <MenuItem value="return_received">Return Received</MenuItem>
+                <MenuItem value="refunded">Refunded</MenuItem>
+              </Select>
+            </FormControl>
+            {isBulkUpdating && (
+              <Box sx={{ mt: 2 }}>
+                <LinearProgress />
+              </Box>
+            )}
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={() => setBulkStatusDialogOpen(false)}
+            disabled={isBulkUpdating}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={async () => {
+              if (!selectedBulkStatus) {
+                showSnackbar("Please select a status", "warning");
+                return;
+              }
+
+              const selectedOrderIds = Object.keys(rowSelection)
+                .filter(key => rowSelection[key])
+                .map(key => orders[parseInt(key)]?.id)
+                .filter(id => id !== undefined) as number[];
+
+              if (selectedOrderIds.length === 0) {
+                showSnackbar("No orders selected", "warning");
+                return;
+              }
+
+              setIsBulkUpdating(true);
+              try {
+                const response = await bulkUpdateOrderStatus(
+                  selectedOrderIds,
+                  selectedBulkStatus
+                );
+
+                if (response.success) {
+                  const { successful, failed, total } = response.data;
+                  let message = `Successfully updated ${successful} out of ${total} order(s)`;
+                  
+                  if (failed > 0) {
+                    message += `. ${failed} order(s) failed to update.`;
+                    if (response.data.errors && response.data.errors.length > 0) {
+                      const errorDetails = response.data.errors
+                        .map(err => `${err.order_unique_id}: ${err.error}`)
+                        .join(", ");
+                      message += ` Errors: ${errorDetails}`;
+                    }
+                    showSnackbar(message, "warning");
+                  } else {
+                    showSnackbar(response.message || message, "success");
+                  }
+
+                  // Refresh data
+                  await refreshData();
+                  
+                  // Clear selection
+                  setRowSelection({});
+                  setBulkStatusDialogOpen(false);
+                  setSelectedBulkStatus("");
+                } else {
+                  showSnackbar(response.message || "Failed to update orders", "error");
+                }
+              } catch (error: any) {
+                const errorMessage = error?.message || error?.errors?.[0]?.msg || "Failed to update orders";
+                showSnackbar(errorMessage, "error");
+              } finally {
+                setIsBulkUpdating(false);
+              }
+            }}
+            variant="contained"
+            disabled={!selectedBulkStatus || isBulkUpdating}
+          >
+            Update
+          </Button>
+        </DialogActions>
+      </Dialog>
     </>
   );
 };
