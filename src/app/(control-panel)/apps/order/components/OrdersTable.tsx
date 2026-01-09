@@ -13,7 +13,6 @@ import {
   IconButton,
   Box,
   Typography,
-  Button,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -38,6 +37,7 @@ import OrderFilters from "./OrderFilters";
 import OrderFilterDrawer from "./OrderFilterDrawer";
 import GenerateReportButton from "./GenerateReportButton";
 import OrderStatistics from "./OrderStatistics";
+import AppButton from "@/components/Shared/AppButton";
 import relativeTime from "dayjs/plugin/relativeTime";
 import useColumnOrder from "@/hooks/useColumnOrder";
 import { formatCustomerNameSafely } from "@/utils/actions";
@@ -407,14 +407,12 @@ const OrdersTable = ({
       <div className="flex items-center justify-between mb-4">
         <Box className="flex items-center gap-2">
           {Object.keys(rowSelection).filter(key => rowSelection[key]).length > 0 && (
-            <Button
+            <AppButton
+              label={`Update Status (${Object.keys(rowSelection).filter(key => rowSelection[key]).length} selected)`}
               variant="contained"
-              color="primary"
               onClick={() => setBulkStatusDialogOpen(true)}
               disabled={isBulkUpdating}
-            >
-              Update Status ({Object.keys(rowSelection).filter(key => rowSelection[key]).length} selected)
-            </Button>
+            />
           )}
         </Box>
         <Box className="flex items-end gap-2">
@@ -580,13 +578,16 @@ const OrdersTable = ({
           </Box>
         </DialogContent>
         <DialogActions>
-          <Button
+          <AppButton
+            label="Cancel"
+            variant="outlined"
             onClick={() => setBulkStatusDialogOpen(false)}
             disabled={isBulkUpdating}
-          >
-            Cancel
-          </Button>
-          <Button
+          />
+          <AppButton
+            label="Update"
+            variant="contained"
+            loading={isBulkUpdating}
             onClick={async () => {
               if (!selectedBulkStatus) {
                 showSnackbar("Please select a status", "warning");
@@ -644,11 +645,8 @@ const OrdersTable = ({
                 setIsBulkUpdating(false);
               }
             }}
-            variant="contained"
             disabled={!selectedBulkStatus || isBulkUpdating}
-          >
-            Update
-          </Button>
+          />
         </DialogActions>
       </Dialog>
     </>
