@@ -49,6 +49,30 @@ import OrderStatusTimeline from "./OrderStatusTimeline";
 import { useSnackbar } from "@/contexts/SnackbarContext";
 import { formatDate, formatPounds, formatStatusText, formatCustomerNameSafely } from "@/utils/actions";
 
+// Component to handle image loading with proper fallback
+const ImageWithFallback = ({ src, alt }: { src: string; alt: string }) => {
+  const [imageError, setImageError] = useState(false);
+
+  if (imageError) {
+    return (
+      <span className="text-xs text-gray-500">
+        No img
+      </span>
+    );
+  }
+
+  return (
+    <img
+      src={src}
+      alt={alt}
+      className="w-full h-full object-contain"
+      onError={() => {
+        setImageError(true);
+      }}
+    />
+  );
+};
+
 const OrderDetailApp = () => {
   const params = useParams();
   const router = useRouter();
@@ -325,14 +349,9 @@ const OrderDetailApp = () => {
 
                               if (imageUrlToShow) {
                                 return (
-                                  <img
+                                  <ImageWithFallback
                                     src={imageUrlToShow}
                                     alt={item.product.name}
-                                    className="w-full h-full object-contain"
-                                    onError={(e) => {
-                                      (e.target as HTMLImageElement).src =
-                                        "/placeholder-image.png";
-                                    }}
                                   />
                                 );
                               } else {
@@ -591,6 +610,16 @@ const OrderDetailApp = () => {
                       {order.paymentMethod.payment_method.replace(/_/g, " ")}
                     </Typography>
                   </div>
+                  {order.transactions && order.transactions.length > 0 && order.transactions[0].referenceNumber && (
+                    <div className="flex justify-between items-center">
+                      <Typography variant="body1" className="font-medium">
+                        Reference Number
+                      </Typography>
+                      <Typography variant="body2">
+                        {order.transactions[0].referenceNumber}
+                      </Typography>
+                    </div>
+                  )}
                 </div>
               </>
             )}
@@ -743,6 +772,19 @@ const OrderDetailApp = () => {
                 Shipping Details
               </Typography>
             </div>
+
+            {order?.shippingMethod && (
+              <div className="p-4 border-b border-gray-200">
+                <div className="flex justify-between items-center">
+                  <Typography variant="body1" className="font-medium">
+                    Shipping Method
+                  </Typography>
+                  <Typography variant="body2">
+                    {order.shippingMethod.shipping_method || order.shippingMethod.display_text}
+                  </Typography>
+                </div>
+              </div>
+            )}
 
             {order?.orderShippingAddress && (
               <div className="p-4">
