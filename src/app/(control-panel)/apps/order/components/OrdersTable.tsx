@@ -23,6 +23,10 @@ import {
   LinearProgress,
   Chip,
   Alert,
+  List,
+  ListItem,
+  ListItemText,
+  Divider,
 } from "@mui/material";
 import { getOrders, OrderStatus, PaymentStatus, bulkUpdateOrderStatus } from "@/services/apiOrder";
 import { useSnackbar } from "@/contexts/SnackbarContext";
@@ -100,6 +104,7 @@ const OrdersTable = ({
   const [hasUserFiltered, setHasUserFiltered] = useState(false);
   
   // Bulk status update state
+  // Using order IDs as keys instead of row indices to persist selections across searches/pages
   const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
   const [bulkStatusDialogOpen, setBulkStatusDialogOpen] = useState(false);
   const [selectedBulkStatus, setSelectedBulkStatus] = useState<OrderStatus | "">("");
@@ -252,6 +257,7 @@ const OrdersTable = ({
   const handleClearFiltersWithInteraction = useCallback(() => {
     clearFiltersLogic();
     setHasUserFiltered(false); // Reset interaction flag
+    // Note: We don't clear rowSelection here so selections persist across filter changes
   }, [clearFiltersLogic]);
 
   // Function to manually refresh data
@@ -407,12 +413,20 @@ const OrdersTable = ({
       <div className="flex items-center justify-between mb-4">
         <Box className="flex items-center gap-2">
           {Object.keys(rowSelection).filter(key => rowSelection[key]).length > 0 && (
-            <AppButton
-              label={`Update Status (${Object.keys(rowSelection).filter(key => rowSelection[key]).length} selected)`}
-              variant="contained"
-              onClick={() => setBulkStatusDialogOpen(true)}
-              disabled={isBulkUpdating}
-            />
+            <>
+              <AppButton
+                label={`Update Status (${Object.keys(rowSelection).filter(key => rowSelection[key]).length} selected)`}
+                variant="contained"
+                onClick={() => setBulkStatusDialogOpen(true)}
+                disabled={isBulkUpdating}
+              />
+              <AppButton
+                label="Clear Selection"
+                variant="outlined"
+                onClick={() => setRowSelection({})}
+                disabled={isBulkUpdating}
+              />
+            </>
           )}
         </Box>
         <Box className="flex items-end gap-2">
@@ -470,6 +484,8 @@ const OrdersTable = ({
           columns={columns}
           enableRowSelection
           onRowSelectionChange={setRowSelection}
+          // Use order ID as row identifier so selections persist across searches/pages
+          getRowId={(row) => row.id.toString()}
           renderRowActionMenuItems={({ closeMenu, row }) => [
             <MenuItem
               key="view"
@@ -534,7 +550,7 @@ const OrdersTable = ({
       <Dialog
         open={bulkStatusDialogOpen}
         onClose={() => !isBulkUpdating && setBulkStatusDialogOpen(false)}
-        maxWidth="sm"
+        maxWidth="md"
         fullWidth
       >
         <DialogTitle>Update Order Status</DialogTitle>
@@ -543,7 +559,77 @@ const OrdersTable = ({
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
               You have selected {Object.keys(rowSelection).filter(key => rowSelection[key]).length} order(s). 
               Choose a new status to update all selected orders.
+              {Object.keys(rowSelection).filter(key => rowSelection[key]).length > 0 && (
+                <Box component="span" sx={{ display: 'block', mt: 1, fontSize: '0.75rem', color: 'text.disabled' }}>
+                  Selected orders will be updated regardless of which page they're on.
+                </Box>
+              )}
             </Typography>
+
+            {/* Selected Orders List */}
+            {Object.keys(rowSelection).filter(key => rowSelection[key]).length > 0 && (
+              <Box sx={{ mb: 3, maxHeight: 300, overflow: 'auto', border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
+                <Box sx={{ p: 1.5, bgcolor: 'action.hover', borderBottom: '1px solid', borderColor: 'divider' }}>
+                  <Typography variant="subtitle2" fontWeight="medium">
+                    Selected Orders ({Object.keys(rowSelection).filter(key => rowSelection[key]).length})
+                  </Typography>
+                </Box>
+                <List dense sx={{ p: 0 }}>
+                  {Object.keys(rowSelection)
+                    .filter(key => rowSelection[key])
+                    .map((orderIdStr, index) => {
+                      const orderId = parseInt(orderIdStr);
+                      // Find order in current page orders
+                      const order = orders.find((o: any) => o.id === orderId);
+                      const isLast = index === Object.keys(rowSelection).filter(key => rowSelection[key]).length - 1;
+                      
+                      return (
+                        <Box key={orderIdStr}>
+                          <ListItem>
+                            <ListItemText
+                              primary={
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                                  <Typography variant="body2" fontWeight="medium">
+                                    {order?.order_unique_id || `Order #${orderId}`}
+                                  </Typography>
+                                  {order?.status && (
+                                    <OrderStatusChip status={order.status} />
+                                  )}
+                                </Box>
+                              }
+                              secondary={
+                                <Box sx={{ mt: 0.5 }}>
+                                  {order ? (
+                                    <>
+                                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                                        Customer: {formatCustomerNameSafely(order.user)}
+                                      </Typography>
+                                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                                        Total: {order.total ? formatPounds(parseFloat(order.total)) : 'N/A'}
+                                      </Typography>
+                                      {order.createdAt && (
+                                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                                          Date: {formatDate(order.createdAt)}
+                                        </Typography>
+                                      )}
+                                    </>
+                                  ) : (
+                                    <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                                      Order not on current page
+                                    </Typography>
+                                  )}
+                                </Box>
+                              }
+                            />
+                          </ListItem>
+                          {!isLast && <Divider />}
+                        </Box>
+                      );
+                    })}
+                </List>
+              </Box>
+            )}
+
             <FormControl fullWidth>
               <InputLabel id="bulk-status-label">Status</InputLabel>
               <Select
@@ -594,10 +680,11 @@ const OrdersTable = ({
                 return;
               }
 
+              // Since we're using getRowId with order IDs, the keys in rowSelection are already order IDs
               const selectedOrderIds = Object.keys(rowSelection)
                 .filter(key => rowSelection[key])
-                .map(key => orders[parseInt(key)]?.id)
-                .filter(id => id !== undefined) as number[];
+                .map(key => parseInt(key))
+                .filter(id => !isNaN(id)) as number[];
 
               if (selectedOrderIds.length === 0) {
                 showSnackbar("No orders selected", "warning");
