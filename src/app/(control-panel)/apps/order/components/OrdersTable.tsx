@@ -13,8 +13,23 @@ import {
   IconButton,
   Box,
   Typography,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  FormControl,
+  InputLabel,
+  Select,
+  LinearProgress,
+  Chip,
+  Alert,
+  List,
+  ListItem,
+  ListItemText,
+  Divider,
 } from "@mui/material";
-import { getOrders, OrderStatus, PaymentStatus } from "@/services/apiOrder";
+import { getOrders, OrderStatus, PaymentStatus, bulkUpdateOrderStatus } from "@/services/apiOrder";
+import { useSnackbar } from "@/contexts/SnackbarContext";
 import { useFetch } from "@/hooks/useFetch";
 import { mutate } from "swr";
 import { useRouter } from "next/navigation";
@@ -26,6 +41,7 @@ import OrderFilters from "./OrderFilters";
 import OrderFilterDrawer from "./OrderFilterDrawer";
 import GenerateReportButton from "./GenerateReportButton";
 import OrderStatistics from "./OrderStatistics";
+import AppButton from "@/components/Shared/AppButton";
 import relativeTime from "dayjs/plugin/relativeTime";
 import useColumnOrder from "@/hooks/useColumnOrder";
 import { formatCustomerNameSafely } from "@/utils/actions";
@@ -69,6 +85,7 @@ const OrdersTable = ({
   endDate: initialEndDate,
 }: OrdersTableProps) => {
   const router = useRouter();
+  const { showSnackbar } = useSnackbar();
   const [order, setOrder] = useState<"ASC" | "DESC">("DESC");
   const [sortBy, setSortBy] = useState<string>("id");
   const [openDrawer, setOpenDrawer] = useState(false);
@@ -85,6 +102,13 @@ const OrdersTable = ({
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus | "">("");
   const searchDebounceRef = useRef<NodeJS.Timeout | null>(null);
   const [hasUserFiltered, setHasUserFiltered] = useState(false);
+  
+  // Bulk status update state
+  // Using order IDs as keys instead of row indices to persist selections across searches/pages
+  const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
+  const [bulkStatusDialogOpen, setBulkStatusDialogOpen] = useState(false);
+  const [selectedBulkStatus, setSelectedBulkStatus] = useState<OrderStatus | "">("");
+  const [isBulkUpdating, setIsBulkUpdating] = useState(false);
 
   // Handle limit change with proper state batching
   const handleLimitChange = useCallback((newLimit: number) => {
@@ -233,6 +257,7 @@ const OrdersTable = ({
   const handleClearFiltersWithInteraction = useCallback(() => {
     clearFiltersLogic();
     setHasUserFiltered(false); // Reset interaction flag
+    // Note: We don't clear rowSelection here so selections persist across filter changes
   }, [clearFiltersLogic]);
 
   // Function to manually refresh data
@@ -385,8 +410,26 @@ const OrdersTable = ({
         className="mb-6"
       />
       
-      <div className="flex items-end justify-end mb-4">
-        <Box className="flex items-end gap-2 juustify-end">
+      <div className="flex items-center justify-between mb-4">
+        <Box className="flex items-center gap-2">
+          {Object.keys(rowSelection).filter(key => rowSelection[key]).length > 0 && (
+            <>
+              <AppButton
+                label={`Update Status (${Object.keys(rowSelection).filter(key => rowSelection[key]).length} selected)`}
+                variant="contained"
+                onClick={() => setBulkStatusDialogOpen(true)}
+                disabled={isBulkUpdating}
+              />
+              <AppButton
+                label="Clear Selection"
+                variant="outlined"
+                onClick={() => setRowSelection({})}
+                disabled={isBulkUpdating}
+              />
+            </>
+          )}
+        </Box>
+        <Box className="flex items-end gap-2">
           <GenerateReportButton 
             status={status || undefined}
             paymentStatus={paymentStatus || undefined}
@@ -439,7 +482,10 @@ const OrdersTable = ({
         <DataTable
           data={orders}
           columns={columns}
-          hideRowSelectionCheckboxes={true}
+          enableRowSelection
+          onRowSelectionChange={setRowSelection}
+          // Use order ID as row identifier so selections persist across searches/pages
+          getRowId={(row) => row.id.toString()}
           renderRowActionMenuItems={({ closeMenu, row }) => [
             <MenuItem
               key="view"
@@ -458,6 +504,7 @@ const OrdersTable = ({
           onColumnOrderChange={onColumnOrderChange}
           manualPagination={true}
           state={{ 
+            rowSelection,
             columnOrder,
             pagination: {
               pageIndex: 0,
@@ -498,6 +545,197 @@ const OrdersTable = ({
         areFiltersActive={areFiltersActive}
         hasUserFiltered={hasUserFiltered}
       />
+
+      {/* Bulk Status Update Dialog */}
+      <Dialog
+        open={bulkStatusDialogOpen}
+        onClose={() => !isBulkUpdating && setBulkStatusDialogOpen(false)}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>Update Order Status</DialogTitle>
+        <DialogContent>
+          <Box sx={{ pt: 2 }}>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              You have selected {Object.keys(rowSelection).filter(key => rowSelection[key]).length} order(s). 
+              Choose a new status to update all selected orders.
+              {Object.keys(rowSelection).filter(key => rowSelection[key]).length > 0 && (
+                <Box component="span" sx={{ display: 'block', mt: 1, fontSize: '0.75rem', color: 'text.disabled' }}>
+                  Selected orders will be updated regardless of which page they're on.
+                </Box>
+              )}
+            </Typography>
+
+            {/* Selected Orders List */}
+            {Object.keys(rowSelection).filter(key => rowSelection[key]).length > 0 && (
+              <Box sx={{ mb: 3, maxHeight: 300, overflow: 'auto', border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
+                <Box sx={{ p: 1.5, bgcolor: 'action.hover', borderBottom: '1px solid', borderColor: 'divider' }}>
+                  <Typography variant="subtitle2" fontWeight="medium">
+                    Selected Orders ({Object.keys(rowSelection).filter(key => rowSelection[key]).length})
+                  </Typography>
+                </Box>
+                <List dense sx={{ p: 0 }}>
+                  {Object.keys(rowSelection)
+                    .filter(key => rowSelection[key])
+                    .map((orderIdStr, index) => {
+                      const orderId = parseInt(orderIdStr);
+                      // Find order in current page orders
+                      const order = orders.find((o: any) => o.id === orderId);
+                      const isLast = index === Object.keys(rowSelection).filter(key => rowSelection[key]).length - 1;
+                      
+                      return (
+                        <Box key={orderIdStr}>
+                          <ListItem>
+                            <ListItemText
+                              primary={
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                                  <Typography variant="body2" fontWeight="medium">
+                                    {order?.order_unique_id || `Order #${orderId}`}
+                                  </Typography>
+                                  {order?.status && (
+                                    <OrderStatusChip status={order.status} />
+                                  )}
+                                </Box>
+                              }
+                              secondary={
+                                <Box sx={{ mt: 0.5 }}>
+                                  {order ? (
+                                    <>
+                                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                                        Customer: {formatCustomerNameSafely(order.user)}
+                                      </Typography>
+                                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                                        Total: {order.total ? formatPounds(parseFloat(order.total)) : 'N/A'}
+                                      </Typography>
+                                      {order.createdAt && (
+                                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                                          Date: {formatDate(order.createdAt)}
+                                        </Typography>
+                                      )}
+                                    </>
+                                  ) : (
+                                    <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                                      Order not on current page
+                                    </Typography>
+                                  )}
+                                </Box>
+                              }
+                            />
+                          </ListItem>
+                          {!isLast && <Divider />}
+                        </Box>
+                      );
+                    })}
+                </List>
+              </Box>
+            )}
+
+            <FormControl fullWidth>
+              <InputLabel id="bulk-status-label">Status</InputLabel>
+              <Select
+                labelId="bulk-status-label"
+                id="bulk-status-select"
+                value={selectedBulkStatus}
+                label="Status"
+                onChange={(e) => setSelectedBulkStatus(e.target.value as OrderStatus)}
+                disabled={isBulkUpdating}
+              >
+                <MenuItem value="draft">Draft</MenuItem>
+                <MenuItem value="pending">Pending</MenuItem>
+                <MenuItem value="processing">Processing</MenuItem>
+                <MenuItem value="packed">Packed</MenuItem>
+                <MenuItem value="shipped">Shipped</MenuItem>
+                <MenuItem value="out_for_delivery">Out for Delivery</MenuItem>
+                <MenuItem value="delivered">Delivered</MenuItem>
+                <MenuItem value="completed">Completed</MenuItem>
+                <MenuItem value="fail">Failed</MenuItem>
+                <MenuItem value="cancel">Cancelled</MenuItem>
+                <MenuItem value="return_requested">Return Requested</MenuItem>
+                <MenuItem value="return_approved">Return Approved</MenuItem>
+                <MenuItem value="return_received">Return Received</MenuItem>
+                <MenuItem value="refunded">Refunded</MenuItem>
+              </Select>
+            </FormControl>
+            {isBulkUpdating && (
+              <Box sx={{ mt: 2 }}>
+                <LinearProgress />
+              </Box>
+            )}
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <AppButton
+            label="Cancel"
+            variant="outlined"
+            onClick={() => setBulkStatusDialogOpen(false)}
+            disabled={isBulkUpdating}
+          />
+          <AppButton
+            label="Update"
+            variant="contained"
+            loading={isBulkUpdating}
+            onClick={async () => {
+              if (!selectedBulkStatus) {
+                showSnackbar("Please select a status", "warning");
+                return;
+              }
+
+              // Since we're using getRowId with order IDs, the keys in rowSelection are already order IDs
+              const selectedOrderIds = Object.keys(rowSelection)
+                .filter(key => rowSelection[key])
+                .map(key => parseInt(key))
+                .filter(id => !isNaN(id)) as number[];
+
+              if (selectedOrderIds.length === 0) {
+                showSnackbar("No orders selected", "warning");
+                return;
+              }
+
+              setIsBulkUpdating(true);
+              try {
+                const response = await bulkUpdateOrderStatus(
+                  selectedOrderIds,
+                  selectedBulkStatus
+                );
+
+                if (response.success) {
+                  const { successful, failed, total } = response.data;
+                  let message = `Successfully updated ${successful} out of ${total} order(s)`;
+                  
+                  if (failed > 0) {
+                    message += `. ${failed} order(s) failed to update.`;
+                    if (response.data.errors && response.data.errors.length > 0) {
+                      const errorDetails = response.data.errors
+                        .map(err => `${err.order_unique_id}: ${err.error}`)
+                        .join(", ");
+                      message += ` Errors: ${errorDetails}`;
+                    }
+                    showSnackbar(message, "warning");
+                  } else {
+                    showSnackbar(response.message || message, "success");
+                  }
+
+                  // Refresh data
+                  await refreshData();
+                  
+                  // Clear selection
+                  setRowSelection({});
+                  setBulkStatusDialogOpen(false);
+                  setSelectedBulkStatus("");
+                } else {
+                  showSnackbar(response.message || "Failed to update orders", "error");
+                }
+              } catch (error: any) {
+                const errorMessage = error?.message || error?.errors?.[0]?.msg || "Failed to update orders";
+                showSnackbar(errorMessage, "error");
+              } finally {
+                setIsBulkUpdating(false);
+              }
+            }}
+            disabled={!selectedBulkStatus || isBulkUpdating}
+          />
+        </DialogActions>
+      </Dialog>
     </>
   );
 };

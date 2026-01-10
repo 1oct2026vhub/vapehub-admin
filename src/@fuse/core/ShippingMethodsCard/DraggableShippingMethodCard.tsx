@@ -110,8 +110,8 @@ const DraggableShippingMethodCard: React.FC<DraggableShippingMethodCardProps> = 
           </Box>
 
           <Box sx={{ mb: 2 }}>
-            <Typography variant="body2" color="text.secondary" noWrap title={shippingMethod.display_text}>
-              <strong>Display:</strong> {shippingMethod.display_text}
+            <Typography variant="body2" color="text.secondary" component="div">
+              <strong>Display:</strong> <span dangerouslySetInnerHTML={{ __html: shippingMethod.display_text || '' }} />
             </Typography>
           </Box>
 

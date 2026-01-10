@@ -1,6 +1,7 @@
 import { getAuthToken } from "@/utils/auth";
 import { fetcher, updater } from "./apiService";
 import axiosInstance from "@/utils/axiosApi";
+import { ShippingMethod } from "./apiShippingMethod";
 
 // Order status types
 export type OrderStatus =
@@ -173,6 +174,8 @@ export interface Order {
   statusTimeline?: StatusTimelineItem[];
   coupon?: Coupon | null;
   paymentMethod?: PaymentMethod;
+  shippingMethod?: ShippingMethod;
+  transactions?: OrderTransaction[];
 }
 
 // Define PaymentMethod interface based on API response
@@ -191,6 +194,21 @@ export interface Coupon {
   description: string | null;
   createdAt?: string;
   updatedAt?: string;
+}
+
+// Define OrderTransaction interface for transactions in Order response
+export interface OrderTransaction {
+  id: number;
+  paymentMethod: string;
+  transactionType: string;
+  amount: string;
+  currency: string;
+  status: string;
+  referenceNumber: string;
+  notes?: string | null;
+  metadata?: any;
+  createdAt: string;
+  updatedAt: string;
 }
 
 // Interface for orders list response with pagination
@@ -285,6 +303,55 @@ export const updateOrderStatus = async (
   status: OrderStatus
 ): Promise<any> => {
   const response = await updater(`/api/admin/orders/${orderId}/status`, {
+    status,
+  });
+  return response;
+};
+
+// Interface for bulk status update response
+export interface BulkStatusUpdateResponse {
+  success: boolean;
+  message: string;
+  data: {
+    total: number;
+    successful: number;
+    failed: number;
+    status: OrderStatus;
+    results: Array<{
+      order_id: number;
+      order_unique_id: string;
+      status: OrderStatus;
+      success: boolean;
+      shipstation_data?: {
+        order_id: string;
+        label_data?: {
+          shipment_id: string;
+          tracking_number: string;
+          shipment_cost: number;
+        };
+      } | null;
+    }>;
+    errors: Array<{
+      order_id: number;
+      order_unique_id: string;
+      error: string;
+    }>;
+  };
+}
+
+// Interface for bulk status update request
+export interface BulkStatusUpdateRequest {
+  order_ids: number[];
+  status: OrderStatus;
+}
+
+// Function to bulk update order status
+export const bulkUpdateOrderStatus = async (
+  orderIds: number[],
+  status: OrderStatus
+): Promise<BulkStatusUpdateResponse> => {
+  const response = await updater("/api/admin/orders/bulk-status", {
+    order_ids: orderIds,
     status,
   });
   return response;
