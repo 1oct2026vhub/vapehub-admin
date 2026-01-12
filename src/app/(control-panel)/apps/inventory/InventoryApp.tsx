@@ -67,6 +67,14 @@ function InventoryApp() {
         handleParamsChange({ limit: newLimit, page: 1 });
     }, [handleParamsChange]);
 
+    const handleProductStockUpdate = useCallback((productId: number, totalStock: number) => {
+        setProducts(prev => prev.map(product => 
+            product.id === productId 
+                ? { ...product, currentStock: totalStock }
+                : product
+        ));
+    }, []);
+
     if (loading && products.length === 0) {
         return <FuseLoading />;
     }
@@ -85,6 +93,7 @@ function InventoryApp() {
                 totalRecords={totalRecords}
                 onPageChange={handlePageChange}
                 onLimitChange={handleLimitChange}
+                onProductStockUpdate={handleProductStockUpdate}
             />
         </Box>
     );

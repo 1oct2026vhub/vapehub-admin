@@ -52,6 +52,7 @@ interface InventoryTableProps {
     totalRecords: number;
     onPageChange: (page: number) => void;
     onLimitChange: (limit: number) => void;
+    onProductStockUpdate?: (productId: number, totalStock: number) => void;
 }
 const InventoryTable: React.FC<InventoryTableProps> = ({
     products,
@@ -64,6 +65,7 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
     totalRecords,
     onPageChange,
     onLimitChange,
+    onProductStockUpdate,
 }) => {
     const [search, setSearch] = useState('');
     const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -214,6 +216,11 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
                     ...prev,
                     [addStockDialog.productId!]: response.data.variants
                 }));
+                
+                // Update product's total current stock
+                if (response.data?.product?.totalStock !== undefined && onProductStockUpdate) {
+                    onProductStockUpdate(addStockDialog.productId!, response.data.product.totalStock);
+                }
             } catch (error) {
                 console.error('Failed to refresh variants', error);
             } finally {
