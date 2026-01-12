@@ -26,7 +26,8 @@ import {
 import SearchIcon from '@mui/icons-material/Search';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
-import { Product, ProductsParams, getProductVariants, ProductVariant, addStock } from '@/services/apiInventory';
+import { Product, ProductsParams, getProductVariants, ProductVariant } from '@/services/apiInventory';
+import { updateProductVariant } from '@/services/apiProduct';
 import { useState, useEffect, useMemo, useRef } from 'react';
 import DataTable from '@/components/data-table/DataTable';
 import { type MRT_ColumnDef } from 'material-react-table';
@@ -80,10 +81,10 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
     });
     const { showSnackbar } = useSnackbar();
     
-    // Form for adding stock
-    const { control, handleSubmit, reset, formState: { errors, isValid } } = useForm<{ quantity: number }>({
+    // Form for updating stock
+    const { control, handleSubmit, reset, formState: { errors, isValid } } = useForm<{ stock: number }>({
         defaultValues: {
-            quantity: 0,
+            stock: 0,
         },
         mode: 'onChange',
     });
@@ -157,12 +158,17 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
     };
 
     const handleCurrentStockClick = (productId: number, variantId: number) => {
+        // Find the variant to get current stock
+        const variants = variantsData[productId];
+        const variant = variants?.find(v => v.id === variantId);
+        const currentStock = variant?.currentStock ?? 0;
+        
         setAddStockDialog({
             open: true,
             variantId,
             productId,
         });
-        reset({ quantity: 0 });
+        reset({ stock: currentStock });
     };
 
     const handleAddStockClose = () => {
@@ -171,52 +177,56 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
             variantId: null,
             productId: null,
         });
-        reset({ quantity: 0 });
+        reset({ stock: 0 });
     };
 
-    const onSubmitAddStock = async (data: { quantity: number | string }) => {
-        if (!addStockDialog.variantId) return;
+    const onSubmitAddStock = async (data: { stock: number | string }) => {
+        if (!addStockDialog.variantId || !addStockDialog.productId) return;
 
-        // Convert quantity to number if it's a string
-        const quantity = typeof data.quantity === 'string' ? Number(data.quantity) : data.quantity;
+        // Convert stock to number if it's a string
+        const stock = typeof data.stock === 'string' ? Number(data.stock) : data.stock;
 
-        if (isNaN(quantity) || quantity <= 0) {
-            showSnackbar('Please enter a valid positive quantity', 'error');
+        if (isNaN(stock) || stock < 0) {
+            showSnackbar('Please enter a valid stock quantity (must be 0 or greater)', 'error');
             return;
         }
 
         try {
-            await addStock({
-                variant_id: addStockDialog.variantId,
-                quantity: quantity,
-            });
+            // Prepare update data with only stock
+            const updateData = {
+                stock: stock,
+            } as any;
+
+            await updateProductVariant(
+                addStockDialog.productId,
+                addStockDialog.variantId,
+                updateData
+            );
             
-            showSnackbar(`Successfully added ${quantity} units to stock`, 'success');
+            showSnackbar(`Successfully updated stock to ${stock} units`, 'success');
             
             // Refresh variant data for the product
-            if (addStockDialog.productId) {
-                setLoadingVariants(prev => new Set(prev).add(addStockDialog.productId!));
-                try {
-                    const response = await getProductVariants(addStockDialog.productId);
-                    setVariantsData(prev => ({
-                        ...prev,
-                        [addStockDialog.productId!]: response.data.variants
-                    }));
-                } catch (error) {
-                    console.error('Failed to refresh variants', error);
-                } finally {
-                    setLoadingVariants(prev => {
-                        const newSet = new Set(prev);
-                        newSet.delete(addStockDialog.productId!);
-                        return newSet;
-                    });
-                }
+            setLoadingVariants(prev => new Set(prev).add(addStockDialog.productId!));
+            try {
+                const response = await getProductVariants(addStockDialog.productId);
+                setVariantsData(prev => ({
+                    ...prev,
+                    [addStockDialog.productId!]: response.data.variants
+                }));
+            } catch (error) {
+                console.error('Failed to refresh variants', error);
+            } finally {
+                setLoadingVariants(prev => {
+                    const newSet = new Set(prev);
+                    newSet.delete(addStockDialog.productId!);
+                    return newSet;
+                });
             }
             
             handleAddStockClose();
         } catch (error: any) {
-            console.error('Failed to add stock', error);
-            showSnackbar(error?.response?.data?.message || 'Failed to add stock', 'error');
+            console.error('Failed to update stock', error);
+            showSnackbar(error?.response?.data?.message || 'Failed to update stock', 'error');
         }
     };
 
@@ -651,39 +661,39 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
                 }
             }}
         >
-            <DialogTitle>Add Stock</DialogTitle>
+            <DialogTitle>Update Stock</DialogTitle>
             <form onSubmit={handleSubmit(onSubmitAddStock)}>
                 <DialogContent>
                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
                         <FormInputField
-                            name="quantity"
+                            name="stock"
                             control={control}
-                            label="Quantity"
+                            label="Stock"
                             type="number"
                             required
                             inputProps={{
-                                min: 1,
+                                min: 0,
                                 step: 1,
                             }}
                             rules={{
-                                required: 'Quantity is required',
+                                required: 'Stock is required',
                                 validate: {
-                                    positive: (value) => {
+                                    valid: (value) => {
                                         const numValue = typeof value === 'string' ? Number(value) : value;
                                         if (value === '' || value === null || value === undefined) {
-                                            return 'Quantity is required';
+                                            return 'Stock is required';
                                         }
-                                        if (isNaN(numValue) || numValue <= 0) {
-                                            return 'Quantity must be a positive number';
+                                        if (isNaN(numValue) || numValue < 0) {
+                                            return 'Stock must be 0 or greater';
                                         }
                                         if (!Number.isInteger(numValue)) {
-                                            return 'Quantity must be a whole number';
+                                            return 'Stock must be a whole number';
                                         }
                                         return true;
                                     },
                                 },
                             }}
-                            helperText="Enter the number of units to add (must be a positive whole number)"
+                            helperText="Enter the stock quantity (must be a whole number, 0 or greater)"
                         />
                     </Box>
                 </DialogContent>
@@ -693,7 +703,7 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
                     </Button>
                     <AppButton
                         type="submit"
-                        label="Add Stock"
+                        label="Update Stock"
                         disabled={!isValid}
                     />
                 </DialogActions>
