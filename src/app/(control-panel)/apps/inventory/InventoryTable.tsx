@@ -192,9 +192,10 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
         }
 
         try {
-            // Prepare update data with only stock
+            // Prepare update data with stock and stock_status
             const updateData = {
                 stock: stock,
+                ...(stock > 0 && { stock_status: "in_stock" }),
             } as any;
 
             await updateProductVariant(
