@@ -40,6 +40,7 @@ import { formatDate } from "@/utils/actions";
 import useColumnOrder from "@/hooks/useColumnOrder";
 import ClearFiltersButton from "@/components/Shared/ClearFiltersButton";
 import TablePagination from "@/components/Shared/TablePagination";
+import { usePageState } from "@/hooks/usePageState";
 
 export type BrandType = {
   id: number;
@@ -57,16 +58,34 @@ interface ProductBrandTableProps {
 
 const ProductBrandTable = ({ refreshData }: ProductBrandTableProps) => {
   const router = useRouter();
-  const [search, setSearch] = useState("");
+  const { showSnackbar } = useSnackbar();
+  
+  // Use session storage for filter state
+  const [pageState, setPageState, clearPageState] = usePageState(
+    "productBrandTable",
+    {
+      search: "",
+      deleted: null as boolean | null,
+      order: "DESC" as "ASC" | "DESC",
+      sortBy: "createdAt",
+      page: 1,
+    }
+  );
+
+  // Use pageState values directly
+  const { search, deleted, order, sortBy, page } = pageState;
   const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [deleted, setDeleted] = useState<boolean | null>(null);
-  const [order, setOrder] = useState<"ASC" | "DESC">("DESC");
-  const [sortBy, setSortBy] = useState("createdAt");
+  
+  // Helper functions to update pageState
+  const setSearch = (value: string) => setPageState(prev => ({ ...prev, search: value }));
+  const setDeleted = (value: boolean | null) => setPageState(prev => ({ ...prev, deleted: value }));
+  const setOrder = (value: "ASC" | "DESC") => setPageState(prev => ({ ...prev, order: value }));
+  const setSortBy = (value: string) => setPageState(prev => ({ ...prev, sortBy: value }));
+  const setPage = (value: number) => setPageState(prev => ({ ...prev, page: value }));
+  
+  const [limit, setLimit] = useState(100);
   const [openDialog, setOpenDialog] = useState(false);
   const [selectedBrand, setSelectedBrand] = useState<BrandType | null>(null);
-  const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(100);
-  const { showSnackbar } = useSnackbar();
   const [brands, setBrands] = useState<BrandType[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
@@ -93,6 +112,7 @@ const ProductBrandTable = ({ refreshData }: ProductBrandTableProps) => {
     setOrder("DESC");
     setPage(1); // Reset page to 1
     setRowSelection({}); // Clear row selection when filters are cleared
+    clearPageState(); // Clear session storage
     showSnackbar("Filters cleared", "info");
   };
   // --- END ADD ---

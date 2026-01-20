@@ -34,6 +34,7 @@ import { type MRT_ColumnDef } from 'material-react-table';
 import ClearFiltersButton from '@/components/Shared/ClearFiltersButton';
 import { useRouter } from 'next/navigation';
 import FuseSvgIcon from '@fuse/core/FuseSvgIcon';
+import { usePageState } from '@/hooks/usePageState';
 import { MenuItem } from '@mui/material';
 import GenerateReportButton from './components/GenerateReportButton';
 import TablePagination from '@/components/Shared/TablePagination';
@@ -67,11 +68,49 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
     onLimitChange,
     onProductStockUpdate,
 }) => {
-    const [search, setSearch] = useState('');
-    const [debouncedSearch, setDebouncedSearch] = useState('');
     const router = useRouter();
+    const { showSnackbar } = useSnackbar();
+    const tableContainerRef = useRef<HTMLDivElement | null>(null);
+    const lastToggledRowIdRef = useRef<string | null>(null);
+    
+    // Use session storage for filter state and expanded rows
+    const [pageState, setPageState, clearPageState] = usePageState(
+        "inventoryTable",
+        {
+            search: '',
+            expandedRows: {} as Record<string, boolean>,
+        }
+    );
+
+    // Use pageState values directly
+    const { search, expandedRows: savedExpandedRows } = pageState;
+    
+    // Helper function to update pageState
+    const setSearch = (value: string) => setPageState(prev => ({ ...prev, search: value }));
+    
+    // Use saved expanded rows from session storage, fallback to empty object
+    // For accordion behavior, only keep the first expanded product (or most recent)
+    const getInitialExpandedRows = (): Record<string, boolean> => {
+        if (!savedExpandedRows || Object.keys(savedExpandedRows).length === 0) {
+            return {};
+        }
+        // For accordion, only restore the first expanded product
+        const firstExpanded = Object.entries(savedExpandedRows).find(([_, isExpanded]) => isExpanded);
+        return firstExpanded ? { [firstExpanded[0]]: true } : {};
+    };
+    
+    const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>(getInitialExpandedRows());
+    
+    // Sync expandedRows with pageState when it changes (debounced to avoid too many updates)
+    useEffect(() => {
+        const timeoutId = setTimeout(() => {
+            setPageState(prev => ({ ...prev, expandedRows }));
+        }, 300);
+        return () => clearTimeout(timeoutId);
+    }, [expandedRows, setPageState]);
+    
+    const [debouncedSearch, setDebouncedSearch] = useState('');
     const lastSearchRef = useRef<string | undefined>(undefined);
-    const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({});
     const [variantsData, setVariantsData] = useState<Record<number, ProductVariant[]>>({});
     const [loadingVariants, setLoadingVariants] = useState<Set<number>>(new Set());
     const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
@@ -81,7 +120,6 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
         variantId: null,
         productId: null,
     });
-    const { showSnackbar } = useSnackbar();
     
     // Form for updating stock
     const { control, handleSubmit, reset, formState: { errors, isValid } } = useForm<{ stock: number }>({
@@ -101,6 +139,8 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
             q: undefined,
             page: 1,
         });
+        clearPageState(); // Clear session storage
+        showSnackbar("Filters cleared", "info");
     };
     
     useEffect(() => {
@@ -119,6 +159,25 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
           onParamsChange({ q: newQ, page: 1 });
         }
       }, [debouncedSearch, onParamsChange]);
+
+    // Fetch variants for restored expanded rows when products are loaded
+    useEffect(() => {
+        if (expandedRows && Object.keys(expandedRows).length > 0 && products.length > 0) {
+            // Fetch variants for all expanded products
+            Object.entries(expandedRows).forEach(([productIdStr, isExpanded]) => {
+                if (isExpanded) {
+                    const productId = parseInt(productIdStr);
+                    // Check if product exists in current products list
+                    const productExists = products.some(p => p.id === productId);
+                    // Only fetch if product exists, not already loaded, and not currently loading
+                    if (productExists && !variantsData[productId] && !loadingVariants.has(productId)) {
+                        handleRowExpand(productId, true);
+                    }
+                }
+            });
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [products.length]); // Only run when products are loaded (not on every expandedRows change)
 
     const handleRowExpand = async (productId: number, isExpanded: boolean) => {
         if (isExpanded) {
@@ -403,7 +462,9 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
                                 size="small"
                                 onClick={(e) => {
                                     e.stopPropagation();
-                                    
+                                    e.preventDefault();
+                                    lastToggledRowIdRef.current = rowId;
+
                                     // Use the table instance to toggle expansion state
                                     table.setExpanded({
                                         ...expandedRows,
@@ -419,6 +480,7 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
                                     }
                                 }}
                                 aria-label={isExpanded ? "Close variant list" : "Open variant list"}
+                                data-inventory-row-toggle={rowId}
                             >
                                 {isExpanded ? (
                                     <ExpandLessIcon fontSize="small" color="action" /> // Up arrow - click to close
@@ -567,6 +629,11 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
                     },
                 }}
                 onExpandedChange={(updater) => {
+                    // Save current scroll position (container) to prevent jump
+                    const container = tableContainerRef.current;
+                    const prevTop = container?.scrollTop ?? 0;
+                    const prevLeft = container?.scrollLeft ?? 0;
+                    
                     let newExpanded: Record<string, boolean>;
                     if (typeof updater === 'function') {
                         newExpanded = updater(expandedRows) as Record<string, boolean>;
@@ -574,26 +641,59 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
                         newExpanded = updater as Record<string, boolean>;
                     }
                     
-                    // Compare previous state with new state to detect actual expansion (not collapse)
-                    Object.entries(newExpanded).forEach(([productIdStr, isExpanded]) => {
-                        const productId = parseInt(productIdStr);
-                        const wasExpanded = expandedRows[productIdStr] || false;
+                    // Find which product is being expanded (if any)
+                    const expandedProductId = Object.entries(newExpanded).find(
+                        ([productIdStr, isExpanded]) => isExpanded && !expandedRows[productIdStr]
+                    )?.[0];
+                    
+                    // If a new product is being expanded, close all others (accordion behavior)
+                    if (expandedProductId) {
+                        const productId = parseInt(expandedProductId);
+                        // Close all other products - only keep the newly expanded one
+                        const accordionExpanded: Record<string, boolean> = {
+                            [expandedProductId]: true
+                        };
+                        lastToggledRowIdRef.current = expandedProductId;
                         
-                        // Only fetch if:
-                        // 1. Row is being expanded (was false, now true)
-                        // 2. Variants not already cached
-                        // 3. Not currently loading
-                        if (isExpanded && !wasExpanded && !variantsData[productId] && !loadingVariants.has(productId)) {
+                        // Fetch variants for the newly expanded product if not already loaded
+                        if (!variantsData[productId] && !loadingVariants.has(productId)) {
                             handleRowExpand(productId, true);
                         }
-                        // If collapsing (was true, now false), do nothing - just update state
+                        
+                        // Update state with only the newly expanded product
+                        setExpandedRows(accordionExpanded);
+                    } else {
+                        // If collapsing (no new expansion), just update state
+                        // This handles the case when user clicks to close an expanded product
+                        setExpandedRows(newExpanded);
+                    }
+
+                    // Restore scroll + ensure the clicked row stays in view
+                    requestAnimationFrame(() => {
+                        const el = tableContainerRef.current;
+                        if (el) {
+                            el.scrollTop = prevTop;
+                            el.scrollLeft = prevLeft;
+                        }
+                        const rowIdToKeep = lastToggledRowIdRef.current;
+                        if (rowIdToKeep) {
+                            const toggleEl = document.querySelector(
+                                `[data-inventory-row-toggle="${rowIdToKeep}"]`,
+                            ) as HTMLElement | null;
+                            toggleEl?.scrollIntoView({ block: 'nearest' });
+                        }
                     });
-                    
-                    // Update state - this controls the accordion
-                    setExpandedRows(newExpanded);
                 }}
                 getRowCanExpand={() => true}
                 enableExpandAll={false}
+                muiTableContainerProps={{
+                    ref: tableContainerRef as any,
+                    className: 'flex-auto',
+                    sx: {
+                        // Prevent browser scroll anchoring from jumping on expand/collapse
+                        overflowAnchor: 'none',
+                    },
+                }}
                 renderDetailPanel={({ row }) => {
                     const productId = row.original.id;
                     const isExpanded = row.getIsExpanded(); // Use MRT's built-in state

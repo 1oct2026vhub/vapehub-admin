@@ -31,12 +31,43 @@ import { listProductCategory } from '@/services/apiProductCategory';
 import FuseSvgIcon from '@fuse/core/FuseSvgIcon';
 import { useRouter } from 'next/navigation';
 import { useSnackbar } from '@/contexts/SnackbarContext';
+import { usePageState } from '@/hooks/usePageState';
 
 const CouponTable: React.FC = () => {
-  const [search, setSearch] = useState('');
+  const router = useRouter();
+  const { showSnackbar } = useSnackbar();
+  
+  // Use session storage for filter state
+  const [pageState, setPageState, clearPageState] = usePageState(
+    "couponTable",
+    {
+      search: '',
+      deleted: null as boolean | null,
+      page: 1,
+      status: '',
+      discountType: '',
+      entityType: '',
+      entityId: null as number | null,
+      startDate: '',
+      endDate: '',
+    }
+  );
+
+  // Use pageState values directly
+  const { search, deleted, page, status, discountType, entityType, entityId, startDate, endDate } = pageState;
   const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [deleted, setDeleted] = useState<boolean | null>(null);
-  const [page, setPage] = useState(1);
+  
+  // Helper functions to update pageState
+  const setSearch = (value: string) => setPageState(prev => ({ ...prev, search: value }));
+  const setDeleted = (value: boolean | null) => setPageState(prev => ({ ...prev, deleted: value }));
+  const setPage = (value: number) => setPageState(prev => ({ ...prev, page: value }));
+  const setStatus = (value: string) => setPageState(prev => ({ ...prev, status: value }));
+  const setDiscountType = (value: string) => setPageState(prev => ({ ...prev, discountType: value }));
+  const setEntityType = (value: string) => setPageState(prev => ({ ...prev, entityType: value }));
+  const setEntityId = (value: number | null) => setPageState(prev => ({ ...prev, entityId: value }));
+  const setStartDate = (value: string) => setPageState(prev => ({ ...prev, startDate: value }));
+  const setEndDate = (value: string) => setPageState(prev => ({ ...prev, endDate: value }));
+  
   const [limit, setLimit] = useState(100);
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [total, setTotal] = useState(0);
@@ -46,17 +77,9 @@ const CouponTable: React.FC = () => {
   const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
   const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false);
   const [isBulkRestoreDialogOpen, setIsBulkRestoreDialogOpen] = useState(false);
-  const [status, setStatus] = useState<string>('');
-  const [discountType, setDiscountType] = useState<string>('');
-  const [entityType, setEntityType] = useState<string>('');
-  const [entityId, setEntityId] = useState<number | null>(null);
-  const [startDate, setStartDate] = useState<string>('');
-  const [endDate, setEndDate] = useState<string>('');
   const [entities, setEntities] = useState<any[]>([]);
   const [entitiesLoading, setEntitiesLoading] = useState(false);
   const [entitySearchKeyword, setEntitySearchKeyword] = useState('');
-  const router = useRouter();
-  const { showSnackbar } = useSnackbar();
 
   // --- START: Are Filters Active ---
   const areFiltersActive = useMemo(() => {
@@ -78,6 +101,7 @@ const CouponTable: React.FC = () => {
     setPage(1);
     setEntitySearchKeyword('');
     setRowSelection({}); // Clear row selection when filters are cleared
+    clearPageState(); // Clear session storage
   };
   // --- END ---
 

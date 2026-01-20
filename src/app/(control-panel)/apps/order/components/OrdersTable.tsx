@@ -47,6 +47,7 @@ import useColumnOrder from "@/hooks/useColumnOrder";
 import { formatCustomerNameSafely } from "@/utils/actions";
 import { listProducts } from "@/services/apiProduct";
 import TablePagination from "@/components/Shared/TablePagination";
+import { usePageState } from "@/hooks/usePageState";
 
 // Initialize dayjs plugins
 dayjs.extend(relativeTime);
@@ -86,22 +87,58 @@ const OrdersTable = ({
 }: OrdersTableProps) => {
   const router = useRouter();
   const { showSnackbar } = useSnackbar();
-  const [order, setOrder] = useState<"ASC" | "DESC">("DESC");
-  const [sortBy, setSortBy] = useState<string>("id");
-  const [openDrawer, setOpenDrawer] = useState(false);
-  const [page, setPage] = useState(1);
+  
+  // Use session storage for filter state
+  const [pageState, setPageState, clearPageState] = usePageState(
+    "ordersTable",
+    {
+      order: "DESC" as "ASC" | "DESC",
+      sortBy: "id",
+      page: 1,
+      search: initialSearch || "",
+      status: "" as OrderStatus | "",
+      paymentStatus: "" as PaymentStatus | "",
+      startDate: initialStartDate || null,
+      endDate: initialEndDate || null,
+      selectedProductId: null as number | null,
+    }
+  );
+
+  // Use pageState values directly
+  const { order, sortBy, page, search, status, paymentStatus, startDate, endDate, selectedProductId } = pageState;
   const [limit, setLimit] = useState(100);
+  const [openDrawer, setOpenDrawer] = useState(false);
   const [orders, setOrders] = useState([]);
   const [totalRecords, setTotalRecords] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
   const [manuallyRefreshing, setManuallyRefreshing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [search, setSearch] = useState(initialSearch || "");
-  const [searchInput, setSearchInput] = useState(initialSearch || "");
-  const [status, setStatus] = useState<OrderStatus | "">("");
-  const [paymentStatus, setPaymentStatus] = useState<PaymentStatus | "">("");
+  const [searchInput, setSearchInput] = useState(search);
   const searchDebounceRef = useRef<NodeJS.Timeout | null>(null);
   const [hasUserFiltered, setHasUserFiltered] = useState(false);
+  
+  // Convert date strings to dayjs objects
+  const startDateFilter = startDate ? dayjs(startDate) : (initialStartDate ? dayjs(initialStartDate) : dayjs().subtract(1, 'month'));
+  const endDateFilter = endDate ? dayjs(endDate) : (initialEndDate ? dayjs(initialEndDate) : dayjs());
+  
+  // Helper functions to update pageState
+  const setOrder = (value: "ASC" | "DESC") => setPageState(prev => ({ ...prev, order: value }));
+  const setSortBy = (value: string) => setPageState(prev => ({ ...prev, sortBy: value }));
+  const setPage = (value: number) => setPageState(prev => ({ ...prev, page: value }));
+  const setSearch = (value: string) => {
+    setPageState(prev => ({ ...prev, search: value }));
+    setSearchInput(value);
+  };
+  const setStatus = (value: OrderStatus | "") => setPageState(prev => ({ ...prev, status: value }));
+  const setPaymentStatus = (value: PaymentStatus | "") => setPageState(prev => ({ ...prev, paymentStatus: value }));
+  
+  const setStartDateFilter = (date: dayjs.Dayjs | null) => {
+    setPageState(prev => ({ ...prev, startDate: date ? date.format("YYYY-MM-DD") : null }));
+  };
+  
+  const setEndDateFilter = (date: dayjs.Dayjs | null) => {
+    setPageState(prev => ({ ...prev, endDate: date ? date.format("YYYY-MM-DD") : null }));
+  };
   
   // Bulk status update state
   // Using order IDs as keys instead of row indices to persist selections across searches/pages
@@ -119,18 +156,30 @@ const OrdersTable = ({
   // Product filter state
   interface Product { id: number; name: string }
   const [products, setProducts] = useState<Product[]>([]);
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(
+    selectedProductId ? { id: selectedProductId, name: "" } : null
+  );
   const [productSearch, setProductSearch] = useState("");
   const [debouncedProductSearch, setDebouncedProductSearch] = useState("");
   const [isLoadingProducts, setIsLoadingProducts] = useState(false);
   
-  // Set default date filters - from 1 month ago to today
-  const [startDateFilter, setStartDateFilter] = useState<dayjs.Dayjs | null>(
-    initialStartDate ? dayjs(initialStartDate) : dayjs().subtract(1, 'month')
-  );
-  const [endDateFilter, setEndDateFilter] = useState<dayjs.Dayjs | null>(
-    initialEndDate ? dayjs(initialEndDate) : dayjs()
-  );
+  // Update selectedProduct when selectedProductId changes
+  useEffect(() => {
+    if (selectedProductId && products.length > 0) {
+      const product = products.find(p => p.id === selectedProductId);
+      if (product) {
+        setSelectedProduct(product);
+      }
+    } else if (!selectedProductId) {
+      setSelectedProduct(null);
+    }
+  }, [selectedProductId, products]);
+  
+  // Update selectedProductId when selectedProduct changes
+  const handleSelectedProductChange = (product: Product | null) => {
+    setSelectedProduct(product);
+    setPageState(prev => ({ ...prev, selectedProductId: product ? product.id : null }));
+  };
 
   // Handle search input changes with debounce
   const handleSearchChange = useCallback((value: string) => {
@@ -251,7 +300,8 @@ const OrdersTable = ({
     setProductSearch("");
     setDebouncedProductSearch("");
     setPage(1);
-  }, []);
+    clearPageState(); // Clear session storage
+  }, [clearPageState]);
 
   // Modified clear filters handler to reset interaction flag
   const handleClearFiltersWithInteraction = useCallback(() => {
@@ -462,7 +512,7 @@ const OrdersTable = ({
               products={products}
               selectedProduct={selectedProduct}
               productSearch={productSearch}
-              onProductChange={(product) => { setSelectedProduct(product); setHasUserFiltered(true); }}
+              onProductChange={(product) => { handleSelectedProductChange(product); setHasUserFiltered(true); }}
               onProductSearchChange={(value) => { setProductSearch(value); setHasUserFiltered(true); }}
               isLoadingProducts={isLoadingProducts}
               className="hidden md:flex"

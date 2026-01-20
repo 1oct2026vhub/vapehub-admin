@@ -143,7 +143,7 @@
 // export default axiosApi;
 
 import axios from "axios";
-import { getAuthToken, logoutUser } from "@/utils/auth";
+import { getAuthToken, logoutUser, clearAllPageState } from "@/utils/auth";
 import { deleteCookie } from "cookies-next";
 
 const axiosApi = axios.create({
@@ -193,9 +193,10 @@ axiosApi.interceptors.response.use(
 
       // Handle Unauthorized (401) - Token Expired
       if (status === 401) {
-        // Clear tokens and redirect without showing error
+        // Clear tokens and page state, then redirect
         deleteCookie("auth_token", { path: "/" });
         deleteCookie("user_info", { path: "/" });
+        clearAllPageState(); // Clear all filter states
         
         // Use window.location for immediate redirect
         if (typeof window !== "undefined") {

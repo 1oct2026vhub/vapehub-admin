@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import {
   type MRT_ColumnDef,
   type MRT_SortingState,
@@ -47,6 +47,7 @@ import { useRoles } from "@/hooks/roleFetch";
 import { useSnackbar } from "@/contexts/SnackbarContext";
 import { formatDate } from "@/utils/actions";
 import ClearFiltersButton from "@/components/Shared/ClearFiltersButton";
+import { usePageState } from "@/hooks/usePageState";
 
 export type UserType = {
   id: number;
@@ -66,19 +67,41 @@ export type UserType = {
 
 const UserTable = () => {
   const router = useRouter();
-  const [search, setSearch] = useState("");
+  
+  // Use session storage for filter state
+  const [pageState, setPageState, clearPageState] = usePageState(
+    "userTable",
+    {
+      search: "",
+      roleId: "all" as number | "all",
+      order: "DESC" as "ASC" | "DESC",
+      sortBy: "createdAt",
+      deleted: null as boolean | null,
+      verified: null as boolean | null,
+      blocked: null as boolean | null,
+      page: 1,
+    }
+  );
+
+  // Use pageState values directly
+  const { search, roleId, order, sortBy, deleted, verified, blocked, page } = pageState;
   const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [roleId, setRoleId] = useState<number | "all">("all");
-  const [order, setOrder] = useState<"ASC" | "DESC">("DESC");
-  const [sortBy, setSortBy] = useState("createdAt");
-  const [deleted, setDeleted] = useState<boolean | null>(null);
-  const [verified, setVerified] = useState<boolean | null>(null);
-  const [blocked, setBlocked] = useState<boolean | null>(null);
+  
+  // Helper functions to update pageState
+  const setSearch = (value: string) => setPageState(prev => ({ ...prev, search: value }));
+  const setRoleId = (value: number | "all") => setPageState(prev => ({ ...prev, roleId: value }));
+  const setOrder = (value: "ASC" | "DESC") => setPageState(prev => ({ ...prev, order: value }));
+  const setSortBy = (value: string) => setPageState(prev => ({ ...prev, sortBy: value }));
+  const setDeleted = (value: boolean | null) => setPageState(prev => ({ ...prev, deleted: value }));
+  const setVerified = (value: boolean | null) => setPageState(prev => ({ ...prev, verified: value }));
+  const setBlocked = (value: boolean | null) => setPageState(prev => ({ ...prev, blocked: value }));
+  const setPage = (value: number) => setPageState(prev => ({ ...prev, page: value }));
+  
+  // UI state (not persisted)
   const [openDialog, setOpenDialog] = useState(false);
   const [dialogType, setDialogType] = useState<"delete" | "block" | null>(null);
   const [selectedUser, setSelectedUser] = useState<UserType | null>(null);
   const [openDrawer, setOpenDrawer] = useState(false); // Mobile Drawer state
-  const [page, setPage] = useState(1);
   const [limit] = useState(100); // Number of records per page
   const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
   const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false);
@@ -131,6 +154,7 @@ const UserTable = () => {
     setBlocked(null);
     setPage(1); // Reset page number
     setRowSelection({});
+    clearPageState(); // Clear session storage
     showSnackbar("Filters cleared", "info");
   };
   // --- END ADD ---
