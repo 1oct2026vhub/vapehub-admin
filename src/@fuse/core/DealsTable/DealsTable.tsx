@@ -33,6 +33,7 @@ import FuseSvgIcon from '@fuse/core/FuseSvgIcon';
 import { useRouter } from 'next/navigation';
 import { useSnackbar } from '@/contexts/SnackbarContext';
 import debounce from 'lodash/debounce';
+import { usePageState } from '@/hooks/usePageState';
 
 interface Product {
   id: number;
@@ -41,19 +42,41 @@ interface Product {
 }
 
 const DealsTable: React.FC = () => {
-  const [search, setSearch] = useState('');
+  const router = useRouter();
+  const { showSnackbar } = useSnackbar();
+  
+  // Use session storage for filter state
+  const [pageState, setPageState, clearPageState] = usePageState(
+    "dealsTable",
+    {
+      search: '',
+      page: 1,
+      status: '',
+      dealType: 'BUY_N_FOR_FIXED',
+      validNow: null as boolean | null,
+      isDeleted: null as boolean | null,
+      selectedProductId: null as number | null,
+    }
+  );
+
+  // Use pageState values directly
+  const { search, page, status, dealType, validNow, isDeleted, selectedProductId } = pageState;
   const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(100);
+  
+  // Helper functions to update pageState
+  const setSearch = (value: string) => setPageState(prev => ({ ...prev, search: value }));
+  const setPage = (value: number) => setPageState(prev => ({ ...prev, page: value }));
+  const setStatus = (value: string) => setPageState(prev => ({ ...prev, status: value }));
+  const setDealType = (value: string) => setPageState(prev => ({ ...prev, dealType: value }));
+  const setValidNow = (value: boolean | null) => setPageState(prev => ({ ...prev, validNow: value }));
+  const setIsDeleted = (value: boolean | null) => setPageState(prev => ({ ...prev, isDeleted: value }));
+  
   const [openDialog, setOpenDialog] = useState(false);
   const [selectedDeal, setSelectedDeal] = useState<Deal | null>(null);
   const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
   const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false);
   const [isBulkRestoreDialogOpen, setIsBulkRestoreDialogOpen] = useState(false);
-  const [status, setStatus] = useState<string>('');
-  const [dealType, setDealType] = useState<string>('BUY_N_FOR_FIXED');
-  const [validNow, setValidNow] = useState<boolean | null>(null);
-  const [isDeleted, setIsDeleted] = useState<boolean | null>(null);
   const [deals, setDeals] = useState<Deal[]>([]);
   const [total, setTotal] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
@@ -62,11 +85,28 @@ const DealsTable: React.FC = () => {
   const [productSearch, setProductSearch] = useState('');
   const [debouncedProductSearch, setDebouncedProductSearch] = useState('');
   const [products, setProducts] = useState<Product[]>([]);
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(
+    selectedProductId ? { id: selectedProductId, name: "" } : null
+  );
   const [isLoadingProducts, setIsLoadingProducts] = useState(false);
   
-  const router = useRouter();
-  const { showSnackbar } = useSnackbar();
+  // Update selectedProduct when selectedProductId changes
+  useEffect(() => {
+    if (selectedProductId && products.length > 0) {
+      const product = products.find(p => p.id === selectedProductId);
+      if (product) {
+        setSelectedProduct(product);
+      }
+    } else if (!selectedProductId) {
+      setSelectedProduct(null);
+    }
+  }, [selectedProductId, products]);
+  
+  // Update selectedProductId when selectedProduct changes
+  const handleSelectedProductChange = (product: Product | null) => {
+    setSelectedProduct(product);
+    setPageState(prev => ({ ...prev, selectedProductId: product ? product.id : null }));
+  };
 
   const areFiltersActive = useMemo(() => {
     return search !== '' || status !== '' || validNow !== null || isDeleted !== null || selectedProduct !== null;
@@ -79,11 +119,12 @@ const DealsTable: React.FC = () => {
     setDealType('BUY_N_FOR_FIXED');
     setValidNow(null);
     setIsDeleted(null);
-    setSelectedProduct(null);
+    handleSelectedProductChange(null);
     setProductSearch('');
     setDebouncedProductSearch('');
     setPage(1);
     setRowSelection({}); // Clear row selection when filters are cleared
+    clearPageState(); // Clear session storage
   };
 
   // Clear row selection when switching between active/deleted views
@@ -380,7 +421,7 @@ const DealsTable: React.FC = () => {
             options={products}
             getOptionLabel={(option) => option.name}
             value={selectedProduct}
-            onChange={(_, newValue) => setSelectedProduct(newValue)}
+            onChange={(_, newValue) => handleSelectedProductChange(newValue)}
             inputValue={productSearch}
             onInputChange={(_, newInputValue) => setProductSearch(newInputValue)}
             loading={isLoadingProducts}

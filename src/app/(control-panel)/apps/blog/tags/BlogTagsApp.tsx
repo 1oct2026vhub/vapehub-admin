@@ -41,6 +41,7 @@ import { useRouter } from "next/navigation";
 import DeleteConfirmationModal from "./components/DeleteConfirmationModal";
 import useColumnOrder from "@/hooks/useColumnOrder";
 import ClearFiltersButton from "@/components/Shared/ClearFiltersButton";
+import { usePageState } from "@/hooks/usePageState";
 
 // Add pagination interface
 interface Pagination {
@@ -54,8 +55,29 @@ export default function BlogTagsApp() {
   const [tags, setTags] = useState<BlogTag[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Add search state with debouncing
-  const [search, setSearch] = useState("");
+  // Persist table filters in session storage
+  const [pageState, setPageState, clearPageState] = usePageState("blogTagsTable", {
+    search: "",
+    sortField: "created_at" as "name" | "slug" | "created_at" | "updated_at",
+    sortOrder: "DESC" as "ASC" | "DESC",
+    showDeleted: false,
+    page: 1,
+  });
+
+  const { search, sortField, sortOrder, showDeleted, page } = pageState;
+
+  const setSearch = (value: string) =>
+    setPageState((prev) => ({ ...prev, search: value }));
+  const setSortField = (
+    value: "name" | "slug" | "created_at" | "updated_at",
+  ) => setPageState((prev) => ({ ...prev, sortField: value }));
+  const setSortOrder = (value: "ASC" | "DESC") =>
+    setPageState((prev) => ({ ...prev, sortOrder: value }));
+  const setShowDeleted = (value: boolean) =>
+    setPageState((prev) => ({ ...prev, showDeleted: value }));
+  const setPage = (value: number) =>
+    setPageState((prev) => ({ ...prev, page: value }));
+
   const [debouncedSearch, setDebouncedSearch] = useState("");
 
   // Add pagination state
@@ -65,12 +87,10 @@ export default function BlogTagsApp() {
     limit: 100,
   });
 
-  // Add sorting state
-  const [sortField, setSortField] = useState<'name' | 'slug' | 'created_at' | 'updated_at'>('created_at');
-  const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC'>('DESC');
-
-  // Add deleted filter state
-  const [showDeleted, setShowDeleted] = useState(false);
+  // Keep pagination.page in sync for typing/compatibility
+  useEffect(() => {
+    setPagination((prev) => ({ ...prev, page }));
+  }, [page]);
 
   // Add dialog state
   const [openDialog, setOpenDialog] = useState(false);
@@ -129,8 +149,9 @@ export default function BlogTagsApp() {
     setSortField("created_at");
     setSortOrder("DESC");
     setShowDeleted(false);
-    setPagination(prev => ({ ...prev, page: 1 })); // Reset page
+    setPage(1); // Reset page
     setRowSelection({}); // Clear row selection when filters are cleared
+    clearPageState(); // Clear session storage
     showSnackbar("Filters cleared", "info");
   };
   // --- END ADD ---
@@ -153,7 +174,7 @@ export default function BlogTagsApp() {
     try {
       setLoading(true);
       const params = {
-        page: pagination.page,
+        page,
         limit: pagination.limit,
         search: debouncedSearch || undefined,
         sort: sortField,
@@ -180,14 +201,14 @@ export default function BlogTagsApp() {
   // Add useEffect for pagination, sorting, and filtering
   useEffect(() => {
     fetchTags();
-  }, [pagination.page, pagination.limit, sortField, sortOrder, showDeleted]);
+  }, [page, pagination.limit, sortField, sortOrder, showDeleted]);
 
   // Add useEffect for search debouncing
   useEffect(() => {
-    if (pagination.page === 1) {
+    if (page === 1) {
       fetchTags();
     } else {
-      setPagination((prev) => ({ ...prev, page: 1 }));
+      setPage(1);
     }
   }, [debouncedSearch]);
 
@@ -611,9 +632,9 @@ export default function BlogTagsApp() {
               <Box sx={{ display: "flex", justifyContent: "center", p: 2 }}>
                 <Pagination
                   count={totalPages}
-                  page={pagination.page}
+                  page={page}
                   onChange={(event, value) =>
-                    setPagination((prev) => ({ ...prev, page: value }))
+                    setPage(value)
                   }
                   shape="rounded"
                   color="primary"

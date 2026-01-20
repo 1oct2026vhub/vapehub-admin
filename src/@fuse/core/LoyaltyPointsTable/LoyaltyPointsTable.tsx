@@ -24,28 +24,45 @@ import { getLoyaltyPointsSettings, LoyaltyPointSetting, FetchLoyaltyPointsSettin
 import FuseSvgIcon from '@fuse/core/FuseSvgIcon';
 import { useRouter } from 'next/navigation';
 import { useSnackbar } from '@/contexts/SnackbarContext';
+import { usePageState } from '@/hooks/usePageState';
 
 interface LoyaltyPointsTableProps {
   onSettingsUpdate?: (settingsCount: number) => void;
 }
 
 const LoyaltyPointsTable: React.FC<LoyaltyPointsTableProps> = ({ onSettingsUpdate }) => {
-  const [page, setPage] = useState(1);
+  const router = useRouter();
+  const { showSnackbar } = useSnackbar();
+  
+  // Use session storage for filter state
+  const [pageState, setPageState, clearPageState] = usePageState(
+    "loyaltyPointsTable",
+    {
+      page: 1,
+      status: '',
+    }
+  );
+
+  // Use pageState values directly
+  const { page, status } = pageState;
+  
+  // Helper functions to update pageState
+  const setPage = (value: number) => setPageState(prev => ({ ...prev, page: value }));
+  const setStatus = (value: string) => setPageState(prev => ({ ...prev, status: value }));
+  
   const [limit, setLimit] = useState(100);
   const [settings, setSettings] = useState<LoyaltyPointSetting[]>([]);
   const [total, setTotal] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [openDialog, setOpenDialog] = useState(false);
   const [selectedSetting, setSelectedSetting] = useState<LoyaltyPointSetting | null>(null);
-  const [status, setStatus] = useState<string>('');
-  const router = useRouter();
-  const { showSnackbar } = useSnackbar();
 
   const areFiltersActive = useMemo(() => status !== '', [status]);
 
   const clearFilters = () => {
     setStatus('');
     setPage(1);
+    clearPageState(); // Clear session storage
   };
 
   const fetchData = useCallback(async () => {

@@ -45,6 +45,7 @@ import useColumnOrder from "@/hooks/useColumnOrder";
 import debounce from 'lodash/debounce';
 import ClearFiltersButton from "@/components/Shared/ClearFiltersButton";
 import TablePagination from "@/components/Shared/TablePagination";
+import { usePageState } from "@/hooks/usePageState";
 
 export type ProductType = {
   id: number;
@@ -102,33 +103,94 @@ const ProductListTable = ({
   refreshData: setExternalRefreshFn,
 }: ProductListTableProps) => {
   const router = useRouter();
-  const [search, setSearch] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [order, setOrder] = useState<"ASC" | "DESC">("DESC");
-  const [sortBy, setSortBy] = useState<string>("id");
-  const [deleted, setDeleted] = useState<boolean | null>(null);
-  const [status, setStatus] = useState<string>("all");
-  const [isNew, setIsNew] = useState<boolean | null>(null);
-  const [priceRange, setPriceRange] = useState<string>("");
-  const [categories, setCategories] = useState<string>("");
-  const [brands, setBrands] = useState<string>("");
-  const [selectedCategory, setSelectedCategory] = useState<CategoryType | null>(
-    null
+  const { showSnackbar } = useSnackbar();
+  
+  // Use session storage for filter state
+  const [pageState, setPageState, clearPageState] = usePageState(
+    "productListTable",
+    {
+      search: "",
+      order: "DESC" as "ASC" | "DESC",
+      sortBy: "id",
+      deleted: null as boolean | null,
+      status: "all",
+      isNew: null as boolean | null,
+      priceRange: "",
+      categories: "",
+      brands: "",
+      selectedCategoryId: null as number | null,
+      selectedBrandId: null as number | null,
+      page: 1,
+    }
   );
-  const [selectedBrand, setSelectedBrand] = useState<BrandType | null>(null);
 
-  // State for searchable categories and brands
+  // Use pageState values directly
+  const { search, order, sortBy, deleted, status, isNew, priceRange, categories, brands, selectedCategoryId, selectedBrandId, page } = pageState;
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  
+  // Helper functions to update pageState
+  const setSearch = (value: string) => setPageState(prev => ({ ...prev, search: value }));
+  const setOrder = (value: "ASC" | "DESC") => setPageState(prev => ({ ...prev, order: value }));
+  const setSortBy = (value: string) => setPageState(prev => ({ ...prev, sortBy: value }));
+  const setDeleted = (value: boolean | null) => setPageState(prev => ({ ...prev, deleted: value }));
+  const setStatus = (value: string) => setPageState(prev => ({ ...prev, status: value }));
+  const setIsNew = (value: boolean | null) => setPageState(prev => ({ ...prev, isNew: value }));
+  const setPriceRange = (value: string) => setPageState(prev => ({ ...prev, priceRange: value }));
+  const setCategories = (value: string) => setPageState(prev => ({ ...prev, categories: value }));
+  const setBrands = (value: string) => setPageState(prev => ({ ...prev, brands: value }));
+  const setPage = (value: number) => setPageState(prev => ({ ...prev, page: value }));
+  
+  // State for searchable categories and brands (declared before useEffects that use them)
   const [categoryOptions, setCategoryOptions] = useState<{id: number, name: string}[]>([]);
   const [brandOptions, setBrandOptions] = useState<{id: number, name: string}[]>([]);
+  
+  const [selectedCategory, setSelectedCategory] = useState<CategoryType | null>(
+    selectedCategoryId ? { id: selectedCategoryId, name: "" } : null
+  );
+  const [selectedBrand, setSelectedBrand] = useState<BrandType | null>(
+    selectedBrandId ? { id: selectedBrandId, name: "" } : null
+  );
+  
+  // Update selectedCategory/selectedBrand when IDs change
+  useEffect(() => {
+    if (selectedCategoryId && categoryOptions.length > 0) {
+      const category = categoryOptions.find(c => c.id === selectedCategoryId);
+      if (category) {
+        setSelectedCategory(category);
+      }
+    } else if (!selectedCategoryId) {
+      setSelectedCategory(null);
+    }
+  }, [selectedCategoryId, categoryOptions]);
+  
+  useEffect(() => {
+    if (selectedBrandId && brandOptions.length > 0) {
+      const brand = brandOptions.find(b => b.id === selectedBrandId);
+      if (brand) {
+        setSelectedBrand(brand);
+      }
+    } else if (!selectedBrandId) {
+      setSelectedBrand(null);
+    }
+  }, [selectedBrandId, brandOptions]);
+  
+  // Update IDs when selectedCategory/selectedBrand changes
+  const handleSelectedCategoryChange = (category: CategoryType | null) => {
+    setSelectedCategory(category);
+    setPageState(prev => ({ ...prev, selectedCategoryId: category ? category.id : null }));
+  };
+  
+  const handleSelectedBrandChange = (brand: BrandType | null) => {
+    setSelectedBrand(brand);
+    setPageState(prev => ({ ...prev, selectedBrandId: brand ? brand.id : null }));
+  };
   const [isCategoryLoading, setIsCategoryLoading] = useState(false);
   const [isBrandLoading, setIsBrandLoading] = useState(false);
   const [categorySearchQuery, setCategorySearchQuery] = useState("");
   const [brandSearchQuery, setBrandSearchQuery] = useState("");
   
   const [openDrawer, setOpenDrawer] = useState(false);
-  const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(100);
-  const { showSnackbar } = useSnackbar();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [restoreDialogOpen, setRestoreDialogOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<ProductType | null>(
@@ -882,12 +944,13 @@ const ProductListTable = ({
     setPriceRange("");
     setCategories("");
     setBrands("");
-    setSelectedCategory(null);
-    setSelectedBrand(null);
+    handleSelectedCategoryChange(null);
+    handleSelectedBrandChange(null);
     setCategorySearchQuery("");
     setBrandSearchQuery("");
     setPage(1); // Reset page to 1
     setRowSelection({}); // Clear row selection when filters are cleared
+    clearPageState(); // Clear session storage
 
     // Reset dropdown options
     fetchCategories("");
@@ -1058,7 +1121,7 @@ const ProductListTable = ({
                 getOptionLabel={(option) => option.name}
                 value={selectedCategory}
                 onChange={(event, newValue) => {
-                  setSelectedCategory(newValue);
+                  handleSelectedCategoryChange(newValue);
                   setCategories(newValue ? newValue.id.toString() : "");
                 }}
                 onInputChange={(event, newInputValue) => {
@@ -1121,7 +1184,7 @@ const ProductListTable = ({
                 getOptionLabel={(option) => option.name}
                 value={selectedBrand}
                 onChange={(event, newValue) => {
-                  setSelectedBrand(newValue);
+                  handleSelectedBrandChange(newValue);
                   setBrands(newValue ? newValue.id.toString() : "");
                 }}
                 onInputChange={(event, newInputValue) => {

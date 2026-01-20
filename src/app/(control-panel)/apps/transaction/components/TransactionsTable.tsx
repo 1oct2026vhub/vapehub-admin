@@ -28,6 +28,7 @@ import TransactionTypeChip from "./TransactionTypeChip";
 import TransactionFilters from "./TransactionFilters";
 import GenerateReportButton from "./GenerateReportButton";
 import TablePagination from "@/components/Shared/TablePagination";
+import { usePageState } from "@/hooks/usePageState";
 
 interface TransactionsTableProps {
   statusFilter?: TransactionStatus;
@@ -49,27 +50,56 @@ const TransactionsTable = ({
   onEndDateChange,
 }: TransactionsTableProps) => {
   const router = useRouter();
-  const [order, setOrder] = useState<"ASC" | "DESC">("DESC");
-  const [sortBy, setSortBy] = useState<string>("id");
-  const [page, setPage] = useState(1);
+  
+  // Use session storage for filter state
+  const [pageState, setPageState, clearPageState] = usePageState(
+    "transactionsTable",
+    {
+      order: "DESC" as "ASC" | "DESC",
+      sortBy: "id",
+      page: 1,
+      search: initialSearch || "",
+      status: (initialStatusFilter || "") as TransactionStatus | "",
+      transactionType: (initialTypeFilter || "") as TransactionType | "",
+      startDate: initialStartDate || null,
+      endDate: initialEndDate || null,
+    }
+  );
+
+  // Use pageState values directly
+  const { order, sortBy, page, search, status, transactionType, startDate, endDate } = pageState;
   const [limit, setLimit] = useState(100);
   const [transactions, setTransactions] = useState([]);
   const [totalRecords, setTotalRecords] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
-  const [search, setSearch] = useState(initialSearch || "");
-  const [status, setStatus] = useState<TransactionStatus | "">(
-    initialStatusFilter || ""
-  );
-  const [transactionType, setTransactionType] = useState<TransactionType | "">(
-    initialTypeFilter || ""
-  );
-  const [startDateFilter, setStartDateFilter] = useState<dayjs.Dayjs | null>(
-    initialStartDate ? dayjs(initialStartDate) : null
-  );
-  const [endDateFilter, setEndDateFilter] = useState<dayjs.Dayjs | null>(
-    initialEndDate ? dayjs(initialEndDate) : null
-  );
+  
+  // Convert date strings to dayjs objects
+  const startDateFilter = startDate ? dayjs(startDate) : null;
+  const endDateFilter = endDate ? dayjs(endDate) : null;
+  
+  // Helper functions to update pageState
+  const setOrder = (value: "ASC" | "DESC") => setPageState(prev => ({ ...prev, order: value }));
+  const setSortBy = (value: string) => setPageState(prev => ({ ...prev, sortBy: value }));
+  const setPage = (value: number) => setPageState(prev => ({ ...prev, page: value }));
+  const setSearch = (value: string) => setPageState(prev => ({ ...prev, search: value }));
+  const setStatus = (value: TransactionStatus | "") => setPageState(prev => ({ ...prev, status: value }));
+  const setTransactionType = (value: TransactionType | "") => setPageState(prev => ({ ...prev, transactionType: value }));
+  
+  const setStartDateFilter = (date: dayjs.Dayjs | null) => {
+    setPageState(prev => ({ ...prev, startDate: date ? date.format("YYYY-MM-DD") : null }));
+    if (onStartDateChange) {
+      onStartDateChange(date);
+    }
+  };
+  
+  const setEndDateFilter = (date: dayjs.Dayjs | null) => {
+    setPageState(prev => ({ ...prev, endDate: date ? date.format("YYYY-MM-DD") : null }));
+    if (onEndDateChange) {
+      onEndDateChange(date);
+    }
+  };
+  
   const [hasUserFiltered, setHasUserFiltered] = useState(false);
 
   // Handle limit change with proper state batching
@@ -78,34 +108,13 @@ const TransactionsTable = ({
     setLimit(newLimit);
   }, []);
 
-  // Initial setup of filters from props
+  // Update filters when props change (only if not already set in session storage)
   useEffect(() => {
-    // Only update if we haven't set initial values yet and they are provided
-    if (!startDateFilter && initialStartDate) {
-      const date = dayjs(initialStartDate);
-      setStartDateFilter(date);
-    }
-
-    if (!endDateFilter && initialEndDate) {
-      const date = dayjs(initialEndDate);
-      setEndDateFilter(date);
-    }
-  }, []); // Empty dependency array = only run once on mount
-
-  // Update filters when props change
-  useEffect(() => {
-    if (
-      initialStartDate &&
-      (!startDateFilter ||
-        initialStartDate !== startDateFilter.format("YYYY-MM-DD"))
-    ) {
+    if (initialStartDate && !startDate) {
       setStartDateFilter(dayjs(initialStartDate));
     }
 
-    if (
-      initialEndDate &&
-      (!endDateFilter || initialEndDate !== endDateFilter.format("YYYY-MM-DD"))
-    ) {
+    if (initialEndDate && !endDate) {
       setEndDateFilter(dayjs(initialEndDate));
     }
   }, [initialStartDate, initialEndDate]);
@@ -145,16 +154,10 @@ const TransactionsTable = ({
 
   const handleStartDateFilterChange = (date: dayjs.Dayjs | null) => {
     setStartDateFilter(date);
-    if (onStartDateChange) {
-      onStartDateChange(date);
-    }
   };
 
   const handleEndDateFilterChange = (date: dayjs.Dayjs | null) => {
     setEndDateFilter(date);
-    if (onEndDateChange) {
-      onEndDateChange(date);
-    }
   };
 
   const handleClearFilters = useCallback(() => {
@@ -164,15 +167,8 @@ const TransactionsTable = ({
     setEndDateFilter(null);
     setSearch("");
     setPage(1);
-
-    if (onStartDateChange) {
-      onStartDateChange(null);
-    }
-
-    if (onEndDateChange) {
-      onEndDateChange(null);
-    }
-  }, [onStartDateChange, onEndDateChange]);
+    clearPageState(); // Clear session storage
+  }, [clearPageState]);
 
   useEffect(() => {
     if (data?.data) {

@@ -44,6 +44,7 @@ import {
 import DeleteConfirmationModal from "./components/DeleteConfirmationModal";
 import useColumnOrder from "@/hooks/useColumnOrder";
 import ClearFiltersButton from "@/components/Shared/ClearFiltersButton";
+import { usePageState } from "@/hooks/usePageState";
 
 // Add pagination interface
 interface Pagination {
@@ -57,7 +58,25 @@ export default function BlogCategoriesApp() {
   const { showSnackbar } = useSnackbar();
   const [categories, setCategories] = useState<BlogCategory[]>([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
+
+  // Persist table filters in session storage
+  const [pageState, setPageState, clearPageState] = usePageState(
+    "blogCategoriesTable",
+    {
+      search: "",
+      showDeleted: false,
+      page: 1,
+    },
+  );
+
+  const { search, showDeleted, page } = pageState;
+  const setSearch = (value: string) =>
+    setPageState((prev) => ({ ...prev, search: value }));
+  const setShowDeleted = (value: boolean) =>
+    setPageState((prev) => ({ ...prev, showDeleted: value }));
+  const setPage = (value: number) =>
+    setPageState((prev) => ({ ...prev, page: value }));
+
   const [debouncedSearch, setDebouncedSearch] = useState("");
 
   // Add pagination state
@@ -66,9 +85,6 @@ export default function BlogCategoriesApp() {
     page: 1,
     limit: 100,
   });
-
-  // Add deleted filter state
-  const [showDeleted, setShowDeleted] = useState(false);
 
   // Add delete modal state
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
@@ -97,8 +113,9 @@ export default function BlogCategoriesApp() {
     setSearch("");
     setDebouncedSearch("");
     setShowDeleted(false);
-    setPagination(prev => ({ ...prev, page: 1 })); // Reset page
+    setPage(1); // Reset page
     setRowSelection({}); // Clear row selection when filters are cleared
+    clearPageState(); // Clear session storage
     showSnackbar("Filters cleared", "info");
   };
   // --- END ADD ---
@@ -121,7 +138,7 @@ export default function BlogCategoriesApp() {
     try {
       setLoading(true);
       const params = {
-        page: pagination.page,
+        page,
         limit: pagination.limit,
         search: debouncedSearch || undefined,
         deleted: showDeleted,
@@ -146,14 +163,14 @@ export default function BlogCategoriesApp() {
   // Add useEffect for pagination and filtering
   useEffect(() => {
     fetchCategories();
-  }, [pagination.page, pagination.limit, showDeleted]);
+  }, [page, pagination.limit, showDeleted]);
 
   // Add useEffect for search debouncing
   useEffect(() => {
-    if (pagination.page === 1) {
+    if (page === 1) {
       fetchCategories();
     } else {
-      setPagination((prev) => ({ ...prev, page: 1 }));
+      setPage(1);
     }
   }, [debouncedSearch]);
 
@@ -585,9 +602,9 @@ export default function BlogCategoriesApp() {
               <Box sx={{ display: "flex", justifyContent: "center", p: 2 }}>
                 <Pagination
                   count={totalPages}
-                  page={pagination.page}
+                  page={page}
                   onChange={(event, value) =>
-                    setPagination((prev) => ({ ...prev, page: value }))
+                    setPage(value)
                   }
                   shape="rounded"
                   color="primary"

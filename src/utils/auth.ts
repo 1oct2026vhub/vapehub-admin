@@ -106,11 +106,40 @@ export const getUser = (): any | null => {
 };
 
 /**
+ * Clears all page state from sessionStorage (used for filter state)
+ */
+export const clearAllPageState = () => {
+  if (typeof window === "undefined") return;
+  
+  try {
+    // Clear all sessionStorage items that match the usePageState pattern
+    // Pattern: ${pathname}:${storageKey}
+    const keysToRemove: string[] = [];
+    for (let i = 0; i < sessionStorage.length; i++) {
+      const key = sessionStorage.key(i);
+      if (key && key.includes(":")) {
+        // All usePageState keys contain a colon separator
+        keysToRemove.push(key);
+      }
+    }
+    
+    keysToRemove.forEach((key) => {
+      sessionStorage.removeItem(key);
+    });
+  } catch (error) {
+    console.error("Error clearing page state:", error);
+  }
+};
+
+/**
  * Removes the auth token (for logout)
  */
 export const logoutUser = () => {
   deleteCookie("auth_token", { path: "/" });
   deleteCookie("user_info", { path: "/" });
+  
+  // Clear all page state (filters, etc.) from sessionStorage
+  clearAllPageState();
   
   // Use window.location for client-side redirect to avoid Next.js redirect issues
   if (typeof window !== "undefined") {
