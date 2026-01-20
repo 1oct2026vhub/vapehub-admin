@@ -51,6 +51,7 @@ import ClearFiltersButton from "@/components/Shared/ClearFiltersButton";
 import { useDebounce } from "@/hooks/useDebounce";
 import DraggableShippingMethodCard from "./DraggableShippingMethodCard";
 import FuseLoading from "@fuse/core/FuseLoading";
+import { usePageState } from "@/hooks/usePageState";
 
 const SORT_FIELDS = [
   { value: "id", label: "ID" },
@@ -70,12 +71,29 @@ const ShippingMethodsCard = ({
   refreshData: setExternalRefreshFn,
 }: ShippingMethodsCardProps) => {
   const { showSnackbar } = useSnackbar();
-  const [search, setSearch] = useState("");
+
+  // Persist filters in session storage
+  const [pageState, setPageState, clearPageState] = usePageState(
+    "shippingMethodsCard",
+    {
+      search: "",
+      showDeleted: false,
+      sortBy: "method_order" as ShippingMethodListParams["sort_by"],
+      order: "ASC" as "ASC" | "DESC",
+    },
+  );
+
+  const { search, showDeleted, sortBy, order } = pageState;
+  const setSearch = (value: string) =>
+    setPageState((prev) => ({ ...prev, search: value }));
+  const setShowDeleted = (value: boolean) =>
+    setPageState((prev) => ({ ...prev, showDeleted: value }));
+  const setSortBy = (value: ShippingMethodListParams["sort_by"]) =>
+    setPageState((prev) => ({ ...prev, sortBy: value }));
+  const setOrder = (value: "ASC" | "DESC") =>
+    setPageState((prev) => ({ ...prev, order: value }));
+
   const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [showDeleted, setShowDeleted] = useState(false);
-  const [sortBy, setSortBy] =
-    useState<ShippingMethodListParams["sort_by"]>("method_order");
-  const [order, setOrder] = useState<"ASC" | "DESC">("ASC");
   const [openDialog, setOpenDialog] = useState(false);
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
   const [selectedShippingMethod, setSelectedShippingMethod] = useState<ShippingMethod | null>(
@@ -92,6 +110,15 @@ const ShippingMethodsCard = ({
   useEffect(() => {
     setDebouncedSearch(debouncedSearchValue);
   }, [debouncedSearchValue]);
+
+  const areFiltersActive = useMemo(() => {
+    return (
+      search !== "" ||
+      showDeleted !== false ||
+      sortBy !== "method_order" ||
+      order !== "ASC"
+    );
+  }, [search, showDeleted, sortBy, order]);
 
   // Drag and drop sensors
   const sensors = useSensors(
@@ -321,6 +348,7 @@ const ShippingMethodsCard = ({
               setSortBy("method_order");
               setOrder("ASC");
               setShowDeleted(false);
+              clearPageState(); // Clear session storage
             }}
           />
         </div>

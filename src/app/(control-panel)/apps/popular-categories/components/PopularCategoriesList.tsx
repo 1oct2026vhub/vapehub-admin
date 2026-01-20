@@ -63,6 +63,7 @@ import FuseSvgIcon from '@fuse/core/FuseSvgIcon';
 import { useSnackbar } from '@/contexts/SnackbarContext';
 import TablePagination from '@/components/Shared/TablePagination';
 import PopularCategoryForm from './PopularCategoryForm';
+import { usePageState } from '@/hooks/usePageState';
 
 interface PopularCategoriesListProps {
   refreshTrigger?: number;
@@ -71,18 +72,30 @@ interface PopularCategoriesListProps {
 }
 
 const PopularCategoriesList: React.FC<PopularCategoriesListProps> = ({ refreshTrigger = 0, openCreate, onCreateClosed }) => {
-  const [search, setSearch] = useState('');
+  // Persist table filters in session storage
+  const [pageState, setPageState, clearPageState] = usePageState("popularCategoriesList", {
+    search: '',
+    deleted: false,
+    page: 1,
+    limit: 10,
+    sortBy: 'order' as 'id' | 'title' | 'description' | 'status' | 'order' | 'createdAt' | 'updatedAt',
+    sortOrder: 'ASC' as 'ASC' | 'DESC',
+  });
+
+  const { search, deleted, page, limit, sortBy, sortOrder } = pageState;
+  const setSearch = (value: string) => setPageState(prev => ({ ...prev, search: value }));
+  const setDeleted = (value: boolean) => setPageState(prev => ({ ...prev, deleted: value }));
+  const setPage = (value: number) => setPageState(prev => ({ ...prev, page: value }));
+  const setLimit = (value: number) => setPageState(prev => ({ ...prev, limit: value }));
+  const setSortBy = (value: typeof sortBy) => setPageState(prev => ({ ...prev, sortBy: value }));
+  const setSortOrder = (value: typeof sortOrder) => setPageState(prev => ({ ...prev, sortOrder: value }));
+
   const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [deleted, setDeleted] = useState<boolean>(false);
-  const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(10);
   const [popularCategories, setPopularCategories] = useState<PopularCategory[]>([]);
   const [total, setTotal] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [openDialog, setOpenDialog] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<PopularCategory | null>(null);
-  const [sortBy, setSortBy] = useState<'id' | 'title' | 'description' | 'status' | 'order' | 'createdAt' | 'updatedAt'>('order');
-  const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC'>('ASC');
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editItem, setEditItem] = useState<PopularCategory | null>(null);
 
@@ -136,6 +149,7 @@ const PopularCategoriesList: React.FC<PopularCategoriesListProps> = ({ refreshTr
     setSortOrder('ASC');
     setPage(1);
     setRowSelection({});
+    clearPageState(); // Clear session storage
   };
 
   useEffect(() => {

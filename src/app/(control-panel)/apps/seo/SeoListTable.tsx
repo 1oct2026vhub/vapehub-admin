@@ -29,6 +29,7 @@ import { useRouter } from 'next/navigation';
 import { useSnackbar } from '@/contexts/SnackbarContext';
 import { Circle } from '@mui/icons-material';
 import TablePagination from '@/components/Shared/TablePagination';
+import { usePageState } from '@/hooks/usePageState';
 
 const getEditUrl = (item: SeoListItem): string | null => {
     switch (item.entityType) {
@@ -48,19 +49,33 @@ const getEditUrl = (item: SeoListItem): string | null => {
 };
 
 const SeoListTable: React.FC<{ refreshTrigger: number, onEdit: (data: SeoListItem) => void }> = ({ refreshTrigger, onEdit }) => {
-    const [keyword, setKeyword] = useState('');
+    // Persist table filters in session storage
+    const [pageState, setPageState, clearPageState] = usePageState("seoListTable", {
+        keyword: '',
+        page: 1,
+        limit: 100,
+        entityType: '',
+        noIndex: '',
+        entityId: null as number | null,
+        entitySearchKeyword: '',
+    });
+
+    const { keyword, page, limit, entityType, noIndex, entityId, entitySearchKeyword } = pageState;
+
+    const setKeyword = (value: string) => setPageState(prev => ({ ...prev, keyword: value }));
+    const setPage = (value: number) => setPageState(prev => ({ ...prev, page: value }));
+    const setLimit = (value: number) => setPageState(prev => ({ ...prev, limit: value }));
+    const setEntityType = (value: string) => setPageState(prev => ({ ...prev, entityType: value }));
+    const setNoIndex = (value: string) => setPageState(prev => ({ ...prev, noIndex: value }));
+    const setEntityId = (value: number | null) => setPageState(prev => ({ ...prev, entityId: value }));
+    const setEntitySearchKeyword = (value: string) => setPageState(prev => ({ ...prev, entitySearchKeyword: value }));
+
     const [debouncedKeyword, setDebouncedKeyword] = useState('');
-    const [page, setPage] = useState(1);
-    const [limit, setLimit] = useState(100);
     const [seoData, setSeoData] = useState<SeoListItem[]>([]);
     const [total, setTotal] = useState(0);
     const [isLoading, setIsLoading] = useState(false);
-    const [entityType, setEntityType] = useState<string>('');
-    const [noIndex, setNoIndex] = useState<string>('');
-    const [entityId, setEntityId] = useState<string | null>(null);
     const [entities, setEntities] = useState<any[]>([]);
     const [entitiesLoading, setEntitiesLoading] = useState(false);
-    const [entitySearchKeyword, setEntitySearchKeyword] = useState('');
 
     const router = useRouter();
     const { showSnackbar } = useSnackbar();
@@ -77,6 +92,7 @@ const SeoListTable: React.FC<{ refreshTrigger: number, onEdit: (data: SeoListIte
         setEntityId(null);
         setPage(1);
         setEntitySearchKeyword('');
+        clearPageState(); // Clear session storage
     };
 
     // Handle limit change with proper state batching
@@ -177,7 +193,7 @@ const SeoListTable: React.FC<{ refreshTrigger: number, onEdit: (data: SeoListIte
                 limit,
                 keyword: debouncedKeyword || undefined,
                 entityType: entityType ? (entityType as ListSeoParams['entityType']) : undefined,
-                entityId: entityId || undefined,
+                entityId: entityId !== null ? String(entityId) : undefined,
                 noIndex: noIndex ? noIndex === 'true' : undefined,
             };
             const res = await listSeo(params);

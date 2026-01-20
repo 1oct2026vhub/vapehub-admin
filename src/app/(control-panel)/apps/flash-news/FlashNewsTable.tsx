@@ -9,13 +9,27 @@ import FuseSvgIcon from '@fuse/core/FuseSvgIcon';
 import { useRouter } from 'next/navigation';
 import { useSnackbar } from '@/contexts/SnackbarContext';
 import ClearFiltersButton from '@/components/Shared/ClearFiltersButton';
+import { usePageState } from '@/hooks/usePageState';
 
 const FlashNewsTable: React.FC = () => {
-  const [search, setSearch] = useState('');
+  // Persist table filters in session storage
+  const [pageState, setPageState, clearPageState] = usePageState(
+    "flashNewsTable",
+    {
+      search: '',
+      deleted: null as boolean | null,
+      page: 1,
+      limit: 10,
+    }
+  );
+
+  const { search, deleted, page, limit } = pageState;
+  const setSearch = (value: string) => setPageState(prev => ({ ...prev, search: value }));
+  const setDeleted = (value: boolean | null) => setPageState(prev => ({ ...prev, deleted: value }));
+  const setPage = (value: number) => setPageState(prev => ({ ...prev, page: value }));
+  const setLimit = (value: number) => setPageState(prev => ({ ...prev, limit: value }));
+
   const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [deleted, setDeleted] = useState<boolean | null>(null);
-  const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(10);
   const [flashNews, setFlashNews] = useState<FlashNews[]>([]);
   const [total, setTotal] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
@@ -37,6 +51,7 @@ const FlashNewsTable: React.FC = () => {
     setDeleted(null);
     setPage(1);
     setRowSelection({});
+    clearPageState(); // Clear session storage
   };
 
   // Clear row selection when switching between active/deleted views

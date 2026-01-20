@@ -27,6 +27,7 @@ import { getFeatureContent, FeatureContent, FetchFeatureContentParams, deleteFea
 import FuseSvgIcon from '@fuse/core/FuseSvgIcon';
 import { useSnackbar } from '@/contexts/SnackbarContext';
 import CreateFeatureContentForm from './CreateFeatureContentForm';
+import { usePageState } from '@/hooks/usePageState';
 
 interface FeatureContentListProps {
   openCreate?: boolean;
@@ -34,17 +35,31 @@ interface FeatureContentListProps {
 }
 
 const FeatureContentList: React.FC<FeatureContentListProps> = ({ openCreate, onCreateClosed }) => {
-  const [search, setSearch] = useState('');
+  // Persist table filters in session storage
+  const [pageState, setPageState, clearPageState] = usePageState(
+    "featureContentList",
+    {
+      search: '',
+      deleted: false,
+      status: '',
+      page: 1,
+      limit: 100,
+    }
+  );
+
+  const { search, deleted, status, page, limit } = pageState;
+  const setSearch = (value: string) => setPageState(prev => ({ ...prev, search: value }));
+  const setDeleted = (value: boolean) => setPageState(prev => ({ ...prev, deleted: value }));
+  const setStatus = (value: string) => setPageState(prev => ({ ...prev, status: value }));
+  const setPage = (value: number) => setPageState(prev => ({ ...prev, page: value }));
+  const setLimit = (value: number) => setPageState(prev => ({ ...prev, limit: value }));
+
   const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [deleted, setDeleted] = useState<boolean>(false);
-  const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(100);
   const [featureContents, setFeatureContents] = useState<FeatureContent[]>([]);
   const [total, setTotal] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [openDialog, setOpenDialog] = useState(false);
   const [selectedContent, setSelectedContent] = useState<FeatureContent | null>(null);
-  const [status, setStatus] = useState<string>('');
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editItem, setEditItem] = useState<FeatureContent | null>(null);
   const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
@@ -66,6 +81,7 @@ const FeatureContentList: React.FC<FeatureContentListProps> = ({ openCreate, onC
     setDeleted(false);
     setPage(1);
     setRowSelection({});
+    clearPageState(); // Clear session storage
   };
 
   useEffect(() => {
