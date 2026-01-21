@@ -43,6 +43,7 @@ import { useSnackbar } from "@/contexts/SnackbarContext";
 import { formatDate } from "@/utils/actions";
 import useColumnOrder from "@/hooks/useColumnOrder";
 import ClearFiltersButton from "@/components/Shared/ClearFiltersButton";
+import { usePageState } from "@/hooks/usePageState";
 
 const SORT_FIELDS = [
   { value: "id", label: "ID" },
@@ -63,16 +64,40 @@ const SettingsTable = ({
 }: SettingsTableProps) => {
   const router = useRouter();
   const { showSnackbar } = useSnackbar();
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
-  const [search, setSearch] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [showDeleted, setShowDeleted] = useState(false);
-  const [activeFilter, setActiveFilter] = useState<boolean | undefined>(
-    undefined
+
+  // Persist table filters in session storage
+  const [pageState, setPageState, clearPageState] = usePageState(
+    "settingsTable",
+    {
+      page: 1,
+      pageSize: 10,
+      search: "",
+      showDeleted: false,
+      activeFilter: undefined as boolean | undefined,
+      sortBy: "created_at",
+      order: "DESC" as "ASC" | "DESC",
+    },
   );
-  const [sortBy, setSortBy] = useState<string>("created_at");
-  const [order, setOrder] = useState<"ASC" | "DESC">("DESC");
+
+  const { page, pageSize, search, showDeleted, activeFilter, sortBy, order } =
+    pageState;
+
+  const setPage = (value: number) =>
+    setPageState((prev) => ({ ...prev, page: value }));
+  const setPageSize = (value: number) =>
+    setPageState((prev) => ({ ...prev, pageSize: value }));
+  const setSearch = (value: string) =>
+    setPageState((prev) => ({ ...prev, search: value }));
+  const setShowDeleted = (value: boolean) =>
+    setPageState((prev) => ({ ...prev, showDeleted: value }));
+  const setActiveFilter = (value: boolean | undefined) =>
+    setPageState((prev) => ({ ...prev, activeFilter: value }));
+  const setSortBy = (value: string) =>
+    setPageState((prev) => ({ ...prev, sortBy: value }));
+  const setOrder = (value: "ASC" | "DESC") =>
+    setPageState((prev) => ({ ...prev, order: value }));
+
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [openDialog, setOpenDialog] = useState(false);
   const [selectedSetting, setSelectedSetting] = useState<Setting | null>(null);
   const [settings, setSettings] = useState<Setting[]>([]);
@@ -121,6 +146,7 @@ const SettingsTable = ({
     setSortBy("created_at");
     setOrder("DESC");
     setPage(1);
+    clearPageState(); // Clear session storage
     showSnackbar("Filters cleared", "info");
   };
 

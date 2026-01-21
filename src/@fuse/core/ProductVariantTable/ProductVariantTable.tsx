@@ -44,6 +44,7 @@ import {
 import { formatDate, formatPounds } from "@/utils/actions";
 import ClearFiltersButton from "@/components/Shared/ClearFiltersButton";
 import TablePagination from "@/components/Shared/TablePagination";
+import { usePageState } from "@/hooks/usePageState";
 
 // Extend the base ProductVariant type
 interface ProductVariant extends BaseProductVariant {
@@ -79,17 +80,37 @@ const ProductVariantTable = ({
   const router = useRouter();
   const { showSnackbar } = useSnackbar();
 
-  // State management
-  const [search, setSearch] = useState("");
-  const [order, setOrder] = useState<"ASC" | "DESC">("DESC");
-  const [sortBy, setSortBy] = useState<string>("id");
-  const [deleted, setDeleted] = useState<boolean | null>(null);
-  const [isNew, setIsNew] = useState<boolean | null>(null);
-  const [priceRange, setPriceRange] = useState<string>("");
-  const [stockStatus, setStockStatus] = useState<string>("in_stock");
-  const [productId, setProductId] = useState<string>("");
+  // Use session storage for filter state
+  const [pageState, setPageState, clearPageState] = usePageState(
+    "productVariantTable",
+    {
+      search: "",
+      order: "DESC" as "ASC" | "DESC",
+      sortBy: "id",
+      deleted: null as boolean | null,
+      isNew: null as boolean | null,
+      priceRange: "",
+      stockStatus: "in_stock",
+      productId: "",
+      page: 1,
+    }
+  );
+
+  // Use pageState values directly
+  const { search, order, sortBy, deleted, isNew, priceRange, stockStatus, productId, page } = pageState;
+  
+  // Helper functions to update pageState
+  const setSearch = (value: string) => setPageState(prev => ({ ...prev, search: value }));
+  const setOrder = (value: "ASC" | "DESC") => setPageState(prev => ({ ...prev, order: value }));
+  const setSortBy = (value: string) => setPageState(prev => ({ ...prev, sortBy: value }));
+  const setDeleted = (value: boolean | null) => setPageState(prev => ({ ...prev, deleted: value }));
+  const setIsNew = (value: boolean | null) => setPageState(prev => ({ ...prev, isNew: value }));
+  const setPriceRange = (value: string) => setPageState(prev => ({ ...prev, priceRange: value }));
+  const setStockStatus = (value: string) => setPageState(prev => ({ ...prev, stockStatus: value }));
+  const setProductId = (value: string) => setPageState(prev => ({ ...prev, productId: value }));
+  const setPage = (value: number) => setPageState(prev => ({ ...prev, page: value }));
+  
   const [openDrawer, setOpenDrawer] = useState(false);
-  const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(100);
   const [openDialog, setOpenDialog] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -110,7 +131,7 @@ const ProductVariantTable = ({
     stockStatus: "in_stock",
     priceRange: "",
     productId: "",
-    page: 0,
+    page: 1,
   };
 
   // Check if any filters are active
@@ -303,7 +324,8 @@ const ProductVariantTable = ({
     setStockStatus(defaultFilters.stockStatus);
     setPriceRange(defaultFilters.priceRange);
     setProductId(defaultFilters.productId);
-    setPage(defaultFilters.page); // Reset page to 0 as well
+    setPage(1); // Reset page to 1
+    clearPageState(); // Clear session storage
   };
 
   if (loading && isInitialLoad) return <FuseLoading />;

@@ -55,6 +55,7 @@ import { useRouter } from "next/navigation";
 import Link from "@mui/material/Link";
 import useColumnOrder from "@/hooks/useColumnOrder";
 import ClearFiltersButton from "@/components/Shared/ClearFiltersButton";
+import { usePageState } from "@/hooks/usePageState";
 
 // Update sorting type to match API requirements
 type SortField = "title" | "created_at" | "published_at";
@@ -92,30 +93,67 @@ export default function BlogPostsApp() {
   const [posts, setPosts] = useState<BlogPost[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Keep pagination, search, and filter states
-  const [search, setSearch] = useState("");
+  // Persist table filters in session storage
+  const [pageState, setPageState, clearPageState] = usePageState("blogPostsTable", {
+    search: "",
+    sortField: "created_at" as SortField,
+    sortOrder: "DESC" as SortOrder,
+    showDeleted: false,
+    status: "",
+    selectedCategoryId: null as number | null,
+    selectedTagId: null as number | null,
+    page: 1,
+  });
+
+  const {
+    search,
+    sortField,
+    sortOrder,
+    showDeleted,
+    status,
+    selectedCategoryId,
+    selectedTagId,
+    page,
+  } = pageState;
+
+  const setSearch = (value: string) =>
+    setPageState((prev) => ({ ...prev, search: value }));
+  const setSortField = (value: SortField) =>
+    setPageState((prev) => ({ ...prev, sortField: value }));
+  const setSortOrder = (value: SortOrder) =>
+    setPageState((prev) => ({ ...prev, sortOrder: value }));
+  const setShowDeleted = (value: boolean) =>
+    setPageState((prev) => ({ ...prev, showDeleted: value }));
+  const setStatus = (value: string) =>
+    setPageState((prev) => ({ ...prev, status: value }));
+  const setSelectedCategoryId = (value: number | null) =>
+    setPageState((prev) => ({ ...prev, selectedCategoryId: value }));
+  const setSelectedTagId = (value: number | null) =>
+    setPageState((prev) => ({ ...prev, selectedTagId: value }));
+  const setPage = (value: number) =>
+    setPageState((prev) => ({ ...prev, page: value }));
+
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [pagination, setPagination] = useState({
     total: 0,
-    page: 1,
     limit: 100,
   });
-  const [sortField, setSortField] = useState<SortField>("created_at");
-  const [sortOrder, setSortOrder] = useState<SortOrder>("DESC");
-  const [showDeleted, setShowDeleted] = useState(false);
   
   // New filter states
   const [categories, setCategories] = useState<BlogCategory[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState<BlogCategory | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<BlogCategory | null>(
+    selectedCategoryId ? ({ id: selectedCategoryId, name: "" } as BlogCategory) : null,
+  );
   const [categoryLoading, setCategoryLoading] = useState(false);
   const [categorySearch, setCategorySearch] = useState("");
   
   const [tags, setTags] = useState<BlogTag[]>([]);
-  const [selectedTag, setSelectedTag] = useState<BlogTag | null>(null);
+  const [selectedTag, setSelectedTag] = useState<BlogTag | null>(
+    selectedTagId ? ({ id: selectedTagId, name: "" } as BlogTag) : null,
+  );
   const [tagLoading, setTagLoading] = useState(false);
   const [tagSearch, setTagSearch] = useState("");
   
-  const [status, setStatus] = useState<string>("");
   const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
   const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false);
   const [isBulkRestoreDialogOpen, setIsBulkRestoreDialogOpen] = useState(false);
@@ -167,15 +205,18 @@ export default function BlogPostsApp() {
     setSearch("");
     setDebouncedSearch("");
     setSelectedCategory(null);
+    setSelectedCategoryId(null);
     setSelectedTag(null);
+    setSelectedTagId(null);
     setStatus("");
     setSortField("created_at");
     setSortOrder("DESC");
     setShowDeleted(false);
-    setPagination(prev => ({ ...prev, page: 1 })); // Reset page
+    setPage(1); // Reset page
     setCategorySearch(""); // Clear Autocomplete search
     setTagSearch(""); // Clear Autocomplete search
     setRowSelection({}); // Clear row selection when filters are cleared
+    clearPageState(); // Clear session storage
     showSnackbar("Filters cleared", "info");
   };
   // --- END ADD ---
@@ -272,13 +313,34 @@ export default function BlogPostsApp() {
     fetchFilters();
   }, []);
 
+  // Restore selected category/tag objects once options are loaded
+  useEffect(() => {
+    if (selectedCategoryId && categories.length > 0) {
+      const found = categories.find((c) => c.id === selectedCategoryId) || null;
+      setSelectedCategory(found);
+    }
+    if (!selectedCategoryId) {
+      setSelectedCategory(null);
+    }
+  }, [selectedCategoryId, categories]);
+
+  useEffect(() => {
+    if (selectedTagId && tags.length > 0) {
+      const found = tags.find((t) => t.id === selectedTagId) || null;
+      setSelectedTag(found);
+    }
+    if (!selectedTagId) {
+      setSelectedTag(null);
+    }
+  }, [selectedTagId, tags]);
+
   // Fetch posts when filters change
   useEffect(() => {
     const fetchPosts = async () => {
       try {
         setLoading(true);
         const response = await getBlogPosts({
-          page: pagination.page,
+          page,
           limit: pagination.limit,
           search: debouncedSearch,
           sort: sortField,
@@ -304,11 +366,11 @@ export default function BlogPostsApp() {
     };
 
     fetchPosts();
-  }, [debouncedSearch, pagination.page, pagination.limit, sortField, sortOrder, showDeleted, selectedCategory, selectedTag, status]);
+  }, [debouncedSearch, page, pagination.limit, sortField, sortOrder, showDeleted, selectedCategory, selectedTag, status]);
 
   // Reset pagination when filters change
   useEffect(() => {
-    setPagination(prev => ({ ...prev, page: 1 }));
+    setPage(1);
   }, [debouncedSearch, sortField, sortOrder, showDeleted, selectedCategory, selectedTag, status]);
 
   const handleDeletePost = async (post: BlogPost) => {
@@ -418,7 +480,7 @@ export default function BlogPostsApp() {
       
       // Refresh data from server by triggering a refetch
       const response = await getBlogPosts({
-        page: pagination.page,
+        page,
         limit: pagination.limit,
         search: debouncedSearch,
         sort: sortField,
@@ -495,7 +557,7 @@ export default function BlogPostsApp() {
       
       // Refresh data from server by triggering a refetch
       const response = await getBlogPosts({
-        page: pagination.page,
+        page,
         limit: pagination.limit,
         search: debouncedSearch,
         sort: sortField,
@@ -695,6 +757,7 @@ export default function BlogPostsApp() {
                   value={selectedCategory}
                   onChange={(_, newValue) => {
                     setSelectedCategory(newValue);
+                    setSelectedCategoryId(newValue?.id ?? null);
                     setIsActivelySearchingCategory(false);
                   }}
                   onInputChange={(_, newInputValue, reason) => {
@@ -722,6 +785,7 @@ export default function BlogPostsApp() {
                   value={selectedTag}
                   onChange={(_, newValue) => {
                     setSelectedTag(newValue);
+                    setSelectedTagId(newValue?.id ?? null);
                     setIsActivelySearchingTag(false);
                   }}
                   onInputChange={(_, newInputValue, reason) => {
@@ -920,9 +984,9 @@ export default function BlogPostsApp() {
                   <Box sx={{ display: "flex", justifyContent: "center", p: 2 }}>
                     <Pagination
                       count={Math.ceil(pagination.total / pagination.limit)}
-                      page={pagination.page}
+                      page={page}
                       onChange={(event, value) =>
-                        setPagination((prev) => ({ ...prev, page: value }))
+                        setPage(value)
                       }
                       shape="rounded"
                       color="primary"

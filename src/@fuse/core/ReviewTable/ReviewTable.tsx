@@ -33,13 +33,40 @@ import { useSnackbar } from '@/contexts/SnackbarContext';
 import FuseSvgIcon from '@fuse/core/FuseSvgIcon';
 import { useDebounce } from '@/hooks/useDebounce';
 import ClearFiltersButton from '@/components/Shared/ClearFiltersButton';
+import { usePageState } from '@/hooks/usePageState';
 
 interface ReviewTableProps {
   onEditClick?: (review: Review) => void;
 }
 
 const ReviewTable: React.FC<ReviewTableProps> = ({ onEditClick }) => {
-  const [page, setPage] = useState(1);
+  const { showSnackbar } = useSnackbar();
+  
+  // Use session storage for filter state
+  const [pageState, setPageState, clearPageState] = usePageState(
+    "reviewTable",
+    {
+      page: 1,
+      search: '',
+      rating: 'all',
+      sortBy: 'created_at',
+      sortOrder: 'DESC' as 'ASC' | 'DESC',
+      deleted: null as boolean | null,
+    }
+  );
+
+  // Use pageState values directly
+  const { page, search, rating, sortBy, sortOrder, deleted } = pageState;
+  
+  // Helper functions to update pageState
+  const setPage = (value: number) => setPageState(prev => ({ ...prev, page: value }));
+  const setSearch = (value: string) => setPageState(prev => ({ ...prev, search: value }));
+  const setRating = (value: string) => setPageState(prev => ({ ...prev, rating: value }));
+  const setSortBy = (value: string) => setPageState(prev => ({ ...prev, sortBy: value }));
+  const setSortOrder = (value: 'ASC' | 'DESC') => setPageState(prev => ({ ...prev, sortOrder: value }));
+  const setDeleted = (value: boolean | null) => setPageState(prev => ({ ...prev, deleted: value }));
+  
+  // UI state (not persisted)
   const [limit, setLimit] = useState(100);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [total, setTotal] = useState(0);
@@ -49,12 +76,6 @@ const ReviewTable: React.FC<ReviewTableProps> = ({ onEditClick }) => {
   const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
   const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false);
   const [isBulkRestoreDialogOpen, setIsBulkRestoreDialogOpen] = useState(false);
-  const [deleted, setDeleted] = useState<boolean | null>(null);
-  const { showSnackbar } = useSnackbar();
-  const [search, setSearch] = useState('');
-  const [rating, setRating] = useState('all');
-  const [sortBy, setSortBy] = useState('created_at');
-  const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC'>('DESC');
 
   const debouncedSearch = useDebounce(search, 500);
 
@@ -86,7 +107,10 @@ const ReviewTable: React.FC<ReviewTableProps> = ({ onEditClick }) => {
     setSortBy('created_at');
     setSortOrder('DESC');
     setDeleted(null);
+    setPage(1);
     setRowSelection({}); // Clear row selection when filters are cleared
+    clearPageState(); // Clear session storage
+    showSnackbar("Filters cleared", "info");
   };
 
   const isFilterApplied = search !== '' || rating !== 'all' || sortBy !== 'created_at' || sortOrder !== 'DESC' || deleted !== null;

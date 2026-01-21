@@ -47,6 +47,7 @@ import { formatDate } from "@/utils/actions";
 import useColumnOrder from "@/hooks/useColumnOrder";
 import ClearFiltersButton from "@/components/Shared/ClearFiltersButton";
 import TablePagination from "@/components/Shared/TablePagination";
+import { usePageState } from "@/hooks/usePageState";
 
 // // Add delete and restore functions
 // const deleteAttributeTerm = async (id: number) => {
@@ -78,14 +79,31 @@ const AttributeTermTable = ({
 }: AttributeTermTableProps) => {
   const router = useRouter();
   const { showSnackbar } = useSnackbar();
-  const [page, setPage] = useState(1);
+  
+  // Use session storage for filter state
+  const [pageState, setPageState, clearPageState] = usePageState(
+    `attributeTermTable${attributeId ? `-${attributeId}` : ''}`,
+    {
+      page: 1,
+      search: "",
+      showDeleted: false,
+      sortBy: "created_at" as AttributeTermListParams["sort_by"],
+      order: "DESC" as "ASC" | "DESC",
+    }
+  );
+
+  // Use pageState values directly
+  const { page, search, showDeleted, sortBy, order } = pageState;
   const [limit, setLimit] = useState(100);
-  const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [showDeleted, setShowDeleted] = useState(false);
-  const [sortBy, setSortBy] =
-    useState<AttributeTermListParams["sort_by"]>("created_at");
-  const [order, setOrder] = useState<"ASC" | "DESC">("DESC");
+  
+  // Helper functions to update pageState
+  const setPage = (value: number) => setPageState(prev => ({ ...prev, page: value }));
+  const setSearch = (value: string) => setPageState(prev => ({ ...prev, search: value }));
+  const setShowDeleted = (value: boolean) => setPageState(prev => ({ ...prev, showDeleted: value }));
+  const setSortBy = (value: AttributeTermListParams["sort_by"]) => setPageState(prev => ({ ...prev, sortBy: value }));
+  const setOrder = (value: "ASC" | "DESC") => setPageState(prev => ({ ...prev, order: value }));
+  
   const [openDialog, setOpenDialog] = useState(false);
   const [selectedTerm, setSelectedTerm] = useState<AttributeTerm | null>(null);
   const [localTerms, setLocalTerms] = useState<AttributeTerm[]>([]);
@@ -144,6 +162,7 @@ const AttributeTermTable = ({
     setOrder("DESC");
     setPage(1); // Reset page to 1
     setRowSelection({}); // Clear row selection when filters are cleared
+    clearPageState(); // Clear session storage
     showSnackbar("Filters cleared", "info");
   };
   // --- END ADD ---

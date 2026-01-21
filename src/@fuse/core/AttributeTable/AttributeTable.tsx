@@ -46,6 +46,7 @@ import { formatDate } from "@/utils/actions";
 import useColumnOrder from "@/hooks/useColumnOrder";
 import ClearFiltersButton from "@/components/Shared/ClearFiltersButton";
 import TablePagination from "@/components/Shared/TablePagination";
+import { usePageState } from "@/hooks/usePageState";
 
 const SORT_FIELDS = [
   { value: "id", label: "ID" },
@@ -66,14 +67,31 @@ const AttributeTable = ({
 }: AttributeTableProps) => {
   const router = useRouter();
   const { showSnackbar } = useSnackbar();
-  const [page, setPage] = useState(1);
+  
+  // Use session storage for filter state
+  const [pageState, setPageState, clearPageState] = usePageState(
+    "attributeTable",
+    {
+      page: 1,
+      search: "",
+      showDeleted: false,
+      sortBy: "created_at" as AttributeListParams["sort_by"],
+      order: "DESC" as "ASC" | "DESC",
+    }
+  );
+
+  // Use pageState values directly
+  const { page, search, showDeleted, sortBy, order } = pageState;
   const [limit, setLimit] = useState(100);
-  const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [showDeleted, setShowDeleted] = useState(false);
-  const [sortBy, setSortBy] =
-    useState<AttributeListParams["sort_by"]>("created_at");
-  const [order, setOrder] = useState<"ASC" | "DESC">("DESC");
+  
+  // Helper functions to update pageState
+  const setPage = (value: number) => setPageState(prev => ({ ...prev, page: value }));
+  const setSearch = (value: string) => setPageState(prev => ({ ...prev, search: value }));
+  const setShowDeleted = (value: boolean) => setPageState(prev => ({ ...prev, showDeleted: value }));
+  const setSortBy = (value: AttributeListParams["sort_by"]) => setPageState(prev => ({ ...prev, sortBy: value }));
+  const setOrder = (value: "ASC" | "DESC") => setPageState(prev => ({ ...prev, order: value }));
+  
   const [openDialog, setOpenDialog] = useState(false);
   const [selectedAttribute, setSelectedAttribute] = useState<Attribute | null>(
     null,
@@ -134,6 +152,7 @@ const AttributeTable = ({
     setOrder("DESC");
     setPage(1); // Reset page number
     setRowSelection({}); // Clear row selection when filters are cleared
+    clearPageState(); // Clear session storage
     showSnackbar("Filters cleared", "info");
   };
   // --- END ADD ---

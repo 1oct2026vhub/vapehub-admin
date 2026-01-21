@@ -15,11 +15,25 @@ import {
 } from '@mui/material';
 import { getSubscribers, Subscriber, FetchSubscribersParams } from '@/services/apiSubscribers';
 import { useSnackbar } from '@/contexts/SnackbarContext';
+import ClearFiltersButton from '@/components/Shared/ClearFiltersButton';
+import { usePageState } from '@/hooks/usePageState';
 
 const SubscribersTable: React.FC = () => {
-  const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(10);
-  const [subscribed, setSubscribed] = useState<boolean>(true);
+  // Persist table filters in session storage
+  const [pageState, setPageState, clearPageState] = usePageState(
+    "subscribersTable",
+    {
+      page: 1,
+      limit: 10,
+      subscribed: true,
+    }
+  );
+
+  const { page, limit, subscribed } = pageState;
+  const setPage = (value: number) => setPageState(prev => ({ ...prev, page: value }));
+  const setLimit = (value: number) => setPageState(prev => ({ ...prev, limit: value }));
+  const setSubscribed = (value: boolean) => setPageState(prev => ({ ...prev, subscribed: value }));
+
   const [subscribers, setSubscribers] = useState<Subscriber[]>([]);
   const [total, setTotal] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
@@ -91,6 +105,10 @@ const SubscribersTable: React.FC = () => {
     setPage(1); // Reset to first page when filter changes
   };
 
+  const areFiltersActive = useMemo(() => {
+    return subscribed !== true;
+  }, [subscribed]);
+
   if (isLoading) return <FuseLoading />;
   return (
     <div>
@@ -107,6 +125,16 @@ const SubscribersTable: React.FC = () => {
             <MenuItem value="true">Subscribed</MenuItem>
             <MenuItem value="false">Unsubscribed</MenuItem>
           </TextField>
+
+          {areFiltersActive && (
+            <ClearFiltersButton
+              onClick={() => {
+                setSubscribed(true);
+                setPage(1);
+                clearPageState(); // Clear session storage
+              }}
+            />
+          )}
         </Box>
         <DataTable
           data={subscribers}
