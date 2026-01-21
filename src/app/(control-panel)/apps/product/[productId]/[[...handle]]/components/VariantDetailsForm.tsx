@@ -23,8 +23,8 @@ export interface VariantImage {
 }
 // Define constants for validation
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
-const MIN_IMAGE_WIDTH = 280;
-const MIN_IMAGE_HEIGHT = 280;
+const MIN_IMAGE_WIDTH = 800;
+const MIN_IMAGE_HEIGHT = 800;
 const ACCEPTED_FILE_TYPES = ["image/png", "image/jpg", "image/jpeg", "image/webp"];
 
 
