@@ -372,15 +372,12 @@ const FormCKEditor = ({
           cloudServices: {
             tokenUrl: async () => {
               try {
-                console.log("🔑 Fetching CKEditor Cloud Services token...");
                 const response = await getCKEditorToken();
-                console.log("✅ CKEditor Token Response:", response);
                 
                 // The API might return the token directly or in a data field
                 const token = response?.token || response?.data?.token || response?.data || response;
                 
                 if (typeof token === 'string') {
-                  console.log("✅ CKEditor Token retrieved successfully");
                   return token;
                 } else {
                   console.warn("⚠️ Unexpected token format:", token);
@@ -599,15 +596,12 @@ const FormCKEditor = ({
           ckbox: {
             tokenUrl: async () => {
               try {
-                console.log("🔑 Fetching CKEditor CKBox token...");
                 const response = await getCKEditorToken();
-                console.log("✅ CKEditor CKBox Token Response:", response);
                 
                 // The API might return the token directly or in a data field
                 const token = response?.token || response?.data?.token || response?.data || response;
                 
                 if (typeof token === 'string') {
-                  console.log("✅ CKEditor CKBox Token retrieved successfully");
                   return token;
                 } else {
                   console.warn("⚠️ Unexpected token format:", token);
@@ -709,16 +703,13 @@ const FormCKEditor = ({
   // Convert image to base64 for upload
   // This adapter enables "Upload image from computer" functionality
   const uploadAdapter = (loader: any) => {
-    console.log('📸 Creating upload adapter for loader:', loader);
     return {
       upload: () => {
         return new Promise((resolve, reject) => {
           loader.file.then((file: File) => {
-            console.log('📁 File selected for upload:', file.name, file.type, file.size);
             const reader = new FileReader();
             reader.onload = () => {
               const result = reader.result as string;
-              console.log('✅ File read successfully, size:', result.length);
               resolve({
                 default: result
               });
@@ -854,12 +845,9 @@ const FormCKEditor = ({
           // Override the createUploadAdapter method
           const originalMethod = fileRepository.createUploadAdapter;
           fileRepository.createUploadAdapter = function(loader: any) {
-            console.log('📸 Image upload adapter created for loader:', loader);
             const adapter = uploadAdapter(loader);
-            console.log('✅ Upload adapter returned:', adapter);
             return adapter;
           };
-          console.log('✅ FileRepository upload adapter configured');
         } else {
           console.warn('⚠️ FileRepository plugin instance not found');
         }
@@ -873,10 +861,8 @@ const FormCKEditor = ({
           const fileRepoConfig = editor.config.get('fileRepository');
           if (fileRepoConfig) {
             fileRepoConfig.createUploadAdapter = (loader: any) => {
-              console.log('📸 Image upload adapter (via config) created for loader:', loader);
               return uploadAdapter(loader);
             };
-            console.log('✅ FileRepository upload adapter configured via config');
           }
         } catch (e) {
           // Config method might not be available, that's okay
@@ -890,7 +876,6 @@ const FormCKEditor = ({
     try {
       if (editor.plugins.has('ImageUpload')) {
         const imageUpload = editor.plugins.get('ImageUpload');
-        console.log('✅ ImageUpload plugin is available:', imageUpload);
       } else {
         console.warn('⚠️ ImageUpload plugin not found');
       }
@@ -916,23 +901,14 @@ const FormCKEditor = ({
           // Try to enable it
           if (typeof insertImageButton.set === 'function') {
             insertImageButton.set('isEnabled', true);
-            console.log('✅ insertImage button enabled via set()');
           }
           // Also try via buttonView if available
           if (insertImageButton.buttonView && typeof insertImageButton.buttonView.set === 'function') {
             insertImageButton.buttonView.set('isEnabled', true);
             insertImageButton.buttonView.set('isOn', false);
-            console.log('✅ insertImage button enabled via buttonView.set()');
           }
-          console.log('✅ insertImage button found and enabled:', insertImageButton);
         } else {
           console.warn('⚠️ insertImage button not found in toolbar');
-          // Log all toolbar items for debugging
-          console.log('Available toolbar items:', toolbar.items.map((item: any) => ({
-            name: item?.name,
-            buttonViewName: item?.buttonView?.name,
-            type: item?.constructor?.name
-          })));
         }
       }
     } catch (error) {
@@ -948,9 +924,6 @@ const FormCKEditor = ({
     } catch (error) {
       console.warn('WordCount plugin not available:', error);
     }
-
-    // Log enabled plugins for debugging
-    console.log('✅ CKEditor initialized with plugins:', Array.from(editor.plugins).map((p: any) => p.constructor.name));
   };
 
   return (
@@ -1218,11 +1191,7 @@ const FormCKEditor = ({
                       // Remove default font-size from heading tags (h1-h6)
                       // This ensures headings use CSS from tailwind config instead of inline styles
                       // Manual font-size selections on non-heading elements are preserved
-                      data = removeDefaultHeadingFontSizes(data);
-                      
-                      // Log for debugging (can be removed in production)
-                      console.log('✅ CKEditor HTML output (processed):', data.substring(0, 200));
-                      
+                      data = removeDefaultHeadingFontSizes(data);  
                       // Update form field with processed HTML data
                       field.onChange(data);
                     } catch (error) {

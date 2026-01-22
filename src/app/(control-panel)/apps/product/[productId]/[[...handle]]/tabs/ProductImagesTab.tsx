@@ -34,8 +34,8 @@ import FuseLoading from "@fuse/core/FuseLoading";
 
 // Define constants for validation
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
-const MAX_IMAGE_WIDTH = 245;
-const MAX_IMAGE_HEIGHT = 234;
+const MAX_IMAGE_WIDTH = 800;
+const MAX_IMAGE_HEIGHT = 800;
 const ACCEPTED_FILE_TYPES = ["image/png", "image/jpg", "image/jpeg", "image/webp"];
 
 interface ProductImage {
