@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import {
   type MRT_ColumnDef,
   type MRT_SortingState,
@@ -28,6 +28,10 @@ import {
   ListItem,
   Pagination,
   PaginationItem,
+  Typography,
+  Box,
+  CircularProgress,
+  Alert,
 } from "@mui/material";
 import FuseSvgIcon from "@fuse/core/FuseSvgIcon";
 import {
@@ -36,6 +40,8 @@ import {
   blockCustomer,
   unBlockCustomer,
   restoreCustomer,
+  exportCustomerInitiate,
+  exportCustomerStatus,
 } from "@/services/apiService";
 import { useFetch } from "@/hooks/useFetch";
 import { mutate } from "swr";
@@ -79,11 +85,13 @@ const CustomerTable = () => {
       verified: null as boolean | null,
       blocked: null as boolean | null,
       page: 1,
+      start_date: null as string | null,
+      end_date: null as string | null,
     }
   );
 
   // Use pageState values directly
-  const { search, order, sortBy, deleted, verified, blocked, page } = pageState;
+  const { search, order, sortBy, deleted, verified, blocked, page, start_date, end_date } = pageState;
   const [debouncedSearch, setDebouncedSearch] = useState("");
   
   // Helper functions to update pageState
@@ -94,6 +102,8 @@ const CustomerTable = () => {
   const setVerified = (value: boolean | null) => setPageState(prev => ({ ...prev, verified: value }));
   const setBlocked = (value: boolean | null) => setPageState(prev => ({ ...prev, blocked: value }));
   const setPage = (value: number) => setPageState(prev => ({ ...prev, page: value }));
+  const setStartDate = (value: string | null) => setPageState(prev => ({ ...prev, start_date: value }));
+  const setEndDate = (value: string | null) => setPageState(prev => ({ ...prev, end_date: value }));
 
   const [customers, setCustomers] = useState<UserType[]>([]);
   const [limit] = useState(100); // Number of records per page
@@ -107,6 +117,13 @@ const CustomerTable = () => {
   const [openDrawer, setOpenDrawer] = useState(false); // Mobile filter drawer state
   const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
   const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false);
+  const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
+  const [exportFormat, setExportFormat] = useState<"csv" | "excel">("excel");
+  const [isExporting, setIsExporting] = useState(false);
+  const [exportJobId, setExportJobId] = useState<string | null>(null);
+  const [exportJobStatus, setExportJobStatus] = useState<string | null>(null);
+  const [exportDownloadUrl, setExportDownloadUrl] = useState<string | null>(null);
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const { showSnackbar } = useSnackbar();
 
   const sorting = useMemo<MRT_SortingState>(
@@ -134,15 +151,19 @@ const CustomerTable = () => {
     const defaultDeleted = null;
     const defaultVerified = null;
     const defaultBlocked = null;
+    const defaultStartDate = null;
+    const defaultEndDate = null;
 
     return (
       search !== "" ||
       sortBy !== "" ||
       deleted !== defaultDeleted ||
       verified !== defaultVerified ||
-      blocked !== defaultBlocked
+      blocked !== defaultBlocked ||
+      start_date !== defaultStartDate ||
+      end_date !== defaultEndDate
     );
-  }, [search, sortBy, deleted, verified, blocked]);
+  }, [search, sortBy, deleted, verified, blocked, start_date, end_date]);
   // --- END ADD ---
 
   // --- START ADD: Clear Filters Function ---
@@ -154,6 +175,8 @@ const CustomerTable = () => {
     setDeleted(null);
     setVerified(null);
     setBlocked(null);
+    setStartDate(null);
+    setEndDate(null);
     setPage(1); // Reset page number
     setRowSelection({});
     clearPageState(); // Clear session storage
@@ -161,10 +184,142 @@ const CustomerTable = () => {
   };
   // --- END ADD ---
 
+  // Poll export job status
+  const pollExportStatus = async (jobId: string) => {
+    try {
+      const response = await exportCustomerStatus(jobId);
+      
+      if (response?.success && response?.data) {
+        const status = response.data.status;
+        setExportJobStatus(status);
+
+        if (status === "completed") {
+          // Stop polling
+          if (pollingIntervalRef.current) {
+            clearInterval(pollingIntervalRef.current);
+            pollingIntervalRef.current = null;
+          }
+
+          // Download the file
+          const downloadUrl = response.data.downloadUrl;
+          if (downloadUrl) {
+            setExportDownloadUrl(downloadUrl);
+            // Trigger download
+            const link = document.createElement("a");
+            link.href = downloadUrl;
+            link.download = `customers-export-${new Date().toISOString().split("T")[0]}.${exportFormat}`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            showSnackbar("Export completed and downloaded successfully!", "success");
+            setIsExporting(false);
+            // Keep dialog open to show completion status
+          } else {
+            showSnackbar("Export completed but download URL not available", "warning");
+            setIsExporting(false);
+          }
+        } else if (status === "processing") {
+          // Continue polling - interval is already set
+        } else if (response.data.error) {
+          // Job failed
+          if (pollingIntervalRef.current) {
+            clearInterval(pollingIntervalRef.current);
+            pollingIntervalRef.current = null;
+          }
+          showSnackbar(`Export failed: ${response.data.error}`, "error");
+          setIsExporting(false);
+        }
+      }
+    } catch (error: any) {
+      const errorMessage = error?.message || error?.errors?.[0]?.msg || "Failed to check export status";
+      showSnackbar(errorMessage, "error");
+      // Stop polling on error
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+        pollingIntervalRef.current = null;
+      }
+      setIsExporting(false);
+    }
+  };
+
+  // Export handler
+  const handleExport = async () => {
+    setIsExporting(true);
+    setExportJobId(null);
+    setExportJobStatus(null);
+    setExportDownloadUrl(null);
+
+    // Clear any existing polling interval
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current);
+      pollingIntervalRef.current = null;
+    }
+
+    try {
+      // Build export params from current filters
+      // API expects: blocked/verified as "all", "true", or "false" (strings)
+      // deleted as "false" (string) or omitted
+      const exportParams: any = {
+        format: exportFormat,
+        ...(deleted !== null && { deleted: deleted.toString() }),
+        ...(blocked !== null ? { blocked: blocked ? "true" : "false" } : { blocked: "all" }),
+        ...(verified !== null ? { verified: verified ? "true" : "false" } : { verified: "all" }),
+        ...(debouncedSearch && { search: debouncedSearch }),
+        ...(start_date && { start_date }),
+        ...(end_date && { end_date }),
+      };
+
+      // Always use background job
+      const response = await exportCustomerInitiate(exportParams);
+      
+      if (response?.success && response?.data?.jobId) {
+        const jobId = response.data.jobId;
+        const initialStatus = response.data.status || "processing";
+        setExportJobId(jobId);
+        setExportJobStatus(initialStatus);
+        showSnackbar(
+          `Export job started. ${response.data.message || "File will be available for download when ready."}`,
+          "info"
+        );
+        
+        // Check status immediately
+        await pollExportStatus(jobId);
+        
+        // Set up interval for polling every 5 seconds
+        // The pollExportStatus function will stop polling when status is "completed"
+        // We set it up regardless, and pollExportStatus will clear it if already completed
+        pollingIntervalRef.current = setInterval(() => {
+          pollExportStatus(jobId);
+        }, 5000);
+      } else {
+        throw new Error(response?.message || "Failed to initiate export");
+      }
+    } catch (error: any) {
+      const errorMessage = error?.message || error?.errors?.[0]?.msg || "Export failed";
+      showSnackbar(errorMessage, "error");
+      setIsExporting(false);
+    }
+  };
+
+  // Cleanup polling interval on unmount
+  useEffect(() => {
+    return () => {
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+      }
+    };
+  }, []);
+
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(search), 1000);
     return () => clearTimeout(timer);
   }, [search]);
+
+  // Reset page to 1 when filters change
+  useEffect(() => {
+    setPage(1);
+  }, [deleted, verified, blocked, debouncedSearch, start_date, end_date]);
 
   const queryParams = useMemo(
     () => ({
@@ -176,8 +331,10 @@ const CustomerTable = () => {
       ...(verified !== null && { verified }),
       ...(deleted !== null && { deleted }),
       ...(blocked !== null && { blocked }),
+      ...(start_date && { start_date }),
+      ...(end_date && { end_date }),
     }),
-    [debouncedSearch, order, sortBy, deleted, verified, blocked, page, limit],
+    [debouncedSearch, order, sortBy, deleted, verified, blocked, page, limit, start_date, end_date],
   );
 
   const { data, error, isLoading } = useFetch(
@@ -528,6 +685,30 @@ const CustomerTable = () => {
               <MenuItem value="ASC">Ascending</MenuItem>
             </Select>
 
+            {/* Date Range Filters */}
+            <TextField
+              label="Start Date"
+              type="date"
+              size="small"
+              value={start_date || ""}
+              onChange={(e) => setStartDate(e.target.value || null)}
+              InputLabelProps={{
+                shrink: true,
+              }}
+              sx={{ minWidth: 150 }}
+            />
+            <TextField
+              label="End Date"
+              type="date"
+              size="small"
+              value={end_date || ""}
+              onChange={(e) => setEndDate(e.target.value || null)}
+              InputLabelProps={{
+                shrink: true,
+              }}
+              sx={{ minWidth: 150 }}
+            />
+
             {/* Bulk Delete Button */}
             {Object.keys(rowSelection).length > 0 && deleted !== true && (
               <Button
@@ -546,6 +727,23 @@ const CustomerTable = () => {
                 Bulk Delete ({Object.keys(rowSelection).length})
               </Button>
             )}
+
+            {/* Export Button */}
+            <Button
+              variant="contained"
+              color="primary"
+              size="small"
+              startIcon={<FuseSvgIcon>heroicons-outline:arrow-down-tray</FuseSvgIcon>}
+              onClick={() => setIsExportDialogOpen(true)}
+              sx={{
+                backgroundColor: "#2E9970",
+                "&:hover": {
+                  backgroundColor: "#247C5C",
+                },
+              }}
+            >
+              Export
+            </Button>
 
             {/* --- START ADD: Clear Filters Button (Desktop) --- */}
             {areFiltersActive && (
@@ -739,10 +937,65 @@ const CustomerTable = () => {
               value={order}
               onChange={(e) => setOrder(e.target.value as "ASC" | "DESC")}
               size="small"
+              fullWidth
             >
               <MenuItem value="DESC">Descending</MenuItem>
               <MenuItem value="ASC">Ascending</MenuItem>
             </Select>
+          </ListItem>
+          <ListItem>
+            <TextField
+              label="Start Date"
+              type="date"
+              fullWidth
+              size="small"
+              value={start_date || ""}
+              onChange={(e) => setStartDate(e.target.value || null)}
+              InputLabelProps={{
+                shrink: true,
+              }}
+            />
+          </ListItem>
+          <ListItem>
+            <TextField
+              label="End Date"
+              type="date"
+              fullWidth
+              size="small"
+              value={end_date || ""}
+              onChange={(e) => setEndDate(e.target.value || null)}
+              InputLabelProps={{
+                shrink: true,
+              }}
+            />
+          </ListItem>
+          <ListItem>
+            <TextField
+              label="Start Date"
+              type="date"
+              fullWidth
+              size="small"
+              value={start_date || ""}
+              onChange={(e) => setStartDate(e.target.value || null)}
+              InputLabelProps={{
+                shrink: true,
+              }}
+              sx={{ mb: 1 }}
+            />
+          </ListItem>
+          <ListItem>
+            <TextField
+              label="End Date"
+              type="date"
+              fullWidth
+              size="small"
+              value={end_date || ""}
+              onChange={(e) => setEndDate(e.target.value || null)}
+              InputLabelProps={{
+                shrink: true,
+              }}
+              sx={{ mb: 1 }}
+            />
           </ListItem>
           <ListItem>
             <Button 
@@ -822,6 +1075,93 @@ const CustomerTable = () => {
             type="button"
             onClick={handleConfirmBulkDelete}
           />
+        </DialogActions>
+      </Dialog>
+
+      {/* Export Dialog */}
+      <Dialog 
+        open={isExportDialogOpen} 
+        onClose={() => {
+          // Stop polling if active
+          if (pollingIntervalRef.current) {
+            clearInterval(pollingIntervalRef.current);
+            pollingIntervalRef.current = null;
+          }
+          setIsExportDialogOpen(false);
+          setExportJobId(null);
+          setExportJobStatus(null);
+          setExportDownloadUrl(null);
+        }}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Export Customers</DialogTitle>
+        <DialogContent>
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 2, mt: 1 }}>
+            <Box>
+              <Typography variant="body2" sx={{ mb: 1 }}>Export Format</Typography>
+              <Select
+                fullWidth
+                value={exportFormat}
+                onChange={(e) => setExportFormat(e.target.value as "csv" | "excel")}
+                size="small"
+              >
+                <MenuItem value="csv">CSV</MenuItem>
+                <MenuItem value="excel">Excel</MenuItem>
+              </Select>
+            </Box>
+
+            <Typography variant="body2" color="text.secondary">
+              <strong>Exported Fields:</strong> First Name, Last Name, Email, Phone
+            </Typography>
+
+            <Alert severity="info">
+              Exports use background processing. The file will be available for download when ready.
+              Files are automatically deleted after 24 hours.
+            </Alert>
+
+            {exportJobId && (
+              <Alert severity={exportJobStatus === "completed" ? "success" : "info"}>
+                <Typography variant="body2">
+                  <strong>Status:</strong> {exportJobStatus || "processing"}
+                </Typography>
+                {exportJobStatus === "processing" && (
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1, mt: 1 }}>
+                    <CircularProgress size={16} />
+                    <Typography variant="caption">
+                      Processing export... Checking status every 5 seconds.
+                    </Typography>
+                  </Box>
+                )}
+              </Alert>
+            )}
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={() => {
+              // Stop polling if active
+              if (pollingIntervalRef.current) {
+                clearInterval(pollingIntervalRef.current);
+                pollingIntervalRef.current = null;
+              }
+              setIsExportDialogOpen(false);
+              setExportJobId(null);
+              setExportJobStatus(null);
+              setExportDownloadUrl(null);
+            }}
+            disabled={isExporting && exportJobStatus === "processing"}
+          >
+            {exportJobId ? "Close" : "Cancel"}
+          </Button>
+          {!exportJobId && (
+            <AppButton
+              label={isExporting ? "Exporting..." : "Export"}
+              type="button"
+              onClick={handleExport}
+              disabled={isExporting}
+            />
+          )}
         </DialogActions>
       </Dialog>
     </>
