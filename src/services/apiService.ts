@@ -69,6 +69,13 @@ export const unBlockCustomer = (id) =>
 export const restoreCustomer = (id) =>
   updater(`/api/admin/customer/${id}/restore`, {});
 
+// Customer export actions
+export const exportCustomerInitiate = (params = {}) =>
+  fetcher("/api/admin/user/export/initiate", params);
+
+export const exportCustomerStatus = (jobId: string) =>
+  fetcher(`/api/admin/user/export/status/${jobId}`);
+
 // List admin roles
 // export const listRole = (params = {}) => fetcher('/api/admin/user/roles', params);
 
