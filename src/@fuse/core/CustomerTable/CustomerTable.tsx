@@ -85,13 +85,11 @@ const CustomerTable = () => {
       verified: null as boolean | null,
       blocked: null as boolean | null,
       page: 1,
-      start_date: null as string | null,
-      end_date: null as string | null,
     }
   );
 
   // Use pageState values directly
-  const { search, order, sortBy, deleted, verified, blocked, page, start_date, end_date } = pageState;
+  const { search, order, sortBy, deleted, verified, blocked, page } = pageState;
   const [debouncedSearch, setDebouncedSearch] = useState("");
   
   // Helper functions to update pageState
@@ -102,8 +100,6 @@ const CustomerTable = () => {
   const setVerified = (value: boolean | null) => setPageState(prev => ({ ...prev, verified: value }));
   const setBlocked = (value: boolean | null) => setPageState(prev => ({ ...prev, blocked: value }));
   const setPage = (value: number) => setPageState(prev => ({ ...prev, page: value }));
-  const setStartDate = (value: string | null) => setPageState(prev => ({ ...prev, start_date: value }));
-  const setEndDate = (value: string | null) => setPageState(prev => ({ ...prev, end_date: value }));
 
   const [customers, setCustomers] = useState<UserType[]>([]);
   const [limit] = useState(100); // Number of records per page
@@ -151,19 +147,15 @@ const CustomerTable = () => {
     const defaultDeleted = null;
     const defaultVerified = null;
     const defaultBlocked = null;
-    const defaultStartDate = null;
-    const defaultEndDate = null;
 
     return (
       search !== "" ||
       sortBy !== "" ||
       deleted !== defaultDeleted ||
       verified !== defaultVerified ||
-      blocked !== defaultBlocked ||
-      start_date !== defaultStartDate ||
-      end_date !== defaultEndDate
+      blocked !== defaultBlocked
     );
-  }, [search, sortBy, deleted, verified, blocked, start_date, end_date]);
+  }, [search, sortBy, deleted, verified, blocked]);
   // --- END ADD ---
 
   // --- START ADD: Clear Filters Function ---
@@ -175,8 +167,6 @@ const CustomerTable = () => {
     setDeleted(null);
     setVerified(null);
     setBlocked(null);
-    setStartDate(null);
-    setEndDate(null);
     setPage(1); // Reset page number
     setRowSelection({});
     clearPageState(); // Clear session storage
@@ -266,8 +256,6 @@ const CustomerTable = () => {
         ...(blocked !== null ? { blocked: blocked ? "true" : "false" } : { blocked: "all" }),
         ...(verified !== null ? { verified: verified ? "true" : "false" } : { verified: "all" }),
         ...(debouncedSearch && { search: debouncedSearch }),
-        ...(start_date && { start_date }),
-        ...(end_date && { end_date }),
       };
 
       // Always use background job
@@ -319,7 +307,7 @@ const CustomerTable = () => {
   // Reset page to 1 when filters change
   useEffect(() => {
     setPage(1);
-  }, [deleted, verified, blocked, debouncedSearch, start_date, end_date]);
+  }, [deleted, verified, blocked, debouncedSearch]);
 
   const queryParams = useMemo(
     () => ({
@@ -331,10 +319,8 @@ const CustomerTable = () => {
       ...(verified !== null && { verified }),
       ...(deleted !== null && { deleted }),
       ...(blocked !== null && { blocked }),
-      ...(start_date && { start_date }),
-      ...(end_date && { end_date }),
     }),
-    [debouncedSearch, order, sortBy, deleted, verified, blocked, page, limit, start_date, end_date],
+    [debouncedSearch, order, sortBy, deleted, verified, blocked, page, limit],
   );
 
   const { data, error, isLoading } = useFetch(
@@ -685,30 +671,6 @@ const CustomerTable = () => {
               <MenuItem value="ASC">Ascending</MenuItem>
             </Select>
 
-            {/* Date Range Filters */}
-            <TextField
-              label="Start Date"
-              type="date"
-              size="small"
-              value={start_date || ""}
-              onChange={(e) => setStartDate(e.target.value || null)}
-              InputLabelProps={{
-                shrink: true,
-              }}
-              sx={{ minWidth: 150 }}
-            />
-            <TextField
-              label="End Date"
-              type="date"
-              size="small"
-              value={end_date || ""}
-              onChange={(e) => setEndDate(e.target.value || null)}
-              InputLabelProps={{
-                shrink: true,
-              }}
-              sx={{ minWidth: 150 }}
-            />
-
             {/* Bulk Delete Button */}
             {Object.keys(rowSelection).length > 0 && deleted !== true && (
               <Button
@@ -942,60 +904,6 @@ const CustomerTable = () => {
               <MenuItem value="DESC">Descending</MenuItem>
               <MenuItem value="ASC">Ascending</MenuItem>
             </Select>
-          </ListItem>
-          <ListItem>
-            <TextField
-              label="Start Date"
-              type="date"
-              fullWidth
-              size="small"
-              value={start_date || ""}
-              onChange={(e) => setStartDate(e.target.value || null)}
-              InputLabelProps={{
-                shrink: true,
-              }}
-            />
-          </ListItem>
-          <ListItem>
-            <TextField
-              label="End Date"
-              type="date"
-              fullWidth
-              size="small"
-              value={end_date || ""}
-              onChange={(e) => setEndDate(e.target.value || null)}
-              InputLabelProps={{
-                shrink: true,
-              }}
-            />
-          </ListItem>
-          <ListItem>
-            <TextField
-              label="Start Date"
-              type="date"
-              fullWidth
-              size="small"
-              value={start_date || ""}
-              onChange={(e) => setStartDate(e.target.value || null)}
-              InputLabelProps={{
-                shrink: true,
-              }}
-              sx={{ mb: 1 }}
-            />
-          </ListItem>
-          <ListItem>
-            <TextField
-              label="End Date"
-              type="date"
-              fullWidth
-              size="small"
-              value={end_date || ""}
-              onChange={(e) => setEndDate(e.target.value || null)}
-              InputLabelProps={{
-                shrink: true,
-              }}
-              sx={{ mb: 1 }}
-            />
           </ListItem>
           <ListItem>
             <Button 
