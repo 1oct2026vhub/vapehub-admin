@@ -14,6 +14,7 @@ export interface Review {
     testimonial?: boolean;
     created_at: string;
     updated_at: string;
+    review_date?: string;
     product?: {
         name: string;
     };
@@ -27,6 +28,7 @@ export interface CreateReviewData {
     comment: string;
     is_visible: boolean;
     testimonial?: boolean;
+    review_date?: string;
 }
 
 export interface FetchReviewsParams {
