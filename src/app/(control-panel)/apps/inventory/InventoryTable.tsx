@@ -28,7 +28,7 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import { Product, ProductsParams, getProductVariants, ProductVariant } from '@/services/apiInventory';
 import { updateProductVariant } from '@/services/apiProduct';
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import DataTable from '@/components/data-table/DataTable';
 import { type MRT_ColumnDef } from 'material-react-table';
 import ClearFiltersButton from '@/components/Shared/ClearFiltersButton';
@@ -74,6 +74,8 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
     const lastToggledRowIdRef = useRef<string | null>(null);
     const isManualExpansionRef = useRef(false); // Track if expansion was due to user click (guards effects)
     const hasRestoredScrollPositionRef = useRef(false); // Track if we've restored scroll position on return
+    const hasInitializedVariantsRef = useRef(false); // Track if we've initialized variants on mount
+    const isInitialMountRef = useRef(true); // Track initial mount
     
     // Use session storage for filter state, expanded rows, variants data, and pagination
     const [pageState, setPageState, clearPageState] = usePageState(
@@ -82,13 +84,15 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
             search: '',
             expandedRows: {} as Record<string, boolean>,
             variantsData: {} as Record<number, ProductVariant[]>,
+            variantsDataTimestamps: {} as Record<number, number>, // Track when variants were last fetched
             expandedProductId: null as number | null, // Store the opened accordion's productId
             page: 1,
+            lastStockUpdateTime: null as number | null, // Track when stock was last updated
         }
     );
 
     // Use pageState values directly
-    const { search, expandedRows: savedExpandedRows, variantsData: savedVariantsData, expandedProductId: savedExpandedProductId, page: savedPage } = pageState;
+    const { search, expandedRows: savedExpandedRows, variantsData: savedVariantsData, variantsDataTimestamps: savedVariantsDataTimestamps, expandedProductId: savedExpandedProductId, page: savedPage, lastStockUpdateTime: savedLastStockUpdateTime } = pageState;
     
     // Helper functions to update pageState
     const setSearch = (value: string) => setPageState(prev => ({ ...prev, search: value }));
@@ -270,26 +274,69 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
         savedVariantsData || {}
     );
     
-    // Sync variantsData to session storage when it changes (only for expanded product)
+    // Helper function to check if variants data is stale (older than last stock update)
+    // Use refs to prevent dependency changes from causing re-renders
+    const lastStockUpdateTimeRef = useRef(savedLastStockUpdateTime);
+    const variantsTimestampsRef = useRef(savedVariantsDataTimestamps);
+    
+    // Update refs when values change
     useEffect(() => {
-        const expandedProductId = Object.keys(expandedRows).find(id => expandedRows[id]);
-        if (expandedProductId) {
-            const productId = parseInt(expandedProductId);
-            const currentVariantsData: Record<number, ProductVariant[]> = {};
-            if (variantsData[productId]) {
-                currentVariantsData[productId] = variantsData[productId];
-            }
-            setPageState(prev => ({
-                ...prev,
-                variantsData: currentVariantsData
-            }));
-        } else {
-            // Clear variants data when no product is expanded
-            setPageState(prev => ({
-                ...prev,
-                variantsData: {}
-            }));
+        lastStockUpdateTimeRef.current = savedLastStockUpdateTime;
+        variantsTimestampsRef.current = savedVariantsDataTimestamps;
+    }, [savedLastStockUpdateTime, savedVariantsDataTimestamps]);
+    
+    const isVariantsDataStale = useCallback((productId: number): boolean => {
+        const lastUpdateTime = lastStockUpdateTimeRef.current;
+        if (!lastUpdateTime) return false; // No stock updates yet, not stale
+        const variantTimestamp = variantsTimestampsRef.current?.[productId];
+        if (!variantTimestamp) return true; // No timestamp means data is stale
+        return variantTimestamp < lastUpdateTime;
+    }, []); // No dependencies - uses refs instead
+    
+    // Track if we're updating from API to prevent sync loop
+    const isUpdatingFromApiRef = useRef(false);
+    
+    // Sync variantsData to session storage when it changes (only for expanded product)
+    // Use debounce to prevent infinite loops
+    useEffect(() => {
+        // Skip if we're updating from API (handleRowExpand handles its own storage update)
+        if (isUpdatingFromApiRef.current) {
+            return;
         }
+        
+        const timeoutId = setTimeout(() => {
+            const expandedProductId = Object.keys(expandedRows).find(id => expandedRows[id]);
+            if (expandedProductId) {
+                const productId = parseInt(expandedProductId);
+                const currentVariantsData: Record<number, ProductVariant[]> = {};
+                const currentTimestamps: Record<number, number> = {};
+                if (variantsData[productId]) {
+                    currentVariantsData[productId] = variantsData[productId];
+                    // Only update timestamp if variants actually changed
+                    const existingTimestamp = savedVariantsDataTimestamps?.[productId];
+                    if (!existingTimestamp || JSON.stringify(savedVariantsData?.[productId]) !== JSON.stringify(variantsData[productId])) {
+                        currentTimestamps[productId] = Date.now();
+                    }
+                }
+                setPageState(prev => ({
+                    ...prev,
+                    variantsData: currentVariantsData,
+                    variantsDataTimestamps: { 
+                        ...prev.variantsDataTimestamps, 
+                        ...(Object.keys(currentTimestamps).length > 0 ? currentTimestamps : {})
+                    }
+                }));
+            } else {
+                // Clear variants data when no product is expanded
+                setPageState(prev => ({
+                    ...prev,
+                    variantsData: {},
+                    variantsDataTimestamps: {}
+                }));
+            }
+        }, 300); // Debounce to prevent rapid updates
+        
+        return () => clearTimeout(timeoutId);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [variantsData, expandedRows]);
     
@@ -319,7 +366,13 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
         setVariantsData({}); // Clear variants data
         setPage(1); // Reset page to 1 in session storage
         hasRestoredScrollPositionRef.current = false; // Reset scroll restoration flag
-        setPageState(prev => ({ ...prev, variantsData: {}, expandedRows: {}, expandedProductId: null })); // Clear variants, expanded rows, and productId from session
+        setPageState(prev => ({ 
+            ...prev, 
+            variantsData: {}, 
+            variantsDataTimestamps: {},
+            expandedRows: {}, 
+            expandedProductId: null 
+        })); // Clear variants, timestamps, expanded rows, and productId from session
         onParamsChange({
             q: undefined,
             page: 1,
@@ -346,15 +399,28 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
         }
       }, [debouncedSearch, onParamsChange]);
 
+    // Track the currently expanded product ID to detect changes
+    const currentExpandedProductIdRef = useRef<number | null>(null);
+    
     // Ensure variants are available for the CURRENT expanded product (never rely on savedExpandedRows)
     useEffect(() => {
+        // Track initial mount
+        if (isInitialMountRef.current) {
+            isInitialMountRef.current = false;
+        }
+
         // If user just clicked, let the click handler drive the first fetch; clear flag after.
         if (isManualExpansionRef.current) {
             isManualExpansionRef.current = false;
+            return; // Don't interfere with manual expansion
         }
 
         const expandedProductIdStr = Object.keys(expandedRows).find((id) => expandedRows[id]);
-        if (!expandedProductIdStr) return;
+        if (!expandedProductIdStr) {
+            hasInitializedVariantsRef.current = false;
+            currentExpandedProductIdRef.current = null;
+            return;
+        }
 
         const productId = parseInt(expandedProductIdStr, 10);
         if (!Number.isFinite(productId)) return;
@@ -362,35 +428,220 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
         const productExists = products.some((p) => p.id === productId);
         if (!productExists) return;
 
-        // 1) Prefer local state
-        if (Array.isArray(variantsData[productId])) return;
+        // Reset initialization flag if expanded product changed
+        if (currentExpandedProductIdRef.current !== productId) {
+            hasInitializedVariantsRef.current = false;
+            currentExpandedProductIdRef.current = productId;
+        }
 
-        // 2) Then session storage cache (for back/forward)
-        const cached = savedVariantsData?.[productId];
-        if (Array.isArray(cached)) {
-            setVariantsData((prev) => ({ ...prev, [productId]: cached }));
+        // Check if cached data is stale (older than last stock update)
+        const isStale = isVariantsDataStale(productId);
+        
+        // If data is stale, always fetch fresh data
+        if (isStale) {
+            if (!loadingVariants.has(productId)) {
+                handleRowExpand(productId, true).catch(() => {
+                    /* handled in handleRowExpand */
+                });
+            }
+            hasInitializedVariantsRef.current = true;
             return;
         }
 
-        // 3) Finally fetch
+        // On initial mount/return or product change: Load cached data immediately for quick display, then fetch fresh data
+        if (!hasInitializedVariantsRef.current) {
+            // 1) First, load cached data if available for immediate display
+            const cached = savedVariantsData?.[productId];
+            if (Array.isArray(cached) && cached.length > 0) {
+                // Use a ref check to prevent infinite loop
+                const currentVariants = variantsData[productId];
+                if (!currentVariants || JSON.stringify(currentVariants) !== JSON.stringify(cached)) {
+                    isUpdatingFromApiRef.current = true;
+                    setVariantsData((prev) => {
+                        // Only update if different
+                        if (JSON.stringify(prev[productId]) === JSON.stringify(cached)) {
+                            return prev;
+                        }
+                        return { ...prev, [productId]: cached };
+                    });
+                    setTimeout(() => {
+                        isUpdatingFromApiRef.current = false;
+                    }, 50);
+                }
+            }
+            
+            // 2) Always fetch fresh data from API when returning to page (even if cached exists)
+            if (!loadingVariants.has(productId)) {
+                handleRowExpand(productId, true)
+                    .then(() => {
+                        hasInitializedVariantsRef.current = true;
+                    })
+                    .catch(() => {
+                        hasInitializedVariantsRef.current = true;
+                        /* handled in handleRowExpand */
+                    });
+            } else {
+                // If already loading, mark as initialized to prevent re-triggering
+                hasInitializedVariantsRef.current = true;
+            }
+            return;
+        }
+
+        // After initialization: Only fetch if we don't have local state
+        // 1) Prefer local state (if not stale and already initialized)
+        if (Array.isArray(variantsData[productId])) return;
+
+        // 2) Then session storage cache (for back/forward, if not stale)
+        const cached = savedVariantsData?.[productId];
+        if (Array.isArray(cached)) {
+            // Only update if different to prevent loops
+            const currentVariants = variantsData[productId];
+            if (!currentVariants || JSON.stringify(currentVariants) !== JSON.stringify(cached)) {
+                isUpdatingFromApiRef.current = true;
+                setVariantsData((prev) => {
+                    if (JSON.stringify(prev[productId]) === JSON.stringify(cached)) {
+                        return prev;
+                    }
+                    return { ...prev, [productId]: cached };
+                });
+                setTimeout(() => {
+                    isUpdatingFromApiRef.current = false;
+                }, 50);
+            }
+            return;
+        }
+
+        // 3) Finally fetch if nothing available
         if (!loadingVariants.has(productId)) {
             handleRowExpand(productId, true).catch(() => {
                 /* handled in handleRowExpand */
             });
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [products, expandedRows]);
+    }, [products, expandedRows, isVariantsDataStale]);
+    
+    // Track previous products to detect actual data changes (not just pagination)
+    const prevProductsRef = useRef<Product[]>([]);
+    const lastVisibilityChangeRef = useRef<number | null>(null);
+    
+    // Refresh variants when products prop changes (indicating parent refresh after stock update)
+    useEffect(() => {
+        // Check if products actually changed (not just pagination)
+        // Compare product IDs and stock values to detect real updates
+        const hasProductChanges = prevProductsRef.current.length !== products.length ||
+            products.some((product, index) => {
+                const prevProduct = prevProductsRef.current[index];
+                return !prevProduct || 
+                    prevProduct.id !== product.id || 
+                    prevProduct.currentStock !== product.currentStock;
+            });
+        
+        // If products changed (refresh from parent after stock update), mark stock update time
+        if (hasProductChanges && products.length > 0 && !loading) {
+            // Mark current time as last stock update to invalidate all cached variants
+            setPageState(prev => ({
+                ...prev,
+                lastStockUpdateTime: Date.now()
+            }));
+        }
+        
+        prevProductsRef.current = products;
+        
+        const expandedProductIdStr = Object.keys(expandedRows).find((id) => expandedRows[id]);
+        if (!expandedProductIdStr) return;
+
+        const productId = parseInt(expandedProductIdStr, 10);
+        if (!Number.isFinite(productId)) return;
+
+        // If we have cached variants but products prop changed (parent refresh), refresh variants
+        if (variantsData[productId] && !loadingVariants.has(productId)) {
+            // Check if data might be stale based on timestamp
+            if (isVariantsDataStale(productId)) {
+                handleRowExpand(productId, true).catch(() => {
+                    /* handled in handleRowExpand */
+                });
+            }
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [products.length, products]); // Trigger when products array changes (refresh from parent)
+    
+    // Detect when user returns to the page (e.g., from detail page) and refresh stale variants
+    useEffect(() => {
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible') {
+                // Page became visible - check if we need to refresh stale variants
+                const now = Date.now();
+                // Only refresh if page was hidden for more than 1 second (to avoid false positives)
+                if (lastVisibilityChangeRef.current && (now - lastVisibilityChangeRef.current) > 1000) {
+                    const expandedProductIdStr = Object.keys(expandedRows).find((id) => expandedRows[id]);
+                    if (expandedProductIdStr) {
+                        const productId = parseInt(expandedProductIdStr, 10);
+                        if (Number.isFinite(productId) && isVariantsDataStale(productId) && !loadingVariants.has(productId)) {
+                            // Refresh stale variants when page becomes visible
+                            handleRowExpand(productId, true).catch(() => {
+                                /* handled in handleRowExpand */
+                            });
+                        }
+                    }
+                }
+                lastVisibilityChangeRef.current = now;
+            } else {
+                // Page became hidden - record the time
+                lastVisibilityChangeRef.current = Date.now();
+            }
+        };
+        
+        const handleFocus = () => {
+            // Also check on window focus (e.g., switching tabs back)
+            const expandedProductIdStr = Object.keys(expandedRows).find((id) => expandedRows[id]);
+            if (expandedProductIdStr) {
+                const productId = parseInt(expandedProductIdStr, 10);
+                if (Number.isFinite(productId) && isVariantsDataStale(productId) && !loadingVariants.has(productId)) {
+                    // Refresh stale variants when window regains focus
+                    handleRowExpand(productId, true).catch(() => {
+                        /* handled in handleRowExpand */
+                    });
+                }
+            }
+        };
+        
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        window.addEventListener('focus', handleFocus);
+        
+        return () => {
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+            window.removeEventListener('focus', handleFocus);
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [expandedRows, isVariantsDataStale, loadingVariants]);
 
     const handleRowExpand = async (productId: number, isExpanded: boolean): Promise<void> => {
         if (isExpanded) {
             // Always fetch variants for the clicked product (don't check cache)
             // This ensures we always use the correct clicked product ID
             setLoadingVariants(prev => new Set(prev).add(productId));
+            isUpdatingFromApiRef.current = true; // Prevent sync effect from running
             try {
                 const response = await getProductVariants(productId);
+                const freshVariants = response.data.variants;
+                const fetchTime = Date.now();
+                
                 setVariantsData(prev => ({
                     ...prev,
-                    [productId]: response.data.variants
+                    [productId]: freshVariants
+                }));
+                
+                // Update session storage with fresh data and timestamp
+                setPageState(prev => ({
+                    ...prev,
+                    variantsData: {
+                        ...prev.variantsData,
+                        [productId]: freshVariants
+                    },
+                    variantsDataTimestamps: {
+                        ...prev.variantsDataTimestamps,
+                        [productId]: fetchTime
+                    }
                 }));
             } catch (error) {
                 console.error('Failed to fetch variants', error);
@@ -401,6 +652,10 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
                     newSet.delete(productId);
                     return newSet;
                 });
+                // Reset flag after a short delay to allow state updates to complete
+                setTimeout(() => {
+                    isUpdatingFromApiRef.current = false;
+                }, 100);
             }
         }
     };
@@ -469,6 +724,13 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
             
             showSnackbar(`Successfully updated stock to ${stock} units`, 'success');
             
+            // Mark stock update time to invalidate cached variants data
+            const updateTime = Date.now();
+            setPageState(prev => ({
+                ...prev,
+                lastStockUpdateTime: updateTime
+            }));
+            
             // Refresh variant data for the product
             setLoadingVariants(prev => new Set(prev).add(addStockDialog.productId!));
             try {
@@ -476,6 +738,15 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
                 setVariantsData(prev => ({
                     ...prev,
                     [addStockDialog.productId!]: response.data.variants
+                }));
+                
+                // Update timestamps
+                setPageState(prev => ({
+                    ...prev,
+                    variantsDataTimestamps: {
+                        ...prev.variantsDataTimestamps,
+                        [addStockDialog.productId!]: updateTime
+                    }
                 }));
                 
                 // Update product's total current stock
@@ -675,36 +946,35 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
 
                                     // Immediately update UI + session to the clicked row
                                     setExpandedRows(nextExpanded);
-                                    setVariantsData({});
+                                    // Only clear variants data if switching to a different product
+                                    if (!nextExpanded[rowId] || !variantsData[productId]) {
+                                        setVariantsData({});
+                                    }
                                     hasRestoredScrollPositionRef.current = false; // Reset scroll restoration flag when manually opening
                                     setPageState((prev) => ({
                                         ...prev,
                                         expandedRows: nextExpanded,
-                                        variantsData: {},
+                                        variantsData: nextExpanded[rowId] && variantsData[productId] ? { [productId]: variantsData[productId] } : {},
                                         expandedProductId: nextExpanded[rowId] ? productId : null,
                                     }));
 
-                                    // Fetch variants for the clicked product (only when opening)
-                                    if (!isExpanded && !loadingVariants.has(productId)) {
+                                    // Fetch variants for the clicked product (only when opening or if stale)
+                                    const shouldFetch = !isExpanded && !loadingVariants.has(productId);
+                                    const shouldRefresh = isExpanded && isVariantsDataStale(productId) && !loadingVariants.has(productId);
+                                    
+                                    if (shouldFetch || shouldRefresh) {
                                         handleRowExpand(productId, true)
                                             .then(() => {
-                                                // Persist the latest fetched variants for back/forward
-                                                setVariantsData((current) => {
-                                                    const currentVariantsData: Record<number, ProductVariant[]> = {};
-                                                    if (Array.isArray(current[productId])) {
-                                                        currentVariantsData[productId] = current[productId];
-                                                    }
-                                                    setPageState((prev) => ({
-                                                        ...prev,
-                                                        expandedRows: nextExpanded,
-                                                        variantsData: currentVariantsData,
-                                                    }));
-                                                    return current;
-                                                });
+                                                // handleRowExpand already updates session storage, just mark as initialized
+                                                hasInitializedVariantsRef.current = true;
                                             })
                                             .catch(() => {
+                                                hasInitializedVariantsRef.current = true;
                                                 /* logged in handleRowExpand */
                                             });
+                                    } else if (shouldFetch) {
+                                        // Mark as initialized even if we don't fetch (already have fresh data)
+                                        hasInitializedVariantsRef.current = true;
                                     }
                                 }}
                                 sx={{ 
@@ -892,7 +1162,13 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
                     // If everything closed, clear cached variants
                     if (!nextOpenId) {
                         setVariantsData({});
-                        setPageState((prev) => ({ ...prev, variantsData: {}, expandedRows: {}, expandedProductId: null }));
+                        setPageState((prev) => ({ 
+                            ...prev, 
+                            variantsData: {}, 
+                            variantsDataTimestamps: {},
+                            expandedRows: {}, 
+                            expandedProductId: null 
+                        }));
                     }
 
                     // Restore scroll + ensure the clicked row stays in view
