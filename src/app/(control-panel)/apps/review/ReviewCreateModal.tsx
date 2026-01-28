@@ -22,6 +22,8 @@ import { useSnackbar } from '@/contexts/SnackbarContext';
 import FormTextField from '@/components/Shared/FormTextField';
 import AppButton from '@/components/Shared/AppButton';
 import { useDebounce } from '@/hooks/useDebounce';
+import FormDatePicker from '@/components/Shared/FormDatePicker';
+import dayjs from 'dayjs';
 
 const reviewSchema = z.object({
   product_id: z.number().min(1, 'Product Id is required'),
@@ -31,6 +33,7 @@ const reviewSchema = z.object({
   comment: z.string().min(1, 'Comment is required').min(10, 'Comment must be at least 10 characters').max(1000, 'Comment must be less than 1000 characters'),
   is_visible: z.boolean().default(true),
   testimonial: z.boolean().default(false),
+  review_date: z.string().optional(),
 }).refine((data) => {
   const num = parseInt(data.rating);
   return !isNaN(num) && num >= 1 && num <= 5;
@@ -86,6 +89,7 @@ const ReviewCreateModal: React.FC<ReviewCreateModalProps> = ({
           comment: initialData.comment,
           is_visible: initialData.is_visible,
           testimonial: initialData.testimonial || false,
+          review_date: initialData.review_date ? initialData.review_date.slice(0, 10) : undefined,
         });
 
         if (initialData.product_id) {
@@ -112,6 +116,7 @@ const ReviewCreateModal: React.FC<ReviewCreateModalProps> = ({
           comment: '',
           is_visible: true,
           testimonial: false,
+          review_date: dayjs().format('YYYY-MM-DD'),
         });
         setEditedProduct(null);
       }
@@ -159,6 +164,7 @@ const ReviewCreateModal: React.FC<ReviewCreateModalProps> = ({
         comment: data.comment,
         is_visible: data.is_visible,
         testimonial: data.testimonial,
+        review_date: data.review_date ? `${data.review_date} 00:00:00` : undefined,
       };
       
       if (isEditMode && initialData) {
@@ -300,6 +306,14 @@ const ReviewCreateModal: React.FC<ReviewCreateModalProps> = ({
               fullWidth 
               multiline 
               rows={4} 
+            />
+
+            {/* Review Date */}
+            <FormDatePicker
+              name="review_date"
+              control={control}
+              label="Review Date"
+              required
             />
 
             {/* Visibility Toggle */}

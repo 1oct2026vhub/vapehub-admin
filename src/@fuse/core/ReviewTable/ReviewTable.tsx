@@ -317,8 +317,13 @@ const ReviewTable: React.FC<ReviewTableProps> = ({ onEditClick }) => {
       // },
       {
         accessorKey: "created_at",
-        header: "Date",
+        header: "Created At",
         Cell: ({ row }) => formatDate(row.original.created_at),
+      },
+      {
+        accessorKey: "review_date",
+        header: "Review Date",
+        Cell: ({ row }) => formatDate(row.original.review_date),
       },
     ],
     []
