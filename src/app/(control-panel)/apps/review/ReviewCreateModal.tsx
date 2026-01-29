@@ -89,7 +89,7 @@ const ReviewCreateModal: React.FC<ReviewCreateModalProps> = ({
           comment: initialData.comment,
           is_visible: initialData.is_visible,
           testimonial: initialData.testimonial || false,
-          review_date: initialData.review_date ? initialData.review_date.slice(0, 10) : undefined,
+          review_date: initialData.review_date ? initialData.review_date.slice(0, 10) : initialData.created_at ? initialData.created_at.slice(0, 10) : undefined,
         });
 
         if (initialData.product_id) {
