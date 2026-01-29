@@ -203,6 +203,7 @@ const FormDatePicker: React.FC<FormDatePickerProps> = ({
                 ),
                 sx: {
                   "& .MuiOutlinedInput-root": {
+                    backgroundColor: "white",
                     "& fieldset": {
                       borderImage:
                         "linear-gradient(to right, #2E9970, #005434) 1",
