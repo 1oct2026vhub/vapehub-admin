@@ -365,6 +365,7 @@ const ReviewTable: React.FC<ReviewTableProps> = ({ onEditClick }) => {
               label="Sort By"
             >
               <MenuItem value="created_at">Date</MenuItem>
+              <MenuItem value="review_date">Review Date</MenuItem>  
               <MenuItem value="rating">Rating</MenuItem>
               <MenuItem value="user_name">User Name</MenuItem>
               <MenuItem value="comment">Comment</MenuItem>
@@ -504,7 +505,7 @@ const ReviewTable: React.FC<ReviewTableProps> = ({ onEditClick }) => {
           <DialogTitle>Confirm Delete</DialogTitle>
           <DialogContent>
             <Typography>
-              Are you sure you want to delete this review from <strong>{selectedReview?.company_name || `User ID: ${selectedReview?.user_id}`}</strong>?
+              Are you sure you want to delete this review?
             </Typography>
           </DialogContent>
           <DialogActions>
