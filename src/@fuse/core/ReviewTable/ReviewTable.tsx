@@ -364,7 +364,7 @@ const ReviewTable: React.FC<ReviewTableProps> = ({ onEditClick }) => {
               onChange={(e) => setSortBy(e.target.value)}
               label="Sort By"
             >
-              <MenuItem value="created_at">Date</MenuItem>
+              <MenuItem value="created_at">Created At</MenuItem>
               <MenuItem value="review_date">Review Date</MenuItem>  
               <MenuItem value="rating">Rating</MenuItem>
               <MenuItem value="user_name">User Name</MenuItem>
