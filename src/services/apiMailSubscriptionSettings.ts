@@ -109,6 +109,7 @@ export interface PromotionalEmailData {
   ctaText?: string;
   ctaUrl?: string;
   sendToAll: boolean;
+  selectedEmails?: string[];
   images?: {
     url: string;
     alt: string;
