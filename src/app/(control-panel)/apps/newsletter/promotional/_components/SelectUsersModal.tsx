@@ -118,42 +118,59 @@ export default function SelectUsersModal({
     if (open) fetchPage(page, limit, debouncedSearch);
   }, [open, page, limit, debouncedSearch]);
 
-  // When user selects emails from table, uncheck "Send to all". When none selected, check it.
+  // When user selects any email from table, uncheck "Send to all"
   useEffect(() => {
     if (selectedEmails.size > 0) setSendToAll(false);
-    else setSendToAll(true);
   }, [selectedEmails.size]);
 
   const handleToggleEmail = (email: string) => {
-    setSelectedEmails((prev) => {
-      const next = new Set(prev);
-      if (next.has(email)) next.delete(email);
-      else next.add(email);
-      return next;
-    });
-  };
-
-  const handleSelectAllOnPage = (checked: boolean) => {
-    if (checked) {
-      setSelectedEmails((prev) => {
-        const next = new Set(prev);
-        subscribers.forEach((s) => s.email && next.add(s.email));
-        return next;
-      });
+    if (sendToAll) {
+      // Was "send to all" (all shown checked); uncheck = turn off sendToAll and clear selection
+      setSendToAll(false);
+      setSelectedEmails(new Set());
     } else {
       setSelectedEmails((prev) => {
         const next = new Set(prev);
-        subscribers.forEach((s) => s.email && next.delete(s.email));
+        if (next.has(email)) next.delete(email);
+        else next.add(email);
         return next;
       });
     }
   };
 
+  const handleSelectAllOnPage = (checked: boolean) => {
+    if (sendToAll) {
+      // Was "send to all"; unchecking header = turn off sendToAll and uncheck all users
+      if (!checked) {
+        setSendToAll(false);
+        setSelectedEmails(new Set());
+      }
+    } else {
+      if (checked) {
+        setSelectedEmails((prev) => {
+          const next = new Set(prev);
+          subscribers.forEach((s) => s.email && next.add(s.email));
+          return next;
+        });
+      } else {
+        setSelectedEmails((prev) => {
+          const next = new Set(prev);
+          subscribers.forEach((s) => s.email && next.delete(s.email));
+          return next;
+        });
+      }
+    }
+  };
+
+  // When sendToAll is true, show all rows as checked; otherwise use selectedEmails
   const isAllOnPageSelected =
-    subscribers.length > 0 &&
-    subscribers.every((s) => s.email && selectedEmails.has(s.email));
+    sendToAll ||
+    (subscribers.length > 0 &&
+      subscribers.every((s) => s.email && selectedEmails.has(s.email)));
   const isSomeOnPageSelected =
-    subscribers.some((s) => s.email && selectedEmails.has(s.email)) && !isAllOnPageSelected;
+    !sendToAll &&
+    subscribers.some((s) => s.email && selectedEmails.has(s.email)) &&
+    !subscribers.every((s) => s.email && selectedEmails.has(s.email));
 
   const handleConfirm = () => {
     // Pass only one: either sendToAll true (no emails) or selectedEmails with sendToAll false
@@ -185,7 +202,10 @@ export default function SelectUsersModal({
             control={
               <Checkbox
                 checked={sendToAll}
-                onChange={(_, checked) => setSendToAll(checked)}
+                onChange={(_, checked) => {
+                  setSendToAll(checked);
+                  if (!checked) setSelectedEmails(new Set()); // Uncheck = uncheck all users in table
+                }}
                 sx={{ color: '#2E9970', '&.Mui-checked': { color: '#2E9970' } }}
               />
             }
@@ -244,19 +264,18 @@ export default function SelectUsersModal({
                         />
                       </TableCell>
                       <TableCell>Email</TableCell>
-                      <TableCell align="right">Status</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
                     {isLoading ? (
                       <TableRow>
-                        <TableCell colSpan={3} align="center" sx={{ py: 4 }}>
+                        <TableCell colSpan={2} align="center" sx={{ py: 4 }}>
                           <CircularProgress size={28} sx={{ color: '#2E9970' }} />
                         </TableCell>
                       </TableRow>
                     ) : subscribers.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={3} align="center" sx={{ py: 3 }} color="text.secondary">
+                        <TableCell colSpan={2} align="center" sx={{ py: 3 }} color="text.secondary">
                           No subscribers found.
                         </TableCell>
                       </TableRow>
@@ -268,24 +287,17 @@ export default function SelectUsersModal({
                           onClick={() => sub.email && handleToggleEmail(sub.email)}
                           sx={{
                             cursor: 'pointer',
-                            bgcolor: sub.email && selectedEmails.has(sub.email) ? 'action.selected' : undefined,
+                            bgcolor: sendToAll || (sub.email && selectedEmails.has(sub.email)) ? 'action.selected' : undefined,
                           }}
                         >
                           <TableCell padding="checkbox" onClick={(e) => e.stopPropagation()}>
                             <Checkbox
-                              checked={!!(sub.email && selectedEmails.has(sub.email))}
+                              checked={sendToAll || !!(sub.email && selectedEmails.has(sub.email))}
                               onChange={() => sub.email && handleToggleEmail(sub.email)}
                               sx={{ color: '#2E9970', '&.Mui-checked': { color: '#2E9970' } }}
                             />
                           </TableCell>
                           <TableCell>{sub.email || '—'}</TableCell>
-                          <TableCell align="right">
-                            {sub.subscribed !== false ? (
-                              <Chip label="Subscribed" size="small" color="success" />
-                            ) : (
-                              <Chip label="Unsubscribed" size="small" />
-                            )}
-                          </TableCell>
                         </TableRow>
                       ))
                     )}
