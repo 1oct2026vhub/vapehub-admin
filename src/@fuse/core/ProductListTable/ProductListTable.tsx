@@ -59,6 +59,7 @@ export type ProductType = {
   updatedAt: string;
   status: "draft" | "published" | "archived";
   sku?: string | null;
+  slug?: string | null;
   Brands?: {
     id: number;
     name: string;
@@ -77,6 +78,7 @@ interface ProductListTableProps {
 interface CategoryType {
   id: number;
   name: string;
+  slug?: string | null;
 }
 
 interface BrandType {
@@ -207,6 +209,9 @@ const ProductListTable = ({
   const [isMenuSyncDialogOpen, setIsMenuSyncDialogOpen] = useState(false);
   const [productToSync, setProductToSync] = useState<ProductType | null>(null);
   const [menuAssociations, setMenuAssociations] = useState<any>(null);
+
+  // Optional redirect URL when deleting product (e.g. / or /other-product or any path)
+  const [deleteRedirectUrl, setDeleteRedirectUrl] = useState("");
 
   // --- START ADD: Check if Filters are Active ---
   const areFiltersActive = useMemo(() => {
@@ -492,6 +497,7 @@ const ProductListTable = ({
 
   const handleDelete = async (product: ProductType) => {
     setSelectedProduct(product);
+    setDeleteRedirectUrl("");
     setDeleteDialogOpen(true);
   };
 
@@ -502,39 +508,41 @@ const ProductListTable = ({
 
   const confirmDelete = async () => {
     if (!selectedProduct) return;
-    try {
-      await deleteProduct(selectedProduct.id);
-      showSnackbar("Product deleted successfully", "success");
 
-      // Update local state without reloading
+    const redirectUrl = deleteRedirectUrl.trim();
+    const normalizedRedirectUrl = redirectUrl
+      ? redirectUrl.startsWith("/")
+        ? redirectUrl
+        : `/${redirectUrl}`
+      : undefined;
+
+    try {
+      await deleteProduct(selectedProduct.id, normalizedRedirectUrl);
+      showSnackbar("Product deleted successfully" + (normalizedRedirectUrl ? " (redirect created)" : ""), "success");
+
       setProducts((prevProducts) =>
         prevProducts.filter((product) => product.id !== selectedProduct.id)
       );
       setTotalRecords((prev) => prev - 1);
       setTotalPages(Math.ceil((totalRecords - 1) / limit));
-    } catch (error) {
+    } catch (error: any) {
       if (error?.errors) {
         showSnackbar(error?.errors[0]?.msg, "error");
       } else {
         const errorMessage = error?.message || "An unexpected error occurred";
         showSnackbar(errorMessage, "error");
       }
-
-      const errorData = error || error; // Handle both API and unexpected errors
+      const errorData = error || error;
       if (errorData?.error && typeof errorData.error === "object") {
         Object.entries(errorData.error).forEach(([field, message]) => {
-          if (typeof message === "string") {
-            // setError(field, { type: 'manual', message });
-            showSnackbar(` ${message}`, "error");
-          }
+          if (typeof message === "string") showSnackbar(` ${message}`, "error");
         });
-      } else {
-        // setError('root', { type: 'manual', message: errorMessage });
       }
-      return false;
+      return;
     }
     setDeleteDialogOpen(false);
     setSelectedProduct(null);
+    setDeleteRedirectUrl("");
   };
 
   const confirmRestore = async () => {
@@ -1280,7 +1288,6 @@ const ProductListTable = ({
               </ListItemIcon>
               View Details
             </MenuItem>,
-              !row.original.deletedAt &&
             <MenuItem
               key="edit"
               onClick={() => {
@@ -1627,17 +1634,29 @@ const ProductListTable = ({
         </List>
       </Drawer>
 
-      {/* Delete Confirmation Dialog */}
+      {/* Delete Confirmation Dialog (optional redirect URL) */}
       <Dialog
         open={deleteDialogOpen}
         onClose={() => setDeleteDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
       >
         <DialogTitle>Delete Product</DialogTitle>
         <DialogContent>
-          <Typography>
+          <Typography sx={{ mb: 2 }}>
             Are you sure you want to delete this product? This action cannot be
             undone.
           </Typography>
+          <TextField
+            fullWidth
+            label="Redirect URL (optional)"
+            placeholder="/ or /other-product or any path"
+            value={deleteRedirectUrl}
+            onChange={(e) => setDeleteRedirectUrl(e.target.value)}
+            size="small"
+            helperText="Leave empty to skip. Enter path to redirect old product URL (e.g. / or /category/slug)."
+            sx={{ mt: 1 }}
+          />
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
