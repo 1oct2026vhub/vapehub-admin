@@ -46,6 +46,7 @@ import debounce from 'lodash/debounce';
 import ClearFiltersButton from "@/components/Shared/ClearFiltersButton";
 import TablePagination from "@/components/Shared/TablePagination";
 import { usePageState } from "@/hooks/usePageState";
+import { z } from "zod";
 
 export type ProductType = {
   id: number;
@@ -210,8 +211,10 @@ const ProductListTable = ({
   const [productToSync, setProductToSync] = useState<ProductType | null>(null);
   const [menuAssociations, setMenuAssociations] = useState<any>(null);
 
-  // Optional redirect URL when deleting product (e.g. / or /other-product or any path)
+  // Optional redirect URL when deleting product (same validation as EditBannerForm: empty or valid URL)
   const [deleteRedirectUrl, setDeleteRedirectUrl] = useState("");
+  const [deleteRedirectUrlError, setDeleteRedirectUrlError] = useState("");
+  const redirectUrlSchema = z.string().url("Invalid URL format").optional().or(z.literal(""));
 
   // --- START ADD: Check if Filters are Active ---
   const areFiltersActive = useMemo(() => {
@@ -498,6 +501,7 @@ const ProductListTable = ({
   const handleDelete = async (product: ProductType) => {
     setSelectedProduct(product);
     setDeleteRedirectUrl("");
+    setDeleteRedirectUrlError("");
     setDeleteDialogOpen(true);
   };
 
@@ -510,11 +514,15 @@ const ProductListTable = ({
     if (!selectedProduct) return;
 
     const redirectUrl = deleteRedirectUrl.trim();
-    const normalizedRedirectUrl = redirectUrl
-      ? redirectUrl.startsWith("/")
-        ? redirectUrl
-        : `/${redirectUrl}`
-      : undefined;
+    if (redirectUrl) {
+      const parsed = redirectUrlSchema.safeParse(redirectUrl);
+      if (!parsed.success) {
+        setDeleteRedirectUrlError(parsed.error.errors[0]?.message ?? "Invalid URL format");
+        return;
+      }
+    }
+
+    const normalizedRedirectUrl = redirectUrl || undefined;
 
     try {
       await deleteProduct(selectedProduct.id, normalizedRedirectUrl);
@@ -1650,11 +1658,22 @@ const ProductListTable = ({
           <TextField
             fullWidth
             label="Redirect URL (optional)"
-            placeholder="/ or /other-product or any path"
+            placeholder="https://example.com"
             value={deleteRedirectUrl}
-            onChange={(e) => setDeleteRedirectUrl(e.target.value)}
+            onChange={(e) => {
+              const value = e.target.value;
+              setDeleteRedirectUrl(value);
+              const trimmed = value.trim();
+              if (!trimmed) {
+                setDeleteRedirectUrlError("");
+              } else {
+                const parsed = redirectUrlSchema.safeParse(trimmed);
+                setDeleteRedirectUrlError(parsed.success ? "" : (parsed.error.errors[0]?.message ?? "Invalid URL format"));
+              }
+            }}
             size="small"
-            helperText="Leave empty to skip. Enter path to redirect old product URL (e.g. / or /category/slug)."
+            error={!!deleteRedirectUrlError}
+            helperText={deleteRedirectUrlError || "Leave empty to skip. Enter a valid URL (e.g. https://example.com)."}
             sx={{ mt: 1 }}
           />
         </DialogContent>
