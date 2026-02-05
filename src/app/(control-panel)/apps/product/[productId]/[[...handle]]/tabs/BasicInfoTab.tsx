@@ -626,6 +626,8 @@ function BasicInfoTab() {
                linked_product_ids: productData.LinkedProducts?.map(p => p.id) || [],
                is_new: productData.is_new ?? true,
                productId: Number(finalProductId),
+               deletedAt: productData.deletedAt ?? null,
+               redirect_url: productData.redirect_url ?? "",
              });
           }
         } catch (error) {
@@ -662,6 +664,7 @@ function BasicInfoTab() {
          brand_ids: data.brand_ids,
          linked_product_ids: data.linked_product_ids || [],
          is_new: Boolean(data.is_new),
+         ...(formData.deletedAt && { redirect_url: (formData.redirect_url ?? "").trim() || undefined }),
        };
 
 
@@ -830,6 +833,7 @@ function BasicInfoTab() {
       }}
     >
       <Grid container spacing={3}>
+      
         <Grid item xs={12} md={6}>
           <FormInputField
             name="name"
@@ -963,6 +967,20 @@ function BasicInfoTab() {
             rows={4}
           />
         </Grid> */}
+          {formData.deletedAt && (
+          <Grid item xs={12}>
+            <TextField
+              fullWidth
+              label="Redirect URL"
+              placeholder="/ or /other-product or any path"
+              value={formData.redirect_url ?? ""}
+              onChange={(e) => updateFormData({ redirect_url: e.target.value })}
+              size="small"
+              helperText="Redirect old product URL to this path. Leave empty to remove redirect."
+              sx={{ "& .MuiOutlinedInput-root": { backgroundColor: "white" } }}
+            />
+          </Grid>
+        )}
         
         <Grid item xs={12}>
           <MuiBox sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
