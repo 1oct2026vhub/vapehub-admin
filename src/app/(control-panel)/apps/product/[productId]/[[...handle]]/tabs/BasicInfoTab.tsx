@@ -50,6 +50,9 @@ const schema = z.object({
   is_new: z.boolean().optional(),
 });
 
+// Same redirect URL validation as EditBannerForm: empty or valid URL
+const redirectUrlSchema = z.string().url("Invalid URL format").optional().or(z.literal(""));
+
 type FormData = z.infer<typeof schema>;
 
 interface Option {
@@ -185,6 +188,8 @@ function BasicInfoTab() {
   const [linkedProductOptions, setLinkedProductOptions] = useState<Option[]>([]);
   const [linkedProductError, setLinkedProductError] = useState("");
   const [linkedProductSearchInput, setLinkedProductSearchInput] = useState("");
+
+  const [redirectUrlError, setRedirectUrlError] = useState("");
 
   // Determine if we're in edit mode
   const isEditMode = Boolean(productId && productId > 0);
@@ -653,6 +658,16 @@ function BasicInfoTab() {
          throw new Error("Please fill in all required fields");
        }
 
+       const redirectUrlValue = (formData.redirect_url ?? "").trim();
+       if (formData.deletedAt && redirectUrlValue) {
+         const parsed = redirectUrlSchema.safeParse(redirectUrlValue);
+         if (!parsed.success) {
+           setRedirectUrlError(parsed.error.errors[0]?.message ?? "Invalid URL format");
+           setIsLoading(false);
+           return;
+         }
+       }
+
        // Format the data according to the API requirements
        const productData: CreateProductData = {
          name: data.name.trim(),
@@ -971,12 +986,23 @@ function BasicInfoTab() {
           <Grid item xs={12}>
             <TextField
               fullWidth
-              label="Redirect URL"
-              placeholder="/ or /other-product or any path"
+              label="Redirect URL (Optional)"
+              placeholder="https://example.com"
               value={formData.redirect_url ?? ""}
-              onChange={(e) => updateFormData({ redirect_url: e.target.value })}
+              onChange={(e) => {
+                const value = e.target.value;
+                updateFormData({ redirect_url: value });
+                const trimmed = value.trim();
+                if (!trimmed) {
+                  setRedirectUrlError("");
+                } else {
+                  const parsed = redirectUrlSchema.safeParse(trimmed);
+                  setRedirectUrlError(parsed.success ? "" : (parsed.error.errors[0]?.message ?? "Invalid URL format"));
+                }
+              }}
               size="small"
-              helperText="Redirect old product URL to this path. Leave empty to remove redirect."
+              error={!!redirectUrlError}
+              helperText={redirectUrlError || "Leave empty to remove redirect. Enter a valid URL (e.g. https://example.com)."}
               sx={{ "& .MuiOutlinedInput-root": { backgroundColor: "white" } }}
             />
           </Grid>
