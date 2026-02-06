@@ -46,6 +46,7 @@ import debounce from 'lodash/debounce';
 import ClearFiltersButton from "@/components/Shared/ClearFiltersButton";
 import TablePagination from "@/components/Shared/TablePagination";
 import { usePageState } from "@/hooks/usePageState";
+import { z } from "zod";
 
 export type ProductType = {
   id: number;
@@ -59,6 +60,7 @@ export type ProductType = {
   updatedAt: string;
   status: "draft" | "published" | "archived";
   sku?: string | null;
+  slug?: string | null;
   Brands?: {
     id: number;
     name: string;
@@ -77,6 +79,7 @@ interface ProductListTableProps {
 interface CategoryType {
   id: number;
   name: string;
+  slug?: string | null;
 }
 
 interface BrandType {
@@ -207,6 +210,11 @@ const ProductListTable = ({
   const [isMenuSyncDialogOpen, setIsMenuSyncDialogOpen] = useState(false);
   const [productToSync, setProductToSync] = useState<ProductType | null>(null);
   const [menuAssociations, setMenuAssociations] = useState<any>(null);
+
+  // Optional redirect URL when deleting product (same validation as EditBannerForm: empty or valid URL)
+  const [deleteRedirectUrl, setDeleteRedirectUrl] = useState("");
+  const [deleteRedirectUrlError, setDeleteRedirectUrlError] = useState("");
+  const redirectUrlSchema = z.string().url("Invalid URL format").optional().or(z.literal(""));
 
   // --- START ADD: Check if Filters are Active ---
   const areFiltersActive = useMemo(() => {
@@ -492,6 +500,8 @@ const ProductListTable = ({
 
   const handleDelete = async (product: ProductType) => {
     setSelectedProduct(product);
+    setDeleteRedirectUrl("");
+    setDeleteRedirectUrlError("");
     setDeleteDialogOpen(true);
   };
 
@@ -502,39 +512,45 @@ const ProductListTable = ({
 
   const confirmDelete = async () => {
     if (!selectedProduct) return;
-    try {
-      await deleteProduct(selectedProduct.id);
-      showSnackbar("Product deleted successfully", "success");
 
-      // Update local state without reloading
+    const redirectUrl = deleteRedirectUrl.trim();
+    if (redirectUrl) {
+      const parsed = redirectUrlSchema.safeParse(redirectUrl);
+      if (!parsed.success) {
+        setDeleteRedirectUrlError(parsed.error.errors[0]?.message ?? "Invalid URL format");
+        return;
+      }
+    }
+
+    const normalizedRedirectUrl = redirectUrl || undefined;
+
+    try {
+      await deleteProduct(selectedProduct.id, normalizedRedirectUrl);
+      showSnackbar("Product deleted successfully" + (normalizedRedirectUrl ? " (redirect created)" : ""), "success");
+
       setProducts((prevProducts) =>
         prevProducts.filter((product) => product.id !== selectedProduct.id)
       );
       setTotalRecords((prev) => prev - 1);
       setTotalPages(Math.ceil((totalRecords - 1) / limit));
-    } catch (error) {
+    } catch (error: any) {
       if (error?.errors) {
         showSnackbar(error?.errors[0]?.msg, "error");
       } else {
         const errorMessage = error?.message || "An unexpected error occurred";
         showSnackbar(errorMessage, "error");
       }
-
-      const errorData = error || error; // Handle both API and unexpected errors
+      const errorData = error || error;
       if (errorData?.error && typeof errorData.error === "object") {
         Object.entries(errorData.error).forEach(([field, message]) => {
-          if (typeof message === "string") {
-            // setError(field, { type: 'manual', message });
-            showSnackbar(` ${message}`, "error");
-          }
+          if (typeof message === "string") showSnackbar(` ${message}`, "error");
         });
-      } else {
-        // setError('root', { type: 'manual', message: errorMessage });
       }
-      return false;
+      return;
     }
     setDeleteDialogOpen(false);
     setSelectedProduct(null);
+    setDeleteRedirectUrl("");
   };
 
   const confirmRestore = async () => {
@@ -1280,7 +1296,6 @@ const ProductListTable = ({
               </ListItemIcon>
               View Details
             </MenuItem>,
-              !row.original.deletedAt &&
             <MenuItem
               key="edit"
               onClick={() => {
@@ -1627,17 +1642,40 @@ const ProductListTable = ({
         </List>
       </Drawer>
 
-      {/* Delete Confirmation Dialog */}
+      {/* Delete Confirmation Dialog (optional redirect URL) */}
       <Dialog
         open={deleteDialogOpen}
         onClose={() => setDeleteDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
       >
         <DialogTitle>Delete Product</DialogTitle>
         <DialogContent>
-          <Typography>
+          <Typography sx={{ mb: 2 }}>
             Are you sure you want to delete this product? This action cannot be
             undone.
           </Typography>
+          <TextField
+            fullWidth
+            label="Redirect URL (optional)"
+            placeholder="https://example.com"
+            value={deleteRedirectUrl}
+            onChange={(e) => {
+              const value = e.target.value;
+              setDeleteRedirectUrl(value);
+              const trimmed = value.trim();
+              if (!trimmed) {
+                setDeleteRedirectUrlError("");
+              } else {
+                const parsed = redirectUrlSchema.safeParse(trimmed);
+                setDeleteRedirectUrlError(parsed.success ? "" : (parsed.error.errors[0]?.message ?? "Invalid URL format"));
+              }
+            }}
+            size="small"
+            error={!!deleteRedirectUrlError}
+            helperText={deleteRedirectUrlError || "Leave empty to skip. Enter a valid URL (e.g. https://example.com)."}
+            sx={{ mt: 1 }}
+          />
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>

@@ -66,8 +66,10 @@ export const getProduct = async (id: number) => {
   return response.data;
 };
 
-export const deleteProduct = async (id: number) => {
-  const response = await axiosInstance.delete(`/api/admin/products/${id}`);
+export const deleteProduct = async (id: number, redirect_url?: string) => {
+  const response = await axiosInstance.delete(`/api/admin/products/${id}`, {
+    data: redirect_url ? { redirect_url } : undefined,
+  });
   return response.data;
 };
 
@@ -157,6 +159,8 @@ export interface CreateProductData {
   brand_ids?: number[];
   linked_product_ids?: number[];
   is_new?: boolean;
+  /** Redirect URL for deleted products (301 from product URL to this path) */
+  redirect_url?: string;
 }
 
 export const createProduct = async (data: CreateProductData) => {

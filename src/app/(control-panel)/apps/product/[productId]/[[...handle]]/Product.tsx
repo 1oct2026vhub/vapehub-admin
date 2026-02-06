@@ -52,7 +52,8 @@ function ProductContent() {
             brand_ids: productData.brand_id,
             is_new: productData.is_new,
             productId: Number(productId),
-            // Add other fields as needed
+            deletedAt: productData.deletedAt ?? null,
+            redirect_url: productData.redirect_url ?? "",
           });
         } catch (error) {
           console.error("Error fetching product:", error);

@@ -50,6 +50,9 @@ const schema = z.object({
   is_new: z.boolean().optional(),
 });
 
+// Same redirect URL validation as EditBannerForm: empty or valid URL
+const redirectUrlSchema = z.string().url("Invalid URL format").optional().or(z.literal(""));
+
 type FormData = z.infer<typeof schema>;
 
 interface Option {
@@ -185,6 +188,8 @@ function BasicInfoTab() {
   const [linkedProductOptions, setLinkedProductOptions] = useState<Option[]>([]);
   const [linkedProductError, setLinkedProductError] = useState("");
   const [linkedProductSearchInput, setLinkedProductSearchInput] = useState("");
+
+  const [redirectUrlError, setRedirectUrlError] = useState("");
 
   // Determine if we're in edit mode
   const isEditMode = Boolean(productId && productId > 0);
@@ -626,6 +631,8 @@ function BasicInfoTab() {
                linked_product_ids: productData.LinkedProducts?.map(p => p.id) || [],
                is_new: productData.is_new ?? true,
                productId: Number(finalProductId),
+               deletedAt: productData.deletedAt ?? null,
+               redirect_url: productData.redirect_url ?? "",
              });
           }
         } catch (error) {
@@ -651,6 +658,16 @@ function BasicInfoTab() {
          throw new Error("Please fill in all required fields");
        }
 
+       const redirectUrlValue = (formData.redirect_url ?? "").trim();
+       if (formData.deletedAt && redirectUrlValue) {
+         const parsed = redirectUrlSchema.safeParse(redirectUrlValue);
+         if (!parsed.success) {
+           setRedirectUrlError(parsed.error.errors[0]?.message ?? "Invalid URL format");
+           setIsLoading(false);
+           return;
+         }
+       }
+
        // Format the data according to the API requirements
        const productData: CreateProductData = {
          name: data.name.trim(),
@@ -662,6 +679,7 @@ function BasicInfoTab() {
          brand_ids: data.brand_ids,
          linked_product_ids: data.linked_product_ids || [],
          is_new: Boolean(data.is_new),
+         ...(formData.deletedAt && { redirect_url: (formData.redirect_url ?? "").trim() || undefined }),
        };
 
 
@@ -830,6 +848,7 @@ function BasicInfoTab() {
       }}
     >
       <Grid container spacing={3}>
+      
         <Grid item xs={12} md={6}>
           <FormInputField
             name="name"
@@ -963,6 +982,31 @@ function BasicInfoTab() {
             rows={4}
           />
         </Grid> */}
+          {formData.deletedAt && (
+          <Grid item xs={12}>
+            <TextField
+              fullWidth
+              label="Redirect URL (Optional)"
+              placeholder="https://example.com"
+              value={formData.redirect_url ?? ""}
+              onChange={(e) => {
+                const value = e.target.value;
+                updateFormData({ redirect_url: value });
+                const trimmed = value.trim();
+                if (!trimmed) {
+                  setRedirectUrlError("");
+                } else {
+                  const parsed = redirectUrlSchema.safeParse(trimmed);
+                  setRedirectUrlError(parsed.success ? "" : (parsed.error.errors[0]?.message ?? "Invalid URL format"));
+                }
+              }}
+              size="small"
+              error={!!redirectUrlError}
+              helperText={redirectUrlError || "Leave empty to remove redirect. Enter a valid URL (e.g. https://example.com)."}
+              sx={{ "& .MuiOutlinedInput-root": { backgroundColor: "white" } }}
+            />
+          </Grid>
+        )}
         
         <Grid item xs={12}>
           <MuiBox sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>

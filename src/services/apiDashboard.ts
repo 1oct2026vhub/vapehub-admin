@@ -75,7 +75,14 @@ export interface DashboardStats {
     today: string;
     weekly: string;
     monthly: string;
+    yearly?: string;
+    todayAbbreviated?: string;
+    weeklyAbbreviated?: string;
+    monthlyAbbreviated?: string;
+    yearlyAbbreviated?: string;
   };
+  totalRetailValue?: number;
+  totalRetailValueFormatted?: string;
   orders: OrderCount[];
   users: UserCount[];
   products: ProductStats;

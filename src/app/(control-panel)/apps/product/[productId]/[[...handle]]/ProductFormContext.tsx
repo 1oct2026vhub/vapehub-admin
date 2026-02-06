@@ -58,6 +58,10 @@ export interface ProductFormData {
   // Product ID after creation
   productId?: number;
 
+  // Deleted product redirect (only for deleted products)
+  deletedAt?: string | null;
+  redirect_url?: string;
+
   // Form state
   currentStep: number;
   isSubmitting: boolean;
