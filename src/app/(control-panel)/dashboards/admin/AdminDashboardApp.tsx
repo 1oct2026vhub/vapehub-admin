@@ -158,8 +158,9 @@ const AdminDashboardApp = () => {
           // setTransactionData([]);
           return;
         }
-
         const statsData = await getDashboardStats();
+        console.log('salesData', statsData);
+
         const salesResponse = await getSalesChartData(chartPeriod, {
           productId: selectedProduct?.id,
         startDate: startDate?.format('YYYY-MM-DD'),
@@ -275,6 +276,19 @@ setStartDate(null);
             fullValue={(stats?.sales as any)?.yearly}
             icon="sales"
             color="#F44336"
+          />
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <StatisticsCard
+            title="Total Retail Value"
+            value={stats?.totalRetailValueFormatted || "£0.00"}
+            fullValue={
+              stats?.totalRetailValue !== undefined && stats?.totalRetailValue !== null
+                ? `${stats?.totalRetailValueFormatted || "£0.00"} (raw: ${stats.totalRetailValue.toLocaleString()})`
+                : stats?.totalRetailValueFormatted
+            }
+            icon="sales"
+            color="#00ACC1"
           />
         </Grid>
         {/* <Grid item xs={12} sm={6} md={3}>
