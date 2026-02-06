@@ -284,8 +284,8 @@ setStartDate(null);
             value={stats?.totalRetailValueFormatted || "£0.00"}
             fullValue={
               stats?.totalRetailValue !== undefined && stats?.totalRetailValue !== null
-                ? `${stats?.totalRetailValueFormatted || "£0.00"} (raw: ${stats.totalRetailValue.toLocaleString()})`
-                : stats?.totalRetailValueFormatted
+                ? stats.totalRetailValue.toLocaleString(undefined, { maximumFractionDigits: 2 })
+                : undefined
             }
             icon="sales"
             color="#00ACC1"
