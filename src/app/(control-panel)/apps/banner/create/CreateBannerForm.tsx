@@ -23,7 +23,7 @@ import {
   FormHelperText
 } from '@mui/material';
 import { Controller } from 'react-hook-form';
-import { validateDesktopBannerImage, validateImageDimensions } from "@/utils/imageUtils";
+import { validateDesktopBannerImage, validateMobileBannerImage } from "@/utils/imageUtils";
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const ACCEPTED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'];
@@ -62,11 +62,11 @@ const bannerFormSchema = z.object({
     )
     .superRefine(async (file, ctx) => {
       if (!file) return;
-      const { valid, message } = await validateImageDimensions(file, 450, 450);
+      const { valid, message } = await validateMobileBannerImage(file);
       if (!valid) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
-          message: message || 'Mobile image dimensions must be 450x450px.',
+          message: message || 'Square images: 394×394 px. Rectangle images: 394×221 px.',
         });
       }
     }),
@@ -219,11 +219,11 @@ const CreateBannerForm: React.FC = () => {
             <FormFileUploadField
               name="image_low"
               control={control}
-              label="Mobile Image (Mobile: 450 x 450 px)"
-              helperText="Mobile: 450 x 450 px. PNG, JPG, WebP. Max 5MB."
+              label="Mobile Image"
+              helperText="Square images: 394×394 px (same dimensions). Rectangle images: 394×221px. PNG, JPG, WebP. Max 5MB."
               required
-              exactWidth={450}
-              exactHeight={450}
+              exactWidth={394}
+              exactHeight={221}
             />
           </Grid>
 

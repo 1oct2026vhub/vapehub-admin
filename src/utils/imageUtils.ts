@@ -237,4 +237,65 @@ export const validateDesktopBannerImage = (
     };
     img.src = URL.createObjectURL(file);
   });
-}; 
+};
+
+/**
+ * Validates mobile banner image dimensions with specific rules:
+ * - Square images: dimensions must be exactly 394×394 px (same dimensions)
+ * - Rectangle images: dimensions must be exactly 394×221 px
+ *
+ * @param file The image File object to validate.
+ * @returns A promise that resolves to an object containing:
+ *  - `valid` (boolean): True if dimensions are valid, false otherwise.
+ *  - `message` (string|undefined): An error message if validation fails.
+ *  - `dimensions` (object|undefined): The actual dimensions { width, height } of the image if loaded.
+ */
+export const validateMobileBannerImage = (
+  file: File
+): Promise<{ valid: boolean; message?: string; dimensions?: { width: number; height: number } }> => {
+  return new Promise((resolve) => {
+    if (!file || !(file instanceof File) || !file.type.startsWith("image/")) {
+      resolve({ valid: false, message: "Invalid image file." });
+      return;
+    }
+
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(img.src);
+      const { width, height } = img;
+      const isSquare = width === height;
+
+      if (isSquare) {
+        // Square images: dimensions must be exactly 394×394
+        if (width !== 394 || height !== 394) {
+          resolve({
+            valid: false,
+            message: `Square image dimensions must be exactly 394 × 394 px (same dimensions). Current dimensions: ${width} × ${height} px.`,
+            dimensions: { width, height }
+          });
+          return;
+        }
+      } else {
+        // Rectangle images: dimensions must be exactly 394×221
+        if (width !== 394 || height !== 221) {
+          resolve({
+            valid: false,
+            message: `Rectangle image dimensions must be exactly 394 × 221 px. Current dimensions: ${width} × ${height} px.`,
+            dimensions: { width, height }
+          });
+          return;
+        }
+      }
+
+      resolve({
+        valid: true,
+        dimensions: { width, height }
+      });
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(img.src);
+      resolve({ valid: false, message: "Could not load image to validate dimensions." });
+    };
+    img.src = URL.createObjectURL(file);
+  });
+};
