@@ -89,17 +89,30 @@ const EditBannerForm: React.FC<EditBannerFormProps> = ({ initialBannerData }) =>
   const {
     control,
     handleSubmit,
-    formState: { errors, isValid, dirtyFields }, // track dirtyFields for selective update
+    formState: { errors, dirtyFields },
     watch,
     setValue,
-    reset, // to reset form with initial data
+    reset,
   } = useForm<BannerEditFormValues>({
     resolver: zodResolver(bannerEditFormSchema),
     mode: 'onChange',
+    defaultValues: {
+      title: initialBannerData?.title ?? '',
+      description: initialBannerData?.description ?? '',
+      alt_text: (initialBannerData as any)?.alt_text ?? '',
+      alt_text_mobile: (initialBannerData as any)?.alt_text_mobile ?? '',
+      status: initialBannerData?.status ?? 'active',
+      redirect_url: initialBannerData?.redirect_url ?? '',
+    },
   });
 
   const imageValue = watch("image");
   const imageLowValue = watch("image_low");
+
+  const hasChanges =
+    Object.keys(dirtyFields).length > 0 ||
+    imageValue instanceof File ||
+    imageLowValue instanceof File;
 
   useEffect(() => {
     if (initialBannerData) {
@@ -278,7 +291,7 @@ const EditBannerForm: React.FC<EditBannerFormProps> = ({ initialBannerData }) =>
               type="submit"
               label={isSubmitting ? 'Updating Banner...' : 'Update Banner'}
               loading={isSubmitting}
-              disabled={isSubmitting || !isValid || Object.keys(dirtyFields).length === 0}
+              disabled={isSubmitting || !hasChanges}
               fullWidth
               variant="contained"
             />
