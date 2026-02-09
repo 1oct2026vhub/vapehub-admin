@@ -40,7 +40,13 @@ const bannerEditFormSchema = z.object({
   alt_text: z.string().optional(),
   alt_text_mobile: z.string().optional(),
   status: z.enum(['active', 'inactive'], { required_error: 'Status is required' }),
-  redirect_url: z.string().url('Invalid URL format').optional().or(z.literal('')),
+  redirect_url: z
+    .union([
+      z.literal(''),
+      z.string().refine((s) => s.startsWith('#'), { message: 'Invalid URL format' }),
+      z.string().url('Invalid URL format'),
+    ])
+    .optional(),
   display_order: z.coerce.number().int().min(0, 'Display order must be 0 or greater').optional(),
   image: z
     .instanceof(File)
