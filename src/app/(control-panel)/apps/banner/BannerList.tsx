@@ -63,7 +63,7 @@ import {
 import FuseLoading from '@fuse/core/FuseLoading';
 
 const defaultSortBy: FetchBannersParams['sort_by'] = 'display_order';
-const defaultOrder: FetchBannersParams['order'] = 'ASC';
+const defaultOrder: FetchBannersParams['order'] = 'DESC';
 const defaultLimit = 10;
 const defaultStatus: FetchBannersParams['status'] = undefined; // Or 'all' if you have such an option
 const defaultShowDeleted = false;
