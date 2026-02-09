@@ -63,7 +63,7 @@ import {
 import FuseLoading from '@fuse/core/FuseLoading';
 
 const defaultSortBy: FetchCarouselsParams['sort_by'] = 'display_order';
-const defaultOrder: FetchCarouselsParams['order'] = 'ASC';
+const defaultOrder: FetchCarouselsParams['order'] = 'DESC';
 const defaultLimit = 10;
 const defaultStatus: FetchCarouselsParams['status'] = undefined;
 const defaultShowDeleted = false;
