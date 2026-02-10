@@ -28,7 +28,7 @@ import {
   FormHelperText,
 } from '@mui/material';
 import { Controller } from 'react-hook-form';
-import { validateDesktopBannerImage, validateMobileBannerImage } from "@/utils/imageUtils";
+import { validateDesktopBannerImage, validateImageDimensions } from "@/utils/imageUtils";
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const ACCEPTED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'];
@@ -40,13 +40,7 @@ const bannerEditFormSchema = z.object({
   alt_text: z.string().optional(),
   alt_text_mobile: z.string().optional(),
   status: z.enum(['active', 'inactive'], { required_error: 'Status is required' }),
-  redirect_url: z
-    .union([
-      z.literal(''),
-      z.string().refine((s) => s.startsWith('#'), { message: 'Invalid URL format' }),
-      z.string().url('Invalid URL format'),
-    ])
-    .optional(),
+  redirect_url: z.string().url('Invalid URL format').optional().or(z.literal('')),
   display_order: z.coerce.number().int().min(0, 'Display order must be 0 or greater').optional(),
   image: z
     .instanceof(File)
@@ -68,11 +62,11 @@ const bannerEditFormSchema = z.object({
     .nullable()
     .superRefine(async (file, ctx) => {
       if (!file) return; // Only validate if a new file is provided
-      const { valid, message } = await validateMobileBannerImage(file);
+      const { valid, message } = await validateImageDimensions(file, 450, 450);
       if (!valid) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
-          message: message || 'Square images: 394×394 px. Rectangle images: 394×221 px.',
+          message: message || 'Mobile image dimensions must be 450x450px.',
         });
       }
     }),
@@ -95,30 +89,17 @@ const EditBannerForm: React.FC<EditBannerFormProps> = ({ initialBannerData }) =>
   const {
     control,
     handleSubmit,
-    formState: { errors, dirtyFields },
+    formState: { errors, isValid, dirtyFields }, // track dirtyFields for selective update
     watch,
     setValue,
-    reset,
+    reset, // to reset form with initial data
   } = useForm<BannerEditFormValues>({
     resolver: zodResolver(bannerEditFormSchema),
     mode: 'onChange',
-    defaultValues: {
-      title: initialBannerData?.title ?? '',
-      description: initialBannerData?.description ?? '',
-      alt_text: (initialBannerData as any)?.alt_text ?? '',
-      alt_text_mobile: (initialBannerData as any)?.alt_text_mobile ?? '',
-      status: initialBannerData?.status ?? 'active',
-      redirect_url: initialBannerData?.redirect_url ?? '',
-    },
   });
 
   const imageValue = watch("image");
   const imageLowValue = watch("image_low");
-
-  const hasChanges =
-    Object.keys(dirtyFields).length > 0 ||
-    imageValue instanceof File ||
-    imageLowValue instanceof File;
 
   useEffect(() => {
     if (initialBannerData) {
@@ -274,10 +255,10 @@ const EditBannerForm: React.FC<EditBannerFormProps> = ({ initialBannerData }) =>
             <FormFileUploadField
               name="image_low" // This name in form state will hold the new File if selected
               control={control}
-              label="New Mobile Image"
-              helperText="Square images: 394×394 px (same dimensions). Rectangle images: 394×221px. PNG, JPG, WebP. Max 5MB. Leave empty to keep existing."
-              exactWidth={394}
-              exactHeight={221}
+              label="New Mobile Image (Mobile: 450 x 450 px)"
+              helperText="Mobile: 450 x 450 px. PNG, JPG, WebP. Max 5MB. Leave empty to keep existing."
+              exactWidth={450}
+              exactHeight={450}
               defaultImage={initialBannerData?.image_url_low} // Show current image
             />
           </Grid>
@@ -297,7 +278,7 @@ const EditBannerForm: React.FC<EditBannerFormProps> = ({ initialBannerData }) =>
               type="submit"
               label={isSubmitting ? 'Updating Banner...' : 'Update Banner'}
               loading={isSubmitting}
-              disabled={isSubmitting || !hasChanges}
+              disabled={isSubmitting || !isValid || Object.keys(dirtyFields).length === 0}
               fullWidth
               variant="contained"
             />
