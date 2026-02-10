@@ -217,41 +217,43 @@ export default function SelectUsersModal({
           />
         </Box>
 
-        {selectedEmails.size > 0 && !sendToAll && (
-          <Box sx={{ px: 2.5, py: 1, borderBottom: 1, borderColor: 'divider' }}>
-            <Chip
-              size="small"
-              label={`${selectedEmails.size} selected`}
-              sx={{ bgcolor: '#2E9970', color: 'white' }}
-            />
-          </Box>
-        )}
+        {!sendToAll && (
+          <>
+            {selectedEmails.size > 0 && (
+              <Box sx={{ px: 2.5, py: 1, borderBottom: 1, borderColor: 'divider' }}>
+                <Chip
+                  size="small"
+                  label={`${selectedEmails.size} selected`}
+                  sx={{ bgcolor: '#2E9970', color: 'white' }}
+                />
+              </Box>
+            )}
 
-        <Box sx={{ px: 2.5, py: 1.5, borderBottom: 1, borderColor: 'divider' }}>
-          <TextField
-            fullWidth
-            size="small"
-            placeholder="Search by email"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon sx={{ color: 'action.active' }} />
-                </InputAdornment>
-              ),
-            }}
-            sx={{
-              '& .MuiOutlinedInput-root': {
-                '&:hover fieldset': { borderColor: '#2E9970' },
-                '&.Mui-focused fieldset': { borderColor: '#2E9970' },
-              },
-            }}
-          />
-        </Box>
+            <Box sx={{ px: 2.5, py: 1.5, borderBottom: 1, borderColor: 'divider' }}>
+              <TextField
+                fullWidth
+                size="small"
+                placeholder="Search by email"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <SearchIcon sx={{ color: 'action.active' }} />
+                    </InputAdornment>
+                  ),
+                }}
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    '&:hover fieldset': { borderColor: '#2E9970' },
+                    '&.Mui-focused fieldset': { borderColor: '#2E9970' },
+                  },
+                }}
+              />
+            </Box>
 
-        <Box sx={{ flex: 1, overflow: 'auto', minHeight: 200 }}>
-          <TableContainer component={Paper} variant="outlined" sx={{ boxShadow: 'none' }}>
+            <Box sx={{ flex: 1, overflow: 'auto', minHeight: 200 }}>
+              <TableContainer component={Paper} variant="outlined" sx={{ boxShadow: 'none' }}>
                 <Table size="small" stickyHeader>
                   <TableHead>
                     <TableRow>
@@ -314,7 +316,9 @@ export default function SelectUsersModal({
               onLimitChange={setLimit}
             />
           )}
-        </Box>
+            </Box>
+          </>
+        )}
 
         <Box sx={{ p: 2, borderTop: 1, borderColor: 'divider', display: 'flex', justifyContent: 'flex-end', gap: 1.5 }}>
           <Button variant="outlined" onClick={handleClose}>
