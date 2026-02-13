@@ -34,3 +34,23 @@ export async function getSubscribers(params: FetchSubscribersParams = {}): Promi
   return response.data;
 }
 
+/**
+ * PATCH /api/admin/mail-subscription-settings/subscribers/:id/unsubscribe
+ */
+export async function unsubscribeSubscriber(id: number): Promise<{ success: boolean; message?: string }> {
+  const response = await axiosInstance.patch(
+    `/api/admin/mail-subscription-settings/subscribers/${id}/unsubscribe`
+  );
+  return response.data;
+}
+
+/**
+ * DELETE /api/admin/mail-subscription-settings/subscribers/:id
+ */
+export async function deleteSubscriber(id: number): Promise<{ success: boolean; message?: string }> {
+  const response = await axiosInstance.delete(
+    `/api/admin/mail-subscription-settings/subscribers/${id}`
+  );
+  return response.data;
+}
+
