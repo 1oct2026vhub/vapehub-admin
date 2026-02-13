@@ -37,6 +37,41 @@ function getNavigationItem(
   return null;
 }
 
+// Function to check if a URL is a parent collapse route without a direct page
+function isParentRouteWithoutPage(
+  url: string,
+  navigationItems: FuseNavItemType[]
+): boolean {
+  const urlParts = url.split("/").filter(Boolean);
+  // Need at least "/apps/newsletter" format
+  if (urlParts.length < 2) return false;
+  
+  // Build the potential parent path (e.g., "/apps/newsletter")
+  const parentPath = `/${urlParts.slice(0, 2).join("/")}`;
+  
+  // Check if this exact path matches a collapse item without a URL
+  for (const item of navigationItems) {
+    // If it's a collapse type without a URL, check if any child starts with this path
+    if (item.type === 'collapse' && !item.url && item.children) {
+      for (const child of item.children) {
+        if (child.url && child.url.startsWith(parentPath)) {
+          // If the current URL exactly matches the parent path (not a child), it's a parent route
+          if (url === parentPath) {
+            return true;
+          }
+        }
+      }
+    }
+    // Recursively check children
+    if (item.children) {
+      if (isParentRouteWithoutPage(url, item.children)) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 function PageBreadcrumb(props: PageBreadcrumbProps) {
   const { className, skipHome = false, customLastLabel, ...rest } = props;
   const pathname = usePathname();
@@ -88,12 +123,19 @@ function PageBreadcrumb(props: PageBreadcrumbProps) {
       const navItem = getNavigationItem(url, navigation);
       const title = navItem?.title || part;
 
+      // Check if this is a collapse/parent route without a direct page (like Newsletter)
+      // These routes have children but no direct URL, so they should be non-clickable
+      const isParentRoute = isParentRouteWithoutPage(url, navigation);
+
       // Check if this is a detail page or has an ID
       const isDetailPage = part.includes('-detail') || part.includes('-edit') || part.includes('-update') || isNumericId;
       
       // For detail pages, the breadcrumb should navigate to the parent list page
       let crumbUrl = url;
-      if (isDetailPage) {
+      // If it's a parent route without a direct page, make it non-clickable
+      if (isParentRoute) {
+        crumbUrl = '';
+      } else if (isDetailPage) {
         // Handle specific cases for proper navigation
         if (part === 'coupon-edit') {
           crumbUrl = '/apps/coupon';
@@ -141,8 +183,10 @@ function PageBreadcrumb(props: PageBreadcrumbProps) {
         const isLast = index === crumbs.length - 1;
         // Make "FAQ" breadcrumb non-clickable to avoid navigating to a non-existent page
         const isFaqCrumb = item.title?.toLowerCase() === "faq" || item.url?.endsWith("/apps/faq");
-        // Make breadcrumbs non-clickable if they are detail pages, last item, FAQ, or have empty URL (like update pages)
-        const isClickable = !item.isDetailPage && !isLast && !isFaqCrumb && item.url !== '';
+        // Check if this is a parent route without a direct page (like Newsletter)
+        const isNewsletterCrumb = item.title?.toLowerCase() === "newsletter" || item.url === "/apps/newsletter";
+        // Make breadcrumbs non-clickable if they are detail pages, last item, FAQ, Newsletter (parent without page), or have empty URL (like update pages)
+        const isClickable = !item.isDetailPage && !isLast && !isFaqCrumb && !isNewsletterCrumb && item.url !== '';
         
         // Use custom label for the last breadcrumb if provided and we didn't already use it to replace an ID
         const displayTitle = isLast && customLastLabel && !skippedId ? customLastLabel : item.title;
