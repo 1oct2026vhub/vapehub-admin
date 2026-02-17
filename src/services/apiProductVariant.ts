@@ -173,3 +173,26 @@ export const bulkUpdateVariant = async (file: File) => {
   return response.data;
 };
 
+export interface BulkUpdateMultipleVariantItem {
+  product_id: number;
+  variant_id: number;
+  regular_price?: number;
+  discount_price?: number;
+  stock?: number;
+  status?: 'active' | 'inactive';
+}
+
+export interface BulkUpdateMultipleVariantsPayload {
+  variants: BulkUpdateMultipleVariantItem[];
+}
+
+export const bulkUpdateMultipleVariants = async (
+  payload: BulkUpdateMultipleVariantsPayload
+) => {
+  const response = await axiosInstance.put(
+    "/api/admin/product-variants/bulk-update-multiple",
+    payload
+  );
+  return response.data;
+};
+
