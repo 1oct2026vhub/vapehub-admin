@@ -17,17 +17,12 @@ import {
     Chip,
     CircularProgress,
     Menu,
-    Dialog,
-    DialogTitle,
-    DialogContent,
-    DialogActions,
-    Button
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import { Product, ProductsParams, getProductVariants, ProductVariant } from '@/services/apiInventory';
-import { updateProductVariant } from '@/services/apiProduct';
+import { bulkUpdateMultipleVariants, type BulkUpdateMultipleVariantItem } from '@/services/apiProductVariant';
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import DataTable from '@/components/data-table/DataTable';
 import { type MRT_ColumnDef } from 'material-react-table';
@@ -38,8 +33,6 @@ import { usePageState } from '@/hooks/usePageState';
 import { MenuItem } from '@mui/material';
 import GenerateReportButton from './components/GenerateReportButton';
 import TablePagination from '@/components/Shared/TablePagination';
-import { useForm } from 'react-hook-form';
-import FormInputField from '@/components/Shared/FormInputField';
 import { useSnackbar } from '@/contexts/SnackbarContext';
 import AppButton from '@/components/Shared/AppButton';
 interface InventoryTableProps {
@@ -55,6 +48,10 @@ interface InventoryTableProps {
     onLimitChange: (limit: number) => void;
     onProductStockUpdate?: (productId: number, totalStock: number) => void;
 }
+const BULK_EDIT_STORAGE_KEY = 'inventoryBulkEditVariants';
+
+const getEditKey = (productId: number, variantId: number) => `${productId}-${variantId}`;
+
 const InventoryTable: React.FC<InventoryTableProps> = ({
     products,
     loading,
@@ -343,19 +340,44 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
     const [loadingVariants, setLoadingVariants] = useState<Set<number>>(new Set());
     const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
     const [variantMenuAnchor, setVariantMenuAnchor] = useState<{ element: HTMLElement; productId: number; variantId: number } | null>(null);
-    const [addStockDialog, setAddStockDialog] = useState<{ open: boolean; variantId: number | null; productId: number | null }>({
-        open: false,
-        variantId: null,
-        productId: null,
-    });
-    
-    // Form for updating stock
-    const { control, handleSubmit, reset, formState: { errors, isValid } } = useForm<{ stock: number }>({
-        defaultValues: {
-            stock: 0,
-        },
-        mode: 'onChange',
-    });
+
+    // Pending bulk edits: key = "productId-variantId", value = payload for API
+    const [pendingBulkEdits, setPendingBulkEdits] = useState<Record<string, BulkUpdateMultipleVariantItem>>({});
+    const [bulkUpdateLoading, setBulkUpdateLoading] = useState(false);
+    // Local input values for stock fields (to allow typing without immediate conversion)
+    const [localStockInputs, setLocalStockInputs] = useState<Record<string, string>>({});
+
+    // Restore pending bulk edits from localStorage on mount
+    useEffect(() => {
+        try {
+            if (typeof window === 'undefined') return;
+            const raw = localStorage.getItem(BULK_EDIT_STORAGE_KEY);
+            if (raw) {
+                const parsed = JSON.parse(raw) as BulkUpdateMultipleVariantItem[];
+                if (Array.isArray(parsed)) {
+                    const map: Record<string, BulkUpdateMultipleVariantItem> = {};
+                    parsed.forEach((v) => {
+                        const key = getEditKey(v.product_id, v.variant_id);
+                        map[key] = v;
+                    });
+                    setPendingBulkEdits(map);
+                }
+            }
+        } catch {
+            // ignore invalid stored data
+        }
+    }, []);
+
+    // Persist pending bulk edits to localStorage whenever they change
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+        const list = Object.values(pendingBulkEdits);
+        if (list.length === 0) {
+            localStorage.removeItem(BULK_EDIT_STORAGE_KEY);
+        } else {
+            localStorage.setItem(BULK_EDIT_STORAGE_KEY, JSON.stringify(list));
+        }
+    }, [pendingBulkEdits]);
 
     const areFiltersActive = useMemo(() => {
         return debouncedSearch !== '';
@@ -675,98 +697,58 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
         handleVariantMenuClose();
     };
 
-    const handleCurrentStockClick = (productId: number, variantId: number) => {
-        // Find the variant to get current stock
-        const variants = variantsData[productId];
-        const variant = variants?.find(v => v.id === variantId);
-        const currentStock = variant?.currentStock ?? 0;
-        
-        setAddStockDialog({
-            open: true,
-            variantId,
-            productId,
+    const handlePendingStockChange = (productId: number, variantId: number, value: number | '', originalStock: number | undefined) => {
+        const key = getEditKey(productId, variantId);
+        const numValue = value === '' ? undefined : Number(value);
+        if (numValue !== undefined && (isNaN(numValue) || numValue < 0)) return;
+        setPendingBulkEdits((prev) => {
+            const next = { ...prev };
+            const existing = next[key];
+            const stock = value === '' ? undefined : (numValue !== undefined ? numValue : existing?.stock);
+            const hasOtherFields = existing && (existing.regular_price !== undefined || existing.discount_price !== undefined || existing.status !== undefined);
+            const isUnchanged = stock !== undefined && originalStock !== undefined && stock === originalStock && !hasOtherFields;
+            const clearedWithNoOtherFields = stock === undefined && !hasOtherFields;
+            if (isUnchanged || clearedWithNoOtherFields || (stock === undefined && !existing)) {
+                if (key in next) delete next[key];
+                return Object.keys(next).length === 0 ? {} : { ...next };
+            }
+            next[key] = {
+                product_id: productId,
+                variant_id: variantId,
+                ...existing,
+                ...(stock !== undefined && { stock }),
+            };
+            return next;
         });
-        reset({ stock: currentStock });
     };
 
-    const handleAddStockClose = () => {
-        setAddStockDialog({
-            open: false,
-            variantId: null,
-            productId: null,
-        });
-        reset({ stock: 0 });
-    };
-
-    const onSubmitAddStock = async (data: { stock: number | string }) => {
-        if (!addStockDialog.variantId || !addStockDialog.productId) return;
-
-        // Convert stock to number if it's a string
-        const stock = typeof data.stock === 'string' ? Number(data.stock) : data.stock;
-
-        if (isNaN(stock) || stock < 0) {
-            showSnackbar('Please enter a valid stock quantity (must be 0 or greater)', 'error');
+    const handleBulkStockUpdate = async () => {
+        const list = Object.values(pendingBulkEdits).filter(
+            (v) => v.stock !== undefined || v.regular_price !== undefined || v.discount_price !== undefined || v.status !== undefined
+        );
+        if (list.length === 0) {
+            showSnackbar('No variant changes to update', 'warning');
             return;
         }
-
+        setBulkUpdateLoading(true);
         try {
-            // Prepare update data with stock and stock_status
-            const updateData = {
-                stock: stock,
-                ...(stock > 0 && { stock_status: "in_stock" }),
-            } as any;
-
-            await updateProductVariant(
-                addStockDialog.productId,
-                addStockDialog.variantId,
-                updateData
-            );
-            
-            showSnackbar(`Successfully updated stock to ${stock} units`, 'success');
-            
-            // Mark stock update time to invalidate cached variants data
-            const updateTime = Date.now();
-            setPageState(prev => ({
+            await bulkUpdateMultipleVariants({ variants: list });
+            setPendingBulkEdits({});
+            setLocalStockInputs({}); // Clear local input values
+            showSnackbar(`Successfully updated ${list.length} variant(s)`, 'success');
+            setPageState((prev) => ({ ...prev, lastStockUpdateTime: Date.now() }));
+            setVariantsData({});
+            setPageState((prev) => ({
                 ...prev,
-                lastStockUpdateTime: updateTime
+                variantsData: {},
+                variantsDataTimestamps: {},
             }));
-            
-            // Refresh variant data for the product
-            setLoadingVariants(prev => new Set(prev).add(addStockDialog.productId!));
-            try {
-                const response = await getProductVariants(addStockDialog.productId);
-                setVariantsData(prev => ({
-                    ...prev,
-                    [addStockDialog.productId!]: response.data.variants
-                }));
-                
-                // Update timestamps
-                setPageState(prev => ({
-                    ...prev,
-                    variantsDataTimestamps: {
-                        ...prev.variantsDataTimestamps,
-                        [addStockDialog.productId!]: updateTime
-                    }
-                }));
-                
-                // Update product's total current stock
-                if (response.data?.product?.totalStock !== undefined && onProductStockUpdate) {
-                    onProductStockUpdate(addStockDialog.productId!, response.data.product.totalStock);
-                }
-            } catch (error) {
-                console.error('Failed to refresh variants', error);
-            } finally {
-                setLoadingVariants(prev => {
-                    const newSet = new Set(prev);
-                    newSet.delete(addStockDialog.productId!);
-                    return newSet;
-                });
-            }
-            
-            handleAddStockClose();
-        } catch (error: any) {
-            console.error('Failed to update stock', error);
-            showSnackbar(error?.response?.data?.message || 'Failed to update stock', 'error');
+            onParamsChange({}); // Trigger parent refresh if needed
+        } catch (err: unknown) {
+            const message = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+            showSnackbar(message || 'Failed to update variants', 'error');
+        } finally {
+            setBulkUpdateLoading(false);
         }
     };
 
@@ -808,8 +790,21 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
                             </TableRow>
                         </TableHead>
                         <TableBody>
-                            {variants.map((variant) => (
-                                <TableRow key={variant.id}>
+                            {variants.map((variant) => {
+                                const editKey = getEditKey(productId, variant.id);
+                                const isEdited = editKey in pendingBulkEdits;
+                                const originalStock = variant.currentStock ?? 0;
+                                // Use local input if exists, otherwise use pending edit or original stock
+                                const displayStock = localStockInputs[editKey] !== undefined 
+                                    ? localStockInputs[editKey] 
+                                    : (pendingBulkEdits[editKey]?.stock ?? originalStock ?? '');
+                                return (
+                                <TableRow
+                                    key={variant.id}
+                                    sx={{
+                                        backgroundColor: isEdited ? 'rgba(33, 150, 243, 0.08)' : undefined,
+                                    }}
+                                >
                                    <TableCell align="center">
                                         {variant.name 
                                             ? variant.name.charAt(0).toUpperCase() + variant.name.slice(1)
@@ -824,19 +819,36 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
                                     </TableCell>
                                     {/* <TableCell>{variant.sku || 'N/A'}</TableCell> */}
                                     {/* <TableCell>{variant.barcode || 'N/A'}</TableCell> */}
-                                    <TableCell 
-                                        align="center"
-                                        onClick={() => handleCurrentStockClick(productId, variant.id)}
-                                        sx={{
-                                            cursor: 'pointer',
-                                            '&:hover': {
-                                                backgroundColor: 'rgba(0, 0, 0, 0.04)',
-                                            },
-                                        }}
-                                    >
-                                        {variant.currentStock !== null && variant.currentStock !== undefined 
-                                            ? variant.currentStock 
-                                            : 'N/A'}
+                                    <TableCell align="center" sx={{ minWidth: 100 }}>
+                                        <TextField
+                                            type="number"
+                                            size="small"
+                                            value={displayStock}
+                                            onChange={(e) => {
+                                                const v = e.target.value;
+                                                // Store raw input value locally for smooth typing
+                                                setLocalStockInputs(prev => ({ ...prev, [editKey]: v }));
+                                            }}
+                                            onBlur={(e) => {
+                                                const v = e.target.value;
+                                                const num = v === '' ? undefined : Number(v);
+                                                // Clear local input
+                                                setLocalStockInputs(prev => {
+                                                    const next = { ...prev };
+                                                    delete next[editKey];
+                                                    return next;
+                                                });
+                                                // Update pending edits if value is valid and different
+                                                if (v !== '' && !isNaN(num!) && num! >= 0) {
+                                                    handlePendingStockChange(productId, variant.id, num!, originalStock);
+                                                } else if (v === '') {
+                                                    // Clear pending edit if field is empty
+                                                    handlePendingStockChange(productId, variant.id, '', originalStock);
+                                                }
+                                            }}
+                                            inputProps={{ min: 0, step: 1 }}
+                                            sx={{ width: 72, '& .MuiInputBase-input': { textAlign: 'center' } }}
+                                        />
                                     </TableCell>
                                     <TableCell align="center">
                                         {variant.lowStockThreshold !== null && variant.lowStockThreshold !== undefined 
@@ -908,7 +920,8 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
                                         </Menu>
                                     </TableCell>
                                 </TableRow>
-                            ))}
+                                );
+                            })}
                         </TableBody>
                     </Table>
                 </TableContainer>
@@ -1073,10 +1086,16 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
     
     return (
         <div>
-            <div className="flex items-end justify-end mb-4">
+            <div className="flex items-end justify-end mb-4 gap-2 flex-wrap">
                 <Box>
                     <GenerateReportButton disabled={loading} />
                 </Box>
+                <AppButton
+                    label={bulkUpdateLoading ? 'Updating...' : 'Stock Update'}
+                    onClick={handleBulkStockUpdate}
+                    disabled={bulkUpdateLoading || Object.keys(pendingBulkEdits).length === 0}
+                    loading={bulkUpdateLoading}
+                />
             </div>
             <Paper sx={{ width: '100%', overflow: 'hidden', p:2, backgroundColor: 'white' }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', p: 2, flexWrap: 'wrap', gap: 2 }}>
@@ -1259,67 +1278,6 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
                 onLimitChange={onLimitChange}
             />
         </Paper>
-
-        {/* Add Stock Dialog */}
-        <Dialog 
-            open={addStockDialog.open} 
-            onClose={handleAddStockClose}
-            maxWidth="sm"
-            fullWidth
-            PaperProps={{
-                sx: {
-                    backgroundColor: '#ffffff',
-                }
-            }}
-        >
-            <DialogTitle>Update Stock</DialogTitle>
-            <form onSubmit={handleSubmit(onSubmitAddStock)}>
-                <DialogContent>
-                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
-                        <FormInputField
-                            name="stock"
-                            control={control}
-                            label="Stock"
-                            type="number"
-                            required
-                            inputProps={{
-                                min: 0,
-                                step: 1,
-                            }}
-                            rules={{
-                                required: 'Stock is required',
-                                validate: {
-                                    valid: (value) => {
-                                        const numValue = typeof value === 'string' ? Number(value) : value;
-                                        if (value === '' || value === null || value === undefined) {
-                                            return 'Stock is required';
-                                        }
-                                        if (isNaN(numValue) || numValue < 0) {
-                                            return 'Stock must be 0 or greater';
-                                        }
-                                        if (!Number.isInteger(numValue)) {
-                                            return 'Stock must be a whole number';
-                                        }
-                                        return true;
-                                    },
-                                },
-                            }}
-                            helperText="Enter the stock quantity (must be a whole number, 0 or greater)"
-                        />
-                    </Box>
-                </DialogContent>
-                <DialogActions sx={{ p: '16px 24px' }}>
-                    <Button onClick={handleAddStockClose}>
-                        Cancel
-                    </Button>
-                    <AppButton
-                        type="submit"
-                        label="Update Stock"
-                        disabled={!isValid}
-                    />
-                </DialogActions>
-            </form>
-        </Dialog>
         </div>
     );
 };
