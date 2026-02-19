@@ -5,6 +5,7 @@ import {
   DialogActions,
   Button,
   Typography,
+  TextField,
 } from "@mui/material";
 
 interface DeleteConfirmationModalProps {
@@ -13,6 +14,10 @@ interface DeleteConfirmationModalProps {
   onConfirm: () => void;
   title: string;
   loading?: boolean;
+  /** Optional redirect URL (shown when provided) */
+  redirectUrl?: string;
+  redirectUrlError?: string;
+  onRedirectUrlChange?: (value: string) => void;
 }
 
 export default function DeleteConfirmationModal({
@@ -21,12 +26,30 @@ export default function DeleteConfirmationModal({
   onConfirm,
   title,
   loading = false,
+  redirectUrl = "",
+  redirectUrlError = "",
+  onRedirectUrlChange,
 }: DeleteConfirmationModalProps) {
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth>
+    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
       <DialogTitle>Confirm Delete</DialogTitle>
       <DialogContent>
-        <Typography>Are you sure you want to delete the tag "{title}"?</Typography>
+        <Typography sx={{ mb: onRedirectUrlChange ? 2 : 0 }}>
+          Are you sure you want to delete the tag "{title}"? This action cannot be undone.
+        </Typography>
+        {onRedirectUrlChange != null && (
+          <TextField
+            fullWidth
+            label="Redirect URL (optional)"
+            placeholder="https://example.com"
+            value={redirectUrl}
+            onChange={(e) => onRedirectUrlChange(e.target.value)}
+            size="small"
+            error={!!redirectUrlError}
+            helperText={redirectUrlError || "Leave empty to skip. Enter a valid URL (e.g. https://example.com)."}
+            sx={{ mt: 1 }}
+          />
+        )}
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose} disabled={loading}>
@@ -43,4 +66,4 @@ export default function DeleteConfirmationModal({
       </DialogActions>
     </Dialog>
   );
-} 
+}

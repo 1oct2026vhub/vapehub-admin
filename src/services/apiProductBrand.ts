@@ -35,7 +35,12 @@ export const updateBrand = (id, brandData) => {
     .then((res) => res.data);
 };
 export const brandDetails = (id) => fetcher(`/api/admin/brand/${id}`);
-export const deleteBrand = (id) => deleter(`/api/admin/brand/${id}`);
+export const deleteBrand = async (id: number, redirect_url?: string) => {
+  const response = await axiosInstance.delete(`/api/admin/brand/${id}`, {
+    data: redirect_url ? { redirect_url } : undefined,
+  });
+  return response.data;
+};
 export const restoreBrand = (id) =>
   updater(`/api/admin/brand/${id}/restore`, {});
 

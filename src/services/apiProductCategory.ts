@@ -35,7 +35,12 @@ export const updateCategory = (id, categoryData) => {
     .then((res) => res.data);
 };
 export const categoryDetails = (id) => fetcher(`/api/admin/category/${id}`);
-export const deleteCategory = (id) => deleter(`/api/admin/category/${id}`);
+export const deleteCategory = async (id: number, redirect_url?: string) => {
+  const response = await axiosInstance.delete(`/api/admin/category/${id}`, {
+    data: redirect_url ? { redirect_url } : undefined,
+  });
+  return response.data;
+};
 export const restoreCategory = (id) =>
   updater(`/api/admin/category/${id}/restore`, {});
 
