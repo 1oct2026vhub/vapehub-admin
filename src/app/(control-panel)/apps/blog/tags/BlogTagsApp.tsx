@@ -42,7 +42,6 @@ import DeleteConfirmationModal from "./components/DeleteConfirmationModal";
 import useColumnOrder from "@/hooks/useColumnOrder";
 import ClearFiltersButton from "@/components/Shared/ClearFiltersButton";
 import { usePageState } from "@/hooks/usePageState";
-import { z } from "zod";
 
 // Add pagination interface
 interface Pagination {
@@ -105,10 +104,7 @@ export default function BlogTagsApp() {
   const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false);
   const [isBulkRestoreDialogOpen, setIsBulkRestoreDialogOpen] = useState(false);
 
-  // Optional redirect URL when deleting tag (same as ProductListTable)
-  const [deleteRedirectUrl, setDeleteRedirectUrl] = useState("");
-  const [deleteRedirectUrlError, setDeleteRedirectUrlError] = useState("");
-  const redirectUrlSchema = z.string().url("Invalid URL format").optional().or(z.literal(""));
+ 
 
   const router = useRouter();
 
@@ -256,28 +252,16 @@ export default function BlogTagsApp() {
   // Handle tag deletion
   const handleDeleteTag = async (tag: BlogTag) => {
     setTagToDelete(tag);
-    setDeleteRedirectUrl("");
-    setDeleteRedirectUrlError("");
+    
     setDeleteModalOpen(true);
   };
 
   const handleConfirmDelete = async () => {
     if (!tagToDelete) return;
-
-    const redirectUrl = deleteRedirectUrl.trim();
-    if (redirectUrl) {
-      const parsed = redirectUrlSchema.safeParse(redirectUrl);
-      if (!parsed.success) {
-        setDeleteRedirectUrlError(parsed.error.errors[0]?.message ?? "Invalid URL format");
-        return;
-      }
-    }
-
     try {
       setDeleteLoading(true);
-      const normalizedRedirectUrl = redirectUrl || undefined;
-      await deleteBlogTag(tagToDelete.id, normalizedRedirectUrl);
-      showSnackbar("Tag deleted successfully" + (normalizedRedirectUrl ? " (redirect created)" : ""), "success");
+      await deleteBlogTag(tagToDelete.id);
+      showSnackbar("Tag deleted successfully", "success");
       fetchTags();
     } catch (error: any) {
       console.error("Failed to delete tag:", error);
@@ -289,8 +273,7 @@ export default function BlogTagsApp() {
       setDeleteLoading(false);
       setDeleteModalOpen(false);
       setTagToDelete(null);
-      setDeleteRedirectUrl("");
-      setDeleteRedirectUrlError("");
+      
     }
   };
 
@@ -683,24 +666,10 @@ export default function BlogTagsApp() {
           onClose={() => {
             setDeleteModalOpen(false);
             setTagToDelete(null);
-            setDeleteRedirectUrl("");
-            setDeleteRedirectUrlError("");
           }}
           onConfirm={handleConfirmDelete}
           title={tagToDelete?.name || ""}
           loading={deleteLoading}
-          redirectUrl={deleteRedirectUrl}
-          redirectUrlError={deleteRedirectUrlError}
-          onRedirectUrlChange={(value) => {
-            setDeleteRedirectUrl(value);
-            const trimmed = value.trim();
-            if (!trimmed) {
-              setDeleteRedirectUrlError("");
-            } else {
-              const parsed = redirectUrlSchema.safeParse(trimmed);
-              setDeleteRedirectUrlError(parsed.success ? "" : (parsed.error.errors[0]?.message ?? "Invalid URL format"));
-            }
-          }}
         />
 
         {/* Bulk Delete Dialog */}
