@@ -49,7 +49,6 @@ const schema = z.object({
   linked_product_ids: z.array(z.number()).optional().default([]),
   is_new: z.boolean().optional(),
 });
-
 // Same redirect URL validation as EditBannerForm: empty or valid URL
 const redirectUrlSchema = z.string().url("Invalid URL format").optional().or(z.literal(""));
 
