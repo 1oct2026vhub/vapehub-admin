@@ -68,8 +68,11 @@ export const getDeals = (params: FetchDealsParams): Promise<DealsApiResponse> =>
     return fetcher('/api/admin/deals', params);
 };
 
-export const deleteDeal = (id: number): Promise<void> => {
-    return deleter(`/api/admin/deals/${id}`);
+export const deleteDeal = async (id: number, redirect_url?: string): Promise<void> => {
+  const response = await axiosInstance.delete(`/api/admin/deals/${id}`, {
+    data: redirect_url ? { redirect_url } : undefined,
+  });
+  return response.data;
 };
 
 export const restoreDeal = (id: number): Promise<void> => {
