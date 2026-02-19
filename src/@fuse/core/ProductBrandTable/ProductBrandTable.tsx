@@ -41,6 +41,7 @@ import useColumnOrder from "@/hooks/useColumnOrder";
 import ClearFiltersButton from "@/components/Shared/ClearFiltersButton";
 import TablePagination from "@/components/Shared/TablePagination";
 import { usePageState } from "@/hooks/usePageState";
+import { z } from "zod";
 
 export type BrandType = {
   id: number;
@@ -91,6 +92,11 @@ const ProductBrandTable = ({ refreshData }: ProductBrandTableProps) => {
   const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
   const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false);
   const [isBulkRestoreDialogOpen, setIsBulkRestoreDialogOpen] = useState(false);
+
+  // Optional redirect URL when deleting brand (same validation as ProductListTable: empty or valid URL)
+  const [deleteRedirectUrl, setDeleteRedirectUrl] = useState("");
+  const [deleteRedirectUrlError, setDeleteRedirectUrlError] = useState("");
+  const redirectUrlSchema = z.string().url("Invalid URL format").optional().or(z.literal(""));
 
   // --- START ADD: Check if Filters are Active ---
   const areFiltersActive = useMemo(() => {
@@ -219,11 +225,26 @@ const ProductBrandTable = ({ refreshData }: ProductBrandTableProps) => {
 
   const handleDeleteClick = (brand: BrandType) => {
     setSelectedBrand(brand);
+    setDeleteRedirectUrl("");
+    setDeleteRedirectUrlError("");
     setOpenDialog(true);
   };
 
   const handleConfirmDelete = async () => {
     if (!selectedBrand) return;
+
+    // Only validate redirect URL if deleting (not restoring)
+    if (!selectedBrand.deletedAt) {
+      const redirectUrl = deleteRedirectUrl.trim();
+      if (redirectUrl) {
+        const parsed = redirectUrlSchema.safeParse(redirectUrl);
+        if (!parsed.success) {
+          setDeleteRedirectUrlError(parsed.error.errors[0]?.message ?? "Invalid URL format");
+          return;
+        }
+      }
+    }
+
     setOpenDialog(false);
 
     // Optimistically remove the row immediately
@@ -232,16 +253,18 @@ const ProductBrandTable = ({ refreshData }: ProductBrandTableProps) => {
 
     try {
       // Perform the API call
+      const redirectUrl = deleteRedirectUrl.trim();
+      const normalizedRedirectUrl = redirectUrl || undefined;
       const result = await (selectedBrand.deletedAt
         ? restoreBrand(selectedBrand.id)
-        : deleteBrand(selectedBrand.id));
+        : deleteBrand(selectedBrand.id, normalizedRedirectUrl));
 
       if (result?.success) {
         // Show success snackbar
         showSnackbar(
           `Brand ${
             selectedBrand.deletedAt ? "restored" : "deleted"
-          } successfully`,
+          } successfully${!selectedBrand.deletedAt && normalizedRedirectUrl ? " (redirect created)" : ""}`,
           "success"
         );
 
@@ -269,7 +292,13 @@ const ProductBrandTable = ({ refreshData }: ProductBrandTableProps) => {
       } else {
         // setError('root', { type: 'manual', message: errorMessage });
       }
+      // Restore the previous state on error
+      setBrands(previousBrands);
       return false;
+    } finally {
+      setSelectedBrand(null);
+      setDeleteRedirectUrl("");
+      setDeleteRedirectUrlError("");
     }
   };
 
@@ -696,19 +725,56 @@ const ProductBrandTable = ({ refreshData }: ProductBrandTableProps) => {
           onLimitChange={handleLimitChange}
         />
 
-        <Dialog open={openDialog} onClose={() => setOpenDialog(false)}>
+        <Dialog 
+          open={openDialog} 
+          onClose={() => {
+            setOpenDialog(false);
+            setDeleteRedirectUrl("");
+            setDeleteRedirectUrlError("");
+          }}
+          maxWidth="sm"
+          fullWidth
+        >
           <DialogTitle>
             Confirm {selectedBrand?.deletedAt ? "Restore" : "Delete"}
           </DialogTitle>
           <DialogContent>
-            <Typography>
+            <Typography sx={{ mb: selectedBrand?.deletedAt ? 0 : 2 }}>
               Are you sure you want to{" "}
               {selectedBrand?.deletedAt ? "restore" : "delete"}{" "}
               <strong>{selectedBrand?.name}</strong>?
+              {!selectedBrand?.deletedAt && " This action cannot be undone."}
             </Typography>
+            {!selectedBrand?.deletedAt && (
+              <TextField
+                fullWidth
+                label="Redirect URL (optional)"
+                placeholder="https://example.com"
+                value={deleteRedirectUrl}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setDeleteRedirectUrl(value);
+                  const trimmed = value.trim();
+                  if (!trimmed) {
+                    setDeleteRedirectUrlError("");
+                  } else {
+                    const parsed = redirectUrlSchema.safeParse(trimmed);
+                    setDeleteRedirectUrlError(parsed.success ? "" : (parsed.error.errors[0]?.message ?? "Invalid URL format"));
+                  }
+                }}
+                size="small"
+                error={!!deleteRedirectUrlError}
+                helperText={deleteRedirectUrlError || "Leave empty to skip. Enter a valid URL (e.g. https://example.com)."}
+                sx={{ mt: 1 }}
+              />
+            )}
           </DialogContent>
           <DialogActions>
-            <Button onClick={() => setOpenDialog(false)}>Cancel</Button>
+            <Button onClick={() => {
+              setOpenDialog(false);
+              setDeleteRedirectUrl("");
+              setDeleteRedirectUrlError("");
+            }}>Cancel</Button>
             <AppButton
               label={selectedBrand?.deletedAt ? "Restore" : "Delete"}
               type="button"
