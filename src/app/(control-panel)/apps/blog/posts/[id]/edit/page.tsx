@@ -90,6 +90,8 @@ const postSchema = z.object({
     name: z.string()
   })).default([]),
   is_active: z.boolean().default(true),
+  // Optional redirect URL for deleted posts. Empty string allowed.
+  redirect_url: z.string().url("Invalid URL format").optional().or(z.literal("")),
 });
 
 type PostFormType = z.infer<typeof postSchema>;
@@ -158,6 +160,7 @@ export default function EditBlogPost() {
       categories: [],
       tags: [],
       is_active: true,
+      redirect_url: "",
     }
   });
 
@@ -222,6 +225,7 @@ export default function EditBlogPost() {
             categories: response.data.categories || [],
             tags: response.data.tags || [],
             is_active: response.data.is_active,
+            redirect_url: (response.data as any).redirect_url || "",
           });
           const initialCategories = response.data.categories || [];
           setCategories(prev => {
@@ -326,6 +330,14 @@ export default function EditBlogPost() {
 
       if (selectedFile) {
         formData.append("image", selectedFile);
+      }
+      
+      // If editing a deleted post, allow saving a redirect URL
+      if (post?.deleted_at) {
+        const redirect = (data as any).redirect_url?.toString()?.trim();
+        if (redirect) {
+          formData.append("redirect_url", redirect);
+        }
       }
 
       await updateBlogPost(post.id, formData);
@@ -459,6 +471,18 @@ export default function EditBlogPost() {
                             control={control}
                             label="Alt Text (Optional)"
                             sx={commonFieldStyles}
+                          />
+                        </Grid>
+                      )}
+
+                      {/* Redirect URL field - only for deleted posts */}
+                      {post?.deleted_at && (
+                        <Grid item xs={12}>
+                          <FormInputField
+                            name="redirect_url"
+                            control={control}
+                            label="Redirect URL (optional)"
+                            helperText="Leave empty to skip. Enter a valid URL (e.g. https://example.com)."
                           />
                         </Grid>
                       )}

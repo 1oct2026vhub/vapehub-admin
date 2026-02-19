@@ -681,20 +681,19 @@ const ProductCategoryTable = ({
               </MenuItem>
             ),
 
-            !row.original.deletedAt && (
-              <MenuItem
-                key="edit"
-                onClick={() => {
-                  handleEdit(row.original);
-                  closeMenu();
-                }}
-              >
-                <ListItemIcon>
-                  <FuseSvgIcon>heroicons-outline:pencil-square</FuseSvgIcon>
-                </ListItemIcon>
-                Edit
-              </MenuItem>
-            ),
+            // Edit MenuItem (allow editing deleted categories as well)
+            <MenuItem
+              key="edit"
+              onClick={() => {
+                handleEdit(row.original);
+                closeMenu();
+              }}
+            >
+              <ListItemIcon>
+                <FuseSvgIcon>heroicons-outline:pencil-square</FuseSvgIcon>
+              </ListItemIcon>
+              Edit
+            </MenuItem>,
 
             <MenuItem
               key="delete"

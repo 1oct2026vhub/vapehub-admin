@@ -676,21 +676,19 @@ const ProductBrandTable = ({ refreshData }: ProductBrandTableProps) => {
                 </MenuItem>
               ),
 
-              // Edit MenuItem (conditionally rendered)
-              !row.original.deletedAt && (
-                <MenuItem
-                  key="edit"
-                  onClick={() => {
-                    handleEdit(row.original);
-                    closeMenu();
-                  }}
-                >
-                  <ListItemIcon>
-                    <FuseSvgIcon>heroicons-outline:pencil-square</FuseSvgIcon>
-                  </ListItemIcon>
-                  Edit
-                </MenuItem>
-              ),
+              // Edit MenuItem (allow editing deleted brands as well)
+              <MenuItem
+                key="edit"
+                onClick={() => {
+                  handleEdit(row.original);
+                  closeMenu();
+                }}
+              >
+                <ListItemIcon>
+                  <FuseSvgIcon>heroicons-outline:pencil-square</FuseSvgIcon>
+                </ListItemIcon>
+                Edit
+              </MenuItem>,
 
               // Delete/Restore MenuItem
               <MenuItem

@@ -953,7 +953,7 @@ export default function BlogPostsApp() {
                     onRowSelectionChange={setRowSelection}
                     state={{ columnOrder, sorting, rowSelection }}
                     renderRowActionMenuItems={({ closeMenu, row }) => [
-                      ...(row.original.deleted_at ? [
+                    ...(row.original.deleted_at ? [
                         <MenuItem
                           key="restore"
                           onClick={() => {
@@ -967,6 +967,19 @@ export default function BlogPostsApp() {
                             </FuseSvgIcon>
                           </ListItemIcon>
                           Restore
+                        </MenuItem>,
+                        // Allow editing deleted posts as well
+                        <MenuItem
+                          key="edit-deleted"
+                          onClick={() => {
+                            router.push(`/apps/blog/posts/${row.original.id}/edit`);
+                            closeMenu();
+                          }}
+                        >
+                          <ListItemIcon>
+                            <FuseSvgIcon>heroicons-outline:pencil</FuseSvgIcon>
+                          </ListItemIcon>
+                          Edit
                         </MenuItem>
                       ] : [
                         <MenuItem

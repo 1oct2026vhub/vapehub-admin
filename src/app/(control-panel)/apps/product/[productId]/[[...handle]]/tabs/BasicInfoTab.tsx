@@ -620,7 +620,11 @@ function BasicInfoTab() {
             );
 
                          // Update form context
-             updateFormData({
+            // Extract redirect URL from either the new `redirect` object (preferred)
+            // or the legacy `redirect_url` string field.
+            const extractedRedirectUrl = productData?.redirect?.redirect_url ?? productData?.redirect_url ?? "";
+
+            updateFormData({
                name: productData.name || "",
                slug: productData.slug || "",
                sku: productData.sku || "",
@@ -632,7 +636,7 @@ function BasicInfoTab() {
                is_new: productData.is_new ?? true,
                productId: Number(finalProductId),
                deletedAt: productData.deletedAt ?? null,
-               redirect_url: productData.redirect_url ?? "",
+              redirect_url: extractedRedirectUrl,
              });
           }
         } catch (error) {
