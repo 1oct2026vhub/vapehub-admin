@@ -561,13 +561,13 @@ const DealsTable: React.FC = () => {
           state={{ rowSelection }}
           renderRowActionMenuItems={({ closeMenu, row }) => {
             const menuItems = [
-              !row.original.deletedAt && (
+              // Edit MenuItem (allow editing deleted deals as well)
               <MenuItem key="edit" onClick={() => { router.push(`/apps/deals/deal-edit/${row.original.id}`); closeMenu(); }}>
                 <ListItemIcon>
                   <FuseSvgIcon>heroicons-outline:pencil-square</FuseSvgIcon>
                 </ListItemIcon>
                 Edit
-              </MenuItem>),
+              </MenuItem>,
               <MenuItem key="delete" onClick={() => { handleDeleteClick(row.original); closeMenu(); }}>
                 <ListItemIcon>
                   <FuseSvgIcon>

@@ -573,6 +573,19 @@ export default function BlogCategoriesApp() {
                         </ListItemIcon>
                         Restore
                       </MenuItem>,
+                      // Allow editing deleted categories as well
+                      <MenuItem
+                        key="edit-deleted"
+                        onClick={() => {
+                          handleEditCategory(row.original);
+                          closeMenu();
+                        }}
+                      >
+                        <ListItemIcon>
+                          <FuseSvgIcon>heroicons-outline:pencil</FuseSvgIcon>
+                        </ListItemIcon>
+                        Edit
+                      </MenuItem>,
                     ];
                   }
 

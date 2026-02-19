@@ -88,6 +88,8 @@ const dealSchema = z.object({
             const dimensions = await validateImageDimensions(file, 660, 250);
             return dimensions.valid;
         }, "Image must be 660x250px."),
+    // Optional redirect URL for deleted deals. Empty string allowed.
+    redirect_url: z.string().url("Invalid URL format").optional().or(z.literal("")),
 });
 
 interface DealFormProps {
@@ -123,6 +125,7 @@ const DealForm: React.FC<DealFormProps> = ({ deal, onDealCreated, hideButtons = 
         bannerUrl?: string;
         bannerOrder?: number;
         bannerId?: number;
+        redirect_url?: string | null;
     }>({
         resolver: zodResolver(dealSchema),
         mode: 'all',
@@ -142,6 +145,7 @@ const DealForm: React.FC<DealFormProps> = ({ deal, onDealCreated, hideButtons = 
             description: '',
             alt_text: '',
             image: null,
+            redirect_url: "",
         },
     });
 
@@ -175,6 +179,8 @@ const DealForm: React.FC<DealFormProps> = ({ deal, onDealCreated, hideButtons = 
 
     useEffect(() => {
         if (deal) {
+            // Extract redirect URL from new `redirect` object shape or fallback to legacy field
+            const extractedRedirectUrl = (deal as any)?.redirect?.redirect_url ?? (deal as any)?.redirect_url ?? '';
             reset({
                 ...deal,
                 fixed_price: Number(deal.fixed_price),
@@ -184,6 +190,7 @@ const DealForm: React.FC<DealFormProps> = ({ deal, onDealCreated, hideButtons = 
                 image: deal.image_url,
                 show_home_page: deal.show_home_page ?? false,
                 alt_text: (deal as any).alt_text || '',
+                redirect_url: extractedRedirectUrl,
             });
             setAssociatedProducts(deal.products);
         }
@@ -224,7 +231,13 @@ const DealForm: React.FC<DealFormProps> = ({ deal, onDealCreated, hideButtons = 
             }
             
             if (deal) {
-                await updateDeal(deal.id, payload as DealFormData);
+                // include redirect_url when editing a deleted deal
+                const payloadAny: any = { ...payload };
+                if ((deal as any).deletedAt) {
+                    const redirect = (data as any).redirect_url?.toString()?.trim();
+                    if (redirect) payloadAny.redirect_url = redirect;
+                }
+                await updateDeal(deal.id, payloadAny as DealFormData);
                 showSnackbar('Deal updated successfully!', 'success');
                 router.push('/apps/deals');
             } else {
@@ -443,6 +456,12 @@ if (error?.errors) {
                                 <Grid item xs={12}>
                                     <FormTextField name="alt_text" control={control} label="Alt Text" />
                                 </Grid>
+                                {/* Redirect URL field - only for deleted deals */}
+                                {deal?.deletedAt && (
+                                    <Grid item xs={12}>
+                                        <FormTextField name="redirect_url" control={control} label="Redirect URL (optional)" helperText="Leave empty to skip. Enter a valid URL (e.g. https://example.com)." />
+                                    </Grid>
+                                )}
                                 <Grid item xs={12} md={6}>
                                     <Controller
                                         name="is_active"

@@ -120,6 +120,8 @@ const schema = z.object({
     ])
     .optional()
     .nullable(),
+  // Optional redirect URL for deleted categories. Empty string allowed.
+  redirect_url: z.string().url("Invalid URL format").optional().or(z.literal("")),
 
 });
 
@@ -133,6 +135,7 @@ const defaultValues: InferredSchemaType = {
   alt_text: "",
   logo: undefined,
   parent_id: undefined,
+  redirect_url: "",
 };
 
 export type FormType = {
@@ -143,6 +146,8 @@ export type FormType = {
   logo?: File | string | null | undefined;
   logo_url?: string;
   parent_id?: number | null;
+  redirect_url?: string | null;
+  deletedAt?: string | null;
 };
 
 const EditCategoryForm = ({
@@ -255,6 +260,14 @@ const EditCategoryForm = ({
       } else {
         setValue("logo", undefined as InferredSchemaType['logo']);
       }
+      // Prefill redirect URL if present (used when category is deleted)
+      // Support new API shape where redirect is an object:
+      // { redirect: { redirect_url, old_path, header_code, status } }
+      const extractedRedirectUrl =
+        (initialCategory as any)?.redirect?.redirect_url ??
+        (initialCategory as any)?.redirect_url ??
+        "";
+      setValue("redirect_url", extractedRedirectUrl);
     }
   }, [initialCategory, setValue]);
 
@@ -297,6 +310,13 @@ const EditCategoryForm = ({
       } else if (formData.logo === null) {
         // If logo is explicitly set to null, it means we want to remove it
         formDataObj.append("logo", "");
+      }
+      // If editing a deleted category, allow saving a redirect URL
+      if ((initialCategory as any)?.deletedAt) {
+        const redirect = (formData as any).redirect_url?.toString()?.trim();
+        if (redirect) {
+          formDataObj.append("redirect_url", redirect);
+        }
       }
 
       // Debugging: Log form data
@@ -534,6 +554,16 @@ const EditCategoryForm = ({
                 control={control}
                 label="Alt Text"
                 type="text"
+              />
+            )}
+            {/* Redirect URL field - only for deleted categories */}
+            {initialCategory?.deletedAt && (
+              <FormInputField
+                name="redirect_url"
+                control={control}
+                label="Redirect URL (optional)"
+                type="text"
+                helperText="Leave empty to skip. Enter a valid URL (e.g. https://example.com)."
               />
             )}
             <AppButton
