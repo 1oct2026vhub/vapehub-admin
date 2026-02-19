@@ -115,9 +115,11 @@ export const updateBlogPost = async (id: number, formData: FormData) => {
   return response?.data;
 };
 
-export const deleteBlogPost = async (id: number) => {
-  const response = await deleter(`/api/admin/blog/posts/${id}`);
-  return response;
+export const deleteBlogPost = async (id: number, redirect_url?: string) => {
+  const response = await axiosInstance.delete(`/api/admin/blog/posts/${id}`, {
+    data: redirect_url ? { redirect_url } : undefined,
+  });
+  return response.data;
 };
 
 export const publishBlogPost = async (id: number) => {
@@ -191,9 +193,11 @@ export const updateBlogCategory = async (id: number, data: FormData | Record<str
   return response?.data;
 };
 
-export const deleteBlogCategory = async (id: number) => {
-  const response = await deleter(`/api/admin/blog/categories/${id}`);
-  return response;
+export const deleteBlogCategory = async (id: number, redirect_url?: string) => {
+  const response = await axiosInstance.delete(`/api/admin/blog/categories/${id}`, {
+    data: redirect_url ? { redirect_url } : undefined,
+  });
+  return response.data;
 };
 
 /**
@@ -283,9 +287,11 @@ export const updateBlogTag = async (
   return response?.data;
 };
 
-export const deleteBlogTag = async (id: number) => {
-  const response = await deleter(`/api/admin/blog/tags/${id}`);
-  return response;
+export const deleteBlogTag = async (id: number, redirect_url?: string) => {
+  const response = await axiosInstance.delete(`/api/admin/blog/tags/${id}`, {
+    data: redirect_url ? { redirect_url } : undefined,
+  });
+  return response.data;
 };
 
 /**
