@@ -225,7 +225,10 @@ export default function EditBlogPost() {
             categories: response.data.categories || [],
             tags: response.data.tags || [],
             is_active: response.data.is_active,
-            redirect_url: (response.data as any).redirect_url || "",
+            redirect_url:
+              (response.data as any).redirect_url ||
+              (response.data as any).redirect?.redirect_url ||
+              "",
           });
           const initialCategories = response.data.categories || [];
           setCategories(prev => {
