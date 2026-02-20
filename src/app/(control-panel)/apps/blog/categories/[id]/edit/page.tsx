@@ -190,7 +190,12 @@ export default function EditBlogCategory() {
           setValue("status", categoryData.status || "active");
           setValue("show_home_page", categoryData?.show_home_page || false);
           // Prefill redirect URL if present (used when category is deleted)
-          setValue("redirect_url", (categoryData as any).redirect_url || "");
+          setValue(
+            "redirect_url",
+            (categoryData as any).redirect_url ||
+              (categoryData as any).redirect?.redirect_url ||
+              ""
+          );
           
           // Also do a reset to make sure form state is updated
           reset({
@@ -202,7 +207,10 @@ export default function EditBlogCategory() {
             status: categoryData.status || "active",
             show_home_page: categoryData?.show_home_page || false,
             image: categoryData.image_url || "",
-            redirect_url: (categoryData as any).redirect_url || "",
+            redirect_url:
+              (categoryData as any).redirect_url ||
+              (categoryData as any).redirect?.redirect_url ||
+              "",
           }, {
             keepDefaultValues: false
           });
