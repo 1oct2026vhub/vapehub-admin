@@ -110,6 +110,8 @@ const categorySchema = z.object({
       })
     )
     .optional(),
+  // Optional redirect URL for deleted categories. Empty string allowed.
+  redirect_url: z.string().url("Invalid URL format").optional().or(z.literal("")),
 });
 
 type CategoryFormType = z.infer<typeof categorySchema>;
@@ -143,6 +145,7 @@ export default function EditBlogCategory() {
       parent_id: null,
       status: "active",
       show_home_page: false,
+      redirect_url: "",
     },
     resolver: zodResolver(categorySchema),
   });
@@ -186,6 +189,13 @@ export default function EditBlogCategory() {
           setValue("parent_id", categoryData.parent_id || null);
           setValue("status", categoryData.status || "active");
           setValue("show_home_page", categoryData?.show_home_page || false);
+          // Prefill redirect URL if present (used when category is deleted)
+          setValue(
+            "redirect_url",
+            (categoryData as any).redirect_url ||
+              (categoryData as any).redirect?.redirect_url ||
+              ""
+          );
           
           // Also do a reset to make sure form state is updated
           reset({
@@ -197,6 +207,10 @@ export default function EditBlogCategory() {
             status: categoryData.status || "active",
             show_home_page: categoryData?.show_home_page || false,
             image: categoryData.image_url || "",
+            redirect_url:
+              (categoryData as any).redirect_url ||
+              (categoryData as any).redirect?.redirect_url ||
+              "",
           }, {
             keepDefaultValues: false
           });
@@ -270,6 +284,13 @@ export default function EditBlogCategory() {
       }
       
       // Send FormData to API
+      // If editing a deleted category, allow saving a redirect URL
+      if (category?.deletedAt) {
+        const redirect = (data as any).redirect_url?.toString()?.trim();
+        if (redirect) {
+          formData.append("redirect_url", redirect);
+        }
+      }
       await updateBlogCategory(category.id, formData);
       
       showSnackbar("Category updated successfully", "success");
@@ -446,6 +467,18 @@ export default function EditBlogCategory() {
                             name="alt_text"
                             control={control}
                             label="Alt Text (Optional)"
+                          />
+                        </Grid>
+                      )}
+                      
+                      {/* Redirect URL field - only for deleted categories */}
+                      {category?.deletedAt && (
+                        <Grid item xs={12}>
+                          <FormInputField
+                            name="redirect_url"
+                            control={control}
+                            label="Redirect URL (optional)"
+                            helperText="Leave empty to skip. Enter a valid URL (e.g. https://example.com)."
                           />
                         </Grid>
                       )}

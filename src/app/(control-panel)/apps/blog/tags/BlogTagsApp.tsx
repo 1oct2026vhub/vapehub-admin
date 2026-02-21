@@ -104,6 +104,8 @@ export default function BlogTagsApp() {
   const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false);
   const [isBulkRestoreDialogOpen, setIsBulkRestoreDialogOpen] = useState(false);
 
+ 
+
   const router = useRouter();
 
   const sorting = useMemo<MRT_SortingState>(
@@ -250,12 +252,12 @@ export default function BlogTagsApp() {
   // Handle tag deletion
   const handleDeleteTag = async (tag: BlogTag) => {
     setTagToDelete(tag);
+    
     setDeleteModalOpen(true);
   };
 
   const handleConfirmDelete = async () => {
     if (!tagToDelete) return;
-
     try {
       setDeleteLoading(true);
       await deleteBlogTag(tagToDelete.id);
@@ -271,6 +273,7 @@ export default function BlogTagsApp() {
       setDeleteLoading(false);
       setDeleteModalOpen(false);
       setTagToDelete(null);
+      
     }
   };
 

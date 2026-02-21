@@ -34,6 +34,7 @@ import { useRouter } from 'next/navigation';
 import { useSnackbar } from '@/contexts/SnackbarContext';
 import debounce from 'lodash/debounce';
 import { usePageState } from '@/hooks/usePageState';
+import { z } from 'zod';
 
 interface Product {
   id: number;
@@ -80,6 +81,11 @@ const DealsTable: React.FC = () => {
   const [deals, setDeals] = useState<Deal[]>([]);
   const [total, setTotal] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
+
+  // Optional redirect URL when deleting deal (same validation as ProductListTable: empty or valid URL)
+  const [deleteRedirectUrl, setDeleteRedirectUrl] = useState("");
+  const [deleteRedirectUrlError, setDeleteRedirectUrlError] = useState("");
+  const redirectUrlSchema = z.string().url("Invalid URL format").optional().or(z.literal(""));
   
   // Product filter states
   const [productSearch, setProductSearch] = useState('');
@@ -221,20 +227,41 @@ const DealsTable: React.FC = () => {
   };
   
   const handleConfirmDelete = async () => {
-    setOpenDialog(false);
     if (!selectedDeal) return;
+
+    // Only validate redirect URL if deleting (not restoring)
+    if (!selectedDeal.deletedAt) {
+      const redirectUrl = deleteRedirectUrl.trim();
+      if (redirectUrl) {
+        const parsed = redirectUrlSchema.safeParse(redirectUrl);
+        if (!parsed.success) {
+          setDeleteRedirectUrlError(parsed.error.errors[0]?.message ?? "Invalid URL format");
+          return;
+        }
+      }
+    }
+
+    setOpenDialog(false);
+
     try {
+      const redirectUrl = deleteRedirectUrl.trim();
+      const normalizedRedirectUrl = redirectUrl || undefined;
+
       if (selectedDeal.deletedAt) {
         await restoreDeal(selectedDeal.id);
         showSnackbar('Deal restored successfully!', 'success');
         clearFilters();
       } else {
-        await deleteDeal(selectedDeal.id);
-        showSnackbar('Deal deleted successfully!', 'success');
+        await deleteDeal(selectedDeal.id, normalizedRedirectUrl);
+        showSnackbar('Deal deleted successfully' + (normalizedRedirectUrl ? ' (redirect created)' : '') + '!', 'success');
         fetchData();
       }
     } catch (err: any) {
       showSnackbar(err?.message || 'Action failed', 'error');
+    } finally {
+      setSelectedDeal(null);
+      setDeleteRedirectUrl("");
+      setDeleteRedirectUrlError("");
     }
   };
 
@@ -534,13 +561,13 @@ const DealsTable: React.FC = () => {
           state={{ rowSelection }}
           renderRowActionMenuItems={({ closeMenu, row }) => {
             const menuItems = [
-              !row.original.deletedAt && (
+              // Edit MenuItem (allow editing deleted deals as well)
               <MenuItem key="edit" onClick={() => { router.push(`/apps/deals/deal-edit/${row.original.id}`); closeMenu(); }}>
                 <ListItemIcon>
                   <FuseSvgIcon>heroicons-outline:pencil-square</FuseSvgIcon>
                 </ListItemIcon>
                 Edit
-              </MenuItem>),
+              </MenuItem>,
               <MenuItem key="delete" onClick={() => { handleDeleteClick(row.original); closeMenu(); }}>
                 <ListItemIcon>
                   <FuseSvgIcon>
@@ -561,17 +588,54 @@ const DealsTable: React.FC = () => {
             shape="rounded"
           />
         </div>
-        <Dialog open={openDialog} onClose={() => setOpenDialog(false)}>
+        <Dialog 
+          open={openDialog} 
+          onClose={() => {
+            setOpenDialog(false);
+            setDeleteRedirectUrl("");
+            setDeleteRedirectUrlError("");
+          }}
+          maxWidth="sm"
+          fullWidth
+        >
           <DialogTitle>
             Confirm {selectedDeal?.deletedAt ? 'Restore' : 'Delete'}
           </DialogTitle>
           <DialogContent>
-            <Typography>
+            <Typography sx={{ mb: selectedDeal?.deletedAt ? 0 : 2 }}>
               Are you sure you want to {selectedDeal?.deletedAt ? 'restore' : 'delete'} <strong>{selectedDeal?.name}</strong>?
+              {!selectedDeal?.deletedAt && " This action cannot be undone."}
             </Typography>
+            {!selectedDeal?.deletedAt && (
+              <TextField
+                fullWidth
+                label="Redirect URL (optional)"
+                placeholder="https://example.com"
+                value={deleteRedirectUrl}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setDeleteRedirectUrl(value);
+                  const trimmed = value.trim();
+                  if (!trimmed) {
+                    setDeleteRedirectUrlError("");
+                  } else {
+                    const parsed = redirectUrlSchema.safeParse(trimmed);
+                    setDeleteRedirectUrlError(parsed.success ? "" : (parsed.error.errors[0]?.message ?? "Invalid URL format"));
+                  }
+                }}
+                size="small"
+                error={!!deleteRedirectUrlError}
+                helperText={deleteRedirectUrlError || "Leave empty to skip. Enter a valid URL (e.g. https://example.com)."}
+                sx={{ mt: 1 }}
+              />
+            )}
           </DialogContent>
           <DialogActions>
-            <Button onClick={() => setOpenDialog(false)}>Cancel</Button>
+            <Button onClick={() => {
+              setOpenDialog(false);
+              setDeleteRedirectUrl("");
+              setDeleteRedirectUrlError("");
+            }}>Cancel</Button>
             <Button color="error" onClick={handleConfirmDelete}>
               {selectedDeal?.deletedAt ? 'Restore' : 'Delete'}
             </Button>

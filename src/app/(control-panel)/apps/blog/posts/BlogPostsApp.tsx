@@ -56,6 +56,7 @@ import Link from "@mui/material/Link";
 import useColumnOrder from "@/hooks/useColumnOrder";
 import ClearFiltersButton from "@/components/Shared/ClearFiltersButton";
 import { usePageState } from "@/hooks/usePageState";
+import { z } from "zod";
 
 // Update sorting type to match API requirements
 type SortField = "title" | "created_at" | "published_at";
@@ -157,6 +158,13 @@ export default function BlogPostsApp() {
   const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
   const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false);
   const [isBulkRestoreDialogOpen, setIsBulkRestoreDialogOpen] = useState(false);
+
+  // Single post delete confirmation with optional redirect URL (same as ProductListTable)
+  const [postToDelete, setPostToDelete] = useState<BlogPost | null>(null);
+  const [deleteRedirectUrl, setDeleteRedirectUrl] = useState("");
+  const [deleteRedirectUrlError, setDeleteRedirectUrlError] = useState("");
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const redirectUrlSchema = z.string().url("Invalid URL format").optional().or(z.literal(""));
 
   // State for tracking active search vs selection mode
   const [isActivelySearchingCategory, setIsActivelySearchingCategory] = useState(false);
@@ -373,23 +381,44 @@ export default function BlogPostsApp() {
     setPage(1);
   }, [debouncedSearch, sortField, sortOrder, showDeleted, selectedCategory, selectedTag, status]);
 
-  const handleDeletePost = async (post: BlogPost) => {
+  const handleDeletePost = (post: BlogPost) => {
+    setPostToDelete(post);
+    setDeleteRedirectUrl("");
+    setDeleteRedirectUrlError("");
+  };
+
+  const handleConfirmDeletePost = async () => {
+    if (!postToDelete) return;
+
+    const redirectUrl = deleteRedirectUrl.trim();
+    if (redirectUrl) {
+      const parsed = redirectUrlSchema.safeParse(redirectUrl);
+      if (!parsed.success) {
+        setDeleteRedirectUrlError(parsed.error.errors[0]?.message ?? "Invalid URL format");
+        return;
+      }
+    }
+
     try {
-      await deleteBlogPost(post.id);
-      
-      // Immediately remove the deleted post from the current list
-      setPosts(currentPosts => currentPosts.filter(p => p.id !== post.id));
-      
-      // Update total count in pagination
-      setPagination(prev => ({
+      setDeleteLoading(true);
+      const normalizedRedirectUrl = redirectUrl || undefined;
+      await deleteBlogPost(postToDelete.id, normalizedRedirectUrl);
+
+      setPosts((currentPosts) => currentPosts.filter((p) => p.id !== postToDelete.id));
+      setPagination((prev) => ({
         ...prev,
-        total: Math.max(0, prev.total - 1)
+        total: Math.max(0, prev.total - 1),
       }));
-      
-      showSnackbar("Post deleted successfully", "success");
+
+      showSnackbar("Post deleted successfully" + (normalizedRedirectUrl ? " (redirect created)" : ""), "success");
     } catch (error) {
       console.error("Failed to delete post:", error);
       showSnackbar("Failed to delete post", "error");
+    } finally {
+      setDeleteLoading(false);
+      setPostToDelete(null);
+      setDeleteRedirectUrl("");
+      setDeleteRedirectUrlError("");
     }
   };
 
@@ -924,7 +953,7 @@ export default function BlogPostsApp() {
                     onRowSelectionChange={setRowSelection}
                     state={{ columnOrder, sorting, rowSelection }}
                     renderRowActionMenuItems={({ closeMenu, row }) => [
-                      ...(row.original.deleted_at ? [
+                    ...(row.original.deleted_at ? [
                         <MenuItem
                           key="restore"
                           onClick={() => {
@@ -938,6 +967,19 @@ export default function BlogPostsApp() {
                             </FuseSvgIcon>
                           </ListItemIcon>
                           Restore
+                        </MenuItem>,
+                        // Allow editing deleted posts as well
+                        <MenuItem
+                          key="edit-deleted"
+                          onClick={() => {
+                            router.push(`/apps/blog/posts/${row.original.id}/edit`);
+                            closeMenu();
+                          }}
+                        >
+                          <ListItemIcon>
+                            <FuseSvgIcon>heroicons-outline:pencil</FuseSvgIcon>
+                          </ListItemIcon>
+                          Edit
                         </MenuItem>
                       ] : [
                         <MenuItem
@@ -1011,6 +1053,65 @@ export default function BlogPostsApp() {
             </Paper>
           </Grid>
         </Grid>
+
+        {/* Delete single post confirmation (with optional redirect URL) */}
+        <Dialog
+          open={!!postToDelete}
+          onClose={() => {
+            setPostToDelete(null);
+            setDeleteRedirectUrl("");
+            setDeleteRedirectUrlError("");
+          }}
+          maxWidth="sm"
+          fullWidth
+        >
+          <DialogTitle>Confirm Delete</DialogTitle>
+          <DialogContent>
+            <Typography sx={{ mb: 2 }}>
+              Are you sure you want to delete <strong>{postToDelete?.title}</strong>? This action cannot be undone.
+            </Typography>
+            <TextField
+              fullWidth
+              label="Redirect URL (optional)"
+              placeholder="https://example.com"
+              value={deleteRedirectUrl}
+              onChange={(e) => {
+                const value = e.target.value;
+                setDeleteRedirectUrl(value);
+                const trimmed = value.trim();
+                if (!trimmed) {
+                  setDeleteRedirectUrlError("");
+                } else {
+                  const parsed = redirectUrlSchema.safeParse(trimmed);
+                  setDeleteRedirectUrlError(parsed.success ? "" : (parsed.error.errors[0]?.message ?? "Invalid URL format"));
+                }
+              }}
+              size="small"
+              error={!!deleteRedirectUrlError}
+              helperText={deleteRedirectUrlError || "Leave empty to skip. Enter a valid URL (e.g. https://example.com)."}
+              sx={{ mt: 1 }}
+            />
+          </DialogContent>
+          <DialogActions>
+            <Button
+              onClick={() => {
+                setPostToDelete(null);
+                setDeleteRedirectUrl("");
+                setDeleteRedirectUrlError("");
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              color="error"
+              variant="contained"
+              onClick={handleConfirmDeletePost}
+              disabled={deleteLoading}
+            >
+              Delete
+            </Button>
+          </DialogActions>
+        </Dialog>
 
         {/* Bulk Delete Dialog */}
         <Dialog

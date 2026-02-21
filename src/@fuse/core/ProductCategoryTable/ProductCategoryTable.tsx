@@ -42,6 +42,7 @@ import { formatDate } from "@/utils/actions";
 import ClearFiltersButton from "@/components/Shared/ClearFiltersButton";
 import TablePagination from "@/components/Shared/TablePagination";
 import { usePageState } from "@/hooks/usePageState";
+import { z } from "zod";
 
 export type CategoryType = {
   id: number;
@@ -97,6 +98,11 @@ const ProductCategoryTable = ({
   const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
   const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false);
   const [isBulkRestoreDialogOpen, setIsBulkRestoreDialogOpen] = useState(false);
+
+  // Optional redirect URL when deleting category (same validation as ProductListTable: empty or valid URL)
+  const [deleteRedirectUrl, setDeleteRedirectUrl] = useState("");
+  const [deleteRedirectUrlError, setDeleteRedirectUrlError] = useState("");
+  const redirectUrlSchema = z.string().url("Invalid URL format").optional().or(z.literal(""));
 
   // --- START ADD: Check if Filters are Active ---
   const areFiltersActive = useMemo(() => {
@@ -222,12 +228,30 @@ const ProductCategoryTable = ({
 
   const handleDeleteClick = (category: CategoryType) => {
     setSelectedCategory(category);
+    setDeleteRedirectUrl("");
+    setDeleteRedirectUrlError("");
     setOpenDialog(true);
   };
 
   const handleConfirmDelete = async () => {
     if (!selectedCategory) return;
+
+    // Only validate redirect URL if deleting (not restoring)
+    if (!selectedCategory.deletedAt) {
+      const redirectUrl = deleteRedirectUrl.trim();
+      if (redirectUrl) {
+        const parsed = redirectUrlSchema.safeParse(redirectUrl);
+        if (!parsed.success) {
+          setDeleteRedirectUrlError(parsed.error.errors[0]?.message ?? "Invalid URL format");
+          return;
+        }
+      }
+    }
+
     setOpenDialog(false);
+
+    // Save previous state for rollback on error
+    const previousCategories = [...localCategories];
 
     try {
       const updatedCategories = localCategories.filter(
@@ -240,12 +264,15 @@ const ProductCategoryTable = ({
         setPage(page - 1);
       }
 
+      const redirectUrl = deleteRedirectUrl.trim();
+      const normalizedRedirectUrl = redirectUrl || undefined;
+
       if (selectedCategory.deletedAt) {
         await restoreCategory(selectedCategory.id);
         showSnackbar("Category restored successfully!", "success");
       } else {
-        await deleteCategory(selectedCategory.id);
-        showSnackbar("Category deleted successfully!", "success");
+        await deleteCategory(selectedCategory.id, normalizedRedirectUrl);
+        showSnackbar("Category deleted successfully" + (normalizedRedirectUrl ? " (redirect created)" : "") + "!", "success");
       }
 
       await mutate(["productCategoryList", queryParams]);
@@ -654,20 +681,19 @@ const ProductCategoryTable = ({
               </MenuItem>
             ),
 
-            !row.original.deletedAt && (
-              <MenuItem
-                key="edit"
-                onClick={() => {
-                  handleEdit(row.original);
-                  closeMenu();
-                }}
-              >
-                <ListItemIcon>
-                  <FuseSvgIcon>heroicons-outline:pencil-square</FuseSvgIcon>
-                </ListItemIcon>
-                Edit
-              </MenuItem>
-            ),
+            // Edit MenuItem (allow editing deleted categories as well)
+            <MenuItem
+              key="edit"
+              onClick={() => {
+                handleEdit(row.original);
+                closeMenu();
+              }}
+            >
+              <ListItemIcon>
+                <FuseSvgIcon>heroicons-outline:pencil-square</FuseSvgIcon>
+              </ListItemIcon>
+              Edit
+            </MenuItem>,
 
             <MenuItem
               key="delete"
@@ -698,19 +724,56 @@ const ProductCategoryTable = ({
         onLimitChange={handleLimitChange}
       />
 
-      <Dialog open={openDialog} onClose={() => setOpenDialog(false)}>
+      <Dialog 
+        open={openDialog} 
+        onClose={() => {
+          setOpenDialog(false);
+          setDeleteRedirectUrl("");
+          setDeleteRedirectUrlError("");
+        }}
+        maxWidth="sm"
+        fullWidth
+      >
         <DialogTitle>
           Confirm {selectedCategory?.deletedAt ? "Restore" : "Delete"}
         </DialogTitle>
         <DialogContent>
-          <Typography>
+          <Typography sx={{ mb: selectedCategory?.deletedAt ? 0 : 2 }}>
             Are you sure you want to{" "}
             {selectedCategory?.deletedAt ? "restore" : "delete"}{" "}
             <strong>{selectedCategory?.name}</strong>?
+            {!selectedCategory?.deletedAt && " This action cannot be undone."}
           </Typography>
+          {!selectedCategory?.deletedAt && (
+            <TextField
+              fullWidth
+              label="Redirect URL (optional)"
+              placeholder="https://example.com"
+              value={deleteRedirectUrl}
+              onChange={(e) => {
+                const value = e.target.value;
+                setDeleteRedirectUrl(value);
+                const trimmed = value.trim();
+                if (!trimmed) {
+                  setDeleteRedirectUrlError("");
+                } else {
+                  const parsed = redirectUrlSchema.safeParse(trimmed);
+                  setDeleteRedirectUrlError(parsed.success ? "" : (parsed.error.errors[0]?.message ?? "Invalid URL format"));
+                }
+              }}
+              size="small"
+              error={!!deleteRedirectUrlError}
+              helperText={deleteRedirectUrlError || "Leave empty to skip. Enter a valid URL (e.g. https://example.com)."}
+              sx={{ mt: 1 }}
+            />
+          )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setOpenDialog(false)}>Cancel</Button>
+          <Button onClick={() => {
+            setOpenDialog(false);
+            setDeleteRedirectUrl("");
+            setDeleteRedirectUrlError("");
+          }}>Cancel</Button>
           <AppButton
             label={selectedCategory?.deletedAt ? "Restore" : "Delete"}
             type="button"

@@ -158,7 +158,8 @@ const schema = z.object({
     ])
     .optional()
     .nullable(),
-
+  // Optional redirect URL for deleted brands. Empty string allowed.
+  redirect_url: z.string().url("Invalid URL format").optional().or(z.literal("")),
 });
 
 // Infer the type from the Zod schema
@@ -172,6 +173,7 @@ const defaultValues: InferredSchemaType = {
   description: "",
   alt_text: "",
   logo: undefined,
+  redirect_url: "",
 };
 
 export type FormType = {
@@ -181,6 +183,8 @@ export type FormType = {
   alt_text?: string;
   logo?: File | string | null | undefined;
   logo_url?: string;
+  redirect_url?: string | null;
+  deletedAt?: string | null;
   banner?: {
     id?: number;
     image?: string;
@@ -275,6 +279,14 @@ const EditBrandForm = ({ brand: initialBrand }: { brand: FormType | null }) => {
       } else {
         setValue("logo", undefined as LogoFieldValue);
       }
+      // Prefill redirect URL if present (used when brand is deleted)
+      // Support new API shape where redirect is an object:
+      // { redirect: { redirect_url, old_path, header_code, status } }
+      const extractedRedirectUrl =
+        (initialBrand as any)?.redirect?.redirect_url ??
+        (initialBrand as any)?.redirect_url ??
+        "";
+      setValue("redirect_url", extractedRedirectUrl);
     }
   }, [initialBrand, setValue]);
 
@@ -297,6 +309,13 @@ const EditBrandForm = ({ brand: initialBrand }: { brand: FormType | null }) => {
         formDataObj.append("logo", selectedFile);
       } else if (formData.logo === null) {
         formDataObj.append("logo", "");
+      }
+      // If editing a deleted brand, allow saving a redirect URL
+      if (initialBrand?.deletedAt) {
+        const redirect = (formData as any).redirect_url?.toString()?.trim();
+        if (redirect) {
+          formDataObj.append("redirect_url", redirect);
+        }
       }
       await updateBrand(brandId, formDataObj); // Use parsed brandId
       
@@ -553,6 +572,17 @@ const EditBrandForm = ({ brand: initialBrand }: { brand: FormType | null }) => {
                       control={control}
                       label="Alt Text"
                       type="text"
+                    />
+                  )}
+                  
+                  {/* Redirect URL field - only for deleted brands */}
+                  {initialBrand?.deletedAt && (
+                    <FormInputField
+                      name="redirect_url"
+                      control={control}
+                      label="Redirect URL (optional)"
+                      type="text"
+                      helperText="Leave empty to skip. Enter a valid URL (e.g. https://example.com)."
                     />
                   )}
 

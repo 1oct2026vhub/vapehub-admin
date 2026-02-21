@@ -45,6 +45,7 @@ import DeleteConfirmationModal from "./components/DeleteConfirmationModal";
 import useColumnOrder from "@/hooks/useColumnOrder";
 import ClearFiltersButton from "@/components/Shared/ClearFiltersButton";
 import { usePageState } from "@/hooks/usePageState";
+import { z } from "zod";
 
 // Add pagination interface
 interface Pagination {
@@ -95,6 +96,11 @@ export default function BlogCategoriesApp() {
   const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
   const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false);
   const [isBulkRestoreDialogOpen, setIsBulkRestoreDialogOpen] = useState(false);
+
+  // Optional redirect URL when deleting category (same as ProductListTable)
+  const [deleteRedirectUrl, setDeleteRedirectUrl] = useState("");
+  const [deleteRedirectUrlError, setDeleteRedirectUrlError] = useState("");
+  const redirectUrlSchema = z.string().url("Invalid URL format").optional().or(z.literal(""));
 
   // --- START ADD: Check if Filters are Active ---
   const areFiltersActive = useMemo(() => {
@@ -186,16 +192,28 @@ export default function BlogCategoriesApp() {
   // Handle category deletion
   const handleDeleteCategory = async (category: BlogCategory) => {
     setCategoryToDelete(category);
+    setDeleteRedirectUrl("");
+    setDeleteRedirectUrlError("");
     setDeleteModalOpen(true);
   };
 
   const confirmDelete = async () => {
     if (!categoryToDelete) return;
 
+    const redirectUrl = deleteRedirectUrl.trim();
+    if (redirectUrl) {
+      const parsed = redirectUrlSchema.safeParse(redirectUrl);
+      if (!parsed.success) {
+        setDeleteRedirectUrlError(parsed.error.errors[0]?.message ?? "Invalid URL format");
+        return;
+      }
+    }
+
     try {
       setDeleteLoading(true);
-      await deleteBlogCategory(categoryToDelete.id);
-      showSnackbar("Category deleted successfully", "success");
+      const normalizedRedirectUrl = redirectUrl || undefined;
+      await deleteBlogCategory(categoryToDelete.id, normalizedRedirectUrl);
+      showSnackbar("Category deleted successfully" + (normalizedRedirectUrl ? " (redirect created)" : ""), "success");
       fetchCategories();
     } catch (error: any) {
       console.error("Failed to delete category:", error);
@@ -204,6 +222,8 @@ export default function BlogCategoriesApp() {
       setDeleteLoading(false);
       setDeleteModalOpen(false);
       setCategoryToDelete(null);
+      setDeleteRedirectUrl("");
+      setDeleteRedirectUrlError("");
     }
   };
 
@@ -553,6 +573,19 @@ export default function BlogCategoriesApp() {
                         </ListItemIcon>
                         Restore
                       </MenuItem>,
+                      // Allow editing deleted categories as well
+                      <MenuItem
+                        key="edit-deleted"
+                        onClick={() => {
+                          handleEditCategory(row.original);
+                          closeMenu();
+                        }}
+                      >
+                        <ListItemIcon>
+                          <FuseSvgIcon>heroicons-outline:pencil</FuseSvgIcon>
+                        </ListItemIcon>
+                        Edit
+                      </MenuItem>,
                     ];
                   }
 
@@ -634,10 +667,24 @@ export default function BlogCategoriesApp() {
         onClose={() => {
           setDeleteModalOpen(false);
           setCategoryToDelete(null);
+          setDeleteRedirectUrl("");
+          setDeleteRedirectUrlError("");
         }}
         onConfirm={confirmDelete}
         itemName={categoryToDelete?.name || ""}
         loading={deleteLoading}
+        redirectUrl={deleteRedirectUrl}
+        redirectUrlError={deleteRedirectUrlError}
+        onRedirectUrlChange={(value) => {
+          setDeleteRedirectUrl(value);
+          const trimmed = value.trim();
+          if (!trimmed) {
+            setDeleteRedirectUrlError("");
+          } else {
+            const parsed = redirectUrlSchema.safeParse(trimmed);
+            setDeleteRedirectUrlError(parsed.success ? "" : (parsed.error.errors[0]?.message ?? "Invalid URL format"));
+          }
+        }}
       />
 
       {/* Bulk Delete Dialog */}
