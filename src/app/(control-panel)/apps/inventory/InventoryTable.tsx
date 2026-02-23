@@ -991,6 +991,20 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
                                     e.preventDefault();
                                     lastToggledRowIdRef.current = rowId;
 
+                                    // Save the clicked row's position relative to container viewport before opening accordion
+                                    const container = tableContainerRef.current;
+                                    const toggleButton = e.currentTarget;
+                                    const rowElement = toggleButton.closest('tr') as HTMLElement | null;
+                                    
+                                    // Store the row's position relative to the container's top edge
+                                    let rowViewportOffset = 0;
+                                    if (rowElement && container) {
+                                        const containerRect = container.getBoundingClientRect();
+                                        const rowRect = rowElement.getBoundingClientRect();
+                                        // Distance from container's top edge to row's top edge
+                                        rowViewportOffset = rowRect.top - containerRect.top;
+                                    }
+
                                     // Fully control accordion state ourselves to avoid MRT updater races
                                     isManualExpansionRef.current = true;
                                     const nextExpanded: Record<string, boolean> = isExpanded
@@ -1015,19 +1029,55 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
                                     const shouldFetch = !isExpanded && !loadingVariants.has(productId);
                                     const shouldRefresh = isExpanded && isVariantsDataStale(productId) && !loadingVariants.has(productId);
                                     
+                                    // Function to restore scroll position to keep clicked row in same viewport position
+                                    const restoreScrollPosition = () => {
+                                        if (!container) return;
+                                        
+                                        // Use multiple requestAnimationFrame and a small delay to ensure DOM has fully updated
+                                        // This is especially important when a long accordion closes and content size changes
+                                        requestAnimationFrame(() => {
+                                            requestAnimationFrame(() => {
+                                                setTimeout(() => {
+                                                    // Find the row again after DOM update (accordion state changed)
+                                                    const updatedToggle = document.querySelector(
+                                                        `[data-inventory-row-toggle="${rowId}"]`
+                                                    ) as HTMLElement | null;
+                                                    
+                                                    if (updatedToggle && container) {
+                                                        const updatedRow = updatedToggle.closest('tr') as HTMLElement | null;
+                                                        
+                                                        if (updatedRow) {
+                                                            const containerRect = container.getBoundingClientRect();
+                                                            const updatedRowRect = updatedRow.getBoundingClientRect();
+                                                            const currentRowOffset = updatedRowRect.top - containerRect.top;
+                                                            
+                                                            // Calculate how much to adjust scroll to maintain the same viewport position
+                                                            const scrollAdjustment = currentRowOffset - rowViewportOffset;
+                                                            container.scrollTop = container.scrollTop + scrollAdjustment;
+                                                        }
+                                                    }
+                                                }, 50); // Small delay to ensure accordion content has rendered
+                                            });
+                                        });
+                                    };
+                                    
                                     if (shouldFetch || shouldRefresh) {
                                         handleRowExpand(productId, true)
                                             .then(() => {
                                                 // handleRowExpand already updates session storage, just mark as initialized
                                                 hasInitializedVariantsRef.current = true;
+                                                // Restore scroll position after variants load to keep row in same viewport position
+                                                restoreScrollPosition();
                                             })
                                             .catch(() => {
                                                 hasInitializedVariantsRef.current = true;
                                                 /* logged in handleRowExpand */
                                             });
-                                    } else if (shouldFetch) {
+                                    } else {
                                         // Mark as initialized even if we don't fetch (already have fresh data)
                                         hasInitializedVariantsRef.current = true;
+                                        // Restore scroll position immediately if no fetch needed
+                                        restoreScrollPosition();
                                     }
                                 }}
                                 sx={{ 
@@ -1194,10 +1244,11 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
                     },
                 }}
                 onExpandedChange={(updater) => {
-                    // Save current scroll position (container) to prevent jump
-                    const container = tableContainerRef.current;
-                    const prevTop = container?.scrollTop ?? 0;
-                    const prevLeft = container?.scrollLeft ?? 0;
+                    // Check if this is a manual expansion (handled by click handler)
+                    const isManual = isManualExpansionRef.current;
+                    if (isManual) {
+                        isManualExpansionRef.current = false; // Reset flag
+                    }
                     
                     let newExpanded: Record<string, boolean>;
                     if (typeof updater === 'function') {
@@ -1229,22 +1280,23 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
                             expandedProductId: null 
                         }));
                     }
-
-                    // Restore scroll + ensure the clicked row stays in view
-                    requestAnimationFrame(() => {
-                        const el = tableContainerRef.current;
-                        if (el) {
-                            el.scrollTop = prevTop;
-                            el.scrollLeft = prevLeft;
-                        }
-                        const rowIdToKeep = lastToggledRowIdRef.current;
-                        if (rowIdToKeep) {
-                            const toggleEl = document.querySelector(
-                                `[data-inventory-row-toggle="${rowIdToKeep}"]`,
-                            ) as HTMLElement | null;
-                            toggleEl?.scrollIntoView({ block: 'nearest' });
-                        }
-                    });
+                    
+                    // Skip scroll restoration for manual expansions - click handler manages it
+                    // Only restore scroll for programmatic expansions (e.g., from session restore)
+                    if (!isManual) {
+                        // For programmatic expansions, maintain scroll position
+                        const container = tableContainerRef.current;
+                        const prevTop = container?.scrollTop ?? 0;
+                        const prevLeft = container?.scrollLeft ?? 0;
+                        requestAnimationFrame(() => {
+                            requestAnimationFrame(() => {
+                                if (container) {
+                                    container.scrollTop = prevTop;
+                                    container.scrollLeft = prevLeft;
+                                }
+                            });
+                        });
+                    }
                 }}
                 getRowCanExpand={() => true}
                 enableExpandAll={false}
