@@ -346,6 +346,8 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
     const [bulkUpdateLoading, setBulkUpdateLoading] = useState(false);
     // Local input values for stock fields (to allow typing without immediate conversion)
     const [localStockInputs, setLocalStockInputs] = useState<Record<string, string>>({});
+    // Track values before wheel events to prevent scroll changes
+    const stockValueBeforeWheelRef = useRef<Record<string, string>>({});
 
     // Restore pending bulk edits from localStorage on mount
     useEffect(() => {
@@ -824,10 +826,16 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
                                             type="number"
                                             size="small"
                                             value={displayStock}
+                                            onFocus={(e) => {
+                                                // Store the current value when field is focused to prevent wheel changes
+                                                stockValueBeforeWheelRef.current[editKey] = e.target.value;
+                                            }}
                                             onChange={(e) => {
                                                 const v = e.target.value;
                                                 // Store raw input value locally for smooth typing
                                                 setLocalStockInputs(prev => ({ ...prev, [editKey]: v }));
+                                                // Update stored value for wheel prevention
+                                                stockValueBeforeWheelRef.current[editKey] = v;
                                             }}
                                             onBlur={(e) => {
                                                 const v = e.target.value;
@@ -838,6 +846,8 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
                                                     delete next[editKey];
                                                     return next;
                                                 });
+                                                // Clear stored wheel value
+                                                delete stockValueBeforeWheelRef.current[editKey];
                                                 // Update pending edits if value is valid and different
                                                 if (v !== '' && !isNaN(num!) && num! >= 0) {
                                                     handlePendingStockChange(productId, variant.id, num!, originalStock);
@@ -846,8 +856,38 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
                                                     handlePendingStockChange(productId, variant.id, '', originalStock);
                                                 }
                                             }}
-                                            inputProps={{ min: 0, step: 1 }}
-                                            sx={{ width: 72, '& .MuiInputBase-input': { textAlign: 'center' } }}
+                                            inputProps={{ 
+                                                min: 0, 
+                                                step: 1,
+                                                onWheel: (e: React.WheelEvent<HTMLInputElement>) => {
+                                                    e.preventDefault();
+                                                    e.stopPropagation();
+                                                    const input = e.currentTarget;
+                                                    const storedValue = stockValueBeforeWheelRef.current[editKey];
+                                                    if (storedValue !== undefined && input.value !== storedValue) {
+                                                        input.value = storedValue;
+                                                        setLocalStockInputs(prev => ({ ...prev, [editKey]: storedValue }));
+                                                    }
+                                                    input.blur();
+                                                }
+                                            }}
+                                            sx={{ 
+                                                width: 72, 
+                                                '& .MuiInputBase-input': { 
+                                                    textAlign: 'center',
+                                                    // Hide spinner arrows in Chrome, Safari, Edge
+                                                    '&::-webkit-outer-spin-button': {
+                                                        '-webkit-appearance': 'none',
+                                                        margin: 0,
+                                                    },
+                                                    '&::-webkit-inner-spin-button': {
+                                                        '-webkit-appearance': 'none',
+                                                        margin: 0,
+                                                    },
+                                                    // Hide spinner arrows in Firefox
+                                                    '-moz-appearance': 'textfield',
+                                                } 
+                                            }}
                                         />
                                     </TableCell>
                                     <TableCell align="center">
