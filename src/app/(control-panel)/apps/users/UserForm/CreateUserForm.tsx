@@ -134,6 +134,14 @@ function CreateUserForm() {
       if (!formattedData.dob || formattedData.dob === "") {
         delete formattedData.dob;
       }
+      // Pass null for phone when no value is entered
+      if (
+        formattedData.phone === null ||
+        formattedData.phone === undefined ||
+        formattedData.phone === ""
+      ) {
+        formattedData.phone = null;
+      }
       const response = await triggerSignup(formattedData);
       showSnackbar(
         "User created successfully. Please check your email for verification!",
