@@ -54,20 +54,25 @@ const schema = z.object({
     .regex(/[a-z]/, "Password must contain at least one lowercase letter")
     .regex(/[0-9]/, "Password must contain at least one number")
     .regex(/[@$!%*?&]/, "Password must contain at least one special character"),
-  dob: z
-    .string()
-    .min(1, { message: "Date of Birth is required" }) // Ensures the field is required
-    .regex(/^\d{4}-\d{2}-\d{2}$/, {
-      message: "DOB must be in YYYY-MM-DD format",
-    }) // Ensures correct format
-    .refine(
-      (dob) => {
-        const birthDate = new Date(dob);
-        const today = new Date();
-        return today.getFullYear() - birthDate.getFullYear() >= 18;
-      },
-      { message: "User must be at least 18 years old." },
-    ),
+  dob: z.preprocess(
+    (val) => (val === null || val === undefined || val === "" ? "" : val),
+    z.union([
+      z.literal(""),
+      z
+        .string()
+        .regex(/^\d{4}-\d{2}-\d{2}$/, {
+          message: "DOB must be in YYYY-MM-DD format",
+        })
+        .refine(
+          (dob) => {
+            const birthDate = new Date(dob);
+            const today = new Date();
+            return today.getFullYear() - birthDate.getFullYear() >= 18;
+          },
+          { message: "User must be at least 18 years old." },
+        ),
+    ]),
+  ),
 
   roleId: z.preprocess(
     (val) => (val === "" ? undefined : Number(val)), // Convert non-empty values to numbers
@@ -122,6 +127,10 @@ function CreateUserForm() {
     setIsLoading(true); // Start loading
     try {
       const formattedData = { ...formData, roleId: Number(formData.roleId) };
+      // Omit empty dob so backend treats it as optional
+      if (!formattedData.dob || formattedData.dob === "") {
+        delete formattedData.dob;
+      }
       const response = await triggerSignup(formattedData);
       showSnackbar(
         "User created successfully. Please check your email for verification!",
@@ -209,8 +218,7 @@ function CreateUserForm() {
         <FormDatePicker
           name="dob"
           control={control}
-          label="Date of Birth"
-          required
+          label="Date of Birth (optional)"
         />
         <FormSelectField
           name="roleId"
