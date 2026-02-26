@@ -43,15 +43,18 @@ const schema = z.object({
   //   .refine((val) => val.replace(/\D/g, "").length <= 16, {
   //     message: "Phone number must not exceed 16 digits.",
   //   }),
-  phone: z
-    .string()
-    .regex(/^\+?\d*$/, { message: "Phone number must contain only numbers." }) // Allows only numbers with optional '+'
-    .refine((val) => val.replace(/\D/g, "").length >= 8, {
-      message: "Phone number must be between 8 to 16 digits.",
-    }) // Ensures at least 8 digits (ignoring '+')
-    .refine((val) => val.replace(/\D/g, "").length <= 16, {
-      message: "Phone number must not exceed 16 digits.",
-    }), // Ensures max 16 digits (ignoring '+')
+  phone: z.union([
+    z.literal(""),
+    z
+      .string()
+      .regex(/^\+?\d*$/, { message: "Phone number must contain only numbers." })
+      .refine((val) => val.replace(/\D/g, "").length >= 8, {
+        message: "Phone number must be between 8 to 16 digits.",
+      })
+      .refine((val) => val.replace(/\D/g, "").length <= 16, {
+        message: "Phone number must not exceed 16 digits.",
+      }),
+  ]),
   dob: z.preprocess(
     (val) => (val === null || val === undefined || val === "" ? "" : val),
     z.union([
@@ -119,10 +122,13 @@ const EditForm = ({ user }: { user: FormType }) => {
     try {
       const isDobEmpty =
         formData.dob === null || formData.dob === undefined || formData.dob === "";
+      const isPhoneEmpty =
+        formData.phone === null || formData.phone === undefined || formData.phone === "";
       const payload = {
         ...formData,
         roleId: Number(formData.roleId),
         dob: isDobEmpty ? null : formData.dob,
+        phone: isPhoneEmpty ? null : formData.phone,
       };
       const response = await updateUser(user?.id, payload);
       showSnackbar(response?.message, "success");
@@ -185,9 +191,8 @@ const EditForm = ({ user }: { user: FormType }) => {
         <FormInputField
           name="phone"
           control={control}
-          label="Phone"
+          label="Phone (optional)"
           type="text"
-          required
         />
         {/* <FormInputField name="dob" control={control} label="DOB (YYYY-MM-DD)" type="text" required /> */}
         <FormDatePicker
