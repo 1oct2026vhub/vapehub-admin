@@ -49,6 +49,7 @@ import debounce from "lodash/debounce";
 import AddCategoryModal from "@/components/Shared/AddCategoryModal";
 import { Button as MuiButton, Box as MuiBox } from "@mui/material";
 import SeoForm from "@/app/(control-panel)/apps/seo/components/SeoForm";
+import FaqAccordion from "@/app/(control-panel)/apps/faq/FaqAccordion";
 import PageBreadcrumb from "@/components/PageBreadcrumb";
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB in bytes
@@ -411,8 +412,9 @@ export default function EditBlogPost() {
 
             <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
                 <Tabs value={activeTab} onChange={handleTabChange} aria-label="blog edit tabs">
-                  <Tab label="Post Details" />
-                  <Tab label="SEO" />
+                  <Tab label="Post Details" id="blog-post-details-tab" aria-controls="blog-post-details-panel" />
+                  <Tab label="FAQ" id="blog-post-faq-tab" aria-controls="blog-post-faq-panel" />
+                  <Tab label="SEO" id="blog-post-seo-tab" aria-controls="blog-post-seo-panel" />
                 </Tabs>
             </Box>
 
@@ -624,8 +626,19 @@ export default function EditBlogPost() {
               )}
             </div>
 
-            <div role="tabpanel" hidden={activeTab !== 1}>
-              {activeTab === 1 && post && (
+            <div role="tabpanel" hidden={activeTab !== 1} id="blog-post-faq-panel" aria-labelledby="blog-post-faq-tab">
+              {activeTab === 1 && post?.id && (
+                <Box sx={{ pt: 2 }}>
+                  <FaqAccordion entityId={post.id} entityType="blog" />
+                </Box>
+              )}
+              {activeTab === 1 && !post?.id && (
+                <Typography color="error">Post ID is missing. Cannot load FAQs.</Typography>
+              )}
+            </div>
+
+            <div role="tabpanel" hidden={activeTab !== 2} id="blog-post-seo-panel" aria-labelledby="blog-post-seo-tab">
+              {activeTab === 2 && post && (
                 <SeoForm
                   entityId={post.id}
                   entityType="blog_post"
