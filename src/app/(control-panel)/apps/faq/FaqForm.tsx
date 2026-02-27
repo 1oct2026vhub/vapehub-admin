@@ -16,7 +16,7 @@ import { useState, useEffect } from "react";
 // Schema for the FAQ form
 const faqFormSchema = z.object({
   question: z.string().min(1, 'Question is required').max(500, 'Question must be 500 characters or less'),
-  answer: z.string().min(1, 'Answer is required').max(2000, 'Answer must be 2000 characters or less'),
+  answer: z.string().min(1, 'Answer is required'),
 });
 
 type FaqFormData = z.infer<typeof faqFormSchema>;
