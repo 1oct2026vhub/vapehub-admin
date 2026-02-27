@@ -16,7 +16,7 @@ import { useState, useEffect } from "react";
 // Schema for the FAQ form
 const faqFormSchema = z.object({
   question: z.string().min(1, 'Question is required').max(500, 'Question must be 500 characters or less'),
-  answer: z.string().min(1, 'Answer is required').max(2000, 'Answer must be 2000 characters or less'),
+  answer: z.string().min(1, 'Answer is required'),
 });
 
 type FaqFormData = z.infer<typeof faqFormSchema>;
@@ -48,10 +48,26 @@ export default function FaqForm({
   const urlEntityType = searchParams.get('entityType');
   const urlEntityName = searchParams.get('entityName');
 
+  // Map entity type to display name when name not provided
+  const getEntityDisplayName = (type: string | null | undefined): string => {
+    if (!type) return '';
+    const map: Record<string, string> = {
+      product: 'Product',
+      blog: 'Blog',
+      category: 'Category',
+      brand: 'Brand',
+      variant: 'Variant',
+      common: 'Deal',
+      blog_category: 'Blog Category',
+      blog_post: 'Blog Post',
+    };
+    return map[type] || type.charAt(0).toUpperCase() + type.slice(1).replace(/_/g, ' ');
+  };
+
   // Use props or fall back to URL parameters
   const finalEntityId = entityId || (urlEntityId ? parseInt(urlEntityId) : null);
   const finalEntityType = entityType || urlEntityType;
-  const finalEntityName = entityName || urlEntityName;
+  const finalEntityName = entityName || urlEntityName || getEntityDisplayName(entityType || urlEntityType);
 
   const {
     control,
