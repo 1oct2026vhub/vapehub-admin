@@ -177,6 +177,9 @@ const FormDatePicker: React.FC<FormDatePickerProps> = ({
             openTo="day"
             disableOpenPicker={false}
             slotProps={{
+              actionBar: {
+                actions: ["clear", "accept"],
+              },
               textField: {
                 fullWidth: true,
                 error: !!fieldState.error,

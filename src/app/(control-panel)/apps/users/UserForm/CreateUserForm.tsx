@@ -36,15 +36,18 @@ const schema = z.object({
   //     message: "Phone number must not exceed 16 digits.",
   //   }),
 
-  phone: z
-    .string()
-    .regex(/^\+?\d*$/, { message: "Phone number must contain only numbers." }) // Allows only numbers with optional '+'
-    .refine((val) => val.replace(/\D/g, "").length >= 8, {
-      message: "Phone number must be between 8 to 16 digits.",
-    }) // Ensures at least 8 digits (ignoring '+')
-    .refine((val) => val.replace(/\D/g, "").length <= 16, {
-      message: "Phone number must not exceed 16 digits.",
-    }), // Ensures max 16 digits (ignoring '+')
+  phone: z.union([
+    z.literal(""),
+    z
+      .string()
+      .regex(/^\+?\d*$/, { message: "Phone number must contain only numbers." })
+      .refine((val) => val.replace(/\D/g, "").length >= 8, {
+        message: "Phone number must be between 8 to 16 digits.",
+      })
+      .refine((val) => val.replace(/\D/g, "").length <= 16, {
+        message: "Phone number must not exceed 16 digits.",
+      }),
+  ]),
 
   password: z
     .string()
@@ -54,20 +57,25 @@ const schema = z.object({
     .regex(/[a-z]/, "Password must contain at least one lowercase letter")
     .regex(/[0-9]/, "Password must contain at least one number")
     .regex(/[@$!%*?&]/, "Password must contain at least one special character"),
-  dob: z
-    .string()
-    .min(1, { message: "Date of Birth is required" }) // Ensures the field is required
-    .regex(/^\d{4}-\d{2}-\d{2}$/, {
-      message: "DOB must be in YYYY-MM-DD format",
-    }) // Ensures correct format
-    .refine(
-      (dob) => {
-        const birthDate = new Date(dob);
-        const today = new Date();
-        return today.getFullYear() - birthDate.getFullYear() >= 18;
-      },
-      { message: "User must be at least 18 years old." },
-    ),
+  dob: z.preprocess(
+    (val) => (val === null || val === undefined || val === "" ? "" : val),
+    z.union([
+      z.literal(""),
+      z
+        .string()
+        .regex(/^\d{4}-\d{2}-\d{2}$/, {
+          message: "DOB must be in YYYY-MM-DD format",
+        })
+        .refine(
+          (dob) => {
+            const birthDate = new Date(dob);
+            const today = new Date();
+            return today.getFullYear() - birthDate.getFullYear() >= 18;
+          },
+          { message: "User must be at least 18 years old." },
+        ),
+    ]),
+  ),
 
   roleId: z.preprocess(
     (val) => (val === "" ? undefined : Number(val)), // Convert non-empty values to numbers
@@ -122,6 +130,18 @@ function CreateUserForm() {
     setIsLoading(true); // Start loading
     try {
       const formattedData = { ...formData, roleId: Number(formData.roleId) };
+      // Omit empty dob so backend treats it as optional
+      if (!formattedData.dob || formattedData.dob === "") {
+        delete formattedData.dob;
+      }
+      // Pass null for phone when no value is entered
+      if (
+        formattedData.phone === null ||
+        formattedData.phone === undefined ||
+        formattedData.phone === ""
+      ) {
+        formattedData.phone = null;
+      }
       const response = await triggerSignup(formattedData);
       showSnackbar(
         "User created successfully. Please check your email for verification!",
@@ -201,16 +221,14 @@ function CreateUserForm() {
         <FormInputField
           name="phone"
           control={control}
-          label="Phone"
+          label="Phone (optional)"
           type="text"
-          required
         />
         {/* <FormInputField name="dob" control={control} label="DOB (YYYY-MM-DD)" type="text" required /> */}
         <FormDatePicker
           name="dob"
           control={control}
-          label="Date of Birth"
-          required
+          label="Date of Birth (optional)"
         />
         <FormSelectField
           name="roleId"

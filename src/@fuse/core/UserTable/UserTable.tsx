@@ -333,25 +333,8 @@ const UserTable = () => {
     }
   };
 
-  // const handleEdit = (user: UserType) => {
-  //   const userData = encodeURIComponent(JSON.stringify(user));
-  //   router.push(`/apps/users/user-update/${user.id}?userData=${userData}`);
-  // };
   const handleEdit = (user: UserType) => {
-    router.push(
-      `/apps/users/user-update/${user.id}?userData=${encodeURIComponent(
-        JSON.stringify({
-          id: user.id,
-          first_name: user.first_name,
-          last_name: user.last_name,
-          role: user.role,
-          roleId: user.roleId,
-          phone: user.phone,
-          gender: user.gender?.toLowerCase(), // Convert gender to lowercase
-          dob: user.dob,
-        }),
-      )}`,
-    );
+    router.push(`/apps/users/user-update/${user.id}`);
   };
 
   const columns = useMemo<MRT_ColumnDef<UserType>[]>(

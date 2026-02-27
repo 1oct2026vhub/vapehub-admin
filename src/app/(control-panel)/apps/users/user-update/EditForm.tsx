@@ -35,10 +35,7 @@ const schema = z.object({
   last_name: z.string()
     .min(1, "Last Name is required")
     .max(50, "Last Name must not exceed 50 characters"),
-  email: z
-    .string()
-    .min(1, "Email is required")
-    .email("Invalid email format"),
+  email: z.union([z.undefined(), z.string().email("Invalid email format")]),
   // phone: z
   //   .string()
   //   .min(8, { message: "Phone number must be between 8 to 16 digits." }) // Min 8 digits
@@ -46,24 +43,32 @@ const schema = z.object({
   //   .refine((val) => val.replace(/\D/g, "").length <= 16, {
   //     message: "Phone number must not exceed 16 digits.",
   //   }),
-  phone: z
-    .string()
-    .regex(/^\+?\d*$/, { message: "Phone number must contain only numbers." }) // Allows only numbers with optional '+'
-    .refine((val) => val.replace(/\D/g, "").length >= 8, {
-      message: "Phone number must be between 8 to 16 digits.",
-    }) // Ensures at least 8 digits (ignoring '+')
-    .refine((val) => val.replace(/\D/g, "").length <= 16, {
-      message: "Phone number must not exceed 16 digits.",
-    }), // Ensures max 16 digits (ignoring '+')
-  dob: z
-    .string()
-    .min(1, "DOB is required") // Ensures the field is required
-    .regex(/^\d{4}-\d{2}-\d{2}$/, "DOB must be in YYYY-MM-DD format") // Ensures correct format
-    .refine((dob) => {
-      const birthDate = new Date(dob);
-      const today = new Date();
-      return today.getFullYear() - birthDate.getFullYear() >= 18;
-    }, "User must be at least 18 years old."),
+  phone: z.union([
+    z.literal(""),
+    z
+      .string()
+      .regex(/^\+?\d*$/, { message: "Phone number must contain only numbers." })
+      .refine((val) => val.replace(/\D/g, "").length >= 8, {
+        message: "Phone number must be between 8 to 16 digits.",
+      })
+      .refine((val) => val.replace(/\D/g, "").length <= 16, {
+        message: "Phone number must not exceed 16 digits.",
+      }),
+  ]),
+  dob: z.preprocess(
+    (val) => (val === null || val === undefined || val === "" ? "" : val),
+    z.union([
+      z.literal(""),
+      z
+        .string()
+        .regex(/^\d{4}-\d{2}-\d{2}$/, "DOB must be in YYYY-MM-DD format")
+        .refine((dob) => {
+          const birthDate = new Date(dob);
+          const today = new Date();
+          return today.getFullYear() - birthDate.getFullYear() >= 18;
+        }, "User must be at least 18 years old."),
+    ]),
+  ),
   roleId: z.preprocess(
     (val) => Number(val),
     z.union([z.literal(1), z.literal(2)]),
@@ -115,8 +120,17 @@ const EditForm = ({ user }: { user: FormType }) => {
   async function onSubmit(formData: FormType) {
     setIsLoading(true); // Start loading
     try {
-      const formattedData = { ...formData, roleId: Number(formData.roleId) };
-      const response = await updateUser(user?.id, formattedData);
+      const isDobEmpty =
+        formData.dob === null || formData.dob === undefined || formData.dob === "";
+      const isPhoneEmpty =
+        formData.phone === null || formData.phone === undefined || formData.phone === "";
+      const payload = {
+        ...formData,
+        roleId: Number(formData.roleId),
+        dob: isDobEmpty ? null : formData.dob,
+        phone: isPhoneEmpty ? null : formData.phone,
+      };
+      const response = await updateUser(user?.id, payload);
       showSnackbar(response?.message, "success");
       router.push("/apps/users"); // Redirect after successful signup
       return true;
@@ -177,16 +191,14 @@ const EditForm = ({ user }: { user: FormType }) => {
         <FormInputField
           name="phone"
           control={control}
-          label="Phone"
+          label="Phone (optional)"
           type="text"
-          required
         />
         {/* <FormInputField name="dob" control={control} label="DOB (YYYY-MM-DD)" type="text" required /> */}
         <FormDatePicker
           name="dob"
           control={control}
-          label="Date of Birth"
-          required
+          label="Date of Birth (optional)"
         />
         <FormSelectField
           name="roleId"

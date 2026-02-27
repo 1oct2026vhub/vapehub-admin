@@ -48,6 +48,7 @@ export const changePassword = (data) =>
 // User actions
 // export const listUser = () => fetcher('/api/admin/user');
 export const listUser = (params = {}) => fetcher("/api/admin/user", params);
+export const getUserDetail = (id) => fetcher(`/api/admin/user/${id}`);
 export const updateUser = (id, userData) =>
   updater(`/api/admin/user/${id}`, userData);
 export const deleteUser = (id) => deleter(`/api/admin/user/${id}`);
