@@ -156,23 +156,35 @@ const FaqAccordion: React.FC<FaqAccordionProps> = ({ entityId, entityType }) => 
     setExpandedPanel(isExpanded ? panel : false);
   };
 
+  const getEntityDisplayName = (type: string): string => {
+    const map: Record<string, string> = {
+      product: 'Product',
+      blog: 'Blog',
+      category: 'Category',
+      brand: 'Brand',
+      variant: 'Variant',
+      common: 'Deal',
+      blog_category: 'Blog Category',
+      blog_post: 'Blog Post',
+    };
+    return map[type] || type.charAt(0).toUpperCase() + type.slice(1).replace(/_/g, ' ');
+  };
+
   const handleOpenAddFaqDialog = () => {
-    // Navigate to the add FAQ page with entity details
     const params = new URLSearchParams({
       entityId: entityId?.toString() || '',
       entityType: entityType,
-      entityName: 'Product' // You can make this dynamic based on entityType
+      entityName: getEntityDisplayName(entityType),
     });
     router.push(`/apps/faq/add?${params.toString()}`);
   };
 
   const handleOpenEditDialog = (faq: FaqItem) => {
-    // Navigate to the edit FAQ page with FAQ data
     const params = new URLSearchParams({
       faqData: encodeURIComponent(JSON.stringify(faq)),
       entityId: entityId?.toString() || '',
       entityType: entityType,
-      entityName: 'Product' // You can make this dynamic based on entityType
+      entityName: getEntityDisplayName(entityType),
     });
     router.push(`/apps/faq/edit?${params.toString()}`);
   };
