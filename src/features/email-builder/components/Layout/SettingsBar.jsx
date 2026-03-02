@@ -24,7 +24,6 @@ const SettingsBar = ({ subject, setSubject }) => {
                     <FiMoreHorizontal size={24} />
                 </button>
             </div>
-
             {/* Inputs Section - White */}
             <div className="bg-white px-6 py-2 pb-4 grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* subject */}
