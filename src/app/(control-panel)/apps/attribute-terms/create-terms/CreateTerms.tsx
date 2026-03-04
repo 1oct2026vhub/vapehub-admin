@@ -32,8 +32,7 @@ const schema = z.object({
   name: z
     .string()
     .min(1, "Term Name is required")
-    .max(50, "Term Name must be at most 50 characters")
-    .regex(/^[a-zA-Z0-9\s]+$/, "Only alphanumeric characters and spaces allowed"),
+    .max(50, "Term Name must be at most 50 characters"),
   slug: z.string()
     .min(1, "Slug is required")
     .max(50, "Slug must be at most 50 characters")
