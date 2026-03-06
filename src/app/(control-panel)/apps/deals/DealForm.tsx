@@ -46,12 +46,14 @@ import FormCKEditor from '@/components/Shared/FormCKEditor';
 import FormInputField from '@/components/Shared/FormInputField';
 import { ACCEPTED_IMAGE_TYPES, MAX_FILE_SIZE } from '@/utils/fileValidation';
 import { validateImageDimensions } from '@/utils/imageUtils';
-import { id } from 'date-fns/locale';
 import BannerModal from './components/BannerModal';
 import DeleteConfirmationModal from '@/components/Shared/DeleteConfirmationModal';
 import { Card, CardMedia, CardContent, CardActions } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
+import FuseTabs from 'src/components/tabs/FuseTabs';
+import FuseTab from 'src/components/tabs/FuseTab';
+import SeoForm from '@/app/(control-panel)/apps/seo/components/SeoForm';
 
 const dealSchema = z.object({
     name: z.string().min(1, 'Name is required'),
@@ -92,16 +94,21 @@ const dealSchema = z.object({
     redirect_url: z.string().url("Invalid URL format").optional().or(z.literal("")),
 });
 
+const DEAL_TABS = ['basic-info', 'banners', 'seo'] as const;
+
 interface DealFormProps {
     deal?: Deal;
     onDealCreated?: () => void;
     hideButtons?: boolean;
+    /** When true and deal is provided, render in tabbed layout like product section */
+    useTabLayout?: boolean;
 }
 
-const DealForm: React.FC<DealFormProps> = ({ deal, onDealCreated, hideButtons = false }) => {
+const DealForm: React.FC<DealFormProps> = ({ deal, onDealCreated, hideButtons = false, useTabLayout = false }) => {
     const router = useRouter();
     const { showSnackbar } = useSnackbar();
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [dealTab, setDealTab] = useState<string>(DEAL_TABS[0]);
     const [associatedProducts, setAssociatedProducts] = useState<ProductInDeal[]>([]);
     const [productToRemove, setProductToRemove] = useState<ProductInDeal | null>(null);
     const [banners, setBanners] = useState<any[]>([]);
@@ -401,6 +408,202 @@ if (error?.errors) {
         }
     };
 
+    const showTabs = useTabLayout && !!deal;
+
+    const renderAssociatedProductsColumn = () => deal && (
+        <Paper sx={{ p: { xs: 2, md: 4 }, height: '100%' }}>
+            <Typography variant="h6" className="mb-4">Associated Products</Typography>
+            <ProductSelector dealId={deal.id} onProductAdded={handleProductAdded} />
+            <List sx={{ mt: 2, maxHeight: 400, overflowY: 'auto' }}>
+                {associatedProducts.map((product, index) => (
+                    <div key={product.id}>
+                        <ListItem
+                            secondaryAction={
+                                <IconButton edge="end" aria-label="delete" onClick={() => handleRemoveProduct(product.id)}>
+                                    <FuseSvgIcon>heroicons-outline:trash</FuseSvgIcon>
+                                </IconButton>
+                            }
+                        >
+                            <ListItemText primary={product.name} />
+                        </ListItem>
+                        {index < associatedProducts.length - 1 && <Divider />}
+                    </div>
+                ))}
+            </List>
+        </Paper>
+    );
+
+    const renderBasicInfoTab = () => (
+        <Grid container spacing={3}>
+            <Grid item xs={12} md={showTabs && deal ? 8 : 12}>
+                <Grid container spacing={3}>
+                    <Grid item xs={12} md={6}>
+                        <FormTextField name="name" control={control} label="Name" required />
+                    </Grid>
+                    <Grid item xs={12} md={6}>
+                        <FormTextField name="deal_type" control={control} label="Deal Type" select required >
+                            <MenuItem value="BUY_N_FOR_FIXED">Buy N For Fixed Price</MenuItem>
+                        </FormTextField>
+                    </Grid>
+                    {dealType === 'BUY_N_FOR_FIXED' && (
+                        <>
+                            <Grid item xs={12} md={6}>
+                                <FormTextField name="required_qty" control={control} label="Required Quantity" type="number" required />
+                            </Grid>
+                            <Grid item xs={12} md={6}>
+                                <FormTextField name="fixed_price" control={control} label="Fixed Price" type="number" required />
+                            </Grid>
+                        </>
+                    )}
+                    <Grid item xs={12} md={6}>
+                        <FormTextField name="valid_from" control={control} label="Valid From" type="date" InputLabelProps={{ shrink: true }} required />
+                    </Grid>
+                    <Grid item xs={12} md={6}>
+                        <FormTextField name="valid_to" control={control} label="Valid To" type="date" InputLabelProps={{ shrink: true }} required />
+                    </Grid>
+                    <Grid item xs={12}>
+                        <FormFileUploadField
+                            name="image"
+                            control={control}
+                            label="Deal Image"
+                            defaultImage={deal?.image_url}
+                            exactWidth={660}
+                            exactHeight={250}
+                            helperText="Image must be 660x250 px. Supported formats: PNG, JPG, JPEG, WebP (max 5MB)"
+                        />
+                    </Grid>
+                    <Grid item xs={12}>
+                        <FormCKEditor
+                            name="description"
+                            control={control}
+                            label="Description"
+                            defaultValue={deal?.description || ''}
+                        />
+                    </Grid>
+                    <Grid item xs={12}>
+                        <FormTextField name="alt_text" control={control} label="Alt Text" />
+                    </Grid>
+                    {deal?.deletedAt && (
+                        <Grid item xs={12}>
+                            <FormTextField name="redirect_url" control={control} label="Redirect URL (optional)" helperText="Leave empty to skip. Enter a valid URL (e.g. https://example.com)." />
+                        </Grid>
+                    )}
+                    <Grid item xs={12} md={6}>
+                        <Controller
+                            name="is_active"
+                            control={control}
+                            render={({ field }) => (
+                                <FormControlLabel control={<Switch {...field} checked={field.value} />} label="Active" />
+                            )}
+                        />
+                    </Grid>
+                    <Grid item xs={12} md={6}>
+                        <Controller
+                            name="show_home_page"
+                            control={control}
+                            render={({ field }) => (
+                                <FormControlLabel control={<Switch {...field} checked={field.value} />} label="Show on Home Page" />
+                            )}
+                        />
+                    </Grid>
+                    <Grid item xs={12}>
+                        <div className="flex justify-end gap-2 mt-4">
+                            <Button variant="outlined" onClick={() => router.push('/apps/deals')}>Cancel</Button>
+                            <AppButton type="submit" label={deal ? "Save Changes" : "Create"} loading={isSubmitting} disabled={!isValid || isSubmitting || (deal && !isDirty)} />
+                        </div>
+                    </Grid>
+                </Grid>
+            </Grid>
+            {showTabs && deal && (
+                <Grid item xs={12} md={4}>
+                    {renderAssociatedProductsColumn()}
+                </Grid>
+            )}
+        </Grid>
+    );
+
+    const renderBannersSection = () => (deal?.id || createdDealId) && (
+        <Box sx={{ p: 3, border: "1px solid #e0e0e0", borderRadius: 1 }}>
+            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
+                <Typography variant="h6" sx={{ fontWeight: "bold" }}>
+                    Deal Banners ({banners.length}/3)
+                </Typography>
+                <AppButton
+                    label="Create Banner"
+                    type="button"
+                    onClick={handleCreateBanner}
+                    disabled={banners.length >= 3}
+                    size="medium"
+                    disableGradient
+                    sx={{ backgroundColor: "#2E9970", "&:hover": { backgroundColor: "#1E7A56" }, color: "#fff" }}
+                />
+            </Box>
+            {banners.length === 0 ? (
+                <Typography variant="body2" color="textSecondary" sx={{ textAlign: "center", py: 3 }}>
+                    No banners created yet. Click "Create Banner" to add one.
+                </Typography>
+            ) : (
+                <Grid container spacing={2}>
+                    {banners.map((banner) => (
+                        <Grid item xs={12} sm={6} md={4} key={banner.id}>
+                            <Card>
+                                {banner.image && (
+                                    <CardMedia component="img" height="140" image={banner.image} alt={banner.alt || "Banner"} sx={{ objectFit: "contain" }} />
+                                )}
+                                <CardContent>
+                                    <Typography variant="body2" color="textSecondary">Alt: {banner.alt || "N/A"}</Typography>
+                                    <Typography variant="body2" color="textSecondary">URL: {banner.url || "N/A"}</Typography>
+                                    <Typography variant="body2" color="textSecondary">Order: {banner.order ?? 0}</Typography>
+                                </CardContent>
+                                <CardActions>
+                                    <IconButton size="small" onClick={() => handleEditBanner(banner)} color="primary"><EditIcon /></IconButton>
+                                    <IconButton size="small" onClick={() => handleDeleteBanner(banner.id)} color="error" disabled={isDeletingBanner === banner.id}><DeleteIcon /></IconButton>
+                                </CardActions>
+                            </Card>
+                        </Grid>
+                    ))}
+                </Grid>
+            )}
+            <BannerModal open={isBannerModalOpen} onClose={() => { setIsBannerModalOpen(false); setEditingBanner(null); }} onSave={handleSaveBanner} initialData={editingBanner} isEdit={!!editingBanner} />
+            <DeleteConfirmationModal open={isDeleteModalOpen} onClose={handleCloseDeleteModal} onConfirm={handleConfirmDeleteBanner} message="Are you sure you want to delete this banner?" loading={isDeletingBanner !== null} />
+        </Box>
+    );
+
+    if (showTabs) {
+        return (
+            <>
+                <Paper sx={{ p: { xs: 2, md: 4 }, backgroundColor: 'white' }}>
+                    <FuseTabs value={dealTab} onChange={(_e, value) => setDealTab(value)}>
+                        <FuseTab value="basic-info" label="Basic Info" />
+                        <FuseTab value="banners" label="Banners" />
+                        <FuseTab value="seo" label="SEO" />
+                    </FuseTabs>
+                    <div className="mt-4">
+                        {dealTab === 'basic-info' && (
+                            <form onSubmit={handleSubmit(onSubmit)}>
+                                {renderBasicInfoTab()}
+                            </form>
+                        )}
+                        {dealTab === 'banners' && renderBannersSection()}
+                        {dealTab === 'seo' && (
+                            <SeoForm entityType="deal" entityId={deal.id} entityName={deal.name} entitySlug={deal.slug} />
+                        )}
+                    </div>
+                </Paper>
+                <Dialog open={!!productToRemove} onClose={() => setProductToRemove(null)}>
+                    <DialogTitle>Confirm Removal</DialogTitle>
+                    <DialogContent>
+                        <Typography>Are you sure you want to remove <strong>{productToRemove?.name}</strong> from this deal?</Typography>
+                    </DialogContent>
+                    <DialogActions>
+                        <Button onClick={() => setProductToRemove(null)}>Cancel</Button>
+                        <AppButton label="Remove" type="button" onClick={handleConfirmRemove} />
+                    </DialogActions>
+                </Dialog>
+            </>
+        );
+    }
+
     return (
         <>
             <Grid container spacing={3}>
@@ -456,7 +659,6 @@ if (error?.errors) {
                                 <Grid item xs={12}>
                                     <FormTextField name="alt_text" control={control} label="Alt Text" />
                                 </Grid>
-                                {/* Redirect URL field - only for deleted deals */}
                                 {deal?.deletedAt && (
                                     <Grid item xs={12}>
                                         <FormTextField name="redirect_url" control={control} label="Redirect URL (optional)" helperText="Leave empty to skip. Enter a valid URL (e.g. https://example.com)." />
@@ -481,16 +683,12 @@ if (error?.errors) {
                                     />
                                 </Grid>
                             </Grid>
-
-                            {/* {!hideButtons && ( */}
-                                <div className="flex justify-end gap-2 mt-10">
-                                    <Button variant="outlined" onClick={() => router.push('/apps/deals')}>Cancel</Button>
-                                    <AppButton type="submit" label={deal ? "Save Changes" : "Create"} loading={isSubmitting} disabled={!isValid || isSubmitting || (deal && !isDirty)} />
-                                </div>
-                            {/* )} */}
+                            <div className="flex justify-end gap-2 mt-10">
+                                <Button variant="outlined" onClick={() => router.push('/apps/deals')}>Cancel</Button>
+                                <AppButton type="submit" label={deal ? "Save Changes" : "Create"} loading={isSubmitting} disabled={!isValid || isSubmitting || (deal && !isDirty)} />
+                            </div>
                         </form>
 
-                        {/* Banner Section - Outside the main form */}
                         {(deal?.id || createdDealId) && (
                             <Box sx={{ mt: 4, mb: 2, p: 3, border: "1px solid #e0e0e0", borderRadius: 1 }}>
                                 <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
@@ -504,14 +702,9 @@ if (error?.errors) {
                                         disabled={banners.length >= 3}
                                         size="medium"
                                         disableGradient
-                                        sx={{ 
-                                            backgroundColor: "#2E9970", 
-                                            "&:hover": { backgroundColor: "#1E7A56" },
-                                            color: "#fff"
-                                        }}
+                                        sx={{ backgroundColor: "#2E9970", "&:hover": { backgroundColor: "#1E7A56" }, color: "#fff" }}
                                     />
                                 </Box>
-
                                 {banners.length === 0 ? (
                                     <Typography variant="body2" color="textSecondary" sx={{ textAlign: "center", py: 3 }}>
                                         No banners created yet. Click "Create Banner" to add one.
@@ -522,66 +715,24 @@ if (error?.errors) {
                                             <Grid item xs={12} sm={6} md={4} key={banner.id}>
                                                 <Card>
                                                     {banner.image && (
-                                                        <CardMedia
-                                                            component="img"
-                                                            height="140"
-                                                            image={banner.image}
-                                                            alt={banner.alt || "Banner"}
-                                                            sx={{ objectFit: "contain" }}
-                                                        />
+                                                        <CardMedia component="img" height="140" image={banner.image} alt={banner.alt || "Banner"} sx={{ objectFit: "contain" }} />
                                                     )}
                                                     <CardContent>
-                                                        <Typography variant="body2" color="textSecondary">
-                                                            Alt: {banner.alt || "N/A"}
-                                                        </Typography>
-                                                        <Typography variant="body2" color="textSecondary">
-                                                            URL: {banner.url || "N/A"}
-                                                        </Typography>
-                                                        <Typography variant="body2" color="textSecondary">
-                                                            Order: {banner.order ?? 0}
-                                                        </Typography>
+                                                        <Typography variant="body2" color="textSecondary">Alt: {banner.alt || "N/A"}</Typography>
+                                                        <Typography variant="body2" color="textSecondary">URL: {banner.url || "N/A"}</Typography>
+                                                        <Typography variant="body2" color="textSecondary">Order: {banner.order ?? 0}</Typography>
                                                     </CardContent>
                                                     <CardActions>
-                                                        <IconButton
-                                                            size="small"
-                                                            onClick={() => handleEditBanner(banner)}
-                                                            color="primary"
-                                                        >
-                                                            <EditIcon />
-                                                        </IconButton>
-                                                        <IconButton
-                                                            size="small"
-                                                            onClick={() => handleDeleteBanner(banner.id)}
-                                                            color="error"
-                                                            disabled={isDeletingBanner === banner.id}
-                                                        >
-                                                            <DeleteIcon />
-                                                        </IconButton>
+                                                        <IconButton size="small" onClick={() => handleEditBanner(banner)} color="primary"><EditIcon /></IconButton>
+                                                        <IconButton size="small" onClick={() => handleDeleteBanner(banner.id)} color="error" disabled={isDeletingBanner === banner.id}><DeleteIcon /></IconButton>
                                                     </CardActions>
                                                 </Card>
                                             </Grid>
                                         ))}
                                     </Grid>
                                 )}
-
-                                <BannerModal
-                                    open={isBannerModalOpen}
-                                    onClose={() => {
-                                        setIsBannerModalOpen(false);
-                                        setEditingBanner(null);
-                                    }}
-                                    onSave={handleSaveBanner}
-                                    initialData={editingBanner}
-                                    isEdit={!!editingBanner}
-                                />
-
-                                <DeleteConfirmationModal
-                                    open={isDeleteModalOpen}
-                                    onClose={handleCloseDeleteModal}
-                                    onConfirm={handleConfirmDeleteBanner}
-                                    message="Are you sure you want to delete this banner?"
-                                    loading={isDeletingBanner !== null}
-                                />
+                                <BannerModal open={isBannerModalOpen} onClose={() => { setIsBannerModalOpen(false); setEditingBanner(null); }} onSave={handleSaveBanner} initialData={editingBanner} isEdit={!!editingBanner} />
+                                <DeleteConfirmationModal open={isDeleteModalOpen} onClose={handleCloseDeleteModal} onConfirm={handleConfirmDeleteBanner} message="Are you sure you want to delete this banner?" loading={isDeletingBanner !== null} />
                             </Box>
                         )}
                     </Paper>
@@ -595,11 +746,11 @@ if (error?.errors) {
                                 {associatedProducts.map((product, index) => (
                                     <div key={product.id}>
                                         <ListItem
-                                        secondaryAction={
-                                        <IconButton edge="end" aria-label="delete" onClick={() => handleRemoveProduct(product.id)}>
-                                        <FuseSvgIcon>heroicons-outline:trash</FuseSvgIcon>
-                                        </IconButton>
-                                        }
+                                            secondaryAction={
+                                                <IconButton edge="end" aria-label="delete" onClick={() => handleRemoveProduct(product.id)}>
+                                                    <FuseSvgIcon>heroicons-outline:trash</FuseSvgIcon>
+                                                </IconButton>
+                                            }
                                         >
                                             <ListItemText primary={product.name} />
                                         </ListItem>
@@ -614,17 +765,11 @@ if (error?.errors) {
             <Dialog open={!!productToRemove} onClose={() => setProductToRemove(null)}>
                 <DialogTitle>Confirm Removal</DialogTitle>
                 <DialogContent>
-                    <Typography>
-                        Are you sure you want to remove <strong>{productToRemove?.name}</strong> from this deal?
-                    </Typography>
+                    <Typography>Are you sure you want to remove <strong>{productToRemove?.name}</strong> from this deal?</Typography>
                 </DialogContent>
                 <DialogActions>
                     <Button onClick={() => setProductToRemove(null)}>Cancel</Button>
-                    <AppButton
-                        label="Remove"
-                        type="button"
-                        onClick={handleConfirmRemove}
-                    />
+                    <AppButton label="Remove" type="button" onClick={handleConfirmRemove} />
                 </DialogActions>
             </Dialog>
         </>

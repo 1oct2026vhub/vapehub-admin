@@ -42,10 +42,10 @@ function EditDealPageClient() {
     return (
         <div className="p-4">
           <PageBreadcrumb />
-             <Typography variant="h4" component="h1" className="mb-4 font-bold">
-                Edit Deal
-            </Typography>
-            <DealForm deal={deal} />
+          <Typography variant="h4" component="h1" className="mb-4 font-bold">
+            Edit Deal
+          </Typography>
+          <DealForm deal={deal} useTabLayout />
         </div>
     );
 }
