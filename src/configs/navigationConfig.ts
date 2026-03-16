@@ -252,6 +252,18 @@ const navigationConfig: FuseNavItemType[] = [
         url: "/apps/newsletter/settings",
       },
       {
+        id: "templates",
+        title: "Templates",
+        type: "item",
+        url: "/apps/newsletter/templates",
+      },
+      {
+        id: "create-email",
+        title: "Create Email",
+        type: "item",
+        url: "/apps/newsletter/create-email",
+      },
+      {
         id: "promotional",
         title: "Newsletter",
         type: "item",

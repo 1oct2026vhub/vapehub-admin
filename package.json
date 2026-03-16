@@ -5,6 +5,7 @@
   "type": "module",
   "dependencies": {
     "@auth/unstorage-adapter": "2.7.4",
+    "@beefree.io/sdk": "^11.2.3",
     "@ckeditor/ckeditor5-build-classic": "^44.3.0",
     "@ckeditor/ckeditor5-core": "^47.2.0",
     "@ckeditor/ckeditor5-editor-classic": "^47.2.0",
