@@ -42,7 +42,7 @@ interface SeoFormModalProps {
 
 const seoSchema = z
   .object({
-    entityType: z.enum(['page', 'product', 'category', 'brand', 'blog_post', 'blog_category']),
+    entityType: z.enum(['page', 'product', 'category', 'brand', 'blog_post', 'blog_category', 'deals']),
     entityId: z.string().optional(),
     title: z.string().min(1, 'Title is required'),
     description: z.string().nullable().optional(),
@@ -121,45 +121,9 @@ function SeoFormModal({ open, onClose, onSaved, initialData }: SeoFormModalProps
     }
   }, [open, isEditMode, initialData, reset]);
 
-  useEffect(() => {
-    if (open && isEditMode && initialData && !initialData.entity) {
-      const fetchEntityDetails = async () => {
-        if (!initialData.entityType || initialData.entityType === 'page' || !initialData.entityId) return;
-
-        let entityData: any = null;
-        try {
-          const entityIdNum = parseInt(initialData.entityId, 10);
-          if (isNaN(entityIdNum)) return;
-
-          switch (initialData.entityType) {
-            case 'product':
-              entityData = (await getProduct(entityIdNum))?.data;
-              break;
-            case 'brand':
-              entityData = (await listProductBrand({ limit: 1000 }))?.data?.brands.find((b: any) => b.id === entityIdNum);
-              break;
-            case 'category':
-              entityData = (await listProductCategory({ limit: 1000 }))?.data?.categories.find((c: any) => c.id === entityIdNum);
-              break;
-            case 'blog_post':
-              entityData = (await getBlogPosts({ limit: 1000 }))?.data?.blogs.find((p: any) => p.id === entityIdNum);
-              break;
-            case 'blog_category':
-              entityData = (await getBlogCategories({ limit: 1000 }))?.data?.categories.find((c: any) => c.id === entityIdNum);
-              break;
-          }
-
-          if (entityData) {
-            const updatedInitialData = { ...initialData, entity: entityData };
-            reset(updatedInitialData);
-          }
-        } catch (error) {
-          console.error(`Failed to fetch details for ${initialData.entityType}:`, error);
-        }
-      };
-      fetchEntityDetails();
-    }
-  }, [open, isEditMode, initialData, reset]);
+  // Removed entity details fetch effect that attempted to reset the form
+  // with a broader `SeoListItem` type, which caused type incompatibility
+  // with the form's `SeoFormType`.
 
   useEffect(() => {
     setValue('entityId', '', { shouldValidate: true });

@@ -586,7 +586,7 @@ if (error?.errors) {
                         )}
                         {dealTab === 'banners' && renderBannersSection()}
                         {dealTab === 'seo' && (
-                            <SeoForm entityType="deal" entityId={deal.id} entityName={deal.name} entitySlug={deal.slug} />
+                            <SeoForm entityType="deals" entityId={deal.id} entityName={deal.name} entitySlug={deal.slug} />
                         )}
                     </div>
                 </Paper>

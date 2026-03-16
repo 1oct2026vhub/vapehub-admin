@@ -2,7 +2,7 @@ import axiosInstance from '@/utils/axiosApi';
 
 // Define the SEO data structure for POST/PUT requests
 export interface SeoData {
-  entityType: 'page' | 'product' | 'category' | 'brand' | 'blog_post' | 'blog_category' | 'deal';
+  entityType: 'page' | 'product' | 'category' | 'brand' | 'blog_post' | 'blog_category' | 'deals';
   entityId: string;
   title: string;
   description: string;
@@ -54,7 +54,7 @@ export interface ListSeoApiResponse {
 }
 
 export interface ListSeoParams {
-    entityType?: 'page' | 'product' | 'category' | 'brand' | 'blog_post' | 'blog_category' | 'deal';
+    entityType?: 'page' | 'product' | 'category' | 'brand' | 'blog_post' | 'blog_category' | 'deals';
     entityId?: string;
     keyword?: string;
     noIndex?: boolean;
@@ -98,6 +98,10 @@ export const listSeo = async (params: ListSeoParams): Promise<ListSeoApiResponse
   }
 };
 
+/** Entity type as used in API URL path (backend expects 'deals', not 'deal'). */
+const normalizeEntityTypeForApi = (entityType: string): string =>
+  entityType === 'deal' ? 'deals' : entityType;
+
 /**
  * Get SEO metadata for an entity.
  * @param entityType - The type of the entity (e.g., 'product').
@@ -106,7 +110,8 @@ export const listSeo = async (params: ListSeoParams): Promise<ListSeoApiResponse
  */
 export const getSeo = async (entityType: string, entityId: string, slug?: string): Promise<SeoApiResponse> => {
   try {
-    let url = `/api/admin/seo/${entityType}/${entityId}`;
+    const pathEntityType = normalizeEntityTypeForApi(entityType);
+    let url = `/api/admin/seo/${pathEntityType}/${entityId}`;
     if (slug) {
       url += `?slug=${slug}`;
     }
