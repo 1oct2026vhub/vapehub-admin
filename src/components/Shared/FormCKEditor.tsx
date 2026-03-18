@@ -6,6 +6,11 @@ import dynamic from "next/dynamic";
 import { CKEditor, useCKEditorCloud } from "@ckeditor/ckeditor5-react";
 import { getCKEditorToken } from "@/services/apiService";
 
+// Debounce onChange to avoid heavy getData + HTML processing on every keystroke with long content
+const ON_CHANGE_DEBOUNCE_MS = 400;
+// Skip expensive DOMParser-based heading cleanup for very long content to prevent timeouts/errors
+const MAX_HTML_LENGTH_FOR_HEADING_PROCESS = 80000;
+
 // Dynamically import CKEditor to avoid SSR issues
 const CKEditorComponent = dynamic(
   () => import("@ckeditor/ckeditor5-react").then((mod) => mod.CKEditor),
@@ -56,6 +61,7 @@ const FormCKEditor = ({
   const [isLayoutReady, setIsLayoutReady] = useState(false);
   const [editorError, setEditorError] = useState<string | null>(null);
   const isMountedRef = useRef(true);
+  const onChangeDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Use CKEditor Cloud hook
   const cloud = useCKEditorCloud({ version: '47.2.0', premium: true, ckbox: { version: '2.6.1' } });
@@ -65,6 +71,10 @@ const FormCKEditor = ({
     return () => {
       isMountedRef.current = false;
       setIsLayoutReady(false);
+      if (onChangeDebounceRef.current) {
+        clearTimeout(onChangeDebounceRef.current);
+        onChangeDebounceRef.current = null;
+      }
       
       // Cleanup event listeners and observers
       if (editorRef.current) {
@@ -373,21 +383,18 @@ const FormCKEditor = ({
             tokenUrl: async () => {
               try {
                 const response = await getCKEditorToken();
-                
-                // The API might return the token directly or in a data field
-                const token = response?.token || response?.data?.token || response?.data || response;
-                
-                if (typeof token === 'string') {
-                  return token;
-                } else {
-                  console.warn("⚠️ Unexpected token format:", token);
-                  // If response is an object, try to stringify it or return the tokenUrl as fallback
-                  return CLOUD_SERVICES_TOKEN_URL || '';
+                if (response == null) {
+                  return String(CLOUD_SERVICES_TOKEN_URL || '');
                 }
+                const token = response?.token ?? response?.data?.token ?? response?.data ?? response;
+                if (typeof token === 'string' && token.length > 0) {
+                  return token;
+                }
+                console.warn("⚠️ Unexpected token format:", token);
+                return String(CLOUD_SERVICES_TOKEN_URL || '');
               } catch (error) {
                 console.error("❌ Error fetching CKEditor token:", error);
-                // Fallback to environment variable if API call fails
-                return CLOUD_SERVICES_TOKEN_URL || '';
+                return String(CLOUD_SERVICES_TOKEN_URL || '');
               }
             }
           },
@@ -597,21 +604,18 @@ const FormCKEditor = ({
             tokenUrl: async () => {
               try {
                 const response = await getCKEditorToken();
-                
-                // The API might return the token directly or in a data field
-                const token = response?.token || response?.data?.token || response?.data || response;
-                
-                if (typeof token === 'string') {
-                  return token;
-                } else {
-                  console.warn("⚠️ Unexpected token format:", token);
-                  // If response is an object, try to stringify it or return the tokenUrl as fallback
-                  return CLOUD_SERVICES_TOKEN_URL || '';
+                if (response == null) {
+                  return String(CLOUD_SERVICES_TOKEN_URL || '');
                 }
+                const token = response?.token ?? response?.data?.token ?? response?.data ?? response;
+                if (typeof token === 'string' && token.length > 0) {
+                  return token;
+                }
+                console.warn("⚠️ Unexpected CKBox token format:", token);
+                return String(CLOUD_SERVICES_TOKEN_URL || '');
               } catch (error) {
                 console.error("❌ Error fetching CKEditor CKBox token:", error);
-                // Fallback to environment variable if API call fails
-                return CLOUD_SERVICES_TOKEN_URL || '';
+                return String(CLOUD_SERVICES_TOKEN_URL || '');
               }
             },
             serviceOrigin: 'https://ckbox.cloud',
@@ -639,6 +643,10 @@ const FormCKEditor = ({
    */
   const removeDefaultHeadingFontSizes = (html: string): string => {
     if (!html || typeof html !== 'string') {
+      return html;
+    }
+    // Skip expensive parsing for very long content to avoid timeouts and "reading 'error'" with large descriptions
+    if (html.length > MAX_HTML_LENGTH_FOR_HEADING_PROCESS) {
       return html;
     }
 
@@ -700,28 +708,43 @@ const FormCKEditor = ({
     }
   };
 
+  // Normalize upload error so consumers that read .error (e.g. CKEditor) don't get undefined
+  const toUploadError = (error: unknown): { message: string; error: string } => {
+    const msg =
+      (error as Error)?.message ||
+      (typeof (error as { error?: string })?.error === 'string' ? (error as { error: string }).error : null) ||
+      'Image upload failed';
+    return { message: msg, error: msg };
+  };
+
   // Convert image to base64 for upload
   // This adapter enables "Upload image from computer" functionality
   const uploadAdapter = (loader: any) => {
     return {
       upload: () => {
         return new Promise((resolve, reject) => {
+          if (!loader?.file) {
+            reject(toUploadError(new Error('Upload loader not ready')));
+            return;
+          }
           loader.file.then((file: File) => {
             const reader = new FileReader();
             reader.onload = () => {
               const result = reader.result as string;
-              resolve({
-                default: result
-              });
+              if (result) {
+                resolve({ default: result });
+              } else {
+                reject(toUploadError(new Error('Failed to read file')));
+              }
             };
-            reader.onerror = (error) => {
-              console.error('❌ Error reading file:', error);
-              reject(error);
+            reader.onerror = (event) => {
+              console.error('❌ Error reading file:', event);
+              reject(toUploadError(event ?? new Error('File read error')));
             };
             reader.readAsDataURL(file);
-          }).catch((error: any) => {
+          }).catch((error: unknown) => {
             console.error('❌ Error loading file:', error);
-            reject(error);
+            reject(toUploadError(error));
           });
         });
       },
@@ -1163,53 +1186,55 @@ const FormCKEditor = ({
                   }}
                   onChange={(event, editor) => {
                     if (!isMountedRef.current) return;
-                    
-                    try {
-                      // Get HTML data from editor - getData() returns HTML by default
-                      let data = editor.getData();
-                      
-                      // Ensure we have a string
-                      if (typeof data !== 'string') {
-                        console.error('❌ CKEditor getData() returned non-string:', typeof data, data);
-                        data = String(data || '');
-                      }
-                      
-                      // Verify it's HTML (should contain HTML tags)
-                      if (!data || data.trim() === '') {
-                        // Empty content is fine
-                        field.onChange('');
-                        return;
-                      }
-                      
-                      // Check if data contains HTML tags
-                      if (!data.includes('<')) {
-                        // If no HTML tags, wrap in paragraph tag to ensure HTML format
-                        console.warn('⚠️ CKEditor returned plain text, wrapping in <p> tag');
-                        data = `<p>${data}</p>`;
-                      }
-                      
-                      // Remove default font-size from heading tags (h1-h6)
-                      // This ensures headings use CSS from tailwind config instead of inline styles
-                      // Manual font-size selections on non-heading elements are preserved
-                      data = removeDefaultHeadingFontSizes(data);  
-                      // Update form field with processed HTML data
-                      field.onChange(data);
-                    } catch (error) {
-                      console.error('❌ Error getting CKEditor data:', error);
-                      // Fallback: try to get data anyway
+                    if (onChangeDebounceRef.current) clearTimeout(onChangeDebounceRef.current);
+                    const currentField = field;
+                    onChangeDebounceRef.current = setTimeout(() => {
+                      onChangeDebounceRef.current = null;
+                      if (!isMountedRef.current) return;
+                      const currentEditor = editorRef.current;
+                      if (!currentEditor) return;
                       try {
-                        const fallbackData = editor.getData();
-                        // Still process the fallback data to remove heading font-sizes
-                        const processedData = removeDefaultHeadingFontSizes(fallbackData || '');
-                        field.onChange(processedData);
-                      } catch (e) {
-                        console.error('❌ Fallback also failed:', e);
-                        field.onChange('');
+                        let data = currentEditor.getData();
+                        if (typeof data !== 'string') data = String(data || '');
+                        if (!data || data.trim() === '') {
+                          currentField.onChange('');
+                          return;
+                        }
+                        if (!data.includes('<')) data = `<p>${data}</p>`;
+                        data = removeDefaultHeadingFontSizes(data);
+                        currentField.onChange(data);
+                      } catch (error) {
+                        console.error('❌ Error getting CKEditor data:', error);
+                        try {
+                          const fallbackData = currentEditor.getData();
+                          currentField.onChange(removeDefaultHeadingFontSizes(String(fallbackData || '')) || '');
+                        } catch (e) {
+                          console.error('❌ Fallback also failed:', e);
+                          currentField.onChange('');
+                        }
                       }
-                    }
+                    }, ON_CHANGE_DEBOUNCE_MS);
                   }}
                   onBlur={(event, editor) => {
                     if (!isMountedRef.current) return;
+                    if (onChangeDebounceRef.current) {
+                      clearTimeout(onChangeDebounceRef.current);
+                      onChangeDebounceRef.current = null;
+                    }
+                    const currentEditor = editorRef.current;
+                    if (currentEditor) {
+                      try {
+                        let data = currentEditor.getData();
+                        if (typeof data !== 'string') data = String(data || '');
+                        if (!data || data.trim() === '') field.onChange('');
+                        else {
+                          if (!data.includes('<')) data = `<p>${data}</p>`;
+                          field.onChange(removeDefaultHeadingFontSizes(data));
+                        }
+                      } catch (e) {
+                        console.error('❌ Error syncing CKEditor on blur:', e);
+                      }
+                    }
                     field.onBlur();
                   }}
                   />

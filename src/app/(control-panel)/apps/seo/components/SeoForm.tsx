@@ -14,9 +14,10 @@ import { getProduct } from '@/services/apiProduct';
 import { brandDetails } from '@/services/apiProductBrand';
 import { categoryDetails } from '@/services/apiProductCategory';
 import { getBlogPost, getBlogCategory } from '@/services/apiBlog';
+import { getDealById } from '@/services/apiDeals';
 
 interface SeoFormProps {
-  entityType: 'product' | 'page' | 'brand' | 'category' | 'blog_post' | 'blog_category';
+  entityType: 'product' | 'page' | 'brand' | 'category' | 'blog_post' | 'blog_category' | 'deals';
   entityId: string | number;
   entityName: string;
   entitySlug?: string;
@@ -93,6 +94,11 @@ function SeoForm({ entityType, entityId, entityName, entitySlug, fullWidth = fal
             }
             case 'blog_category': {
                 const res = await getBlogCategory(Number(entityId));
+                imageUrl = res.data?.image_url || '';
+                break;
+            }
+            case 'deals': {
+                const res = await getDealById(Number(entityId));
                 imageUrl = res.data?.image_url || '';
                 break;
             }
