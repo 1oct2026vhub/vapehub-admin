@@ -6,7 +6,6 @@ import {
   Button,
   Card,
   CardActionArea,
-  CardContent,
   CardMedia,
   CircularProgress,
   Dialog,
@@ -15,8 +14,17 @@ import {
   DialogContentText,
   DialogTitle,
   Grid,
+  IconButton,
+  ListItemIcon,
+  ListItemText,
+  Menu,
+  MenuItem,
   Typography,
 } from '@mui/material';
+import MoreVertIcon from '@mui/icons-material/MoreVert';
+import EditIcon from '@mui/icons-material/Edit';
+import DeleteIcon from '@mui/icons-material/Delete';
+import SendIcon from '@mui/icons-material/Send';
 import PageBreadcrumb from '@/components/PageBreadcrumb';
 import {
   NewsletterTemplate,
@@ -36,6 +44,8 @@ const TemplatesPageClient = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [isDeletingId, setIsDeletingId] = useState<string | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [menuAnchorEl, setMenuAnchorEl] = useState<null | HTMLElement>(null);
+  const [menuTemplateId, setMenuTemplateId] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -72,8 +82,24 @@ const TemplatesPageClient = () => {
     router.push(`/apps/newsletter/create-email?templateId=${encodeURIComponent(id)}`);
   };
 
+  const handleSend = (id: string) => {
+    // Send uses the same edit page; user can click Send from inside the builder
+    router.push(`/apps/newsletter/create-email?templateId=${encodeURIComponent(id)}`);
+  };
+
   const handleConfirmDelete = (id: string) => {
     setDeleteConfirmId(id);
+  };
+
+  const openMenu = (e: React.MouseEvent<HTMLElement>, id: string) => {
+    e.stopPropagation();
+    setMenuAnchorEl(e.currentTarget);
+    setMenuTemplateId(id);
+  };
+
+  const closeMenu = () => {
+    setMenuAnchorEl(null);
+    setMenuTemplateId(null);
   };
 
   const performDelete = async (id: string) => {
@@ -116,7 +142,31 @@ const TemplatesPageClient = () => {
                 <Grid container spacing={3}>
                   {templates.map((tpl) => (
                     <Grid item key={tpl.id} xs={12} sm={6} md={4} lg={3}>
-                      <Card variant="outlined" className="h-full flex flex-col overflow-hidden">
+                      <Card
+                        variant="outlined"
+                        className="h-full flex flex-col overflow-hidden"
+                        sx={{ position: 'relative' }}
+                      >
+                        <Box
+                          sx={{
+                            position: 'absolute',
+                            right: 6,
+                            top: 6,
+                            zIndex: 2,
+                          }}
+                        >
+                          <IconButton
+                            size="small"
+                            aria-label="Template actions"
+                            onClick={(e) => openMenu(e, tpl.id)}
+                            sx={{
+                              bgcolor: 'rgba(255,255,255,0.85)',
+                              '&:hover': { bgcolor: 'rgba(255,255,255,0.95)' },
+                            }}
+                          >
+                            <MoreVertIcon fontSize="small" />
+                          </IconButton>
+                        </Box>
                         <CardActionArea
                           className="flex-1"
                           onClick={() => handleEdit(tpl.id)}
@@ -143,24 +193,6 @@ const TemplatesPageClient = () => {
                             />
                           </CardMedia>
                         </CardActionArea>
-                        <Box p={1.5} display="flex" justifyContent="space-between">
-                          <Button
-                            variant="outlined"
-                            size="small"
-                            onClick={() => handleEdit(tpl.id)}
-                          >
-                            Edit
-                          </Button>
-                          <Button
-                            variant="outlined"
-                            size="small"
-                            color="error"
-                            disabled={isDeletingId === tpl.id}
-                            onClick={() => handleConfirmDelete(tpl.id)}
-                          >
-                            {isDeletingId === tpl.id ? 'Deleting…' : 'Delete'}
-                          </Button>
-                        </Box>
                       </Card>
                     </Grid>
                   ))}
@@ -227,6 +259,54 @@ const TemplatesPageClient = () => {
           </Button>
         </DialogActions>
       </Dialog>
+
+      <Menu
+        anchorEl={menuAnchorEl}
+        open={Boolean(menuAnchorEl)}
+        onClose={closeMenu}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+        transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+      >
+        <MenuItem
+          onClick={() => {
+            if (menuTemplateId) handleEdit(menuTemplateId);
+            closeMenu();
+          }}
+        >
+          <ListItemIcon>
+            <EditIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText primary="Edit" />
+        </MenuItem>
+        <MenuItem
+          onClick={() => {
+            if (menuTemplateId) handleSend(menuTemplateId);
+            closeMenu();
+          }}
+        >
+          <ListItemIcon>
+            <SendIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText primary="Send" />
+        </MenuItem>
+        <MenuItem
+          disabled={Boolean(menuTemplateId && isDeletingId === menuTemplateId)}
+          onClick={() => {
+            if (menuTemplateId) handleConfirmDelete(menuTemplateId);
+            closeMenu();
+          }}
+        >
+          <ListItemIcon>
+            <DeleteIcon fontSize="small" color="error" />
+          </ListItemIcon>
+          <ListItemText
+            primary={
+              menuTemplateId && isDeletingId === menuTemplateId ? 'Deleting…' : 'Delete'
+            }
+            primaryTypographyProps={{ color: 'error.main' }}
+          />
+        </MenuItem>
+      </Menu>
     </div>
   );
 };

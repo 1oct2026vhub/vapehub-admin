@@ -1,12 +1,15 @@
- 'use client';
+'use client';
 
 import { useEffect, useState } from 'react';
-import { TextField } from '@mui/material';
+import { Box, TextField, Button } from '@mui/material';
+import SendIcon from '@mui/icons-material/Send';
 import PageBreadcrumb from '@/components/PageBreadcrumb';
 import BeefreeEmailEditor from '@/components/Shared/BeefreeEmailEditor';
 import { getNewsletterTemplate, saveNewsletterTemplate } from '@/services/apiNewsletterTemplates';
+import { sendPromotionalEmail, PromotionalEmailData } from '@/services/apiMailSubscriptionSettings';
 import { useSnackbar } from '@/contexts/SnackbarContext';
 import { useSearchParams } from 'next/navigation';
+import SelectUsersModal from '../promotional/_components/SelectUsersModal';
 
 const CreateEmailPageClient = () => {
   const { showSnackbar } = useSnackbar();
@@ -16,6 +19,12 @@ const CreateEmailPageClient = () => {
   const [subject, setSubject] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [initialDesignJson, setInitialDesignJson] = useState<string | undefined>(undefined);
+  const [selectUsersOpen, setSelectUsersOpen] = useState(false);
+  const [selectedEmails, setSelectedEmails] = useState<string[]>([]);
+  const [sendToAll, setSendToAll] = useState(true);
+  const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
+  const [isSending, setIsSending] = useState(false);
+  const [sendMode, setSendMode] = useState(false);
 
   // Load existing template when ?templateId= is present
   useEffect(() => {
@@ -84,9 +93,49 @@ const CreateEmailPageClient = () => {
     }
   };
 
+  const handleUsersConfirm = (emails: string[], shouldSendToAll: boolean, groupId?: string | null) => {
+    setSelectedEmails(emails);
+    setSendToAll(shouldSendToAll);
+    setSelectedGroupId(groupId ?? null);
+    setSelectUsersOpen(false);
+
+    // If we are just selecting users (not sending), stop here
+    if (!sendMode || !templateId) {
+      setSendMode(false);
+      return;
+    }
+
+    // Send flow: reuse promotional email API with templateId + recipients / group
+    const doSend = async () => {
+      setIsSending(true);
+      try {
+        const isSendToAll = shouldSendToAll;
+        const payload: PromotionalEmailData = {
+          templateId,
+          sendToAll: isSendToAll,
+          ...(!isSendToAll && groupId ? { groupId } : !isSendToAll ? { selectedEmails: emails } : {}),
+        };
+
+        const res = await sendPromotionalEmail(payload);
+        if (res.success) {
+          showSnackbar('Promotional email sent successfully.', 'success');
+        } else {
+          showSnackbar(res.message || 'Failed to send promotional email.', 'error');
+        }
+      } catch (error: any) {
+        showSnackbar(error?.message || 'Failed to send promotional email.', 'error');
+      } finally {
+        setIsSending(false);
+        setSendMode(false);
+      }
+    };
+
+    void doSend();
+  };
+
   return (
     <div className="p-6">
-      <PageBreadcrumb />
+      <PageBreadcrumb customLastLabel={templateId ? 'Edit Email' : undefined} />
       <div className="mt-4 bg-white rounded-lg p-6 space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <TextField
@@ -106,6 +155,23 @@ const CreateEmailPageClient = () => {
             size="small"
           />
         </div>
+        {templateId && (
+          <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+            <Button
+              variant="contained"
+              color="primary"
+              size="medium"
+              disabled={isSending}
+              startIcon={<SendIcon />}
+              onClick={() => {
+                setSendMode(true);
+                setSelectUsersOpen(true);
+              }}
+            >
+              {isSending ? 'Sending...' : 'Send'}
+            </Button>
+          </Box>
+        )}
         <BeefreeEmailEditor
           defaultValue={initialDesignJson}
           onSaveDesign={handleSaveDesign}
@@ -116,6 +182,15 @@ const CreateEmailPageClient = () => {
           </p>
         )}
       </div>
+      {templateId && (
+        <SelectUsersModal
+          open={selectUsersOpen}
+          onClose={() => setSelectUsersOpen(false)}
+          onConfirm={handleUsersConfirm}
+          initialSelectedEmails={selectedEmails}
+          initialSendToAll={sendToAll}
+        />
+      )}
     </div>
   );
 };

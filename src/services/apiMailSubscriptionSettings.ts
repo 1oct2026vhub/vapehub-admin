@@ -103,8 +103,10 @@ export async function restoreSetting(id: number): Promise<any> {
 } 
 
 export interface PromotionalEmailData {
-  subject: string;
-  content: string;
+  subject?: string;
+  content?: string;
+  templateId?: string;
+  groupId?: string;
   highlightText?: string;
   ctaText?: string;
   ctaUrl?: string;
