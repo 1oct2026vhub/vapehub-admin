@@ -30,7 +30,7 @@ interface SeoFormModalProps {
 }
 
 const seoSchema = z.object({
-  entityType: z.enum(['page', 'product', 'category', 'brand', 'blog_post', 'blog_category']),
+  entityType: z.enum(['page', 'product', 'category', 'brand', 'blog_post', 'blog_category', 'deals']),
   entityId: z.string().min(1, 'Entity ID is required'),
   title: z.string().min(1, 'Title is required'),
   description: z.string().nullable().optional(),
@@ -123,6 +123,7 @@ function SeoFormModal({ open, onClose, onSaved, initialData }: SeoFormModalProps
                       <MenuItem value="brand">Brand</MenuItem>
                       <MenuItem value="blog_post">Blog Post</MenuItem>
                       <MenuItem value="blog_category">Blog Category</MenuItem>
+                      <MenuItem value="deals">Deals</MenuItem>
                     </Select>
                   </FormControl>
                 )}
