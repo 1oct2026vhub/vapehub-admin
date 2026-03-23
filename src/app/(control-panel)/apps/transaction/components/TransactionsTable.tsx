@@ -204,6 +204,22 @@ const TransactionsTable = ({
       },
     },
     {
+      id: "customer",
+      accessorFn: (row) => {
+        const user = row.user;
+        return user
+          ? formatCustomerNameSafely(`${user.first_name || ""} ${user.last_name || "N/A"}`)
+          : "N/A";
+      },
+      header: "Name",
+      Cell: ({ row }) => {
+        const user = row.original.user;
+        return user
+          ? formatCustomerNameSafely(`${user.first_name || ""} ${user.last_name || "N/A"}`)
+          : "N/A";
+      },
+    },
+    {
       accessorKey: "status",
       header: "Status",
       Cell: ({ row }) => {
@@ -215,17 +231,8 @@ const TransactionsTable = ({
       },
     },
     {
-      accessorKey: "user",
-      header: "Customer",
-      Cell: ({ row }) => {
-        const user = row.original.user;
-        return user 
-          ? formatCustomerNameSafely(`${user.first_name || ""} ${user.last_name || "N/A"}`)
-          : "N/A";
-      },
-    },
-    {
-      accessorKey: "email",
+      id: "email",
+      accessorFn: (row) => row.user?.email || "N/A",
       header: "Email",
       Cell: ({ row }) => {
         return row.original.user?.email || "N/A";
