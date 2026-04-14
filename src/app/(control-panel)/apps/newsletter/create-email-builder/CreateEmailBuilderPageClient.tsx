@@ -4,18 +4,25 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   Box,
+  Button,
   CircularProgress,
   Typography,
   TextField,
   Stack,
 } from "@mui/material";
+import SendIcon from "@mui/icons-material/Send";
 import PageBreadcrumb from "@/components/PageBreadcrumb";
 import AppButton from "@/components/Shared/AppButton";
 import { useSnackbar } from "@/contexts/SnackbarContext";
 import {
   getNewsletterTemplateById,
 } from "@/services/apiNewsletterTemplates";
+import {
+  sendPromotionalEmail,
+  type PromotionalEmailData,
+} from "@/services/apiMailSubscriptionSettings";
 import { getAuthToken, getUser } from "@/utils/auth";
+import SelectUsersModal from "../promotional/_components/SelectUsersModal";
 
 type StripoMessage =
   | { type: "STRIPO_EDITOR_READY" }
@@ -42,6 +49,12 @@ const CreateEmailBuilderPageClient = ({
   const [subject, setSubject] = useState("");
   const [saving, setSaving] = useState(false);
   const { showSnackbar } = useSnackbar();
+
+  // Send newsletter state
+  const [selectUsersOpen, setSelectUsersOpen] = useState(false);
+  const [selectedEmails, setSelectedEmails] = useState<string[]>([]);
+  const [sendToAll, setSendToAll] = useState(true);
+  const [isSending, setIsSending] = useState(false);
   const templateIdFromUrl = searchParams.get("templateId") || initialTemplateId || null;
 
   const apiBase = (process.env.NEXT_PUBLIC_BASE_URL || "").replace(/\/$/, "");
@@ -134,6 +147,53 @@ const CreateEmailBuilderPageClient = ({
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
   }, [showSnackbar]);
+
+  const handleUsersConfirm = (
+    emails: string[],
+    shouldSendToAll: boolean,
+    groupId?: string | null,
+  ) => {
+    setSelectedEmails(emails);
+    setSendToAll(shouldSendToAll);
+    setSelectUsersOpen(false);
+
+    const activeTemplateId = selectedTemplateId || templateIdFromUrl;
+    if (!activeTemplateId) return;
+
+    void (async () => {
+      setIsSending(true);
+      try {
+        const payload: PromotionalEmailData = {
+          templateId: activeTemplateId,
+          sendToAll: shouldSendToAll,
+        };
+        if (!shouldSendToAll) {
+          if (groupId) {
+            payload.groupId = groupId;
+          } else {
+            payload.selectedEmails = emails;
+          }
+        }
+        const res = await sendPromotionalEmail(payload);
+        if (res.success) {
+          showSnackbar("Email sent successfully.", "success");
+        } else {
+          showSnackbar(
+            (res as { message?: string }).message || "Failed to send email.",
+            "error",
+          );
+        }
+      } catch (e: unknown) {
+        const msg =
+          e && typeof e === "object" && "message" in e
+            ? String((e as { message: unknown }).message)
+            : "Failed to send email.";
+        showSnackbar(msg, "error");
+      } finally {
+        setIsSending(false);
+      }
+    })();
+  };
 
   const handleSaveClick = () => {
     const n = name.trim();
@@ -245,6 +305,23 @@ const CreateEmailBuilderPageClient = ({
           loading={saving}
           onClick={handleSaveClick}
         />
+        {(selectedTemplateId || templateIdFromUrl) && (
+          <Button
+            variant="contained"
+            color="success"
+            startIcon={
+              isSending ? (
+                <CircularProgress size={16} color="inherit" />
+              ) : (
+                <SendIcon />
+              )
+            }
+            disabled={isSending}
+            onClick={() => setSelectUsersOpen(true)}
+          >
+            {isSending ? "Sending…" : "Send"}
+          </Button>
+        )}
       </Stack>
 
       <Box
@@ -284,6 +361,14 @@ const CreateEmailBuilderPageClient = ({
           />
         )}
       </Box>
+
+      <SelectUsersModal
+        open={selectUsersOpen}
+        onClose={() => setSelectUsersOpen(false)}
+        onConfirm={handleUsersConfirm}
+        initialSelectedEmails={selectedEmails}
+        initialSendToAll={sendToAll}
+      />
     </Box>
   );
 };

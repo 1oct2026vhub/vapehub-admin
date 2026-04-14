@@ -19,9 +19,16 @@ import {
   Paper,
   CircularProgress,
   Chip,
+  Autocomplete,
+  Divider,
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
+import GroupIcon from '@mui/icons-material/Group';
 import { getSubscribers, type Subscriber } from '@/services/apiSubscribers';
+import {
+  listNewsletterGroups,
+  type NewsletterGroup,
+} from '@/services/apiNewsletterTemplates';
 import { useSnackbar } from '@/contexts/SnackbarContext';
 import AppButton from '@/components/Shared/AppButton';
 import TablePagination from '@/components/Shared/TablePagination';
@@ -47,7 +54,7 @@ const DEFAULT_LIMIT = 10;
 interface SelectUsersModalProps {
   open: boolean;
   onClose: () => void;
-  onConfirm: (selectedEmails: string[], sendToAll: boolean) => void;
+  onConfirm: (selectedEmails: string[], sendToAll: boolean, groupId?: string | null) => void;
   initialSelectedEmails?: string[];
   initialSendToAll?: boolean;
 }
@@ -60,6 +67,8 @@ export default function SelectUsersModal({
   initialSendToAll = false,
 }: SelectUsersModalProps) {
   const { showSnackbar } = useSnackbar();
+
+  // Subscriber selection state
   const [subscribers, setSubscribers] = useState<Subscriber[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -69,6 +78,11 @@ export default function SelectUsersModal({
   const [sendToAll, setSendToAll] = useState(initialSendToAll);
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
+
+  // Group selection state
+  const [groups, setGroups] = useState<NewsletterGroup[]>([]);
+  const [isLoadingGroups, setIsLoadingGroups] = useState(false);
+  const [selectedGroup, setSelectedGroup] = useState<NewsletterGroup | null>(null);
 
   const totalPages = Math.ceil(total / limit) || 1;
 
@@ -91,9 +105,22 @@ export default function SelectUsersModal({
         setIsLoading(false);
       }
     },
-    [showSnackbar]
+    [showSnackbar],
   );
 
+  const fetchGroups = useCallback(async () => {
+    setIsLoadingGroups(true);
+    try {
+      const res = await listNewsletterGroups();
+      if (res.success) setGroups(res.data || []);
+    } catch {
+      // silently fail — groups section will just be empty
+    } finally {
+      setIsLoadingGroups(false);
+    }
+  }, []);
+
+  // Reset on open
   useEffect(() => {
     if (open) {
       setSelectedEmails(new Set(initialSelectedEmails));
@@ -102,8 +129,10 @@ export default function SelectUsersModal({
       setLimit(DEFAULT_LIMIT);
       setSearch('');
       setDebouncedSearch('');
+      setSelectedGroup(null);
+      void fetchGroups();
     }
-  }, [open, initialSelectedEmails, initialSendToAll]);
+  }, [open, initialSelectedEmails, initialSendToAll, fetchGroups]);
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(search), 300);
@@ -115,17 +144,20 @@ export default function SelectUsersModal({
   }, [debouncedSearch]);
 
   useEffect(() => {
-    if (open) fetchPage(page, limit, debouncedSearch);
-  }, [open, page, limit, debouncedSearch]);
+    if (open) void fetchPage(page, limit, debouncedSearch);
+  }, [open, page, limit, debouncedSearch, fetchPage]);
 
-  // When user selects any email from table, uncheck "Send to all"
+  // When user selects any email from table, uncheck "Send to all" and deselect group
   useEffect(() => {
-    if (selectedEmails.size > 0) setSendToAll(false);
+    if (selectedEmails.size > 0) {
+      setSendToAll(false);
+      setSelectedGroup(null);
+    }
   }, [selectedEmails.size]);
 
   const handleToggleEmail = (email: string) => {
+    setSelectedGroup(null);
     if (sendToAll) {
-      // Was "send to all" (all shown checked); uncheck = turn off sendToAll and clear selection
       setSendToAll(false);
       setSelectedEmails(new Set());
     } else {
@@ -139,8 +171,8 @@ export default function SelectUsersModal({
   };
 
   const handleSelectAllOnPage = (checked: boolean) => {
+    setSelectedGroup(null);
     if (sendToAll) {
-      // Was "send to all"; unchecking header = turn off sendToAll and uncheck all users
       if (!checked) {
         setSendToAll(false);
         setSelectedEmails(new Set());
@@ -162,7 +194,6 @@ export default function SelectUsersModal({
     }
   };
 
-  // When sendToAll is true, show all rows as checked; otherwise use selectedEmails
   const isAllOnPageSelected =
     sendToAll ||
     (subscribers.length > 0 &&
@@ -173,30 +204,39 @@ export default function SelectUsersModal({
     !subscribers.every((s) => s.email && selectedEmails.has(s.email));
 
   const handleConfirm = () => {
-    // Pass only one: either sendToAll true (no emails) or selectedEmails with sendToAll false
-    const isSendToAll = sendToAll || selectedEmails.size === 0;
-    onConfirm(isSendToAll ? [] : Array.from(selectedEmails), isSendToAll);
+    if (selectedGroup) {
+      onConfirm([], false, selectedGroup.id);
+    } else {
+      const isSendToAll = sendToAll || selectedEmails.size === 0;
+      onConfirm(isSendToAll ? [] : Array.from(selectedEmails), isSendToAll, null);
+    }
     onClose();
   };
-
-  const canApply = true;
 
   const handleClose = () => {
     onClose();
   };
 
+  const applyLabel = selectedGroup
+    ? `Apply (Group: ${selectedGroup.name})`
+    : sendToAll
+      ? 'Apply (Send to all)'
+      : `Apply (${selectedEmails.size} selected)`;
+
   return (
     <Modal open={open} onClose={handleClose} aria-labelledby="select-users-modal-title">
       <Box sx={modalStyle}>
+        {/* Header */}
         <Box sx={{ p: 2.5, borderBottom: 1, borderColor: 'divider' }}>
           <Typography id="select-users-modal-title" variant="h6" component="h2" fontWeight={600}>
             Select recipients
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-            Select specific recipients from the list below.
+            Send to all subscribers, a specific group, or select individual recipients.
           </Typography>
         </Box>
 
+        {/* Send to all */}
         <Box sx={{ px: 2.5, py: 1.5, borderBottom: 1, borderColor: 'divider' }}>
           <FormControlLabel
             control={
@@ -204,7 +244,10 @@ export default function SelectUsersModal({
                 checked={sendToAll}
                 onChange={(_, checked) => {
                   setSendToAll(checked);
-                  if (!checked) setSelectedEmails(new Set()); // Uncheck = uncheck all users in table
+                  if (checked) {
+                    setSelectedEmails(new Set());
+                    setSelectedGroup(null);
+                  }
                 }}
                 sx={{ color: '#2E9970', '&.Mui-checked': { color: '#2E9970' } }}
               />
@@ -217,8 +260,68 @@ export default function SelectUsersModal({
           />
         </Box>
 
+        {/* Send to group */}
         {!sendToAll && (
+          <Box sx={{ px: 2.5, py: 1.5, borderBottom: 1, borderColor: 'divider' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+              <GroupIcon fontSize="small" sx={{ color: 'text.secondary' }} />
+              <Typography variant="body2" fontWeight={500} color="text.secondary">
+                Send to a group
+              </Typography>
+            </Box>
+            <Autocomplete
+              options={groups}
+              getOptionLabel={(opt) => opt.name}
+              value={selectedGroup}
+              onChange={(_, val) => {
+                setSelectedGroup(val);
+                if (val) {
+                  setSendToAll(false);
+                  setSelectedEmails(new Set());
+                }
+              }}
+              loading={isLoadingGroups}
+              size="small"
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label="Select group"
+                  placeholder="Choose a group…"
+                  InputProps={{
+                    ...params.InputProps,
+                    endAdornment: (
+                      <>
+                        {isLoadingGroups ? <CircularProgress color="inherit" size={16} /> : null}
+                        {params.InputProps.endAdornment}
+                      </>
+                    ),
+                  }}
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      '&:hover fieldset': { borderColor: '#2E9970' },
+                      '&.Mui-focused fieldset': { borderColor: '#2E9970' },
+                    },
+                  }}
+                />
+              )}
+              noOptionsText={isLoadingGroups ? 'Loading groups…' : 'No groups found'}
+            />
+            {selectedGroup && (
+              <Chip
+                size="small"
+                label={`Group selected: ${selectedGroup.name}${selectedGroup.userCount != null ? ` (${selectedGroup.userCount} users)` : ''}`}
+                onDelete={() => setSelectedGroup(null)}
+                sx={{ mt: 1, bgcolor: '#2E9970', color: 'white', '& .MuiChip-deleteIcon': { color: 'rgba(255,255,255,0.7)' } }}
+              />
+            )}
+          </Box>
+        )}
+
+        {/* Individual selection — hidden when group is selected */}
+        {!sendToAll && !selectedGroup && (
           <>
+            <Divider />
+
             {selectedEmails.size > 0 && (
               <Box sx={{ px: 2.5, py: 1, borderBottom: 1, borderColor: 'divider' }}>
                 <Chip
@@ -289,7 +392,10 @@ export default function SelectUsersModal({
                           onClick={() => sub.email && handleToggleEmail(sub.email)}
                           sx={{
                             cursor: 'pointer',
-                            bgcolor: sendToAll || (sub.email && selectedEmails.has(sub.email)) ? 'action.selected' : undefined,
+                            bgcolor:
+                              sendToAll || (sub.email && selectedEmails.has(sub.email))
+                                ? 'action.selected'
+                                : undefined,
                           }}
                         >
                           <TableCell padding="checkbox" onClick={(e) => e.stopPropagation()}>
@@ -305,30 +411,39 @@ export default function SelectUsersModal({
                     )}
                   </TableBody>
                 </Table>
-          </TableContainer>
-          {!isLoading && subscribers.length > 0 && (
-            <TablePagination
-              page={page}
-              totalPages={totalPages}
-              limit={limit}
-              totalRecords={total}
-              onPageChange={setPage}
-              onLimitChange={setLimit}
-            />
-          )}
+              </TableContainer>
+              {!isLoading && subscribers.length > 0 && (
+                <TablePagination
+                  page={page}
+                  totalPages={totalPages}
+                  limit={limit}
+                  totalRecords={total}
+                  onPageChange={setPage}
+                  onLimitChange={setLimit}
+                />
+              )}
             </Box>
           </>
         )}
 
-        <Box sx={{ p: 2, borderTop: 1, borderColor: 'divider', display: 'flex', justifyContent: 'flex-end', gap: 1.5 }}>
+        {/* Footer */}
+        <Box
+          sx={{
+            p: 2,
+            borderTop: 1,
+            borderColor: 'divider',
+            display: 'flex',
+            justifyContent: 'flex-end',
+            gap: 1.5,
+          }}
+        >
           <Button variant="outlined" onClick={handleClose}>
             Cancel
           </Button>
           <AppButton
             variant="contained"
-            label={sendToAll ? 'Apply (Send to all)' : `Apply (${selectedEmails.size} selected)`}
+            label={applyLabel}
             onClick={handleConfirm}
-            disabled={!canApply}
           />
         </Box>
       </Box>
