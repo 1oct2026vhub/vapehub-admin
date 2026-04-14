@@ -4,23 +4,18 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   Box,
+  CircularProgress,
   Typography,
   TextField,
-  MenuItem,
   Stack,
-  FormControl,
-  InputLabel,
-  Select,
-  type SelectChangeEvent,
 } from "@mui/material";
 import PageBreadcrumb from "@/components/PageBreadcrumb";
 import AppButton from "@/components/Shared/AppButton";
 import { useSnackbar } from "@/contexts/SnackbarContext";
 import {
-  listNewsletterTemplates,
-  type NewsletterTemplate,
+  getNewsletterTemplateById,
 } from "@/services/apiNewsletterTemplates";
-import { getAuthToken } from "@/utils/auth";
+import { getAuthToken, getUser } from "@/utils/auth";
 
 type StripoMessage =
   | { type: "STRIPO_EDITOR_READY" }
@@ -31,27 +26,41 @@ type StripoMessage =
       templateId?: string;
     };
 
-const CreateEmailBuilderPageClient = () => {
+type CreateEmailBuilderPageClientProps = {
+  initialTemplateId?: string;
+};
+
+const CreateEmailBuilderPageClient = ({
+  initialTemplateId,
+}: CreateEmailBuilderPageClientProps) => {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const appliedUrlTemplateRef = useRef(false);
-  const urlTemplateMissingNotifiedRef = useRef(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [iframeKey, setIframeKey] = useState(0);
-  const [templates, setTemplates] = useState<NewsletterTemplate[]>([]);
-  const [listLoading, setListLoading] = useState(false);
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
   const [name, setName] = useState("");
   const [subject, setSubject] = useState("");
   const [saving, setSaving] = useState(false);
   const { showSnackbar } = useSnackbar();
+  const templateIdFromUrl = searchParams.get("templateId") || initialTemplateId || null;
 
   const apiBase = (process.env.NEXT_PUBLIC_BASE_URL || "").replace(/\/$/, "");
+
+  // For new templates there is nothing to fetch; iframe is immediately ready.
+  // For edit mode we wait until the metadata fetch completes before mounting.
+  const [iframeReady, setIframeReady] = useState(!templateIdFromUrl);
 
   const pushConfigToIframe = useCallback(() => {
     const win = iframeRef.current?.contentWindow;
     if (!win || !apiBase || typeof window === "undefined") return;
     const token = getAuthToken();
+    const user = getUser();
+    const userId = user?.id ? String(user.id) : "";
+    const userRole = user?.role
+      ? Array.isArray(user.role)
+        ? String(user.role[0] ?? "user")
+        : String(user.role)
+      : "user";
     if (!token) {
       showSnackbar("You must be signed in to use the email builder.", "error");
       return;
@@ -62,66 +71,47 @@ const CreateEmailBuilderPageClient = () => {
         payload: {
           apiBase,
           token,
-          templateId:
-            selectedTemplateId && selectedTemplateId !== "__new__"
-              ? selectedTemplateId
-              : null,
+          userId,
+          userRole,
+          templateId: selectedTemplateId || templateIdFromUrl || null,
         },
       },
       window.location.origin,
     );
-  }, [apiBase, selectedTemplateId, showSnackbar]);
+  }, [apiBase, selectedTemplateId, templateIdFromUrl, showSnackbar]);
 
-  const refreshTemplates = useCallback(async () => {
-    setListLoading(true);
-    try {
-      const res = await listNewsletterTemplates({ page: 1, pageSize: 100 });
-      if (res.success && Array.isArray(res.data)) {
-        setTemplates(res.data);
-      }
-    } catch (e: unknown) {
-      const msg =
-        e && typeof e === "object" && "message" in e
-          ? String((e as { message: unknown }).message)
-          : "Failed to load templates";
-      showSnackbar(msg, "error");
-    } finally {
-      setListLoading(false);
+  // Fetch template metadata (name/subject) for prefilling the form fields.
+  // The iframe independently fetches the full design from the backend.
+  useEffect(() => {
+    if (!templateIdFromUrl) {
+      setSelectedTemplateId("");
+      setName("");
+      setSubject("");
+      return;
     }
-  }, [showSnackbar]);
 
-  useEffect(() => {
-    void refreshTemplates();
-  }, [refreshTemplates]);
-
-  const templateIdFromUrl = searchParams.get("templateId");
-
-  useEffect(() => {
-    appliedUrlTemplateRef.current = false;
-    urlTemplateMissingNotifiedRef.current = false;
+    void (async () => {
+      try {
+        const res = await getNewsletterTemplateById(templateIdFromUrl);
+        if (res.success && res.data) {
+          const tpl = res.data;
+          setSelectedTemplateId(tpl.id);
+          setName(tpl.name ?? "");
+          setSubject(tpl.subject ?? "");
+          setIframeReady(true);
+          setIframeKey((k) => k + 1);
+          return;
+        }
+        showSnackbar("Template not found.", "error");
+      } catch (e: unknown) {
+        const msg =
+          e && typeof e === "object" && "message" in e
+            ? String((e as { message: unknown }).message)
+            : "Failed to load template.";
+        showSnackbar(msg, "error");
+      }
+    })();
   }, [templateIdFromUrl]);
-
-  useEffect(() => {
-    if (appliedUrlTemplateRef.current || listLoading || !templateIdFromUrl) {
-      return;
-    }
-    const t = templates.find((x) => x.id === templateIdFromUrl);
-    if (!t) {
-      if (!listLoading && !urlTemplateMissingNotifiedRef.current) {
-        urlTemplateMissingNotifiedRef.current = true;
-        showSnackbar(
-          "That template was not found in the loaded list. Open it from the Templates page or reload this page.",
-          "error",
-        );
-      }
-      return;
-    }
-    appliedUrlTemplateRef.current = true;
-    setSelectedTemplateId(t.id);
-    setName(t.name);
-    setSubject(t.subject);
-    setIframeKey((k) => k + 1);
-  }, [templateIdFromUrl, templates, listLoading, showSnackbar]);
 
   useEffect(() => {
     const onMessage = (event: MessageEvent) => {
@@ -136,7 +126,6 @@ const CreateEmailBuilderPageClient = () => {
             setSelectedTemplateId(data.templateId);
           }
           showSnackbar(data.message || "Template saved", "success");
-          void refreshTemplates();
         } else {
           showSnackbar(data.message || "Save failed", "error");
         }
@@ -144,23 +133,7 @@ const CreateEmailBuilderPageClient = () => {
     };
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
-  }, [refreshTemplates, showSnackbar]);
-
-  const handleTemplateChange = (e: SelectChangeEvent<string>) => {
-    const v = e.target.value;
-    setSelectedTemplateId(v);
-    if (v && v !== "__new__") {
-      const t = templates.find((x) => x.id === v);
-      if (t) {
-        setName(t.name);
-        setSubject(t.subject);
-      }
-    } else {
-      setName("");
-      setSubject("");
-    }
-    setIframeKey((k) => k + 1);
-  };
+  }, [showSnackbar]);
 
   const handleSaveClick = () => {
     const n = name.trim();
@@ -241,7 +214,7 @@ const CreateEmailBuilderPageClient = () => {
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
         Stripo editor with templates stored via your admin API. Auth token is
         passed to the builder iframe only on this origin. Stripo plugin auth
-        still uses <code>/api/stripo-token</code>.
+        is loaded from <code>/api/admin/newsletter-templates/auth</code>.
       </Typography>
 
       <Stack
@@ -249,23 +222,6 @@ const CreateEmailBuilderPageClient = () => {
         spacing={2}
         sx={{ mb: 2, alignItems: { md: "flex-end" }, flexWrap: "wrap" }}
       >
-        <FormControl size="small" sx={{ minWidth: 220 }}>
-          <InputLabel id="template-select-label">Template</InputLabel>
-          <Select
-            labelId="template-select-label"
-            label="Template"
-            value={selectedTemplateId || "__new__"}
-            onChange={handleTemplateChange}
-            disabled={listLoading}
-          >
-            <MenuItem value="__new__">New template</MenuItem>
-            {templates.map((t) => (
-              <MenuItem key={t.id} value={t.id}>
-                {t.name}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
         <TextField
           size="small"
           label="Template name"
@@ -301,15 +257,32 @@ const CreateEmailBuilderPageClient = () => {
           backgroundColor: "#f5f5f7",
         }}
       >
-        <iframe
-          key={iframeKey}
-          ref={iframeRef}
-          title="Stripo Email Builder"
-          src="/stripo-builder.html"
-          style={{ width: "100%", height: "100%", border: "none" }}
-          allow="clipboard-read; clipboard-write"
-          onLoad={pushConfigToIframe}
-        />
+        {!iframeReady ? (
+          <Box
+            sx={{
+              width: "100%",
+              height: "100%",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 1.5,
+              color: "text.secondary",
+            }}
+          >
+            <CircularProgress size={24} />
+            <Typography variant="body2">Loading template…</Typography>
+          </Box>
+        ) : (
+          <iframe
+            key={iframeKey}
+            ref={iframeRef}
+            title="Stripo Email Builder"
+            src="/stripo-builder.html"
+            style={{ width: "100%", height: "100%", border: "none" }}
+            allow="clipboard-read; clipboard-write"
+            onLoad={pushConfigToIframe}
+          />
+        )}
       </Box>
     </Box>
   );

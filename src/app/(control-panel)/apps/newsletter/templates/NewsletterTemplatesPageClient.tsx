@@ -32,7 +32,9 @@ function formatDate(value?: string) {
 function getPreviewHtml(template: NewsletterTemplate) {
   if (template.designJson) {
     try {
-      const parsed = JSON.parse(template.designJson) as {
+      const parsed = (typeof template.designJson === "string"
+        ? JSON.parse(template.designJson)
+        : template.designJson) as {
         editor?: string;
         html?: string;
         css?: string;
@@ -192,7 +194,7 @@ export default function NewsletterTemplatesPageClient() {
                           label="Edit"
                           onClick={() =>
                             router.push(
-                              `/apps/newsletter/create-email-builder?templateId=${encodeURIComponent(row.id)}`,
+                              `/apps/newsletter/edit-email-builder/${encodeURIComponent(row.id)}`,
                             )
                           }
                         />

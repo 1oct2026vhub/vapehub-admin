@@ -186,154 +186,173 @@
     <div id="stripoEditorContainer"></div>
 
     <script>
-      var adminConfig = null;
-      var bootstrapStarted = false;
+      // ─── State ────────────────────────────────────────────────────────────────
+      var stripoApiBase = null;
+      var stripoToken = null;
+      var stripoUserId = "admin-user";
+      var stripoUserRole = "user";
+      var stripoTemplateId = null;
+      var editorStarted = false;
 
+      // ─── Email ID ─────────────────────────────────────────────────────────────
+      // A fresh timestamp suffix is appended each session so Stripo's co-editing
+      // server never serves a previously-cached (possibly empty) version of this
+      // template. We store the design on our own backend, so Stripo's cache is not
+      // needed.
       function getEditorEmailId() {
-        var params = new URLSearchParams(window.location.search);
-        var provided = params.get("emailId");
-        if (provided && provided.trim()) return provided.trim();
-        if (adminConfig && adminConfig.templateId) return adminConfig.templateId;
-        return "newsletter_email_" + Date.now();
+        var base = stripoTemplateId
+          ? String(stripoTemplateId)
+          : "newsletter_email";
+        return base + "_" + Date.now();
       }
 
-      function parseStripoDesignJson(designJson) {
-        if (!designJson || typeof designJson !== "string") return null;
-        try {
-          var d = JSON.parse(designJson);
-          if (d && d.editor === "stripo") {
-            return { html: d.html || "", css: d.css || "" };
-          }
-        } catch (e) {}
-        return null;
-      }
-
-      function fetchTemplateById(apiBase, token, templateId, cb) {
-        var page = 1;
-        function next() {
-          var url =
-            apiBase.replace(/\/$/, "") +
-            "/api/admin/newsletter-templates/templates?page=" +
-            page +
-            "&pageSize=100";
-          fetch(url, {
-            headers: {
-              Authorization: "Bearer " + token,
-              Accept: "application/json",
-            },
+      // ─── Fetch existing template HTML+CSS directly from backend ──────────────
+      function fetchTemplateById(callback) {
+        var url =
+          String(stripoApiBase).replace(/\/$/, "") +
+          "/api/admin/newsletter-templates/templates/" +
+          encodeURIComponent(stripoTemplateId);
+        fetch(url, {
+          method: "GET",
+          cache: "no-store",
+          headers: {
+            Authorization: "Bearer " + stripoToken,
+            Accept: "application/json",
+          },
+        })
+          .then(function (res) { return res.json(); })
+          .then(function (data) {
+            if (!data || !data.success || !data.data) {
+              callback(null);
+              return;
+            }
+            var tpl = data.data;
+            var design = tpl.designJson;
+            if (typeof design === "string") {
+              try { design = JSON.parse(design); } catch (e) { design = null; }
+            }
+            if (design && typeof design === "object" && typeof design.html === "string") {
+              callback({ html: design.html, css: design.css || "" });
+              return;
+            }
+            if (tpl.html && typeof tpl.html === "string") {
+              callback({ html: tpl.html, css: "" });
+              return;
+            }
+            callback(null);
           })
-            .then(function (r) {
-              return r.json();
-            })
-            .then(function (data) {
-              if (!data || !data.success || !data.data) {
-                cb(null);
-                return;
-              }
-              var found = data.data.find(function (t) {
-                return String(t.id) === String(templateId);
-              });
-              if (found) {
-                cb(found);
-                return;
-              }
-              var totalPages = data.totalPages || 1;
-              if (page >= totalPages || data.data.length === 0) {
-                cb(null);
-                return;
-              }
-              page++;
-              next();
-            })
-            .catch(function () {
-              cb(null);
-            });
-        }
-        next();
+          .catch(function () { callback(null); });
       }
 
-      /**
-       * Step 3–4 (Quick Start): Plugin ID + secret are read only on the server.
-       * This page calls /api/stripo-token instead of embedding SECRET_KEY.
-       */
+      // ─── Empty starter template (new email) ───────────────────────────────────
       function loadDemoTemplate(callback) {
-        // Load empty starter so users can build from scratch (no default marketing content).
         fetch("/api/stripo-demo-template?template=empty", { cache: "no-store" })
+          .then(function (r) { return r.json(); })
+          .then(function (d) {
+            if (!d.success || !d.html) throw new Error("no content");
+            callback({ html: d.html, css: d.css || "" });
+          })
+          .catch(function () { callback({ html: "", css: "" }); });
+      }
+
+      // ─── Stripo plugin auth ───────────────────────────────────────────────────
+      function fetchStripoAuth(callback) {
+        if (!stripoApiBase || !stripoToken) {
+          callback(null);
+          return;
+        }
+        var authUrl =
+          String(stripoApiBase).replace(/\/$/, "") +
+          "/api/admin/newsletter-templates/auth";
+        fetch(authUrl, {
+          method: "POST",
+          cache: "no-store",
+          headers: {
+            Authorization: "Bearer " + stripoToken,
+            Accept: "application/json",
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            userId: stripoUserId || "admin-user",
+            role: stripoUserRole || "user",
+          }),
+        })
           .then(function (res) {
+            if (!res.ok) {
+              return fetch(authUrl, {
+                method: "GET",
+                cache: "no-store",
+                headers: {
+                  Authorization: "Bearer " + stripoToken,
+                  Accept: "application/json",
+                },
+              }).then(function (r2) { return r2.json(); });
+            }
             return res.json();
           })
           .then(function (data) {
-            if (!data.success || !data.html) {
-              throw new Error("empty template");
+            var pluginId = data && data.data && data.data.pluginId;
+            var token = data && data.data && data.data.token;
+            if (pluginId && token) {
+              callback({ pluginId: pluginId, token: token });
+              return;
             }
-            callback({ html: data.html, css: data.css || "" });
+            callback(null);
           })
-          .catch(function () {
-            fetch("/api/stripo-demo-template?template=new-editor", { cache: "no-store" })
-              .then(function (res) {
-                return res.json();
-              })
-              .then(function (d) {
-                if (d.success && d.html) {
-                  callback({ html: d.html, css: d.css || "" });
-                } else {
-                  throw new Error("fallback");
-                }
-              })
-              .catch(function () {
-                notifications.error("Could not load demo template from server.");
-                callback({ html: "", css: "" });
-              });
+          .catch(function () { callback(null); });
+      }
+
+      // ─── Boot editor with given html/css ─────────────────────────────────────
+      function startEditor(content) {
+        if (editorStarted) return;
+        fetchStripoAuth(function (auth) {
+          if (!auth) {
+            notifications.error(
+              "Stripo auth failed. Check /api/admin/newsletter-templates/auth.",
+            );
+            return;
+          }
+          if (editorStarted) return;
+          editorStarted = true;
+          initPlugin(content, auth);
+        });
+      }
+
+      // ─── Single entry point called once STRIPO_ADMIN_CONFIG is received ───────
+      function bootEditor() {
+        if (editorStarted) return;
+        if (stripoTemplateId && stripoApiBase && stripoToken) {
+          // EDIT mode: fetch full template directly from backend
+          fetchTemplateById(function (content) {
+            if (!content) {
+              notifications.error(
+                "Template design not found. Starting empty editor.",
+              );
+              loadDemoTemplate(function (t) { startEditor(t); });
+              return;
+            }
+            startEditor(content);
           });
-      }
-
-      function resolveInitialTemplate(callback) {
-        if (
-          adminConfig &&
-          adminConfig.templateId &&
-          adminConfig.apiBase &&
-          adminConfig.token
-        ) {
-          fetchTemplateById(
-            adminConfig.apiBase,
-            adminConfig.token,
-            adminConfig.templateId,
-            function (tpl) {
-              if (tpl) {
-                var stripo = parseStripoDesignJson(tpl.designJson);
-                if (stripo) {
-                  callback(stripo);
-                  return;
-                }
-                notifications.warn(
-                  "Template found but design is not a Stripo export. Starting empty.",
-                );
-              } else {
-                notifications.warn("Could not load template. Starting empty.");
-              }
-              loadDemoTemplate(callback);
-            },
-          );
-          return;
+        } else {
+          // NEW template mode: start with blank canvas
+          loadDemoTemplate(function (t) { startEditor(t); });
         }
-        loadDemoTemplate(callback);
       }
 
-      function runBootstrap() {
-        resolveInitialTemplate(initPlugin);
-      }
-
+      // ─── postMessage listener ─────────────────────────────────────────────────
       window.addEventListener("message", function (event) {
         if (event.origin !== window.location.origin) return;
         var data = event.data;
         if (!data || typeof data !== "object") return;
 
         if (data.type === "STRIPO_ADMIN_CONFIG") {
-          adminConfig = data.payload || null;
-          if (!bootstrapStarted) {
-            bootstrapStarted = true;
-            runBootstrap();
-          }
+          var p = data.payload || {};
+          stripoApiBase = p.apiBase || stripoApiBase;
+          stripoToken = p.token || stripoToken;
+          if (p.userId) stripoUserId = String(p.userId);
+          if (p.userRole) stripoUserRole = String(p.userRole);
+          if (p.templateId) stripoTemplateId = p.templateId;
+          bootEditor();
           return;
         }
 
@@ -456,24 +475,12 @@
         }
       });
 
+      // Standalone fallback (iframe opened directly in browser, not via parent page).
       setTimeout(function () {
-        if (bootstrapStarted) return;
-        if (window.parent !== window) return;
-        bootstrapStarted = true;
-        adminConfig = null;
-        runBootstrap();
+        if (editorStarted) return;
+        if (window.parent !== window) return; // in an iframe — wait for postMessage
+        loadDemoTemplate(function (t) { startEditor(t.html, t.css); });
       }, 500);
-
-      setTimeout(function () {
-        if (bootstrapStarted) return;
-        if (window.parent === window) return;
-        bootstrapStarted = true;
-        notifications.warn(
-          "No admin configuration received. Loading empty template.",
-        );
-        adminConfig = null;
-        runBootstrap();
-      }, 12000);
 
       document.querySelectorAll(".viewSwitcher button").forEach(function (button) {
         button.addEventListener("click", function (e) {
@@ -602,7 +609,7 @@
     </script>
 
     <script>
-      function initPlugin(template) {
+      function initPlugin(template, auth) {
         var editorEmailId = getEditorEmailId();
         var script = document.createElement("script");
         script.id = "UiEditorScript";
@@ -618,31 +625,24 @@
             html: template.html,
             css: template.css,
             forceEmailContentSet: true,
+            settingsId: auth.pluginId,
+            authToken: auth.token,
             metadata: {
               emailId: editorEmailId,
-              userId: "admin-user",
+              userId: stripoUserId || "admin-user",
               username: "Plugin Demo User",
               avatarUrl:
                 "https://plugin.stripocdn.email/content/guids/CABINET_eab4e7d5a4603ac03f4120652a3a5a540f0c79c688514939f095f67433ed4a67/images/photo256.png",
             },
             locale: "en",
             onTokenRefreshRequest: function (callback) {
-              fetch("/api/stripo-token", { method: "GET", cache: "no-store" })
-                .then(function (res) {
-                  return res.json();
-                })
-                .then(function (data) {
-                  if (data && data.token) {
-                    callback(data.token);
-                  } else {
-                    notifications.error(
-                      data.message || "Stripo token missing. Check STRIPO_* or NEXT_PUBLIC_EMAIL_* env.",
-                    );
-                  }
-                })
-                .catch(function () {
-                  notifications.error("Failed to reach /api/stripo-token.");
-                });
+              fetchStripoAuth(function (nextAuth) {
+                if (!nextAuth) {
+                  notifications.error("Failed to refresh Stripo auth token.");
+                  return;
+                }
+                callback(nextAuth.token);
+              });
             },
             onUserListChange: function (usersList) {
               document.querySelector(".avatars").innerHTML = usersList
@@ -670,6 +670,7 @@
               success: notifications.success.bind(notifications),
             },
           });
+
           try {
             if (window.parent && window.parent !== window) {
               window.parent.postMessage(
