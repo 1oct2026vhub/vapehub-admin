@@ -6,7 +6,7 @@ export interface NewsletterTemplate {
   subject: string;
   createdAt?: string;
   updatedAt?: string;
-  designJson?: string;
+  designJson?: string | { editor?: string; html?: string; css?: string };
   html?: string;
 }
 
@@ -38,6 +38,12 @@ export interface ListNewsletterTemplatesResponse {
   message?: string;
 }
 
+export interface GetNewsletterTemplateByIdResponse {
+  success: boolean;
+  data: NewsletterTemplate;
+  message?: string;
+}
+
 const BASE = "/api/admin/newsletter-templates/templates";
 
 export async function saveNewsletterTemplate(
@@ -57,6 +63,15 @@ export async function listNewsletterTemplates(params?: {
   const { data } = await axiosInstance.get<ListNewsletterTemplatesResponse>(
     BASE,
     { params },
+  );
+  return data;
+}
+
+export async function getNewsletterTemplateById(
+  id: string,
+): Promise<GetNewsletterTemplateByIdResponse> {
+  const { data } = await axiosInstance.get<GetNewsletterTemplateByIdResponse>(
+    `${BASE}/${encodeURIComponent(id)}`,
   );
   return data;
 }
