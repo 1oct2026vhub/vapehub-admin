@@ -75,3 +75,19 @@ export async function getNewsletterTemplateById(
   );
   return data;
 }
+
+export interface DeleteNewsletterTemplateResponse {
+  success: boolean;
+  data?: { id: string };
+  message?: string;
+}
+
+export async function deleteNewsletterTemplate(
+  id: string,
+): Promise<DeleteNewsletterTemplateResponse> {
+  const { data } =
+    await axiosInstance.delete<DeleteNewsletterTemplateResponse>(
+      `${BASE}/${encodeURIComponent(id)}`,
+    );
+  return data;
+}
