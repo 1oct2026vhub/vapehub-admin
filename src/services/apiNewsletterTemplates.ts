@@ -224,12 +224,29 @@ export async function listNewsletterGroupUsers(
   groupId: string,
   params?: { page?: number; pageSize?: number; search?: string },
 ): Promise<NewsletterGroupUsersListResponse> {
-  const { data } =
-    await axiosInstance.get<NewsletterGroupUsersListResponse>(
-      `${GROUPS_BASE}/${encodeURIComponent(groupId)}/users`,
-      { params },
-    );
-  return data;
+  const { data } = await axiosInstance.get(
+    `${GROUPS_BASE}/${encodeURIComponent(groupId)}/users`,
+    { params },
+  );
+
+  // API can return either:
+  // 1) { success, data: NewsletterGroupUser[] }
+  // 2) { success, data: { id, name, users: NewsletterGroupUser[] } }
+  const rawData = (data as { data?: unknown })?.data;
+  const users =
+    Array.isArray(rawData)
+      ? rawData
+      : rawData &&
+          typeof rawData === "object" &&
+          "users" in rawData &&
+          Array.isArray((rawData as { users?: unknown }).users)
+        ? (rawData as { users: NewsletterGroupUser[] }).users
+        : [];
+
+  return {
+    ...(data as Omit<NewsletterGroupUsersListResponse, "data">),
+    data: users,
+  };
 }
 
 export async function addUsersToNewsletterGroup(
