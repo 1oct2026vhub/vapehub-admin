@@ -6,12 +6,11 @@ export const metadata: Metadata = {
 };
 
 type EditEmailBuilderPageProps = {
-  params: {
-    id: string;
-  };
+  params: Promise<{ id: string }>;
 };
 
-export default function EditEmailBuilderPage({ params }: EditEmailBuilderPageProps) {
-  return <CreateEmailBuilderPageClient initialTemplateId={params.id} />;
+export default async function EditEmailBuilderPage({ params }: EditEmailBuilderPageProps) {
+  const { id } = await params;
+  return <CreateEmailBuilderPageClient initialTemplateId={id} />;
 }
 

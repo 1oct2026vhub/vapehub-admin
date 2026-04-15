@@ -10,6 +10,42 @@ export interface NewsletterTemplate {
   html?: string;
 }
 
+/** Stripo catalog item returned by `GET .../default-templates` (list). */
+export interface StripoDefaultTemplateListItem {
+  templateId: number;
+  name: string;
+  logo?: string;
+  premium?: boolean;
+  hasAmp?: boolean;
+  updatedAt?: number;
+  createdTime?: number;
+}
+
+export interface ListDefaultNewsletterTemplatesResponse {
+  success: boolean;
+  data: StripoDefaultTemplateListItem[];
+  page?: number;
+  pageSize?: number;
+  total?: number;
+  totalPages?: number;
+  message?: string;
+}
+
+/** Detail for one Stripo default template (editor load). Backend may mirror saved-template fields. */
+export interface GetDefaultNewsletterTemplateResponse {
+  success: boolean;
+  data?: {
+    id?: string;
+    templateId?: number;
+    name?: string;
+    subject?: string;
+    html?: string;
+    css?: string;
+    designJson?: string | { editor?: string; html?: string; css?: string };
+  };
+  message?: string;
+}
+
 export interface SaveNewsletterTemplatePayload {
   id?: string;
   name: string;
@@ -45,6 +81,7 @@ export interface GetNewsletterTemplateByIdResponse {
 }
 
 const BASE = "/api/admin/newsletter-templates/templates";
+const DEFAULT_TEMPLATES_BASE = "/api/admin/newsletter-templates/default-templates";
 
 export async function saveNewsletterTemplate(
   payload: SaveNewsletterTemplatePayload,
@@ -63,6 +100,32 @@ export async function listNewsletterTemplates(params?: {
   const { data } = await axiosInstance.get<ListNewsletterTemplatesResponse>(
     BASE,
     { params },
+  );
+  return data;
+}
+
+export async function listDefaultNewsletterTemplates(params?: {
+  page?: number;
+  pageSize?: number;
+}): Promise<ListDefaultNewsletterTemplatesResponse> {
+  const { data } =
+    await axiosInstance.get<ListDefaultNewsletterTemplatesResponse>(
+      DEFAULT_TEMPLATES_BASE,
+      { params },
+    );
+  return data;
+}
+
+/**
+ * Load one Stripo default template for the editor (HTML/CSS).
+ * Expects: `GET /api/admin/newsletter-templates/default-templates/{templateId}`
+ * returning the same `data` shape as a saved template (`designJson` or `html`).
+ */
+export async function getDefaultNewsletterTemplateById(
+  templateId: string | number,
+): Promise<GetDefaultNewsletterTemplateResponse> {
+  const { data } = await axiosInstance.get<GetDefaultNewsletterTemplateResponse>(
+    `${DEFAULT_TEMPLATES_BASE}/${encodeURIComponent(String(templateId))}`,
   );
   return data;
 }
