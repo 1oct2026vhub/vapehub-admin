@@ -15,6 +15,7 @@ import PageBreadcrumb from "@/components/PageBreadcrumb";
 import AppButton from "@/components/Shared/AppButton";
 import { useSnackbar } from "@/contexts/SnackbarContext";
 import {
+  getDefaultNewsletterTemplateById,
   getNewsletterTemplateById,
 } from "@/services/apiNewsletterTemplates";
 import {
@@ -37,6 +38,15 @@ type CreateEmailBuilderPageClientProps = {
   initialTemplateId?: string;
 };
 
+/** Route segment for Stripo catalog defaults on edit URL (must not match saved template ids). */
+const STRIPO_DEFAULT_ROUTE_PREFIX = "stripo-default-";
+
+function stripoDefaultIdFromRouteSegment(segment: string | null | undefined): string | null {
+  if (!segment?.startsWith(STRIPO_DEFAULT_ROUTE_PREFIX)) return null;
+  const id = segment.slice(STRIPO_DEFAULT_ROUTE_PREFIX.length);
+  return id.length > 0 ? id : null;
+}
+
 const CreateEmailBuilderPageClient = ({
   initialTemplateId,
 }: CreateEmailBuilderPageClientProps) => {
@@ -55,13 +65,33 @@ const CreateEmailBuilderPageClient = ({
   const [selectedEmails, setSelectedEmails] = useState<string[]>([]);
   const [sendToAll, setSendToAll] = useState(true);
   const [isSending, setIsSending] = useState(false);
-  const templateIdFromUrl = searchParams.get("templateId") || initialTemplateId || null;
+
+  const stripoDefaultTemplateIdFromUrl =
+    searchParams.get("stripoDefaultTemplateId") ||
+    stripoDefaultIdFromRouteSegment(initialTemplateId) ||
+    stripoDefaultIdFromRouteSegment(searchParams.get("templateId"));
+
+  const templateIdFromUrl =
+    stripoDefaultTemplateIdFromUrl != null
+      ? null
+      : searchParams.get("templateId") || initialTemplateId || null;
+
+  const defaultTemplateNameFromUrl = searchParams.get("defaultTemplateName");
+
+  /** Promotional send API expects a saved admin template id, not a Stripo catalog id. */
+  const sendableTemplateId =
+    (selectedTemplateId && selectedTemplateId !== "__new__"
+      ? selectedTemplateId
+      : null) ||
+    templateIdFromUrl ||
+    null;
 
   const apiBase = (process.env.NEXT_PUBLIC_BASE_URL || "").replace(/\/$/, "");
 
-  // For new templates there is nothing to fetch; iframe is immediately ready.
-  // For edit mode we wait until the metadata fetch completes before mounting.
-  const [iframeReady, setIframeReady] = useState(!templateIdFromUrl);
+  // New email: iframe mounts immediately. Saved template or Stripo default: wait for metadata fetch.
+  const [iframeReady, setIframeReady] = useState(
+    !templateIdFromUrl && !stripoDefaultTemplateIdFromUrl,
+  );
 
   const pushConfigToIframe = useCallback(() => {
     const win = iframeRef.current?.contentWindow;
@@ -86,20 +116,66 @@ const CreateEmailBuilderPageClient = ({
           token,
           userId,
           userRole,
-          templateId: selectedTemplateId || templateIdFromUrl || null,
+          // Saved admin template id (disk). Mutually exclusive with Stripo default catalog id.
+          templateId: stripoDefaultTemplateIdFromUrl
+            ? null
+            : selectedTemplateId || templateIdFromUrl || null,
+          stripoDefaultTemplateId: stripoDefaultTemplateIdFromUrl || null,
         },
       },
       window.location.origin,
     );
-  }, [apiBase, selectedTemplateId, templateIdFromUrl, showSnackbar]);
+  }, [
+    apiBase,
+    selectedTemplateId,
+    templateIdFromUrl,
+    stripoDefaultTemplateIdFromUrl,
+    showSnackbar,
+  ]);
 
-  // Fetch template metadata (name/subject) for prefilling the form fields.
-  // The iframe independently fetches the full design from the backend.
+  // Prefill name/subject + remount iframe when opening a saved template or a Stripo default template.
   useEffect(() => {
+    if (stripoDefaultTemplateIdFromUrl) {
+      setSelectedTemplateId("");
+      setIframeReady(false);
+      void (async () => {
+        try {
+          const res = await getDefaultNewsletterTemplateById(stripoDefaultTemplateIdFromUrl);
+          if (res.success && res.data) {
+            const tpl = res.data;
+            setName(tpl.name ?? "");
+            setSubject(tpl.subject ?? tpl.name ?? "");
+          } else if (defaultTemplateNameFromUrl) {
+            const n = decodeURIComponent(defaultTemplateNameFromUrl);
+            setName(n);
+            setSubject(n);
+          } else {
+            setName("");
+            setSubject("");
+          }
+        } catch {
+          if (defaultTemplateNameFromUrl) {
+            const n = decodeURIComponent(defaultTemplateNameFromUrl);
+            setName(n);
+            setSubject(n);
+          } else {
+            setName("");
+            setSubject("");
+            showSnackbar("Could not load default template metadata.", "warning");
+          }
+        } finally {
+          setIframeReady(true);
+          setIframeKey((k) => k + 1);
+        }
+      })();
+      return;
+    }
+
     if (!templateIdFromUrl) {
       setSelectedTemplateId("");
       setName("");
       setSubject("");
+      setIframeReady(true);
       return;
     }
 
@@ -124,7 +200,12 @@ const CreateEmailBuilderPageClient = ({
         showSnackbar(msg, "error");
       }
     })();
-  }, [templateIdFromUrl]);
+  }, [
+    templateIdFromUrl,
+    stripoDefaultTemplateIdFromUrl,
+    defaultTemplateNameFromUrl,
+    showSnackbar,
+  ]);
 
   useEffect(() => {
     const onMessage = (event: MessageEvent) => {
@@ -157,14 +238,19 @@ const CreateEmailBuilderPageClient = ({
     setSendToAll(shouldSendToAll);
     setSelectUsersOpen(false);
 
-    const activeTemplateId = selectedTemplateId || templateIdFromUrl;
-    if (!activeTemplateId) return;
+    if (!sendableTemplateId) {
+      showSnackbar(
+        "Save the template first. Sending uses your saved template in the library.",
+        "warning",
+      );
+      return;
+    }
 
     void (async () => {
       setIsSending(true);
       try {
         const payload: PromotionalEmailData = {
-          templateId: activeTemplateId,
+          templateId: sendableTemplateId,
           sendToAll: shouldSendToAll,
         };
         if (!shouldSendToAll) {
@@ -263,12 +349,20 @@ const CreateEmailBuilderPageClient = ({
         <Typography className="text-3xl font-extrabold leading-none tracking-tight">
           Create Email Builder
         </Typography>
-        <AppButton
-          type="button"
-          variant="outlined"
-          label="Templates"
-          onClick={() => router.push("/apps/newsletter/templates")}
-        />
+        <Stack direction="row" spacing={1}>
+          <AppButton
+            type="button"
+            variant="outlined"
+            label="Templates"
+            onClick={() => router.push("/apps/newsletter/templates")}
+          />
+          <AppButton
+            type="button"
+            variant="outlined"
+            label="Default Templates"
+            onClick={() => router.push("/apps/newsletter/default-templates")}
+          />
+        </Stack>
       </Box>
 
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
@@ -305,7 +399,9 @@ const CreateEmailBuilderPageClient = ({
           loading={saving}
           onClick={handleSaveClick}
         />
-        {(selectedTemplateId || templateIdFromUrl) && (
+        {(templateIdFromUrl ||
+          stripoDefaultTemplateIdFromUrl ||
+          (selectedTemplateId && selectedTemplateId !== "__new__")) && (
           <Button
             variant="contained"
             color="success"
@@ -317,7 +413,16 @@ const CreateEmailBuilderPageClient = ({
               )
             }
             disabled={isSending}
-            onClick={() => setSelectUsersOpen(true)}
+            onClick={() => {
+              if (!sendableTemplateId) {
+                showSnackbar(
+                  "Save the template first. Sending uses your saved template in the library.",
+                  "warning",
+                );
+                return;
+              }
+              setSelectUsersOpen(true);
+            }}
           >
             {isSending ? "Sending…" : "Send"}
           </Button>

@@ -17,6 +17,7 @@ import {
   DialogContentText,
   DialogActions,
   Button,
+  Stack,
 } from "@mui/material";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import EditIcon from "@mui/icons-material/Edit";
@@ -355,12 +356,20 @@ export default function NewsletterTemplatesPageClient() {
         <Typography className="text-3xl font-extrabold leading-none tracking-tight">
           Email templates
         </Typography>
-        <AppButton
-          type="button"
-          variant="contained"
-          label="Create Email Builder"
-          onClick={() => router.push("/apps/newsletter/create-email-builder")}
-        />
+        <Stack direction="row" spacing={1}>
+          <AppButton
+            type="button"
+            variant="outlined"
+            label="Default Templates"
+            onClick={() => router.push("/apps/newsletter/default-templates")}
+          />
+          <AppButton
+            type="button"
+            variant="contained"
+            label="Create Email Builder"
+            onClick={() => router.push("/apps/newsletter/create-email-builder")}
+          />
+        </Stack>
       </Box>
 
       {loading ? (

@@ -192,6 +192,8 @@
       var stripoUserId = "admin-user";
       var stripoUserRole = "user";
       var stripoTemplateId = null;
+      /** Stripo catalog default template id (numeric), from GET .../default-templates list */
+      var stripoDefaultTemplateId = null;
       var editorStarted = false;
 
       // ─── Email ID ─────────────────────────────────────────────────────────────
@@ -200,9 +202,11 @@
       // template. We store the design on our own backend, so Stripo's cache is not
       // needed.
       function getEditorEmailId() {
-        var base = stripoTemplateId
-          ? String(stripoTemplateId)
-          : "newsletter_email";
+        var base = stripoDefaultTemplateId
+          ? "stripo_default_" + String(stripoDefaultTemplateId)
+          : stripoTemplateId
+            ? String(stripoTemplateId)
+            : "newsletter_email";
         return base + "_" + Date.now();
       }
 
@@ -237,6 +241,49 @@
             }
             if (tpl.html && typeof tpl.html === "string") {
               callback({ html: tpl.html, css: "" });
+              return;
+            }
+            callback(null);
+          })
+          .catch(function () { callback(null); });
+      }
+
+      // ─── Fetch Stripo default template HTML+CSS (detail API shape) ─────────────
+      function fetchDefaultStripoTemplateById(callback) {
+        var url =
+          String(stripoApiBase).replace(/\/$/, "") +
+          "/api/admin/newsletter-templates/default-templates/" +
+          encodeURIComponent(stripoDefaultTemplateId);
+        fetch(url, {
+          method: "GET",
+          cache: "no-store",
+          headers: {
+            Authorization: "Bearer " + stripoToken,
+            Accept: "application/json",
+          },
+        })
+          .then(function (res) { return res.json(); })
+          .then(function (data) {
+            if (!data || !data.success || !data.data) {
+              callback(null);
+              return;
+            }
+            var tpl = data.data;
+            // Same as saved templates: designJson { html, css }
+            var design = tpl.designJson;
+            if (typeof design === "string") {
+              try { design = JSON.parse(design); } catch (e) { design = null; }
+            }
+            if (design && typeof design === "object" && typeof design.html === "string") {
+              callback({ html: design.html, css: design.css || "" });
+              return;
+            }
+            // Default catalog detail: top-level html + css (Stripo catalog API)
+            if (tpl.html && typeof tpl.html === "string") {
+              callback({
+                html: tpl.html,
+                css: typeof tpl.css === "string" ? tpl.css : "",
+              });
               return;
             }
             callback(null);
@@ -321,8 +368,19 @@
       // ─── Single entry point called once STRIPO_ADMIN_CONFIG is received ───────
       function bootEditor() {
         if (editorStarted) return;
-        if (stripoTemplateId && stripoApiBase && stripoToken) {
-          // EDIT mode: fetch full template directly from backend
+        if (stripoDefaultTemplateId && stripoApiBase && stripoToken) {
+          fetchDefaultStripoTemplateById(function (content) {
+            if (!content) {
+              notifications.error(
+                "Default template design not found. Check GET .../default-templates/{templateId} on the backend.",
+              );
+              loadDemoTemplate(function (t) { startEditor(t); });
+              return;
+            }
+            startEditor(content);
+          });
+        } else if (stripoTemplateId && stripoApiBase && stripoToken) {
+          // EDIT mode: fetch full saved template directly from backend
           fetchTemplateById(function (content) {
             if (!content) {
               notifications.error(
@@ -351,7 +409,13 @@
           stripoToken = p.token || stripoToken;
           if (p.userId) stripoUserId = String(p.userId);
           if (p.userRole) stripoUserRole = String(p.userRole);
-          if (p.templateId) stripoTemplateId = p.templateId;
+          stripoDefaultTemplateId = p.stripoDefaultTemplateId
+            ? String(p.stripoDefaultTemplateId)
+            : null;
+          stripoTemplateId =
+            p.templateId && !stripoDefaultTemplateId
+              ? String(p.templateId)
+              : null;
           bootEditor();
           return;
         }
@@ -479,7 +543,7 @@
       setTimeout(function () {
         if (editorStarted) return;
         if (window.parent !== window) return; // in an iframe — wait for postMessage
-        loadDemoTemplate(function (t) { startEditor(t.html, t.css); });
+        loadDemoTemplate(function (t) { startEditor(t); });
       }, 500);
 
       document.querySelectorAll(".viewSwitcher button").forEach(function (button) {
