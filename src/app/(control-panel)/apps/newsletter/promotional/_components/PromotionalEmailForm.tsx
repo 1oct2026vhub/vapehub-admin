@@ -33,7 +33,6 @@ const PromotionalEmailForm = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [selectUsersOpen, setSelectUsersOpen] = useState(false);
   const [selectedEmails, setSelectedEmails] = useState<string[]>([]);
-  const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
 
   const { control, handleSubmit, watch, setValue } = useForm<PromotionalEmailFormValues>({
     resolver: zodResolver(promotionalEmailSchema),
@@ -58,8 +57,8 @@ const PromotionalEmailForm = () => {
   const { showSnackbar } = useSnackbar();
 
   const onSubmit = async (data: PromotionalEmailFormValues) => {
-    // Send only one: either sendToAll true, or groupId, or selectedEmails
-    const isSendToAll = data.sendToAll;
+    // Send only one: either sendToAll true (no selectedEmails) or selectedEmails with sendToAll false
+    const isSendToAll = data.sendToAll || selectedEmails.length === 0;
     const payload: PromotionalEmailData = {
       subject: data.subject,
       content: data.content,
@@ -72,16 +71,11 @@ const PromotionalEmailForm = () => {
         : {}),
     };
     if (!isSendToAll) {
-      if (!selectedGroupId && selectedEmails.length === 0) {
+      if (selectedEmails.length === 0) {
         showSnackbar('Please select at least one recipient from "Select users".', 'error');
         return;
       }
-
-      if (selectedGroupId) {
-        payload.groupId = selectedGroupId;
-      } else {
-        payload.selectedEmails = selectedEmails;
-      }
+      payload.selectedEmails = selectedEmails;
     }
     setIsLoading(true);
     try {
@@ -97,9 +91,8 @@ const PromotionalEmailForm = () => {
     }
   };
 
-  const handleUsersConfirm = (emails: string[], sendToAll: boolean, groupId?: string | null) => {
+  const handleUsersConfirm = (emails: string[], sendToAll: boolean) => {
     setSelectedEmails(emails);
-    setSelectedGroupId(groupId ?? null);
     setValue('sendToAll', sendToAll);
     setSelectUsersOpen(false);
   };
@@ -129,7 +122,6 @@ const PromotionalEmailForm = () => {
               label={`${selectedEmails.length} recipient${selectedEmails.length !== 1 ? 's' : ''} selected`}
               onDelete={() => {
                 setSelectedEmails([]);
-                setSelectedGroupId(null);
                 setValue('sendToAll', true);
               }}
               size="small"
