@@ -128,6 +128,8 @@ export default function SelectUsersModal({
 
   // email → subscriber id map (populated as pages load)
   const emailToSubIdRef = useRef<Map<string, string>>(new Map());
+  // email → userId map (used for group membership APIs)
+  const emailToUserIdRef = useRef<Map<string, string>>(new Map());
 
   // ── Group picker (newsletter send mode only) ───────────────────────────────
   const [groups, setGroups] = useState<NewsletterGroup[]>([]);
@@ -151,6 +153,9 @@ export default function SelectUsersModal({
         const safeSubs = Array.isArray(subs) ? subs : [];
         safeSubs.forEach((s) => {
           if (s.email) emailToSubIdRef.current.set(s.email, String(s.id));
+          if (s.email && s.user_id != null) {
+            emailToUserIdRef.current.set(s.email, String(s.user_id));
+          }
         });
         setSubscribers(safeSubs);
         setTotal(res.data?.pagination?.total || 0);
@@ -192,6 +197,7 @@ export default function SelectUsersModal({
       if (groupMembersData) {
         groupMembersData.forEach((m) => {
           if (m.email) emailToSubIdRef.current.set(m.email, m.id);
+          if (m.email) emailToUserIdRef.current.set(m.email, m.id);
         });
       }
       if (!hideRecipientOptions) void fetchGroups();
@@ -277,8 +283,27 @@ export default function SelectUsersModal({
   const handleConfirm = () => {
     if (onConfirmSubscriberIds) {
       const emails = Array.from(selectedEmails);
-      const ids = emails.map((em) => emailToSubIdRef.current.get(em) ?? em);
-      onConfirmSubscriberIds(ids, emails);
+      const ids: string[] = [];
+      const filteredEmails: string[] = [];
+      emails.forEach((em) => {
+        const userId = emailToUserIdRef.current.get(em);
+        if (!userId) {
+          // In group mode the backend expects userIds; skip entries without userId mapping.
+          return;
+        }
+        ids.push(userId);
+        filteredEmails.push(em);
+      });
+      // Keep behavior predictable: if nothing could be mapped, inform user.
+      if (ids.length === 0 && emails.length > 0) {
+        showSnackbar(
+          "Selected recipients do not have userId mapping. Please re-select users.",
+          "warning",
+        );
+        onClose();
+        return;
+      }
+      onConfirmSubscriberIds(ids, filteredEmails);
     } else if (onConfirm) {
       if (selectedGroup) {
         onConfirm([], false, selectedGroup.id);
