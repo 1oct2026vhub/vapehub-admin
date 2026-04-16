@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Stripo Plugin Example</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        min-width: 1200px;
+        height: 100%;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu,
+          Cantarell, sans-serif;
+      }
+      #stripoEditorContainer {
+        height: calc(100% - 65px);
+        background-color: #f5f5f7;
+      }
+      #externalSystemContainer {
+        position: relative;
+        background: linear-gradient(to right, #ffffff, #fafafa);
+        padding: 12px 24px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        border-bottom: 1px solid #e1e1e1;
+        height: 65px;
+      }
+      .control-button {
+        background: #ffffff;
+        border: 1px solid #e1e1e1;
+        border-radius: 8px;
+        padding: 8px 16px;
+        font-size: 14px;
+        font-weight: 500;
+        color: #4a4a4a;
+        cursor: pointer;
+        transition: all 0.2s ease;
+      }
+      .control-button:hover {
+        background: #f8f8f8;
+        border-color: #c5c5c5;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+      }
+      .control-button:active {
+        transform: translateY(0);
+        box-shadow: none;
+      }
+      .control-button.active {
+        background: #34c759;
+        border-color: #34c759;
+        color: white;
+      }
+      .control-button.active:hover {
+        background: #2ca548;
+        border-color: #2ca548;
+      }
+      .btn-group {
+        display: flex;
+        gap: 1px;
+        background: #e1e1e1;
+        border-radius: 8px;
+        padding: 1px;
+      }
+      .btn-group button {
+        background: #ffffff;
+        border: none;
+        padding: 8px 16px;
+        font-size: 14px;
+        font-weight: 500;
+        color: #6b6b6b;
+        cursor: pointer;
+        transition: all 0.2s ease;
+      }
+      .btn-group button:first-child {
+        border-radius: 7px 0 0 7px;
+      }
+      .btn-group button:last-child {
+        border-radius: 0 7px 7px 0;
+      }
+      .btn-group button:hover {
+        background: #f8f8f8;
+      }
+      .btn-group button.active {
+        background: #34c759;
+        color: white;
+      }
+      .btn-group button.active:hover {
+        background: #2ca548;
+      }
+      .avatar-preview {
+        width: 34px;
+        height: 34px;
+        border-radius: 15px;
+        background-size: cover;
+        display: inline-block;
+        margin-left: 5px;
+      }
+      .notification-zone {
+        position: fixed;
+        width: 700px;
+        max-width: 90%;
+        z-index: 99999;
+        right: 30px;
+        bottom: 80px;
+      }
+      .alert-success {
+        color: #0f5d0f;
+        background: #e6f7e6;
+        padding: 16px 20px;
+        border-left: 4px solid #28a745;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      }
+      .alert-info {
+        color: #004085;
+        background: #e7f3ff;
+        padding: 16px 20px;
+        border-left: 4px solid #007bff;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      }
+      .alert-danger {
+        color: #721c24;
+        background: #f8d7da;
+        padding: 16px 20px;
+        border-left: 4px solid #dc3545;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      }
+      .alert-warning {
+        color: #856404;
+        background: #fff3cd;
+        padding: 16px 20px;
+        border-left: 4px solid #ffc107;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      }
+    </style>
+  </head>
+  <body>
+    <div id="externalSystemContainer">
+      <div class="btn-group">
+        <button type="button" id="undoButton">Undo</button>
+        <button type="button" id="redoButton">Redo</button>
+      </div>
+      <div id="viewSwitcher" class="btn-group viewSwitcher">
+        <button type="button" id="desktopViewButton" class="active">Desktop</button>
+        <button type="button" id="mobileViewButton">Mobile</button>
+      </div>
+      <div>
+        <button type="button" id="saveButton" class="control-button">Manual Save</button>
+        <button type="button" id="getTemplateButton" class="control-button">getTemplate</button>
+      </div>
+      <!-- Hidden hook for Stripo (code editor); visible control removed per product UI -->
+      <button
+        type="button"
+        id="codeEditor"
+        aria-hidden="true"
+        tabindex="-1"
+        style="
+          position: absolute;
+          width: 1px;
+          height: 1px;
+          padding: 0;
+          margin: -1px;
+          overflow: hidden;
+          clip: rect(0, 0, 0, 0);
+          white-space: nowrap;
+          border: 0;
+        "
+      ></button>
+      <div class="avatars"></div>
+    </div>
+
+    <div class="notification-zone"></div>
+
+    <div id="stripoEditorContainer"></div>
+
+    <script>
+      // ─── State ────────────────────────────────────────────────────────────────
+      var stripoApiBase = null;
+      var stripoToken = null;
+      var stripoUserId = "admin-user";
+      var stripoUserRole = "user";
+      var stripoTemplateId = null;
+      /** Stripo catalog default template id (numeric), from GET .../default-templates list */
+      var stripoDefaultTemplateId = null;
+      var editorStarted = false;
+
+      // ─── Email ID ─────────────────────────────────────────────────────────────
+      // A fresh timestamp suffix is appended each session so Stripo's co-editing
+      // server never serves a previously-cached (possibly empty) version of this
+      // template. We store the design on our own backend, so Stripo's cache is not
+      // needed.
+      function getEditorEmailId() {
+        var base = stripoDefaultTemplateId
+          ? "stripo_default_" + String(stripoDefaultTemplateId)
+          : stripoTemplateId
+            ? String(stripoTemplateId)
+            : "newsletter_email";
+        return base + "_" + Date.now();
+      }
+
+      // ─── Fetch existing template HTML+CSS directly from backend ──────────────
+      function fetchTemplateById(callback) {
+        var url =
+          String(stripoApiBase).replace(/\/$/, "") +
+          "/api/admin/newsletter-templates/templates/" +
+          encodeURIComponent(stripoTemplateId);
+        fetch(url, {
+          method: "GET",
+          cache: "no-store",
+          headers: {
+            Authorization: "Bearer " + stripoToken,
+            Accept: "application/json",
+          },
+        })
+          .then(function (res) { return res.json(); })
+          .then(function (data) {
+            if (!data || !data.success || !data.data) {
+              callback(null);
+              return;
+            }
+            var tpl = data.data;
+            var design = tpl.designJson;
+            if (typeof design === "string") {
+              try { design = JSON.parse(design); } catch (e) { design = null; }
+            }
+            if (design && typeof design === "object" && typeof design.html === "string") {
+              callback({ html: design.html, css: design.css || "" });
+              return;
+            }
+            if (tpl.html && typeof tpl.html === "string") {
+              callback({ html: tpl.html, css: "" });
+              return;
+            }
+            callback(null);
+          })
+          .catch(function () { callback(null); });
+      }
+
+      // ─── Fetch Stripo default template HTML+CSS (detail API shape) ─────────────
+      function fetchDefaultStripoTemplateById(callback) {
+        var url =
+          String(stripoApiBase).replace(/\/$/, "") +
+          "/api/admin/newsletter-templates/default-templates/" +
+          encodeURIComponent(stripoDefaultTemplateId);
+        fetch(url, {
+          method: "GET",
+          cache: "no-store",
+          headers: {
+            Authorization: "Bearer " + stripoToken,
+            Accept: "application/json",
+          },
+        })
+          .then(function (res) { return res.json(); })
+          .then(function (data) {
+            if (!data || !data.success || !data.data) {
+              callback(null);
+              return;
+            }
+            var tpl = data.data;
+            // Same as saved templates: designJson { html, css }
+            var design = tpl.designJson;
+            if (typeof design === "string") {
+              try { design = JSON.parse(design); } catch (e) { design = null; }
+            }
+            if (design && typeof design === "object" && typeof design.html === "string") {
+              callback({ html: design.html, css: design.css || "" });
+              return;
+            }
+            // Default catalog detail: top-level html + css (Stripo catalog API)
+            if (tpl.html && typeof tpl.html === "string") {
+              callback({
+                html: tpl.html,
+                css: typeof tpl.css === "string" ? tpl.css : "",
+              });
+              return;
+            }
+            callback(null);
+          })
+          .catch(function () { callback(null); });
+      }
+
+      // ─── Empty starter template (new email) ───────────────────────────────────
+      function loadDemoTemplate(callback) {
+        fetch("/api/stripo-demo-template?template=empty", { cache: "no-store" })
+          .then(function (r) { return r.json(); })
+          .then(function (d) {
+            if (!d.success || !d.html) throw new Error("no content");
+            callback({ html: d.html, css: d.css || "" });
+          })
+          .catch(function () { callback({ html: "", css: "" }); });
+      }
+
+      // ─── Stripo plugin auth ───────────────────────────────────────────────────
+      function fetchStripoAuth(callback) {
+        if (!stripoApiBase || !stripoToken) {
+          callback(null);
+          return;
+        }
+        var authUrl =
+          String(stripoApiBase).replace(/\/$/, "") +
+          "/api/admin/newsletter-templates/auth";
+        fetch(authUrl, {
+          method: "POST",
+          cache: "no-store",
+          headers: {
+            Authorization: "Bearer " + stripoToken,
+            Accept: "application/json",
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            userId: stripoUserId || "admin-user",
+            role: stripoUserRole || "user",
+          }),
+        })
+          .then(function (res) {
+            if (!res.ok) {
+              return fetch(authUrl, {
+                method: "GET",
+                cache: "no-store",
+                headers: {
+                  Authorization: "Bearer " + stripoToken,
+                  Accept: "application/json",
+                },
+              }).then(function (r2) { return r2.json(); });
+            }
+            return res.json();
+          })
+          .then(function (data) {
+            var pluginId = data && data.data && data.data.pluginId;
+            var token = data && data.data && data.data.token;
+            if (pluginId && token) {
+              callback({ pluginId: pluginId, token: token });
+              return;
+            }
+            callback(null);
+          })
+          .catch(function () { callback(null); });
+      }
+
+      // ─── Boot editor with given html/css ─────────────────────────────────────
+      function startEditor(content) {
+        if (editorStarted) return;
+        fetchStripoAuth(function (auth) {
+          if (!auth) {
+            notifications.error(
+              "Stripo auth failed. Check /api/admin/newsletter-templates/auth.",
+            );
+            return;
+          }
+          if (editorStarted) return;
+          editorStarted = true;
+          initPlugin(content, auth);
+        });
+      }
+
+      // ─── Single entry point called once STRIPO_ADMIN_CONFIG is received ───────
+      function bootEditor() {
+        if (editorStarted) return;
+        if (stripoDefaultTemplateId && stripoApiBase && stripoToken) {
+          fetchDefaultStripoTemplateById(function (content) {
+            if (!content) {
+              notifications.error(
+                "Default template design not found. Check GET .../default-templates/{templateId} on the backend.",
+              );
+              loadDemoTemplate(function (t) { startEditor(t); });
+              return;
+            }
+            startEditor(content);
+          });
+        } else if (stripoTemplateId && stripoApiBase && stripoToken) {
+          // EDIT mode: fetch full saved template directly from backend
+          fetchTemplateById(function (content) {
+            if (!content) {
+              notifications.error(
+                "Template design not found. Starting empty editor.",
+              );
+              loadDemoTemplate(function (t) { startEditor(t); });
+              return;
+            }
+            startEditor(content);
+          });
+        } else {
+          // NEW template mode: start with blank canvas
+          loadDemoTemplate(function (t) { startEditor(t); });
+        }
+      }
+
+      // ─── postMessage listener ─────────────────────────────────────────────────
+      window.addEventListener("message", function (event) {
+        if (event.origin !== window.location.origin) return;
+        var data = event.data;
+        if (!data || typeof data !== "object") return;
+
+        if (data.type === "STRIPO_ADMIN_CONFIG") {
+          var p = data.payload || {};
+          stripoApiBase = p.apiBase || stripoApiBase;
+          stripoToken = p.token || stripoToken;
+          if (p.userId) stripoUserId = String(p.userId);
+          if (p.userRole) stripoUserRole = String(p.userRole);
+          stripoDefaultTemplateId = p.stripoDefaultTemplateId
+            ? String(p.stripoDefaultTemplateId)
+            : null;
+          stripoTemplateId =
+            p.templateId && !stripoDefaultTemplateId
+              ? String(p.templateId)
+              : null;
+          bootEditor();
+          return;
+        }
+
+        if (data.type === "STRIPO_REQUEST_SAVE") {
+          var p = data.payload || {};
+          if (!window.StripoEditorApi || !window.StripoEditorApi.actionsApi) {
+            event.source &&
+              event.source.postMessage(
+                {
+                  type: "STRIPO_SAVE_RESULT",
+                  success: false,
+                  message: "Editor is not ready yet.",
+                },
+                event.origin,
+              );
+            return;
+          }
+          if (!p.apiBase || !p.token || !p.name || !p.subject) {
+            event.source &&
+              event.source.postMessage(
+                {
+                  type: "STRIPO_SAVE_RESULT",
+                  success: false,
+                  message: "Missing API base, token, name, or subject.",
+                },
+                event.origin,
+              );
+            return;
+          }
+          window.StripoEditorApi.actionsApi.getTemplateData(function (_ref) {
+            var html = _ref.html,
+              css = _ref.css;
+            window.StripoEditorApi.actionsApi.compileEmail({
+              callback: function (error, compiledHtml) {
+                if (error) {
+                  event.source &&
+                    event.source.postMessage(
+                      {
+                        type: "STRIPO_SAVE_RESULT",
+                        success: false,
+                        message: "compileEmail failed.",
+                      },
+                      event.origin,
+                    );
+                  return;
+                }
+                var designJson = JSON.stringify({
+                  editor: "stripo",
+                  html: html,
+                  css: css || "",
+                });
+                var body = {
+                  name: p.name,
+                  subject: p.subject,
+                  designJson: designJson,
+                  html: compiledHtml || html,
+                };
+                if (p.id) body.id = p.id;
+                var saveUrl =
+                  String(p.apiBase).replace(/\/$/, "") +
+                  "/api/admin/newsletter-templates/templates";
+                fetch(saveUrl, {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                    Authorization: "Bearer " + p.token,
+                  },
+                  body: JSON.stringify(body),
+                })
+                  .then(function (r) {
+                    return r.json().then(function (j) {
+                      return { ok: r.ok, json: j };
+                    });
+                  })
+                  .then(function (res) {
+                    if (res.ok && res.json && res.json.success) {
+                      var tid =
+                        res.json.data && res.json.data.id
+                          ? res.json.data.id
+                          : undefined;
+                      event.source &&
+                        event.source.postMessage(
+                          {
+                            type: "STRIPO_SAVE_RESULT",
+                            success: true,
+                            message: res.json.message || "Template saved.",
+                            templateId: tid,
+                          },
+                          event.origin,
+                        );
+                    } else {
+                      var msg =
+                        (res.json && res.json.message) ||
+                        "Save failed (" + (res.json ? "API" : "network") + ").";
+                      event.source &&
+                        event.source.postMessage(
+                          {
+                            type: "STRIPO_SAVE_RESULT",
+                            success: false,
+                            message: msg,
+                          },
+                          event.origin,
+                        );
+                    }
+                  })
+                  .catch(function () {
+                    event.source &&
+                      event.source.postMessage(
+                        {
+                          type: "STRIPO_SAVE_RESULT",
+                          success: false,
+                          message: "Network error while saving.",
+                        },
+                        event.origin,
+                      );
+                  });
+              },
+            });
+          });
+        }
+      });
+
+      // Standalone fallback (iframe opened directly in browser, not via parent page).
+      setTimeout(function () {
+        if (editorStarted) return;
+        if (window.parent !== window) return; // in an iframe — wait for postMessage
+        loadDemoTemplate(function (t) { startEditor(t); });
+      }, 500);
+
+      document.querySelectorAll(".viewSwitcher button").forEach(function (button) {
+        button.addEventListener("click", function (e) {
+          document.querySelectorAll(".viewSwitcher button").forEach(function (btn) {
+            btn.classList.remove("active");
+          });
+          e.target.classList.add("active");
+        });
+      });
+    </script>
+
+    <script>
+      var notifications = {
+        autoCloseTimeout: 10000,
+        container: document.querySelector(".notification-zone"),
+        error: function (text, id, params) {
+          this.showNotification(this.getErrorNotification.bind(this), text, id, params);
+        },
+        warn: function (text, id, params) {
+          this.showNotification(this.getWarningNotification.bind(this), text, id, params);
+        },
+        info: function (text, id, params) {
+          this.showNotification(this.getInfoNotification.bind(this), text, id, params);
+        },
+        success: function (text, id, params) {
+          this.showNotification(this.getSuccessNotification.bind(this), text, id, params);
+        },
+        loader: function (text, id, params) {
+          this.showNotification(this.getLoaderNotification.bind(this), text, id, params);
+        },
+        hide: function (id) {
+          var toast = document.querySelector("#" + id, this.container);
+          toast && toast.remove();
+        },
+        showNotification: function (notificationGetter, text, id, params) {
+          params = Object.assign({ autoClose: true, closeable: true }, params || {});
+          if (!id || !document.querySelectorAll("#" + id).length) {
+            var toast = notificationGetter(text, id, !params.closeable);
+            this.container.appendChild(toast);
+            if (params.autoClose) {
+              setTimeout(function () {
+                toast.remove();
+              }, this.autoCloseTimeout);
+            }
+          }
+        },
+        getErrorNotification: function (text, id, nonclosable) {
+          return this.getNotificationTemplate("alert-danger", text, id, nonclosable);
+        },
+        getWarningNotification: function (text, id, nonclosable) {
+          return this.getNotificationTemplate("alert-warning", text, id, nonclosable);
+        },
+        getInfoNotification: function (text, id, nonclosable) {
+          return this.getNotificationTemplate("alert-info", text, id, nonclosable);
+        },
+        getSuccessNotification: function (text, id, nonclosable) {
+          return this.getNotificationTemplate("alert-success", text, id, nonclosable);
+        },
+        getLoaderNotification: function (text, id) {
+          var notification = this.createDomElement(
+            '<div class="alert alert-info" role="alert">' +
+              '<div style="width:auto; margin-right: 15px; float: left !important;">' +
+              '<div style="width:20px;height:20px;border-radius:50%;box-shadow:1px 1px 0px #31708f;' +
+              'animation:cssload-spin 690ms infinite linear"></div>' +
+              "</div>" +
+              text +
+              "</div>",
+          );
+          id && notification.setAttribute("id", id);
+          return notification;
+        },
+        getNotificationTemplate: function (classes, text, id) {
+          var notification = this.createDomElement(
+            '<div class="alert alert-dismissible ' +
+              classes +
+              '" role="alert">' +
+              text +
+              "</div>",
+          );
+          id && notification.setAttribute("id", id);
+          return notification;
+        },
+        createDomElement: function (template) {
+          var div = document.createElement("div");
+          div.innerHTML = template.trim();
+          return div.firstChild;
+        },
+      };
+    </script>
+
+    <script>
+      document.querySelector("#saveButton").addEventListener("click", function () {
+        if (!window.StripoEditorApi || !window.StripoEditorApi.actionsApi) {
+          notifications.error("Editor is not ready yet.");
+          return;
+        }
+        window.StripoEditorApi.actionsApi.save(function (error) {
+          if (error) {
+            notifications.error("Operation is not successful. Something went wrong!");
+          } else {
+            notifications.success("The operation is successful. All changes were saved!");
+          }
+        });
+      });
+
+      document.querySelector("#getTemplateButton").addEventListener("click", function () {
+        if (!window.StripoEditorApi || !window.StripoEditorApi.actionsApi) {
+          notifications.error("Editor is not ready yet.");
+          return;
+        }
+        window.StripoEditorApi.actionsApi.getTemplateData(function (_ref) {
+          var html = _ref.html,
+            css = _ref.css;
+          console.log(
+            "%cHTML/CSS with plugin internal styles (see console).",
+            "background-color: #d8f0d8",
+          );
+          console.log("HTML:", html);
+          console.log("CSS:", css);
+        });
+        notifications.success(
+          "Check the browser console for getTemplateData() output.",
+        );
+      });
+
+    </script>
+
+    <script>
+      function initPlugin(template, auth) {
+        var editorEmailId = getEditorEmailId();
+        var script = document.createElement("script");
+        script.id = "UiEditorScript";
+        script.type = "module";
+        script.src = "https://plugins.stripo.email/resources/uieditor/latest/UIEditor.js";
+        script.onload = function () {
+          window.UIEditor.initEditor(document.querySelector("#stripoEditorContainer"), {
+            brandColorPalette: [
+              { name: "Name1", value: "#35882C" },
+              { value: "white" },
+              { name: "Name2", value: "Green" },
+            ],
+            html: template.html,
+            css: template.css,
+            forceEmailContentSet: true,
+            settingsId: auth.pluginId,
+            authToken: auth.token,
+            metadata: {
+              emailId: editorEmailId,
+              userId: stripoUserId || "admin-user",
+              username: "Plugin Demo User",
+              avatarUrl:
+                "https://plugin.stripocdn.email/content/guids/CABINET_eab4e7d5a4603ac03f4120652a3a5a540f0c79c688514939f095f67433ed4a67/images/photo256.png",
+            },
+            locale: "en",
+            onTokenRefreshRequest: function (callback) {
+              fetchStripoAuth(function (nextAuth) {
+                if (!nextAuth) {
+                  notifications.error("Failed to refresh Stripo auth token.");
+                  return;
+                }
+                callback(nextAuth.token);
+              });
+            },
+            onUserListChange: function (usersList) {
+              document.querySelector(".avatars").innerHTML = usersList
+                .map(function (u) {
+                  return (
+                    '<div class="avatar-preview" style="background-image: url(' +
+                    u.avatar +
+                    ');"></div>'
+                  );
+                })
+                .join("");
+            },
+            codeEditorButtonSelector: "#codeEditor",
+            undoButtonSelector: "#undoButton",
+            redoButtonSelector: "#redoButton",
+            mobileViewButtonSelector: "#mobileViewButton",
+            desktopViewButtonSelector: "#desktopViewButton",
+            keepModuleStylesEnabled: true,
+            notifications: {
+              info: notifications.info.bind(notifications),
+              error: notifications.error.bind(notifications),
+              warn: notifications.warn.bind(notifications),
+              loader: notifications.loader.bind(notifications),
+              hide: notifications.hide.bind(notifications),
+              success: notifications.success.bind(notifications),
+            },
+          });
+
+          try {
+            if (window.parent && window.parent !== window) {
+              window.parent.postMessage(
+                { type: "STRIPO_EDITOR_READY" },
+                window.location.origin,
+              );
+            }
+          } catch (e) {}
+        };
+        script.onerror = function () {
+          notifications.error("Failed to load Stripo UIEditor.js");
+        };
+        document.body.appendChild(script);
+      }
+    </script>
+
+  </body>
+</html>
