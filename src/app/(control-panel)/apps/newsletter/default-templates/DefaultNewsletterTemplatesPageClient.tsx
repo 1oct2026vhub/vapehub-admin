@@ -110,14 +110,14 @@ export default function DefaultNewsletterTemplatesPageClient() {
         </Stack>
       </Box>
 
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+      {/* <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
         Stripo catalog templates. Previews use the thumbnail from the API; the editor loads full HTML
         from{" "}
         <code>
           GET /api/admin/newsletter-templates/default-templates/{"{templateId}"}
         </code>
         .
-      </Typography>
+      </Typography> */}
 
       {loading ? (
         <Box sx={{ display: "flex", justifyContent: "center", py: 10 }}>
