@@ -135,15 +135,14 @@ export default function GroupsPageClient() {
       const name = createName.trim();
       if (!name) {
         setCreateNameError(true);
-        showSnackbar("Group name is required.", "error");
-        return;
+        return false;
       }
       setIsSavingCreate(true);
       try {
         const res = await createNewsletterGroup({ name });
         if (!res.success) {
           showSnackbar(res.message || "Failed to create group.", "error");
-          return;
+          return false;
         }
         const newGroupId = res.data?.id;
         if (newGroupId && ids.length > 0) {
@@ -151,8 +150,17 @@ export default function GroupsPageClient() {
         }
         showSnackbar("Group created.", "success");
         void loadGroups();
-      } catch {
-        showSnackbar("An error occurred.", "error");
+        return true;
+      } catch (e: unknown) {
+        const err = e as { message?: string; error?: any; errors?: any } | undefined;
+        const apiMessage =
+          err?.message ||
+          (Array.isArray(err?.errors) ? err.errors[0]?.message : undefined) ||
+          (Array.isArray(err?.error) ? err.error[0]?.message : undefined) ||
+          err?.error?.message ||
+          "An error occurred.";
+        showSnackbar(apiMessage, "error");
+        return false;
       } finally {
         setIsSavingCreate(false);
       }
@@ -160,15 +168,14 @@ export default function GroupsPageClient() {
       const name = editName.trim();
       if (!name) {
         setEditNameError(true);
-        showSnackbar("Group name is required.", "error");
-        return;
+        return false;
       }
       setIsSavingEdit(true);
       try {
         const updateRes = await updateNewsletterGroup(editingGroup.id, { name });
         if (!updateRes.success) {
           showSnackbar(updateRes.message || "Failed to update group.", "error");
-          return;
+          return false;
         }
         // Compute diff: add new, remove unchecked
         const selectedIdSet = new Set(ids);
@@ -184,12 +191,23 @@ export default function GroupsPageClient() {
         ]);
         showSnackbar("Group updated.", "success");
         void loadGroups();
-      } catch {
-        showSnackbar("An error occurred.", "error");
+        return true;
+      } catch (e: unknown) {
+        const err = e as { message?: string; error?: any; errors?: any } | undefined;
+        const apiMessage =
+          err?.message ||
+          (Array.isArray(err?.errors) ? err.errors[0]?.message : undefined) ||
+          (Array.isArray(err?.error) ? err.error[0]?.message : undefined) ||
+          err?.error?.message ||
+          "An error occurred.";
+        showSnackbar(apiMessage, "error");
+        return false;
       } finally {
         setIsSavingEdit(false);
       }
     }
+
+    return false;
   };
 
   // ─── Delete ──────────────────────────────────────────────────────────────────
@@ -351,24 +369,36 @@ export default function GroupsPageClient() {
         extraContent={
           pickerMode === "create" ? (
             <TextField
-              label="Group Name *"
+              label="Group Name"
               value={createName}
               onChange={(e) => { setCreateName(e.target.value); setCreateNameError(false); }}
               fullWidth
               size="small"
               required
+              InputLabelProps={{ required: true }}
+              sx={{
+                "& .MuiInputLabel-asterisk": {
+                  color: "error.main",
+                },
+              }}
               autoFocus
               error={createNameError}
               helperText={createNameError ? "Group name is required" : undefined}
             />
           ) : (
             <TextField
-              label="Group Name *"
+              label="Group Name"
               value={editName}
               onChange={(e) => { setEditName(e.target.value); setEditNameError(false); }}
               fullWidth
               size="small"
               required
+              InputLabelProps={{ required: true }}
+              sx={{
+                "& .MuiInputLabel-asterisk": {
+                  color: "error.main",
+                },
+              }}
               autoFocus
               error={editNameError}
               helperText={editNameError ? "Group name is required" : undefined}

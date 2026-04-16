@@ -84,7 +84,10 @@ interface SelectUsersModalProps {
    * Alternative confirm callback used in group-management mode.
    * Returns subscriber IDs (String(sub.id)) and the corresponding emails.
    */
-  onConfirmSubscriberIds?: (ids: string[], emails: string[]) => void;
+  onConfirmSubscriberIds?: (
+    ids: string[],
+    emails: string[],
+  ) => boolean | Promise<boolean>;
 }
 
 export default function SelectUsersModal({
@@ -280,31 +283,64 @@ export default function SelectUsersModal({
   };
 
   // ── Confirm ────────────────────────────────────────────────────────────────
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
     if (onConfirmSubscriberIds) {
       const emails = Array.from(selectedEmails);
+
+      // Ensure we have userId mapping for every selected email.
+      const missingEmails = emails.filter((em) => !emailToUserIdRef.current.get(em));
+      if (missingEmails.length > 0) {
+        try {
+          // Fetch by search term; then keep only exact matches to avoid wrong mappings.
+          await Promise.all(
+            missingEmails.map(async (em) => {
+              const res = await getSubscribers({
+                page: 1,
+                limit: 25,
+                subscribed: true,
+                search: em,
+              });
+              const subs = Array.isArray(res.data?.subscribers)
+                ? res.data.subscribers
+                : [];
+              subs
+                .filter((s) => s.email === em)
+                .forEach((s) => {
+                  const userId = s.user_id ?? (s as unknown as { userId?: number }).userId ?? (s as unknown as { userID?: number }).userID;
+                  if (s.email && userId != null) {
+                    emailToUserIdRef.current.set(s.email, String(userId));
+                    emailToSubIdRef.current.set(s.email, String(s.id));
+                  }
+                });
+            }),
+          );
+        } catch {
+          // ignore and fall back to remaining mapping check below
+        }
+      }
+
       const ids: string[] = [];
-      const filteredEmails: string[] = [];
       emails.forEach((em) => {
         const userId = emailToUserIdRef.current.get(em);
-        if (!userId) {
-          // In group mode the backend expects userIds; skip entries without userId mapping.
-          return;
-        }
-        ids.push(userId);
-        filteredEmails.push(em);
+        if (userId != null) ids.push(userId);
       });
-      // Keep behavior predictable: if nothing could be mapped, inform user.
-      if (ids.length === 0 && emails.length > 0) {
+
+      if (ids.length !== emails.length) {
         showSnackbar(
-          "Selected recipients do not have userId mapping. Please re-select users.",
+          "Some recipients could not be mapped to userId. Please re-select users.",
           "warning",
         );
-        onClose();
         return;
       }
-      onConfirmSubscriberIds(ids, filteredEmails);
-    } else if (onConfirm) {
+
+      const result = onConfirmSubscriberIds(ids, emails);
+      const shouldClose = typeof result === "boolean" ? result : await result;
+      if (shouldClose) onClose();
+      return;
+    }
+
+    // Standard send-newsletter modal mode
+    if (onConfirm) {
       if (selectedGroup) {
         onConfirm([], false, selectedGroup.id);
       } else {
@@ -563,7 +599,13 @@ export default function SelectUsersModal({
         {/* Footer */}
         <Box sx={{ p: 2, borderTop: 1, borderColor: 'divider', display: 'flex', justifyContent: 'flex-end', gap: 1.5 }}>
           <Button variant="outlined" onClick={onClose}>Cancel</Button>
-          <AppButton variant="contained" label={applyLabel} onClick={handleConfirm} />
+          <AppButton
+            variant="contained"
+            label={applyLabel}
+            onClick={() => {
+              void handleConfirm();
+            }}
+          />
         </Box>
       </Box>
     </Modal>
