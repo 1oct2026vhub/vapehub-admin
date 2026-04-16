@@ -258,18 +258,11 @@ const navigationConfig: FuseNavItemType[] = [
         url: "/apps/newsletter/templates",
       },
       {
-        id: "groups",
-        title: "Groups Users",
+        id: "promotional",
+        title: "Newsletter",
         type: "item",
-        url: "/apps/newsletter/groups",
+        url: "/apps/newsletter/promotional",
       },
-      
-      // {
-      //   id: "promotional",
-      //   title: "Newsletter",
-      //   type: "item",
-      //   url: "/apps/newsletter/promotional",
-      // },
       // {
       //   id: "newsletter.list",
       //   title: "Newsletter",
