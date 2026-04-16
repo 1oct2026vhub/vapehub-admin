@@ -27,6 +27,8 @@ import SelectUsersModal from "../promotional/_components/SelectUsersModal";
 
 type StripoMessage =
   | { type: "STRIPO_EDITOR_READY" }
+  | { type: "STRIPO_DIRTY_STATE"; dirty: boolean }
+  | { type: "STRIPO_DIRTY_CHECK_RESULT"; dirty: boolean; requestId?: string }
   | {
       type: "STRIPO_SAVE_RESULT";
       success: boolean;
@@ -65,6 +67,8 @@ const CreateEmailBuilderPageClient = ({
   const [selectedEmails, setSelectedEmails] = useState<string[]>([]);
   const [sendToAll, setSendToAll] = useState(true);
   const [isSending, setIsSending] = useState(false);
+  const [hasUnsavedEditorChanges, setHasUnsavedEditorChanges] = useState(false);
+  const dirtyCheckResolversRef = useRef<Map<string, (dirty: boolean) => void>>(new Map());
 
   const stripoDefaultTemplateIdFromUrl =
     searchParams.get("stripoDefaultTemplateId") ||
@@ -77,6 +81,7 @@ const CreateEmailBuilderPageClient = ({
       : searchParams.get("templateId") || initialTemplateId || null;
 
   const defaultTemplateNameFromUrl = searchParams.get("defaultTemplateName");
+  const isEditMode = Boolean(templateIdFromUrl || stripoDefaultTemplateIdFromUrl);
 
   /** Promotional send API expects a saved admin template id, not a Stripo catalog id. */
   const sendableTemplateId =
@@ -213,9 +218,26 @@ const CreateEmailBuilderPageClient = ({
         return;
       const data = event.data as StripoMessage;
       if (!data || typeof data !== "object" || !("type" in data)) return;
+      if (data.type === "STRIPO_DIRTY_STATE") {
+        setHasUnsavedEditorChanges(Boolean(data.dirty));
+        return;
+      }
+      if (data.type === "STRIPO_DIRTY_CHECK_RESULT") {
+        const dirty = Boolean(data.dirty);
+        setHasUnsavedEditorChanges(dirty);
+        if (data.requestId) {
+          const resolver = dirtyCheckResolversRef.current.get(data.requestId);
+          if (resolver) {
+            dirtyCheckResolversRef.current.delete(data.requestId);
+            resolver(dirty);
+          }
+        }
+        return;
+      }
       if (data.type === "STRIPO_SAVE_RESULT") {
         setSaving(false);
         if (data.success) {
+          setHasUnsavedEditorChanges(false);
           if (data.templateId) {
             setSelectedTemplateId(data.templateId);
           }
@@ -228,6 +250,26 @@ const CreateEmailBuilderPageClient = ({
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
   }, [showSnackbar]);
+
+  const requestCurrentDirtyState = useCallback(async (): Promise<boolean> => {
+    const win = iframeRef.current?.contentWindow;
+    if (!win || typeof window === "undefined") return hasUnsavedEditorChanges;
+    const requestId = `dirty-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    return await new Promise<boolean>((resolve) => {
+      dirtyCheckResolversRef.current.set(requestId, resolve);
+      win.postMessage(
+        { type: "STRIPO_CHECK_DIRTY", requestId },
+        window.location.origin,
+      );
+      setTimeout(() => {
+        const resolver = dirtyCheckResolversRef.current.get(requestId);
+        if (resolver) {
+          dirtyCheckResolversRef.current.delete(requestId);
+          resolver(hasUnsavedEditorChanges);
+        }
+      }, 1000);
+    });
+  }, [hasUnsavedEditorChanges]);
 
   const handleUsersConfirm = (
     emails: string[],
@@ -365,11 +407,11 @@ const CreateEmailBuilderPageClient = ({
         </Stack>
       </Box>
 
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+      {/* <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
         Stripo editor with templates stored via your admin API. Auth token is
         passed to the builder iframe only on this origin. Stripo plugin auth
         is loaded from <code>/api/admin/newsletter-templates/auth</code>.
-      </Typography>
+      </Typography> */}
 
       <Stack
         direction={{ xs: "column", md: "row" }}
@@ -412,16 +454,26 @@ const CreateEmailBuilderPageClient = ({
                 <SendIcon />
               )
             }
-            disabled={isSending}
+            disabled={isSending || (isEditMode && hasUnsavedEditorChanges)}
             onClick={() => {
-              if (!sendableTemplateId) {
-                showSnackbar(
-                  "Save the template first. Sending uses your saved template in the library.",
-                  "warning",
-                );
-                return;
-              }
-              setSelectUsersOpen(true);
+              void (async () => {
+                const dirtyNow = isEditMode ? await requestCurrentDirtyState() : false;
+                if (isEditMode && dirtyNow) {
+                  showSnackbar(
+                    "You have unsaved editor changes. Click Save template before sending.",
+                    "warning",
+                  );
+                  return;
+                }
+                if (!sendableTemplateId) {
+                  showSnackbar(
+                    "Save the template first. Sending uses your saved template in the library.",
+                    "warning",
+                  );
+                  return;
+                }
+                setSelectUsersOpen(true);
+              })();
             }}
           >
             {isSending ? "Sending…" : "Send"}

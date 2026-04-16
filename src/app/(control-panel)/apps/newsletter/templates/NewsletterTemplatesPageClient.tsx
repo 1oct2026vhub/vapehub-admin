@@ -86,10 +86,11 @@ function getPreviewHtml(template: NewsletterTemplate): string {
 interface CardMenuProps {
   template: NewsletterTemplate;
   onEdit: () => void;
+  onSend: () => void;
   onDelete: () => void;
 }
 
-function CardMenu({ template, onEdit, onDelete }: CardMenuProps) {
+function CardMenu({ template, onEdit, onSend, onDelete }: CardMenuProps) {
   const [anchor, setAnchor] = useState<null | HTMLElement>(null);
   const open = Boolean(anchor);
 
@@ -140,6 +141,7 @@ function CardMenu({ template, onEdit, onDelete }: CardMenuProps) {
           onClick={(e) => {
             e.stopPropagation();
             setAnchor(null);
+            onSend();
           }}
         >
           <ListItemIcon>
@@ -169,6 +171,7 @@ function CardMenu({ template, onEdit, onDelete }: CardMenuProps) {
 interface TemplateCardProps {
   template: NewsletterTemplate;
   onEdit: () => void;
+  onSend: () => void;
   onDelete: () => void;
 }
 
@@ -179,7 +182,7 @@ const CARD_HEIGHT = 380;
 // Iframe renders at this height so email content never needs to scroll
 const IFRAME_HEIGHT = 2000;
 
-function TemplateCard({ template, onEdit, onDelete }: TemplateCardProps) {
+function TemplateCard({ template, onEdit, onSend, onDelete }: TemplateCardProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(0.5);
 
@@ -252,7 +255,7 @@ function TemplateCard({ template, onEdit, onDelete }: TemplateCardProps) {
       </Box>
 
       {/* 3-dot menu */}
-      <CardMenu template={template} onEdit={onEdit} onDelete={onDelete} />
+      <CardMenu template={template} onEdit={onEdit} onSend={onSend} onDelete={onDelete} />
     </Box>
   );
 }
@@ -300,6 +303,10 @@ export default function NewsletterTemplatesPageClient() {
   }, [load]);
 
   const handleEdit = (id: string) => {
+    router.push(`/apps/newsletter/edit-email-builder/${encodeURIComponent(id)}`);
+  };
+
+  const handleSend = (id: string) => {
     router.push(`/apps/newsletter/edit-email-builder/${encodeURIComponent(id)}`);
   };
 
@@ -399,6 +406,7 @@ export default function NewsletterTemplatesPageClient() {
                 key={row.id}
                 template={row}
                 onEdit={() => handleEdit(row.id)}
+                onSend={() => handleSend(row.id)}
                 onDelete={() => handleDeleteRequest(row)}
               />
             ))}
