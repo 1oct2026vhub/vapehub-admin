@@ -107,6 +107,8 @@ export async function listNewsletterTemplates(params?: {
 export async function listDefaultNewsletterTemplates(params?: {
   page?: number;
   pageSize?: number;
+  /** Stripo catalog filter: `basic` or `free` (prebuilt). Omit for server default. */
+  type?: "basic" | "free" | string;
 }): Promise<ListDefaultNewsletterTemplatesResponse> {
   const { data } =
     await axiosInstance.get<ListDefaultNewsletterTemplatesResponse>(

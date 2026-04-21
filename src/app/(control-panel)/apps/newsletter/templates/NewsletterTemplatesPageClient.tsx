@@ -18,6 +18,11 @@ import {
   DialogActions,
   Button,
   Stack,
+  ToggleButton,
+  ToggleButtonGroup,
+  Card,
+  CardContent,
+  Chip,
 } from "@mui/material";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import EditIcon from "@mui/icons-material/Edit";
@@ -29,9 +34,13 @@ import AppButton from "@/components/Shared/AppButton";
 import { useSnackbar } from "@/contexts/SnackbarContext";
 import {
   listNewsletterTemplates,
+  listDefaultNewsletterTemplates,
   deleteNewsletterTemplate,
   type NewsletterTemplate,
+  type StripoDefaultTemplateListItem,
 } from "@/services/apiNewsletterTemplates";
+
+type TemplateListMode = "saved" | "basic" | "prebuilt";
 
 // Hides scrollbars without touching body overflow (which breaks float layouts).
 const NO_SCROLL_CSS = `<style>
@@ -260,10 +269,149 @@ function TemplateCard({ template, onEdit, onSend, onDelete }: TemplateCardProps)
   );
 }
 
+const CATALOG_PREVIEW_MIN_HEIGHT = { xs: 280, sm: 320, md: 360 };
+
+interface CatalogTemplateCardProps {
+  row: StripoDefaultTemplateListItem;
+  onEdit: () => void;
+  onUseInBuilder: () => void;
+}
+
+function CatalogTemplateCard({ row, onEdit, onUseInBuilder }: CatalogTemplateCardProps) {
+  return (
+    <Card
+      variant="outlined"
+      sx={{
+        borderRadius: 2,
+        display: "flex",
+        flexDirection: "column",
+        overflow: "hidden",
+        transition: "box-shadow 0.2s ease",
+        "@media (hover: hover) and (pointer: fine)": {
+          "&:hover": {
+            boxShadow: "0 8px 28px rgba(0,0,0,0.14)",
+            "& .catalog-template-hover-overlay": { opacity: 1, pointerEvents: "auto" },
+          },
+        },
+      }}
+    >
+      <Box
+        sx={{
+          width: "100%",
+          position: "relative",
+          borderBottom: "1px solid",
+          borderColor: "divider",
+          bgcolor: "#ececec",
+          overflow: "hidden",
+          aspectRatio: "10 / 16",
+          minHeight: CATALOG_PREVIEW_MIN_HEIGHT,
+          maxHeight: { xs: 400, md: 480 },
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          p: 1,
+        }}
+      >
+        {row.logo ? (
+          <Box
+            component="img"
+            src={row.logo}
+            alt=""
+            sx={{
+              display: "block",
+              width: "auto",
+              height: "auto",
+              maxWidth: "min(145%, 520px)",
+              maxHeight: "min(108%, 480px)",
+              objectFit: "contain",
+              objectPosition: "center",
+              transform: "scale(1.35)",
+              transformOrigin: "center center",
+            }}
+          />
+        ) : (
+          <Typography variant="body2" color="text.secondary">
+            No preview image
+          </Typography>
+        )}
+        <Stack
+          className="catalog-template-hover-overlay"
+          spacing={1.25}
+          alignItems="center"
+          justifyContent="center"
+          sx={{
+            position: "absolute",
+            inset: 0,
+            px: 2,
+            bgcolor: "rgba(0,0,0,0.55)",
+            transition: "opacity 0.2s ease",
+            "@media (hover: none), (pointer: coarse)": { opacity: 1, pointerEvents: "auto" },
+            "@media (hover: hover) and (pointer: fine)": { opacity: 0, pointerEvents: "none" },
+          }}
+        >
+          <Button
+            type="button"
+            variant="outlined"
+            size="medium"
+            onClick={(e) => {
+              e.stopPropagation();
+              onEdit();
+            }}
+            sx={{
+              minWidth: 120,
+              fontWeight: 700,
+              textTransform: "none",
+              borderColor: "rgba(255,255,255,0.95)",
+              color: "#fff",
+              borderRadius: 2,
+              "&:hover": { borderColor: "#fff", bgcolor: "rgba(255,255,255,0.12)" },
+            }}
+          >
+            Edit
+          </Button>
+          <Button
+            type="button"
+            variant="text"
+            size="small"
+            onClick={(e) => {
+              e.stopPropagation();
+              onUseInBuilder();
+            }}
+            sx={{
+              color: "common.white",
+              textTransform: "none",
+              fontWeight: 600,
+              textDecoration: "underline",
+              textUnderlineOffset: 3,
+              "&:hover": { bgcolor: "rgba(255,255,255,0.08)" },
+            }}
+          >
+            Use in Builder
+          </Button>
+        </Stack>
+      </Box>
+      <CardContent sx={{ flexGrow: 1, display: "flex", flexDirection: "column", pt: 1.5, pb: 2 }}>
+        <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 0.75 }} noWrap title={row.name}>
+          {row.name || "Untitled template"}
+        </Typography>
+        <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap>
+          {row.premium ? (
+            <Chip size="small" label="Premium" color="warning" variant="outlined" />
+          ) : null}
+          {row.hasAmp ? <Chip size="small" label="AMP" variant="outlined" /> : null}
+        </Stack>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function NewsletterTemplatesPageClient() {
   const router = useRouter();
   const { showSnackbar } = useSnackbar();
+  const [listMode, setListMode] = useState<TemplateListMode>("saved");
   const [rows, setRows] = useState<NewsletterTemplate[]>([]);
+  const [catalogRows, setCatalogRows] = useState<StripoDefaultTemplateListItem[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const [page, setPage] = useState(1);
   const pageSize = 12;
@@ -276,14 +424,35 @@ export default function NewsletterTemplatesPageClient() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await listNewsletterTemplates({ page, pageSize });
-      if (res.success && Array.isArray(res.data)) {
-        setRows(res.data);
-        const total = typeof res.total === "number" ? res.total : res.data.length;
-        setTotalPages(Math.max(1, Math.ceil(total / pageSize)));
+      if (listMode === "saved") {
+        const res = await listNewsletterTemplates({ page, pageSize });
+        if (res.success && Array.isArray(res.data)) {
+          setRows(res.data);
+          setCatalogRows([]);
+          const total = typeof res.total === "number" ? res.total : res.data.length;
+          setTotalCount(total);
+          setTotalPages(Math.max(1, Math.ceil(total / pageSize)));
+        } else {
+          setRows([]);
+          setCatalogRows([]);
+          setTotalCount(0);
+          setTotalPages(1);
+        }
       } else {
-        setRows([]);
-        setTotalPages(1);
+        const type = listMode === "basic" ? "basic" : "free";
+        const res = await listDefaultNewsletterTemplates({ page, pageSize, type });
+        if (res.success && Array.isArray(res.data)) {
+          setCatalogRows(res.data);
+          setRows([]);
+          const total = typeof res.total === "number" ? res.total : res.data.length;
+          setTotalCount(total);
+          setTotalPages(Math.max(1, Math.ceil(total / pageSize)));
+        } else {
+          setCatalogRows([]);
+          setRows([]);
+          setTotalCount(0);
+          setTotalPages(1);
+        }
       }
     } catch (e: unknown) {
       const msg =
@@ -292,15 +461,53 @@ export default function NewsletterTemplatesPageClient() {
           : "Failed to load templates";
       showSnackbar(msg, "error");
       setRows([]);
+      setCatalogRows([]);
+      setTotalCount(0);
       setTotalPages(1);
     } finally {
       setLoading(false);
     }
-  }, [page, showSnackbar]);
+  }, [listMode, page, pageSize, showSnackbar]);
 
   useEffect(() => {
     void load();
   }, [load]);
+
+  const handleListModeChange = (_event: unknown, value: TemplateListMode | null) => {
+    if (value !== null) {
+      setListMode(value);
+      setPage(1);
+    }
+  };
+
+  const openCatalogInBuilder = (row: StripoDefaultTemplateListItem) => {
+    const q = new URLSearchParams();
+    q.set("stripoDefaultTemplateId", String(row.templateId));
+    q.set("defaultTemplateName", row.name || "Untitled");
+    router.push(`/apps/newsletter/create-email-builder?${q.toString()}`);
+  };
+
+  const editCatalogInBuilder = (row: StripoDefaultTemplateListItem) => {
+    const q = new URLSearchParams();
+    q.set("defaultTemplateName", row.name || "Untitled");
+    router.push(
+      `/apps/newsletter/edit-email-builder/stripo-default-${row.templateId}?${q.toString()}`,
+    );
+  };
+
+  const listTitle =
+    listMode === "saved"
+      ? "Saved templates"
+      : listMode === "basic"
+        ? "Basic templates"
+        : "Prebuilt templates";
+
+  const emptyMessage =
+    listMode === "saved"
+      ? "No saved templates yet. Create one in the email builder."
+      : listMode === "basic"
+        ? "No basic templates found."
+        : "No prebuilt templates found.";
 
   const handleEdit = (id: string) => {
     router.push(`/apps/newsletter/edit-email-builder/${encodeURIComponent(id)}`);
@@ -357,59 +564,121 @@ export default function NewsletterTemplatesPageClient() {
           alignItems: "center",
           justifyContent: "space-between",
           gap: 2,
-          mb: 3,
+          mb: 2,
+          flexWrap: "wrap",
         }}
       >
         <Typography className="text-3xl font-extrabold leading-none tracking-tight">
           Email templates
         </Typography>
-        <Stack direction="row" spacing={1}>
-          <AppButton
-            type="button"
-            variant="outlined"
-            label="Default Templates"
-            onClick={() => router.push("/apps/newsletter/default-templates")}
-          />
-          <AppButton
-            type="button"
-            variant="contained"
-            label="Create Email Builder"
-            onClick={() => router.push("/apps/newsletter/create-email-builder")}
-          />
-        </Stack>
+        <AppButton
+          type="button"
+          variant="contained"
+          label="Create Email Builder"
+          onClick={() => router.push("/apps/newsletter/create-email-builder")}
+        />
       </Box>
+
+      <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 2, flexWrap: "wrap" }}>
+        <ToggleButtonGroup
+          exclusive
+          value={listMode}
+          onChange={handleListModeChange}
+          size="small"
+          sx={{
+            bgcolor: "action.hover",
+            p: 0.25,
+            borderRadius: 2,
+            "& .MuiToggleButtonGroup-grouped": { border: 0, mx: 0 },
+            "& .MuiToggleButton-root": {
+              px: 2,
+              textTransform: "none",
+              fontWeight: 600,
+              borderRadius: "6px !important",
+            },
+            "& .Mui-selected": {
+              bgcolor: "background.paper",
+              boxShadow: 1,
+            },
+          }}
+        >
+          <ToggleButton value="saved">Saved</ToggleButton>
+          <ToggleButton value="basic">Basic</ToggleButton>
+          <ToggleButton value="prebuilt">Prebuilt</ToggleButton>
+        </ToggleButtonGroup>
+      </Stack>
+
+      <Stack direction="row" alignItems="center" spacing={1.5} sx={{ mb: 2 }}>
+        <Typography variant="h6" fontWeight={700}>
+          {listTitle}
+        </Typography>
+        <Box
+          component="span"
+          sx={{
+            minWidth: 28,
+            height: 28,
+            px: 1,
+            borderRadius: "999px",
+            bgcolor: "grey.300",
+            color: "text.primary",
+            fontSize: 13,
+            fontWeight: 700,
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          {totalCount}
+        </Box>
+      </Stack>
 
       {loading ? (
         <Box sx={{ display: "flex", justifyContent: "center", py: 10 }}>
           <CircularProgress />
         </Box>
-      ) : rows.length === 0 ? (
+      ) : listMode === "saved" && rows.length === 0 ? (
         <Typography color="text.secondary" sx={{ py: 4 }}>
-          No templates yet. Create one in the email builder.
+          {emptyMessage}
+        </Typography>
+      ) : listMode !== "saved" && catalogRows.length === 0 ? (
+        <Typography color="text.secondary" sx={{ py: 4 }}>
+          {emptyMessage}
         </Typography>
       ) : (
         <>
           <Box
             sx={{
               display: "grid",
-              gridTemplateColumns: {
-                xs: "1fr",
-                sm: "1fr 1fr",
-                md: "1fr 1fr 1fr",
-              },
+              gridTemplateColumns:
+                listMode === "saved"
+                  ? { xs: "1fr", sm: "1fr 1fr", md: "1fr 1fr 1fr" }
+                  : {
+                      xs: "minmax(0, 1fr)",
+                      sm: "repeat(2, minmax(0, 1fr))",
+                      md: "repeat(4, minmax(0, 1fr))",
+                    },
               gap: 2,
               mb: 3,
             }}
           >
-            {rows.map((row) => (
-              <TemplateCard
-                key={row.id}
-                template={row}
-                onEdit={() => handleEdit(row.id)}
-                onSend={() => handleSend(row.id)}
-                onDelete={() => handleDeleteRequest(row)}
-              />
-            ))}
+            {listMode === "saved"
+              ? rows.map((row) => (
+                  <TemplateCard
+                    key={row.id}
+                    template={row}
+                    onEdit={() => handleEdit(row.id)}
+                    onSend={() => handleSend(row.id)}
+                    onDelete={() => handleDeleteRequest(row)}
+                  />
+                ))
+              : catalogRows.map((row) => (
+                  <CatalogTemplateCard
+                    key={row.templateId}
+                    row={row}
+                    onEdit={() => editCatalogInBuilder(row)}
+                    onUseInBuilder={() => openCatalogInBuilder(row)}
+                  />
+                ))}
           </Box>
 
           <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
