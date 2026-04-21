@@ -23,6 +23,12 @@ import {
   Card,
   CardContent,
   Chip,
+  Checkbox,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem as MuiSelectItem,
+  type SelectChangeEvent,
 } from "@mui/material";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import EditIcon from "@mui/icons-material/Edit";
@@ -35,9 +41,14 @@ import { useSnackbar } from "@/contexts/SnackbarContext";
 import {
   listNewsletterTemplates,
   listDefaultNewsletterTemplates,
+  listDefaultTemplateTypes,
+  listDefaultTemplateSeasons,
+  listDefaultTemplateFeatures,
+  listDefaultTemplateIndustries,
   deleteNewsletterTemplate,
   type NewsletterTemplate,
   type StripoDefaultTemplateListItem,
+  type StripoFilterOption,
 } from "@/services/apiNewsletterTemplates";
 
 type TemplateListMode = "saved" | "basic" | "prebuilt";
@@ -416,6 +427,17 @@ export default function NewsletterTemplatesPageClient() {
   const [page, setPage] = useState(1);
   const pageSize = 12;
   const [loading, setLoading] = useState(true);
+  const [freeOnly, setFreeOnly] = useState<"free">("free");
+
+  const [typeOptions, setTypeOptions] = useState<StripoFilterOption[]>([]);
+  const [seasonOptions, setSeasonOptions] = useState<StripoFilterOption[]>([]);
+  const [featureOptions, setFeatureOptions] = useState<StripoFilterOption[]>([]);
+  const [industryOptions, setIndustryOptions] = useState<StripoFilterOption[]>([]);
+
+  const [selectedType, setSelectedType] = useState<string>("");
+  const [selectedSeasons, setSelectedSeasons] = useState<string[]>([]);
+  const [selectedFeatures, setSelectedFeatures] = useState<string[]>([]);
+  const [selectedIndustries, setSelectedIndustries] = useState<string[]>([]);
 
   // Delete confirmation state
   const [deleteTarget, setDeleteTarget] = useState<NewsletterTemplate | null>(null);
@@ -439,8 +461,24 @@ export default function NewsletterTemplatesPageClient() {
           setTotalPages(1);
         }
       } else {
-        const type = listMode === "basic" ? "basic" : "free";
-        const res = await listDefaultNewsletterTemplates({ page, pageSize, type });
+        const type = listMode === "basic" ? "BASIC" : "FREE";
+        const res = await listDefaultNewsletterTemplates({
+          page,
+          pageSize,
+          type,
+          ...(listMode === "prebuilt" && selectedType
+            ? { templateTypes: String(selectedType) }
+            : {}),
+          ...(listMode === "prebuilt" && selectedSeasons.length
+            ? { templateSeasons: selectedSeasons.join(",") }
+            : {}),
+          ...(listMode === "prebuilt" && selectedFeatures.length
+            ? { templateFeatures: selectedFeatures.join(",") }
+            : {}),
+          ...(listMode === "prebuilt" && selectedIndustries.length
+            ? { templateIndustries: selectedIndustries.join(",") }
+            : {}),
+        });
         if (res.success && Array.isArray(res.data)) {
           setCatalogRows(res.data);
           setRows([]);
@@ -467,18 +505,75 @@ export default function NewsletterTemplatesPageClient() {
     } finally {
       setLoading(false);
     }
-  }, [listMode, page, pageSize, showSnackbar]);
+  }, [
+    listMode,
+    page,
+    pageSize,
+    showSnackbar,
+    freeOnly,
+    selectedType,
+    selectedSeasons,
+    selectedFeatures,
+    selectedIndustries,
+  ]);
 
   useEffect(() => {
     void load();
   }, [load]);
 
+  useEffect(() => {
+    if (listMode !== "prebuilt") return;
+
+    const loadFilterOptions = async () => {
+      try {
+        const [types, seasons, features, industries] = await Promise.all([
+          listDefaultTemplateTypes(),
+          listDefaultTemplateSeasons(),
+          listDefaultTemplateFeatures(),
+          listDefaultTemplateIndustries(),
+        ]);
+        setTypeOptions(types);
+        setSeasonOptions(seasons);
+        setFeatureOptions(features);
+        setIndustryOptions(industries);
+        const freeType = types.find((t) => t.name.toLowerCase() === "free");
+        if (freeType) {
+          setSelectedType(String(freeType.id));
+        } else {
+          // Fallback when API omits explicit type id
+          setSelectedType("free");
+        }
+      } catch (e: unknown) {
+        const msg =
+          e && typeof e === "object" && "message" in e
+            ? String((e as { message: unknown }).message)
+            : "Failed to load filter options";
+        showSnackbar(msg, "error");
+      }
+    };
+
+    void loadFilterOptions();
+  }, [listMode, showSnackbar]);
+
   const handleListModeChange = (_event: unknown, value: TemplateListMode | null) => {
     if (value !== null) {
       setListMode(value);
       setPage(1);
+      if (value !== "prebuilt") {
+        setSelectedType("");
+        setSelectedSeasons([]);
+        setSelectedFeatures([]);
+        setSelectedIndustries([]);
+      }
     }
   };
+
+  const handleMultiSelectChange =
+    (setter: (value: string[]) => void) => (event: SelectChangeEvent<string[]>) => {
+      const value = event.target.value;
+      setter(typeof value === "string" ? value.split(",") : value);
+      setPage(1);
+    };
 
   const openCatalogInBuilder = (row: StripoDefaultTemplateListItem) => {
     const q = new URLSearchParams();
@@ -508,6 +603,23 @@ export default function NewsletterTemplatesPageClient() {
       : listMode === "basic"
         ? "No basic templates found."
         : "No prebuilt templates found.";
+
+  const showPrebuiltFilters = listMode === "prebuilt";
+  const findLabel = (options: StripoFilterOption[], id: string) =>
+    options.find((x) => String(x.id) === id)?.name || id;
+  const selectedFilterChips = [
+    { key: "type", label: "Free Templates", active: true },
+    ...selectedSeasons.map((id) => ({ key: `season-${id}`, label: findLabel(seasonOptions, id), active: true })),
+    ...selectedFeatures.map((id) => ({ key: `feature-${id}`, label: findLabel(featureOptions, id), active: true })),
+    ...selectedIndustries.map((id) => ({ key: `industry-${id}`, label: findLabel(industryOptions, id), active: true })),
+  ];
+
+  const clearPrebuiltFilters = () => {
+    setSelectedSeasons([]);
+    setSelectedFeatures([]);
+    setSelectedIndustries([]);
+    setPage(1);
+  };
 
   const handleEdit = (id: string) => {
     router.push(`/apps/newsletter/edit-email-builder/${encodeURIComponent(id)}`);
@@ -607,6 +719,125 @@ export default function NewsletterTemplatesPageClient() {
           <ToggleButton value="prebuilt">Prebuilt</ToggleButton>
         </ToggleButtonGroup>
       </Stack>
+
+      {showPrebuiltFilters ? (
+        <Stack
+          direction={{ xs: "column", md: "row" }}
+          spacing={1.5}
+          alignItems={{ xs: "stretch", md: "center" }}
+          sx={{ mb: 2.5 }}
+        >
+          <Stack direction="row" spacing={1} alignItems="center">
+            <ToggleButtonGroup value={freeOnly} exclusive size="small">
+              <ToggleButton value="free" disabled>
+                Free
+              </ToggleButton>
+            </ToggleButtonGroup>
+            <Typography variant="body2" color="text.secondary">
+              Filters
+            </Typography>
+          </Stack>
+
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ flexWrap: "wrap" }}>
+            <FormControl size="small" sx={{ minWidth: 170 }}>
+              <InputLabel id="season-filter-label">Season</InputLabel>
+              <Select
+                labelId="season-filter-label"
+                multiple
+                value={selectedSeasons}
+                label="Season"
+                onChange={handleMultiSelectChange(setSelectedSeasons)}
+                renderValue={(selected) =>
+                  (selected as string[]).length
+                    ? (selected as string[]).map((id) => findLabel(seasonOptions, id)).join(", ")
+                    : "All"
+                }
+              >
+                {seasonOptions.map((opt) => (
+                  <MuiSelectItem key={`season-${opt.id}`} value={String(opt.id)}>
+                    <Checkbox size="small" checked={selectedSeasons.includes(String(opt.id))} />
+                    {opt.name}
+                  </MuiSelectItem>
+                ))}
+              </Select>
+            </FormControl>
+
+            <FormControl size="small" sx={{ minWidth: 170 }}>
+              <InputLabel id="feature-filter-label">Feature</InputLabel>
+              <Select
+                labelId="feature-filter-label"
+                multiple
+                value={selectedFeatures}
+                label="Feature"
+                onChange={handleMultiSelectChange(setSelectedFeatures)}
+                renderValue={(selected) =>
+                  (selected as string[]).length
+                    ? (selected as string[]).map((id) => findLabel(featureOptions, id)).join(", ")
+                    : "All"
+                }
+              >
+                {featureOptions.map((opt) => (
+                  <MuiSelectItem key={`feature-${opt.id}`} value={String(opt.id)}>
+                    <Checkbox size="small" checked={selectedFeatures.includes(String(opt.id))} />
+                    {opt.name}
+                  </MuiSelectItem>
+                ))}
+              </Select>
+            </FormControl>
+
+            <FormControl size="small" sx={{ minWidth: 190 }}>
+              <InputLabel id="industry-filter-label">Industry</InputLabel>
+              <Select
+                labelId="industry-filter-label"
+                multiple
+                value={selectedIndustries}
+                label="Industry"
+                onChange={handleMultiSelectChange(setSelectedIndustries)}
+                renderValue={(selected) =>
+                  (selected as string[]).length
+                    ? (selected as string[]).map((id) => findLabel(industryOptions, id)).join(", ")
+                    : "All"
+                }
+              >
+                {industryOptions.map((opt) => (
+                  <MuiSelectItem key={`industry-${opt.id}`} value={String(opt.id)}>
+                    <Checkbox size="small" checked={selectedIndustries.includes(String(opt.id))} />
+                    {opt.name}
+                  </MuiSelectItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Stack>
+        </Stack>
+      ) : null}
+
+      {showPrebuiltFilters ? (
+        <Stack
+          direction="row"
+          spacing={1}
+          alignItems="center"
+          sx={{ mb: 2, flexWrap: "wrap", rowGap: 1 }}
+        >
+          <Button
+            type="button"
+            size="small"
+            variant="text"
+            onClick={clearPrebuiltFilters}
+            sx={{ textTransform: "none", minWidth: "auto", px: 0.5 }}
+          >
+            Clear All
+          </Button>
+          {selectedFilterChips.map((chip) => (
+            <Chip
+              key={chip.key}
+              label={chip.label}
+              size="small"
+              variant="outlined"
+              sx={{ borderRadius: "8px", fontWeight: 600 }}
+            />
+          ))}
+        </Stack>
+      ) : null}
 
       <Stack direction="row" alignItems="center" spacing={1.5} sx={{ mb: 2 }}>
         <Typography variant="h6" fontWeight={700}>

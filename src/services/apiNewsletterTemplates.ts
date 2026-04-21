@@ -31,6 +31,17 @@ export interface ListDefaultNewsletterTemplatesResponse {
   message?: string;
 }
 
+export interface StripoFilterOption {
+  id: string | number;
+  name: string;
+}
+
+interface StripoFilterOptionApiResponse {
+  success?: boolean;
+  data?: unknown;
+  message?: string;
+}
+
 /** Detail for one Stripo default template (editor load). Backend may mirror saved-template fields. */
 export interface GetDefaultNewsletterTemplateResponse {
   success: boolean;
@@ -107,8 +118,13 @@ export async function listNewsletterTemplates(params?: {
 export async function listDefaultNewsletterTemplates(params?: {
   page?: number;
   pageSize?: number;
-  /** Stripo catalog filter: `basic` or `free` (prebuilt). Omit for server default. */
+  /** Stripo catalog filter sent to backend (e.g. BASIC, FREE). */
   type?: "basic" | "free" | string;
+  /** Comma-separated ids expected by backend API */
+  templateTypes?: string;
+  templateSeasons?: string;
+  templateFeatures?: string;
+  templateIndustries?: string;
 }): Promise<ListDefaultNewsletterTemplatesResponse> {
   const { data } =
     await axiosInstance.get<ListDefaultNewsletterTemplatesResponse>(
@@ -116,6 +132,61 @@ export async function listDefaultNewsletterTemplates(params?: {
       { params },
     );
   return data;
+}
+
+function normalizeFilterOptions(raw: unknown): StripoFilterOption[] {
+  if (!Array.isArray(raw)) return [];
+
+  return raw
+    .map((item): StripoFilterOption | null => {
+      if (typeof item === "string" || typeof item === "number") {
+        return { id: String(item), name: String(item) };
+      }
+      if (!item || typeof item !== "object") return null;
+
+      const obj = item as Record<string, unknown>;
+      const id =
+        (obj.id as string | number | undefined) ??
+        (obj.value as string | number | undefined) ??
+        (obj.templateTypeId as string | number | undefined) ??
+        (obj.seasonId as string | number | undefined) ??
+        (obj.featureId as string | number | undefined) ??
+        (obj.industryId as string | number | undefined) ??
+        (obj.slug as string | number | undefined);
+      const name =
+        (obj.name as string | undefined) ??
+        (obj.label as string | undefined) ??
+        (obj.title as string | undefined) ??
+        (obj.value as string | undefined);
+
+      if (id === undefined || !name) return null;
+      return { id, name };
+    })
+    .filter((x): x is StripoFilterOption => Boolean(x));
+}
+
+async function fetchStripoFilterOptions(endpoint: string): Promise<StripoFilterOption[]> {
+  const { data } = await axiosInstance.get<StripoFilterOptionApiResponse>(
+    `${DEFAULT_TEMPLATES_BASE}/${endpoint}`,
+  );
+
+  return normalizeFilterOptions(data?.data);
+}
+
+export async function listDefaultTemplateTypes(): Promise<StripoFilterOption[]> {
+  return fetchStripoFilterOptions("types");
+}
+
+export async function listDefaultTemplateSeasons(): Promise<StripoFilterOption[]> {
+  return fetchStripoFilterOptions("seasons");
+}
+
+export async function listDefaultTemplateFeatures(): Promise<StripoFilterOption[]> {
+  return fetchStripoFilterOptions("features");
+}
+
+export async function listDefaultTemplateIndustries(): Promise<StripoFilterOption[]> {
+  return fetchStripoFilterOptions("industries");
 }
 
 /**
