@@ -468,7 +468,6 @@ const CreateEmailBuilderPageClient = ({
 
     const ok = await new Promise<boolean>((resolve) => {
       pendingSaveResolverRef.current = resolve;
-      setSaving(true);
       win.postMessage(
         {
           type: "STRIPO_REQUEST_SAVE",
@@ -489,7 +488,6 @@ const CreateEmailBuilderPageClient = ({
       setTimeout(() => {
         if (pendingSaveResolverRef.current) {
           pendingSaveResolverRef.current = null;
-          setSaving(false);
           resolve(false);
         }
       }, 15000);
@@ -607,10 +605,13 @@ const CreateEmailBuilderPageClient = ({
                   showSnackbar("Template is still loading. Please wait.", "warning");
                   return;
                 }
+                setIsSending(true);
                 const saved = await saveTemplateBeforeSend();
                 if (!saved) {
+                  setIsSending(false);
                   return;
                 }
+                setIsSending(false);
                 setSelectUsersOpen(true);
               })();
             }}
