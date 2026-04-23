@@ -238,7 +238,7 @@ export interface NewsletterGroup {
   id: string;
   name: string;
   description?: string;
-  userCount?: number;
+  subscriberCount?: number;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -331,7 +331,7 @@ export async function deleteNewsletterGroup(
 // ----------------------------
 
 export interface NewsletterGroupUsersPayload {
-  userIds: string[];
+  subscriberIds: string[];
 }
 
 export interface NewsletterGroupUser {
@@ -352,7 +352,7 @@ export interface NewsletterGroupUsersListResponse {
 
 export interface NewsletterGroupUsersMutationResponse {
   success: boolean;
-  data?: { groupId: string; userIds: string[] };
+  data?: { groupId: string; subscriberIds: string[] };
   message?: string;
 }
 
@@ -361,23 +361,51 @@ export async function listNewsletterGroupUsers(
   params?: { page?: number; pageSize?: number; search?: string },
 ): Promise<NewsletterGroupUsersListResponse> {
   const { data } = await axiosInstance.get(
-    `${GROUPS_BASE}/${encodeURIComponent(groupId)}/users`,
+    `${GROUPS_BASE}/${encodeURIComponent(groupId)}/subscribers`,
     { params },
   );
 
   // API can return either:
   // 1) { success, data: NewsletterGroupUser[] }
   // 2) { success, data: { id, name, users: NewsletterGroupUser[] } }
+  // 3) { success, data: { id, name, subscribers: [...] } }
+  // 4) { success, data: [...] } where each row may contain subscriberId/userId/id
   const rawData = (data as { data?: unknown })?.data;
-  const users =
+  const rawUsers =
     Array.isArray(rawData)
       ? rawData
-      : rawData &&
-          typeof rawData === "object" &&
-          "users" in rawData &&
-          Array.isArray((rawData as { users?: unknown }).users)
-        ? (rawData as { users: NewsletterGroupUser[] }).users
+      : rawData && typeof rawData === "object"
+        ? Array.isArray((rawData as { users?: unknown }).users)
+          ? (rawData as { users: unknown[] }).users
+          : Array.isArray((rawData as { subscribers?: unknown }).subscribers)
+            ? (rawData as { subscribers: unknown[] }).subscribers
+            : []
         : [];
+
+  const users: NewsletterGroupUser[] = rawUsers
+    .map((row): NewsletterGroupUser | null => {
+      if (!row || typeof row !== "object") return null;
+      const item = row as Record<string, unknown>;
+      const email =
+        (item.email as string | undefined) ??
+        (item.subscriberEmail as string | undefined);
+      const idCandidate =
+        (item.id as string | number | undefined) ??
+        (item.subscriberId as string | number | undefined) ??
+        (item.userId as string | number | undefined) ??
+        (item.user_id as string | number | undefined);
+
+      if (!email || idCandidate == null) return null;
+
+      return {
+        id: String(idCandidate),
+        email,
+        name:
+          (item.name as string | undefined) ??
+          (item.fullName as string | undefined),
+      };
+    })
+    .filter((u): u is NewsletterGroupUser => u !== null);
 
   return {
     ...(data as Omit<NewsletterGroupUsersListResponse, "data">),
@@ -391,7 +419,7 @@ export async function addUsersToNewsletterGroup(
 ): Promise<NewsletterGroupUsersMutationResponse> {
   const { data } =
     await axiosInstance.post<NewsletterGroupUsersMutationResponse>(
-      `${GROUPS_BASE}/${encodeURIComponent(groupId)}/users`,
+      `${GROUPS_BASE}/${encodeURIComponent(groupId)}/subscribers`,
       payload,
     );
   return data;
@@ -403,7 +431,7 @@ export async function removeUsersFromNewsletterGroup(
 ): Promise<NewsletterGroupUsersMutationResponse> {
   const { data } =
     await axiosInstance.delete<NewsletterGroupUsersMutationResponse>(
-      `${GROUPS_BASE}/${encodeURIComponent(groupId)}/users`,
+      `${GROUPS_BASE}/${encodeURIComponent(groupId)}/subscribers`,
       { data: payload },
     );
   return data;

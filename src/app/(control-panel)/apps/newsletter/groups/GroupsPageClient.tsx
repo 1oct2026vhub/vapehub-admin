@@ -146,7 +146,7 @@ export default function GroupsPageClient() {
         }
         const newGroupId = res.data?.id;
         if (newGroupId && ids.length > 0) {
-          await addUsersToNewsletterGroup(newGroupId, { userIds: ids });
+          await addUsersToNewsletterGroup(newGroupId, { subscriberIds: ids });
         }
         showSnackbar("Group created.", "success");
         void loadGroups();
@@ -183,10 +183,10 @@ export default function GroupsPageClient() {
         const toRemove = [...originalMemberIds].filter((id) => !selectedIdSet.has(id));
         await Promise.all([
           toAdd.length > 0
-            ? addUsersToNewsletterGroup(editingGroup.id, { userIds: toAdd })
+            ? addUsersToNewsletterGroup(editingGroup.id, { subscriberIds: toAdd })
             : Promise.resolve(),
           toRemove.length > 0
-            ? removeUsersFromNewsletterGroup(editingGroup.id, { userIds: toRemove })
+            ? removeUsersFromNewsletterGroup(editingGroup.id, { subscriberIds: toRemove })
             : Promise.resolve(),
         ]);
         showSnackbar("Group updated.", "success");
@@ -307,7 +307,7 @@ export default function GroupsPageClient() {
                 </IconButton>
               </Box>
               <Typography variant="body2" color="text.secondary">
-                {group.userCount ?? 0} users
+                {group.subscriberCount ?? 0} users
               </Typography>
             </Paper>
           ))}
