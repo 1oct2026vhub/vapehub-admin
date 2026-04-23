@@ -131,8 +131,8 @@ export default function SelectUsersModal({
 
   // email → subscriber id map (populated as pages load)
   const emailToSubIdRef = useRef<Map<string, string>>(new Map());
-  // email → userId map (used for group membership APIs)
-  const emailToUserIdRef = useRef<Map<string, string>>(new Map());
+  // email → subscriber id map used by group membership APIs
+  const emailToSubscriberIdRef = useRef<Map<string, string>>(new Map());
 
   // ── Group picker (newsletter send mode only) ───────────────────────────────
   const [groups, setGroups] = useState<NewsletterGroup[]>([]);
@@ -156,8 +156,8 @@ export default function SelectUsersModal({
         const safeSubs = Array.isArray(subs) ? subs : [];
         safeSubs.forEach((s) => {
           if (s.email) emailToSubIdRef.current.set(s.email, String(s.id));
-          if (s.email && s.user_id != null) {
-            emailToUserIdRef.current.set(s.email, String(s.user_id));
+          if (s.email) {
+            emailToSubscriberIdRef.current.set(s.email, String(s.id));
           }
         });
         setSubscribers(safeSubs);
@@ -200,7 +200,7 @@ export default function SelectUsersModal({
       if (groupMembersData) {
         groupMembersData.forEach((m) => {
           if (m.email) emailToSubIdRef.current.set(m.email, m.id);
-          if (m.email) emailToUserIdRef.current.set(m.email, m.id);
+          if (m.email) emailToSubscriberIdRef.current.set(m.email, m.id);
         });
       }
       if (!hideRecipientOptions) void fetchGroups();
@@ -287,8 +287,8 @@ export default function SelectUsersModal({
     if (onConfirmSubscriberIds) {
       const emails = Array.from(selectedEmails);
 
-      // Ensure we have userId mapping for every selected email.
-      const missingEmails = emails.filter((em) => !emailToUserIdRef.current.get(em));
+      // Ensure we have subscriber id mapping for every selected email.
+      const missingEmails = emails.filter((em) => !emailToSubscriberIdRef.current.get(em));
       if (missingEmails.length > 0) {
         try {
           // Fetch by search term; then keep only exact matches to avoid wrong mappings.
@@ -306,9 +306,8 @@ export default function SelectUsersModal({
               subs
                 .filter((s) => s.email === em)
                 .forEach((s) => {
-                  const userId = s.user_id ?? (s as unknown as { userId?: number }).userId ?? (s as unknown as { userID?: number }).userID;
-                  if (s.email && userId != null) {
-                    emailToUserIdRef.current.set(s.email, String(userId));
+                  if (s.email) {
+                    emailToSubscriberIdRef.current.set(s.email, String(s.id));
                     emailToSubIdRef.current.set(s.email, String(s.id));
                   }
                 });
@@ -321,13 +320,13 @@ export default function SelectUsersModal({
 
       const ids: string[] = [];
       emails.forEach((em) => {
-        const userId = emailToUserIdRef.current.get(em);
-        if (userId != null) ids.push(userId);
+        const subscriberId = emailToSubscriberIdRef.current.get(em);
+        if (subscriberId != null) ids.push(subscriberId);
       });
 
       if (ids.length !== emails.length) {
         showSnackbar(
-          "Some recipients could not be mapped to userId. Please re-select users.",
+          "Some recipients could not be mapped to subscriber IDs. Please re-select users.",
           "warning",
         );
         return;
@@ -452,7 +451,7 @@ export default function SelectUsersModal({
                 {selectedGroup && (
                   <Chip
                     size="small"
-                    label={`Group selected: ${selectedGroup.name}${selectedGroup.userCount != null ? ` (${selectedGroup.userCount} users)` : ''}`}
+                    label={`Group selected: ${selectedGroup.name}${selectedGroup.subscriberCount != null ? ` (${selectedGroup.subscriberCount} users)` : ''}`}
                     onDelete={() => setSelectedGroup(null)}
                     sx={{ mt: 1, bgcolor: '#2E9970', color: 'white', '& .MuiChip-deleteIcon': { color: 'rgba(255,255,255,0.7)' } }}
                   />
