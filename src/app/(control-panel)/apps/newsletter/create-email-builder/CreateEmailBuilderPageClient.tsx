@@ -68,7 +68,13 @@ const CreateEmailBuilderPageClient = ({
   const [sendToAll, setSendToAll] = useState(true);
   const [isSending, setIsSending] = useState(false);
   const [hasUnsavedEditorChanges, setHasUnsavedEditorChanges] = useState(false);
+  const [initialEditorDirtyBaseline, setInitialEditorDirtyBaseline] = useState<boolean | null>(null);
+  const [isEditorFullyLoaded, setIsEditorFullyLoaded] = useState(false);
   const dirtyCheckResolversRef = useRef<Map<string, (dirty: boolean) => void>>(new Map());
+  const pendingSaveResolverRef = useRef<((ok: boolean) => void) | null>(null);
+  const baselineCaptureInProgressRef = useRef(false);
+  const initialNameRef = useRef("");
+  const initialSubjectRef = useRef("");
 
   const stripoDefaultTemplateIdFromUrl =
     searchParams.get("stripoDefaultTemplateId") ||
@@ -143,29 +149,45 @@ const CreateEmailBuilderPageClient = ({
     if (stripoDefaultTemplateIdFromUrl) {
       setSelectedTemplateId("");
       setIframeReady(false);
+      setHasUnsavedEditorChanges(false);
+      setInitialEditorDirtyBaseline(null);
+      setIsEditorFullyLoaded(false);
+      baselineCaptureInProgressRef.current = false;
       void (async () => {
         try {
           const res = await getDefaultNewsletterTemplateById(stripoDefaultTemplateIdFromUrl);
           if (res.success && res.data) {
             const tpl = res.data;
-            setName(tpl.name ?? "");
-            setSubject(tpl.subject ?? tpl.name ?? "");
+            const nextName = tpl.name ?? "";
+            const nextSubject = tpl.subject ?? tpl.name ?? "";
+            setName(nextName);
+            setSubject(nextSubject);
+            initialNameRef.current = nextName;
+            initialSubjectRef.current = nextSubject;
           } else if (defaultTemplateNameFromUrl) {
             const n = decodeURIComponent(defaultTemplateNameFromUrl);
             setName(n);
             setSubject(n);
+            initialNameRef.current = n;
+            initialSubjectRef.current = n;
           } else {
             setName("");
             setSubject("");
+            initialNameRef.current = "";
+            initialSubjectRef.current = "";
           }
         } catch {
           if (defaultTemplateNameFromUrl) {
             const n = decodeURIComponent(defaultTemplateNameFromUrl);
             setName(n);
             setSubject(n);
+            initialNameRef.current = n;
+            initialSubjectRef.current = n;
           } else {
             setName("");
             setSubject("");
+            initialNameRef.current = "";
+            initialSubjectRef.current = "";
             showSnackbar("Could not load default template metadata.", "warning");
           }
         } finally {
@@ -180,6 +202,12 @@ const CreateEmailBuilderPageClient = ({
       setSelectedTemplateId("");
       setName("");
       setSubject("");
+      initialNameRef.current = "";
+      initialSubjectRef.current = "";
+      setHasUnsavedEditorChanges(false);
+      setInitialEditorDirtyBaseline(null);
+      setIsEditorFullyLoaded(false);
+      baselineCaptureInProgressRef.current = false;
       setIframeReady(true);
       return;
     }
@@ -189,9 +217,17 @@ const CreateEmailBuilderPageClient = ({
         const res = await getNewsletterTemplateById(templateIdFromUrl);
         if (res.success && res.data) {
           const tpl = res.data;
+          const nextName = tpl.name ?? "";
+          const nextSubject = tpl.subject ?? "";
           setSelectedTemplateId(tpl.id);
-          setName(tpl.name ?? "");
-          setSubject(tpl.subject ?? "");
+          setName(nextName);
+          setSubject(nextSubject);
+          initialNameRef.current = nextName;
+          initialSubjectRef.current = nextSubject;
+          setHasUnsavedEditorChanges(false);
+          setInitialEditorDirtyBaseline(null);
+          setIsEditorFullyLoaded(false);
+          baselineCaptureInProgressRef.current = false;
           setIframeReady(true);
           setIframeKey((k) => k + 1);
           return;
@@ -218,8 +254,50 @@ const CreateEmailBuilderPageClient = ({
         return;
       const data = event.data as StripoMessage;
       if (!data || typeof data !== "object" || !("type" in data)) return;
+      if (data.type === "STRIPO_EDITOR_READY") {
+        // Capture baseline after editor is ready; buttons stay disabled until done.
+        if (!baselineCaptureInProgressRef.current && initialEditorDirtyBaseline == null) {
+          baselineCaptureInProgressRef.current = true;
+          const askDirty = () =>
+            new Promise<boolean>((resolve) => {
+              const win = iframeRef.current?.contentWindow;
+              if (!win || typeof window === "undefined") {
+                resolve(hasUnsavedEditorChanges);
+                return;
+              }
+              const requestId = `baseline-dirty-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+              dirtyCheckResolversRef.current.set(requestId, (dirty) => resolve(dirty));
+              win.postMessage({ type: "STRIPO_CHECK_DIRTY", requestId }, window.location.origin);
+              setTimeout(() => {
+                const resolver = dirtyCheckResolversRef.current.get(requestId);
+                if (resolver) {
+                  dirtyCheckResolversRef.current.delete(requestId);
+                  resolve(hasUnsavedEditorChanges);
+                }
+              }, 1200);
+            });
+
+          void (async () => {
+            await new Promise((r) => setTimeout(r, 250));
+            const d1 = await askDirty();
+            await new Promise((r) => setTimeout(r, 350));
+            const d2 = await askDirty();
+            await new Promise((r) => setTimeout(r, 350));
+            const d3 = await askDirty();
+            // Prefer clean baseline if editor settles to clean in any warm-up check.
+            const baseline = !d1 || !d2 || !d3 ? false : d3;
+            setInitialEditorDirtyBaseline(baseline);
+            setIsEditorFullyLoaded(true);
+            baselineCaptureInProgressRef.current = false;
+          })();
+        } else if (initialEditorDirtyBaseline != null) {
+          setIsEditorFullyLoaded(true);
+        }
+        return;
+      }
       if (data.type === "STRIPO_DIRTY_STATE") {
-        setHasUnsavedEditorChanges(Boolean(data.dirty));
+        const dirty = Boolean(data.dirty);
+        setHasUnsavedEditorChanges(dirty);
         return;
       }
       if (data.type === "STRIPO_DIRTY_CHECK_RESULT") {
@@ -236,11 +314,18 @@ const CreateEmailBuilderPageClient = ({
       }
       if (data.type === "STRIPO_SAVE_RESULT") {
         setSaving(false);
+        if (pendingSaveResolverRef.current) {
+          pendingSaveResolverRef.current(Boolean(data.success));
+          pendingSaveResolverRef.current = null;
+        }
         if (data.success) {
           setHasUnsavedEditorChanges(false);
+          setInitialEditorDirtyBaseline(false);
           if (data.templateId) {
             setSelectedTemplateId(data.templateId);
           }
+          initialNameRef.current = name.trim();
+          initialSubjectRef.current = subject.trim();
           showSnackbar(data.message || "Template saved", "success");
         } else {
           showSnackbar(data.message || "Save failed", "error");
@@ -249,7 +334,7 @@ const CreateEmailBuilderPageClient = ({
     };
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
-  }, [showSnackbar]);
+  }, [hasUnsavedEditorChanges, initialEditorDirtyBaseline, name, showSnackbar, subject]);
 
   const requestCurrentDirtyState = useCallback(async (): Promise<boolean> => {
     const win = iframeRef.current?.contentWindow;
@@ -359,6 +444,64 @@ const CreateEmailBuilderPageClient = ({
     );
   };
 
+  const saveTemplateBeforeSend = useCallback(async (): Promise<boolean> => {
+    const n = name.trim();
+    const s = subject.trim();
+    if (!n || !s) {
+      showSnackbar("Name and subject are required to save.", "error");
+      return false;
+    }
+    const win = iframeRef.current?.contentWindow;
+    if (!win) {
+      showSnackbar("Editor is not ready.", "error");
+      return false;
+    }
+    const token = getAuthToken();
+    if (!token || !apiBase) {
+      showSnackbar("Missing auth or API configuration.", "error");
+      return false;
+    }
+    if (pendingSaveResolverRef.current) {
+      showSnackbar("Please wait for save to finish.", "warning");
+      return false;
+    }
+
+    const ok = await new Promise<boolean>((resolve) => {
+      pendingSaveResolverRef.current = resolve;
+      setSaving(true);
+      win.postMessage(
+        {
+          type: "STRIPO_REQUEST_SAVE",
+          payload: {
+            apiBase,
+            token,
+            name: n,
+            subject: s,
+            id:
+              selectedTemplateId && selectedTemplateId !== "__new__"
+                ? selectedTemplateId
+                : undefined,
+          },
+        },
+        window.location.origin,
+      );
+
+      setTimeout(() => {
+        if (pendingSaveResolverRef.current) {
+          pendingSaveResolverRef.current = null;
+          setSaving(false);
+          resolve(false);
+        }
+      }, 15000);
+    });
+
+    if (!ok) {
+      showSnackbar("Unable to save template before sending.", "error");
+      return false;
+    }
+    return true;
+  }, [apiBase, name, selectedTemplateId, showSnackbar, subject]);
+
   if (!apiBase) {
     return (
       <Box className="p-6">
@@ -423,6 +566,7 @@ const CreateEmailBuilderPageClient = ({
           label="Template name"
           value={name}
           onChange={(e) => setName(e.target.value)}
+          disabled={!isEditorFullyLoaded}
           required
           sx={{ minWidth: 200, flex: 1 }}
         />
@@ -431,6 +575,7 @@ const CreateEmailBuilderPageClient = ({
           label="Email subject"
           value={subject}
           onChange={(e) => setSubject(e.target.value)}
+          disabled={!isEditorFullyLoaded}
           required
           sx={{ minWidth: 220, flex: 1 }}
         />
@@ -439,6 +584,7 @@ const CreateEmailBuilderPageClient = ({
           variant="contained"
           label={saving ? "Saving…" : "Save template"}
           loading={saving}
+          disabled={!isEditorFullyLoaded || saving}
           onClick={handleSaveClick}
         />
         {(templateIdFromUrl ||
@@ -454,22 +600,15 @@ const CreateEmailBuilderPageClient = ({
                 <SendIcon />
               )
             }
-            disabled={isSending || (isEditMode && hasUnsavedEditorChanges)}
+            disabled={isSending || saving || !isEditorFullyLoaded}
             onClick={() => {
               void (async () => {
-                const dirtyNow = isEditMode ? await requestCurrentDirtyState() : false;
-                if (isEditMode && dirtyNow) {
-                  showSnackbar(
-                    "You have unsaved editor changes. Click Save template before sending.",
-                    "warning",
-                  );
+                if (!isEditorFullyLoaded) {
+                  showSnackbar("Template is still loading. Please wait.", "warning");
                   return;
                 }
-                if (!sendableTemplateId) {
-                  showSnackbar(
-                    "Save the template first. Sending uses your saved template in the library.",
-                    "warning",
-                  );
+                const saved = await saveTemplateBeforeSend();
+                if (!saved) {
                   return;
                 }
                 setSelectUsersOpen(true);
