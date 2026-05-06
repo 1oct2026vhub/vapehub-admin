@@ -120,6 +120,6 @@ export interface PromotionalEmailData {
 }
 
 export async function sendPromotionalEmail(data: PromotionalEmailData): Promise<any> {
-  const response = await axiosInstance.post('/api/admin/mail-subscription-settings/promotional/send', data);
+  const response = await axiosInstance.post('/api/admin/mail-subscription-settings/promotional/send-async', data);
   return response.data;
 } 
