@@ -275,6 +275,12 @@ const navigationConfig: FuseNavItemType[] = [
         type: "item",
         url: "/apps/newsletter/groups",
       },
+      {
+        id: "newsletter-campaign-history",
+        title: "Email History",
+        type: "item",
+        url: "/apps/newsletter/campaigns",
+      },
       // {
       //   id: "newsletter.list",
       //   title: "Newsletter",
