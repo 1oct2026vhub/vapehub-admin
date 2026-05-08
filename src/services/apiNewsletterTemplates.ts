@@ -218,6 +218,16 @@ export interface DeleteNewsletterTemplateResponse {
   message?: string;
 }
 
+export interface CopyNewsletterTemplateResponse {
+  success: boolean;
+  data?: {
+    id: string;
+    name?: string;
+    subject?: string;
+  };
+  message?: string;
+}
+
 export async function deleteNewsletterTemplate(
   id: string,
 ): Promise<DeleteNewsletterTemplateResponse> {
@@ -225,6 +235,15 @@ export async function deleteNewsletterTemplate(
     await axiosInstance.delete<DeleteNewsletterTemplateResponse>(
       `${BASE}/${encodeURIComponent(id)}`,
     );
+  return data;
+}
+
+export async function copyNewsletterTemplate(
+  id: string,
+): Promise<CopyNewsletterTemplateResponse> {
+  const { data } = await axiosInstance.post<CopyNewsletterTemplateResponse>(
+    `${BASE}/${encodeURIComponent(id)}/copy`,
+  );
   return data;
 }
 

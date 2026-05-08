@@ -34,6 +34,7 @@ import MoreVertIcon from "@mui/icons-material/MoreVert";
 import EditIcon from "@mui/icons-material/Edit";
 import SendIcon from "@mui/icons-material/Send";
 import DeleteIcon from "@mui/icons-material/Delete";
+import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import { useRouter } from "next/navigation";
 import PageBreadcrumb from "@/components/PageBreadcrumb";
 import AppButton from "@/components/Shared/AppButton";
@@ -46,6 +47,7 @@ import {
   listDefaultTemplateFeatures,
   listDefaultTemplateIndustries,
   deleteNewsletterTemplate,
+  copyNewsletterTemplate,
   type NewsletterTemplate,
   type StripoDefaultTemplateListItem,
   type StripoFilterOption,
@@ -107,10 +109,19 @@ interface CardMenuProps {
   template: NewsletterTemplate;
   onEdit: () => void;
   onSend: () => void;
+  onDuplicate: () => void;
   onDelete: () => void;
+  duplicateDisabled?: boolean;
 }
 
-function CardMenu({ template, onEdit, onSend, onDelete }: CardMenuProps) {
+function CardMenu({
+  template,
+  onEdit,
+  onSend,
+  onDuplicate,
+  onDelete,
+  duplicateDisabled = false,
+}: CardMenuProps) {
   const [anchor, setAnchor] = useState<null | HTMLElement>(null);
   const open = Boolean(anchor);
 
@@ -174,6 +185,20 @@ function CardMenu({ template, onEdit, onSend, onDelete }: CardMenuProps) {
           onClick={(e) => {
             e.stopPropagation();
             setAnchor(null);
+            onDuplicate();
+          }}
+          disabled={duplicateDisabled}
+        >
+          <ListItemIcon>
+            <ContentCopyIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Duplicate</ListItemText>
+        </MenuItem>
+
+        <MenuItem
+          onClick={(e) => {
+            e.stopPropagation();
+            setAnchor(null);
             onDelete();
           }}
           sx={{ color: "error.main", "& .MuiListItemIcon-root": { color: "error.main" } }}
@@ -192,7 +217,9 @@ interface TemplateCardProps {
   template: NewsletterTemplate;
   onEdit: () => void;
   onSend: () => void;
+  onDuplicate: () => void;
   onDelete: () => void;
+  duplicateDisabled?: boolean;
 }
 
 // 601px so Stripo's "max-width: 600px" responsive breakpoint never fires inside the preview
@@ -202,7 +229,14 @@ const CARD_HEIGHT = 380;
 // Iframe renders at this height so email content never needs to scroll
 const IFRAME_HEIGHT = 2000;
 
-function TemplateCard({ template, onEdit, onSend, onDelete }: TemplateCardProps) {
+function TemplateCard({
+  template,
+  onEdit,
+  onSend,
+  onDuplicate,
+  onDelete,
+  duplicateDisabled = false,
+}: TemplateCardProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(0.5);
 
@@ -275,7 +309,14 @@ function TemplateCard({ template, onEdit, onSend, onDelete }: TemplateCardProps)
       </Box>
 
       {/* 3-dot menu */}
-      <CardMenu template={template} onEdit={onEdit} onSend={onSend} onDelete={onDelete} />
+      <CardMenu
+        template={template}
+        onEdit={onEdit}
+        onSend={onSend}
+        onDuplicate={onDuplicate}
+        onDelete={onDelete}
+        duplicateDisabled={duplicateDisabled}
+      />
     </Box>
   );
 }
@@ -442,6 +483,7 @@ export default function NewsletterTemplatesPageClient() {
   // Delete confirmation state
   const [deleteTarget, setDeleteTarget] = useState<NewsletterTemplate | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -631,6 +673,31 @@ export default function NewsletterTemplatesPageClient() {
 
   const handleDeleteRequest = (row: NewsletterTemplate) => {
     setDeleteTarget(row);
+  };
+
+  const handleDuplicate = async (row: NewsletterTemplate) => {
+    if (duplicatingId) return;
+    setDuplicatingId(row.id);
+    try {
+      const res = await copyNewsletterTemplate(row.id);
+      if (res.success) {
+        const duplicatedName = res.data?.name || `${row.name} (copy)`;
+        showSnackbar(`Template "${duplicatedName}" duplicated successfully.`, "success");
+        if (listMode === "saved") {
+          await load();
+        }
+      } else {
+        showSnackbar(res.message ?? "Failed to duplicate template.", "error");
+      }
+    } catch (e: unknown) {
+      const msg =
+        e && typeof e === "object" && "message" in e
+          ? String((e as { message: unknown }).message)
+          : "Failed to duplicate template";
+      showSnackbar(msg, "error");
+    } finally {
+      setDuplicatingId(null);
+    }
   };
 
   const handleDeleteCancel = () => {
@@ -899,7 +966,9 @@ export default function NewsletterTemplatesPageClient() {
                     template={row}
                     onEdit={() => handleEdit(row.id)}
                     onSend={() => handleSend(row.id)}
+                    onDuplicate={() => void handleDuplicate(row)}
                     onDelete={() => handleDeleteRequest(row)}
+                    duplicateDisabled={duplicatingId === row.id}
                   />
                 ))
               : catalogRows.map((row) => (
