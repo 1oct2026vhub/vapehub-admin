@@ -17,6 +17,7 @@ import { useRouter } from "next/navigation";
 import PageBreadcrumb from "@/components/PageBreadcrumb";
 import { useSnackbar } from "@/contexts/SnackbarContext";
 import { getPromotionalCampaignById } from "@/services/apiMailSubscriptionSettings";
+import { formatDate } from "@/utils/actions";
 
 type CampaignDetailPageClientProps = {
   campaignId: string;
@@ -59,13 +60,6 @@ type CampaignDetail = {
 function toCampaignDetail(value: unknown): CampaignDetail | null {
   if (!value || typeof value !== "object") return null;
   return value as CampaignDetail;
-}
-
-function formatDateTime(value?: string): string {
-  if (!value) return "-";
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return value;
-  return parsed.toLocaleString();
 }
 
 function formatLabel(value?: string): string {
@@ -236,10 +230,10 @@ export default function CampaignDetailPageClient({ campaignId }: CampaignDetailP
                   <strong>Selected emails:</strong> {campaign.audienceMeta?.selectedEmailsCount ?? 0}
                 </Typography>
                 <Typography variant="body2">
-                  <strong>Group ID:</strong> {campaign.audienceMeta?.groupId ?? "-"}
+                  <strong>Group ID:</strong> {campaign.audienceMeta?.groupId ?? "N/A"}
                 </Typography>
                 <Typography variant="body2">
-                  <strong>Frequency:</strong> {campaign.audienceMeta?.frequency ?? "-"}
+                  <strong>Frequency:</strong> {campaign.audienceMeta?.frequency ?? "N/A"}
                 </Typography>
               </Stack>
             </CardContent>
@@ -252,13 +246,13 @@ export default function CampaignDetailPageClient({ campaignId }: CampaignDetailP
               </Typography>
               <Stack spacing={1}>
                 <Typography variant="body2">
-                  <strong>Created:</strong> {formatDateTime(campaign.createdAt)}
+                  <strong>Created:</strong> {campaign.createdAt ? formatDate(campaign.createdAt) : "N/A"}
                 </Typography>
                 <Typography variant="body2">
-                  <strong>Started:</strong> {formatDateTime(campaign.startedAt)}
+                  <strong>Started:</strong> {campaign.startedAt ? formatDate(campaign.startedAt) : "N/A"}
                 </Typography>
                 <Typography variant="body2">
-                  <strong>Finished:</strong> {formatDateTime(campaign.finishedAt)}
+                  <strong>Finished:</strong> {campaign.finishedAt ? formatDate(campaign.finishedAt) : "N/A"}
                 </Typography>
               </Stack>
             </CardContent>
