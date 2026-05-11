@@ -6,6 +6,7 @@ import {
   Box,
   Card,
   CardContent,
+  Chip,
   FormControl,
   Grid,
   InputLabel,
@@ -23,6 +24,7 @@ import DataTable from "@/components/data-table/DataTable";
 import PageBreadcrumb from "@/components/PageBreadcrumb";
 import { useSnackbar } from "@/contexts/SnackbarContext";
 import { formatDate } from "@/utils/actions";
+import { formatStatusText } from "@/utils/actions";
 import {
   type AbandonedCartRecord,
   type AbandonedCartSummaryPerformanceItem,
@@ -121,6 +123,16 @@ function numberOrZero(value: unknown): number {
   return Number.isFinite(num) ? num : 0;
 }
 
+function getStatusChipColor(
+  status?: string,
+): "success" | "warning" | "error" | "default" | "info" {
+  const lower = (status ?? "").toLowerCase();
+  if (lower === "recovered") return "success";
+  if (lower === "entered" || lower === "email1_sent" || lower === "email2_sent") return "warning";
+  if (lower === "cancelled" || lower === "superseded") return "error";
+  return "default";
+}
+
 export default function AbandonedCartsPageClient() {
   const router = useRouter();
   const { showSnackbar } = useSnackbar();
@@ -214,7 +226,18 @@ export default function AbandonedCartsPageClient() {
       {
         accessorKey: "status",
         header: "Status",
-        Cell: ({ row }) => String(row.original.status ?? "-"),
+        Cell: ({ row }) => {
+          const status = row.original.status ? String(row.original.status) : "";
+          if (!status) return "N/A";
+          return (
+            <Chip
+              size="small"
+              label={formatStatusText(status)}
+              color={getStatusChipColor(status)}
+              sx={{ fontWeight: 600 }}
+            />
+          );
+        },
       },
       {
         accessorKey: "abandoned_at",
