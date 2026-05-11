@@ -18,6 +18,7 @@ import FuseSvgIcon from "@fuse/core/FuseSvgIcon";
 import DataTable from "@/components/data-table/DataTable";
 import PageBreadcrumb from "@/components/PageBreadcrumb";
 import { useSnackbar } from "@/contexts/SnackbarContext";
+import { formatDate } from "@/utils/actions";
 import {
   getPromotionalCampaigns,
   type PromotionalCampaign,
@@ -115,7 +116,10 @@ export default function CampaignHistoryPageClient() {
       {
         accessorKey: "createdAt",
         header: "Created At",
-        Cell: ({ row }) => getCampaignCreatedAt(row.original as unknown as PromotionalCampaign),
+        Cell: ({ row }) => {
+          const createdAt = getCampaignCreatedAt(row.original as unknown as PromotionalCampaign);
+          return createdAt && createdAt !== "-" ? formatDate(createdAt) : "N/A";
+        },
       },
     ],
     [],

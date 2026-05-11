@@ -22,6 +22,7 @@ import { useRouter } from "next/navigation";
 import DataTable from "@/components/data-table/DataTable";
 import PageBreadcrumb from "@/components/PageBreadcrumb";
 import { useSnackbar } from "@/contexts/SnackbarContext";
+import { formatDate } from "@/utils/actions";
 import {
   type AbandonedCartRecord,
   type AbandonedCartSummaryPerformanceItem,
@@ -218,7 +219,13 @@ export default function AbandonedCartsPageClient() {
       {
         accessorKey: "abandoned_at",
         header: "Abandoned At",
-        Cell: ({ row }) => String(row.original.abandoned_at ?? row.original.abandonedAt ?? "-"),
+        Cell: ({ row }) => {
+          const rawDate =
+            row.original.abandoned_at ??
+            row.original.abandonedAt ??
+            (row.original.createdAt as string | undefined);
+          return rawDate ? formatDate(String(rawDate)) : "N/A";
+        },
       },
       {
         accessorKey: "total",
