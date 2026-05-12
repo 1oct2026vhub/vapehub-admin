@@ -27,9 +27,33 @@ export type AddSubscriberModalProps = {
   onSuccess?: () => void;
 };
 
-function formatErrorMessage(message: unknown): string {
-  if (typeof message === 'string') return message;
-  if (Array.isArray(message)) return message.map(String).join(', ');
+/** Axios interceptor rejects with `response.data` (not `AxiosError`), so read API shape first. */
+function getAddSubscriberErrorMessage(e: unknown): string {
+  if (typeof e === 'string' && e.trim()) return e;
+  if (e instanceof Error && e.message) return e.message;
+  if (!e || typeof e !== 'object') return 'Failed to add subscriber';
+
+  const o = e as Record<string, unknown>;
+
+  const top = o.message;
+  if (typeof top === 'string' && top.trim()) return top;
+  if (Array.isArray(top)) return top.map(String).join(', ');
+
+  const nested = o.error;
+  if (nested && typeof nested === 'object') {
+    const m = (nested as Record<string, unknown>).message;
+    if (typeof m === 'string' && m.trim()) return m;
+    if (Array.isArray(m)) return m.map(String).join(', ');
+  }
+
+  const response = o.response as Record<string, unknown> | undefined;
+  const data = response?.data;
+  if (data && typeof data === 'object') {
+    const dm = (data as Record<string, unknown>).message;
+    if (typeof dm === 'string' && dm.trim()) return dm;
+    if (Array.isArray(dm)) return dm.map(String).join(', ');
+  }
+
   return 'Failed to add subscriber';
 }
 
@@ -54,8 +78,7 @@ export default function AddSubscriberModal({ open, onClose, onSuccess }: AddSubs
       onSuccess?.();
       onClose();
     } catch (e: unknown) {
-      const ax = e as { response?: { data?: { message?: unknown } } };
-      showSnackbar(formatErrorMessage(ax.response?.data?.message), 'error');
+      showSnackbar(getAddSubscriberErrorMessage(e), 'error');
     }
   };
 
