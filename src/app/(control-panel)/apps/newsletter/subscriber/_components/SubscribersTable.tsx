@@ -251,7 +251,8 @@ const SubscribersTable: React.FC<SubscribersTableProps> = ({ listRefreshSignal =
                   </MenuItem>,
                 ]
               : row.original.subscribed === false
-                ? [
+                ? /* Re-subscribe option (temporarily disabled)
+                [
                     <MenuItem
                       key="resubscribe"
                       onClick={() => {
@@ -265,6 +266,7 @@ const SubscribersTable: React.FC<SubscribersTableProps> = ({ listRefreshSignal =
                       Re-subscribe
                     </MenuItem>,
                   ]
+                */ []
                 : []),
             <MenuItem
               key="delete"
