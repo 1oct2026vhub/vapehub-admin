@@ -36,6 +36,7 @@ type CampaignDetail = {
     sendToAll?: boolean;
     selectedEmailsCount?: number;
   };
+  groupName?: string | null;
   totalRecipients?: number;
   sentCount?: number;
   failedCount?: number;
@@ -231,6 +232,9 @@ export default function CampaignDetailPageClient({ campaignId }: CampaignDetailP
                 </Typography>
                 <Typography variant="body2">
                   <strong>Group ID:</strong> {campaign.audienceMeta?.groupId ?? "N/A"}
+                </Typography>
+                <Typography variant="body2">
+                  <strong>Group name:</strong> {campaign.groupName?.trim() ? campaign.groupName : "N/A"}
                 </Typography>
                 <Typography variant="body2">
                   <strong>Frequency:</strong> {campaign.audienceMeta?.frequency ?? "N/A"}
