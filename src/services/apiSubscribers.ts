@@ -45,6 +45,17 @@ export async function unsubscribeSubscriber(id: number): Promise<{ success: bool
 }
 
 /**
+ * PATCH /api/admin/mail-subscription-settings/subscribers/:subscriberId/subscribe
+ * Re-subscribe an unsubscribed mailing-list row (admin).
+ */
+export async function subscribeSubscriber(subscriberId: number): Promise<{ success: boolean; message?: string }> {
+  const response = await axiosInstance.patch(
+    `/api/admin/mail-subscription-settings/subscribers/${subscriberId}/subscribe`
+  );
+  return response.data;
+}
+
+/**
  * DELETE /api/admin/mail-subscription-settings/subscribers/:id
  */
 export async function deleteSubscriber(id: number): Promise<{ success: boolean; message?: string }> {
