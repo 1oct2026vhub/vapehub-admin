@@ -27,7 +27,12 @@ import { useSnackbar } from '@/contexts/SnackbarContext';
 import ClearFiltersButton from '@/components/Shared/ClearFiltersButton';
 import { usePageState } from '@/hooks/usePageState';
 
-const SubscribersTable: React.FC = () => {
+export type SubscribersTableProps = {
+  /** Increment after external changes (e.g. manual add) to refetch the list. */
+  listRefreshSignal?: number;
+};
+
+const SubscribersTable: React.FC<SubscribersTableProps> = ({ listRefreshSignal = 0 }) => {
   // Persist table filters in session storage
   const [pageState, setPageState, clearPageState] = usePageState(
     "subscribersTable",
@@ -79,6 +84,12 @@ const SubscribersTable: React.FC = () => {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  useEffect(() => {
+    if (listRefreshSignal > 0) {
+      fetchData();
+    }
+  }, [listRefreshSignal, fetchData]);
 
   const totalPages = Math.ceil(total / limit);
 

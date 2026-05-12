@@ -54,3 +54,12 @@ export async function deleteSubscriber(id: number): Promise<{ success: boolean; 
   return response.data;
 }
 
+/**
+ * POST /api/admin/mailSubscription — manually add a newsletter subscriber (admin).
+ */
+export async function addMailSubscription(
+  email: string
+): Promise<{ success: boolean; message?: string; data?: unknown }> {
+  const response = await axiosInstance.post('/api/admin/mailSubscription', { email });
+  return response.data;
+}
