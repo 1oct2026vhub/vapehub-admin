@@ -123,6 +123,36 @@ function numberOrZero(value: unknown): number {
   return Number.isFinite(num) ? num : 0;
 }
 
+function roundChartPoint(
+  metricKey: (typeof METRICS)[number]["key"],
+  raw: unknown,
+): number {
+  const n = numberOrZero(raw);
+  if (metricKey === "recovered_revenue") {
+    return Math.round(n * 100) / 100;
+  }
+  return Math.round(n);
+}
+
+function formatChartAxisValue(val: number): string {
+  if (!Number.isFinite(val)) return "0";
+  const rounded = Math.abs(val - Math.round(val)) < 1e-9 ? Math.round(val) : Math.round(val * 100) / 100;
+  if (Number.isInteger(rounded)) {
+    return rounded.toLocaleString();
+  }
+  return rounded.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+}
+
+function formatChartTooltipValue(seriesIndex: number, val: number): string {
+  if (!Number.isFinite(val)) return "0";
+  const metricKey = METRICS[seriesIndex]?.key;
+  if (metricKey === "recovered_revenue") {
+    const rounded = Math.round(val * 100) / 100;
+    return rounded.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+  }
+  return Math.round(val).toLocaleString();
+}
+
 function getStatusChipColor(
   status?: string,
 ): "success" | "warning" | "error" | "default" | "info" {
@@ -259,29 +289,46 @@ export default function AbandonedCartsPageClient() {
     [],
   );
 
-  const chartCategories = performance.map((item) => item.key);
-  const chartSeries = METRICS.map((metric) => ({
-    name: metric.label,
-    data: performance.map((item) => numberOrZero(item[metric.key])),
-  }));
+  const chartCategories = useMemo(() => performance.map((item) => item.key), [performance]);
 
-  const chartOptions = {
-    chart: {
-      type: "line" as const,
-      toolbar: { show: false },
-    },
-    stroke: { width: 2, curve: "smooth" as const },
-    xaxis: {
-      categories: chartCategories,
-      title: { text: "Period" },
-    },
-    yaxis: {
-      min: 0,
-    },
-    legend: {
-      position: "top" as const,
-    },
-  };
+  const chartSeries = useMemo(
+    () =>
+      METRICS.map((metric) => ({
+        name: metric.label,
+        data: performance.map((item) => roundChartPoint(metric.key, item[metric.key])),
+      })),
+    [performance],
+  );
+
+  const chartOptions = useMemo(
+    () => ({
+      chart: {
+        type: "line" as const,
+        toolbar: { show: false },
+      },
+      stroke: { width: 2, curve: "smooth" as const },
+      xaxis: {
+        categories: chartCategories,
+        title: { text: "Period" },
+      },
+      yaxis: {
+        min: 0,
+        labels: {
+          formatter: (value: string | number) => formatChartAxisValue(Number(value)),
+        },
+      },
+      tooltip: {
+        y: {
+          formatter: (val: number, opts: { seriesIndex?: number }) =>
+            formatChartTooltipValue(opts.seriesIndex ?? 0, val),
+        },
+      },
+      legend: {
+        position: "top" as const,
+      },
+    }),
+    [chartCategories],
+  );
 
   const handlePeriodChange = (event: SelectChangeEvent) => {
     setPeriod(event.target.value as AbandonedCartSummaryPeriod);
