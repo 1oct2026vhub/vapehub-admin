@@ -275,6 +275,12 @@ const navigationConfig: FuseNavItemType[] = [
         type: "item",
         url: "/apps/newsletter/groups",
       },
+      {
+        id: "newsletter-campaign-history",
+        title: "Email History",
+        type: "item",
+        url: "/apps/newsletter/campaigns",
+      },
       // {
       //   id: "newsletter.list",
       //   title: "Newsletter",
@@ -283,6 +289,13 @@ const navigationConfig: FuseNavItemType[] = [
       // },
     ],
   },
+  // {
+  //   id: "newsletter-abandoned-carts",
+  //   title: "Abandoned Carts",
+  //   type: "item",
+  //   icon: "heroicons-outline:shopping-cart",
+  //   url: "/apps/newsletter/abandoned-carts"
+  // },
   {
     id: "contact-us",
     title: "Contact Us",

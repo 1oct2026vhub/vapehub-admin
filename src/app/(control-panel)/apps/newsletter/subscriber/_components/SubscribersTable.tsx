@@ -22,12 +22,24 @@ import {
   Typography,
 } from '@mui/material';
 import FuseSvgIcon from '@fuse/core/FuseSvgIcon';
-import { getSubscribers, unsubscribeSubscriber, deleteSubscriber, Subscriber, FetchSubscribersParams } from '@/services/apiSubscribers';
+import {
+  getSubscribers,
+  unsubscribeSubscriber,
+  subscribeSubscriber,
+  deleteSubscriber,
+  Subscriber,
+  FetchSubscribersParams,
+} from '@/services/apiSubscribers';
 import { useSnackbar } from '@/contexts/SnackbarContext';
 import ClearFiltersButton from '@/components/Shared/ClearFiltersButton';
 import { usePageState } from '@/hooks/usePageState';
 
-const SubscribersTable: React.FC = () => {
+export type SubscribersTableProps = {
+  /** Increment after external changes (e.g. manual add) to refetch the list. */
+  listRefreshSignal?: number;
+};
+
+const SubscribersTable: React.FC<SubscribersTableProps> = ({ listRefreshSignal = 0 }) => {
   // Persist table filters in session storage
   const [pageState, setPageState, clearPageState] = usePageState(
     "subscribersTable",
@@ -80,6 +92,12 @@ const SubscribersTable: React.FC = () => {
     fetchData();
   }, [fetchData]);
 
+  useEffect(() => {
+    if (listRefreshSignal > 0) {
+      fetchData();
+    }
+  }, [listRefreshSignal, fetchData]);
+
   const totalPages = Math.ceil(total / limit);
 
   const handleUnsubscribe = useCallback(async (subscriber: Subscriber) => {
@@ -89,6 +107,16 @@ const SubscribersTable: React.FC = () => {
       fetchData();
     } catch {
       showSnackbar('Failed to unsubscribe', 'error');
+    }
+  }, [showSnackbar, fetchData]);
+
+  const handleResubscribe = useCallback(async (subscriber: Subscriber) => {
+    try {
+      await subscribeSubscriber(subscriber.id);
+      showSnackbar('Subscriber subscribed successfully', 'success');
+      fetchData();
+    } catch {
+      showSnackbar('Failed to re-subscribe', 'error');
     }
   }, [showSnackbar, fetchData]);
 
@@ -207,7 +235,7 @@ const SubscribersTable: React.FC = () => {
           enableColumnOrdering
           enableRowActions
           renderRowActionMenuItems={({ closeMenu, row }) => [
-            ...(row.original.subscribed
+            ...(row.original.subscribed === true
               ? [
                   <MenuItem
                     key="unsubscribe"
@@ -222,7 +250,24 @@ const SubscribersTable: React.FC = () => {
                     Unsubscribe
                   </MenuItem>,
                 ]
-              : []),
+              : row.original.subscribed === false
+                ? /* Re-subscribe option (temporarily disabled)
+                [
+                    <MenuItem
+                      key="resubscribe"
+                      onClick={() => {
+                        handleResubscribe(row.original);
+                        closeMenu();
+                      }}
+                    >
+                      <ListItemIcon>
+                        <FuseSvgIcon>heroicons-outline:bell</FuseSvgIcon>
+                      </ListItemIcon>
+                      Re-subscribe
+                    </MenuItem>,
+                  ]
+                */ []
+                : []),
             <MenuItem
               key="delete"
               onClick={() => {

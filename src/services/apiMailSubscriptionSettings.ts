@@ -122,4 +122,41 @@ export interface PromotionalEmailData {
 export async function sendPromotionalEmail(data: PromotionalEmailData): Promise<any> {
   const response = await axiosInstance.post('/api/admin/mail-subscription-settings/promotional/send-async', data);
   return response.data;
-} 
+}
+
+export interface PromotionalCampaign {
+  id: string | number;
+  [key: string]: unknown;
+}
+
+export interface PromotionalCampaignListResponse {
+  success: boolean;
+  data: PromotionalCampaign[] | { campaigns?: PromotionalCampaign[]; pagination?: unknown };
+  message?: string;
+}
+
+export interface PromotionalCampaignDetailResponse {
+  success: boolean;
+  data: PromotionalCampaign;
+  message?: string;
+}
+
+export async function getPromotionalCampaigns(params?: {
+  page?: number;
+  limit?: number;
+}): Promise<PromotionalCampaignListResponse> {
+  const response = await axiosInstance.get(
+    '/api/admin/mail-subscription-settings/promotional/campaigns',
+    { params },
+  );
+  return response.data;
+}
+
+export async function getPromotionalCampaignById(
+  id: string | number,
+): Promise<PromotionalCampaignDetailResponse> {
+  const response = await axiosInstance.get(
+    `/api/admin/mail-subscription-settings/promotional/campaigns/${encodeURIComponent(String(id))}`,
+  );
+  return response.data;
+}
