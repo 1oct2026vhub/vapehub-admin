@@ -27,6 +27,7 @@ import { Grid, Stack, Button as MuiButton, Box as MuiBox } from "@mui/material";
 import AddNewCategoryModal from "../components/AddNewCategoryModal";
 import AddNewBrandModal from "../components/AddNewBrandModal";
 import FormMultiTextField from '@/components/Shared/FormMultiTextField';
+import FormCheckboxField from '@/components/Shared/FormCheckboxField';
 
 const schema = z.object({
   name: z
@@ -48,6 +49,7 @@ const schema = z.object({
   brand_ids: z.array(z.number()).min(1, "At least one brand is required"),
   linked_product_ids: z.array(z.number()).optional().default([]),
   is_new: z.boolean().optional(),
+  is_discontinued: z.boolean().optional(),
 });
 // Same redirect URL validation as EditBannerForm: empty or valid URL
 const redirectUrlSchema = z.string().url("Invalid URL format").optional().or(z.literal(""));
@@ -213,6 +215,7 @@ function BasicInfoTab() {
       category_ids: formData.category_ids || [],
       brand_ids: formData.brand_ids || [],
       linked_product_ids: formData.linked_product_ids || [],
+      is_discontinued: formData.is_discontinued ?? false,
       // is_new: formData.is_new ?? true,
     },
     resolver: zodResolver(schema),
@@ -610,6 +613,7 @@ function BasicInfoTab() {
              setValue("brand_ids", productData.Brands?.map(b => b.id) || []);
              setValue("linked_product_ids", productData.LinkedProducts?.map(p => p.id) || []);
              setValue("is_new", productData.is_new ?? true);
+             setValue("is_discontinued", productData.is_discontinued ?? false);
 
             // Fetch selected category, brand, and linked product details
             await fetchSelectedOptions(
@@ -633,6 +637,7 @@ function BasicInfoTab() {
                brand_ids: productData.Brands?.map(b => b.id) || [],
                linked_product_ids: productData.LinkedProducts?.map(p => p.id) || [],
                is_new: productData.is_new ?? true,
+               is_discontinued: productData.is_discontinued ?? false,
                productId: Number(finalProductId),
                deletedAt: productData.deletedAt ?? null,
               redirect_url: extractedRedirectUrl,
@@ -682,6 +687,7 @@ function BasicInfoTab() {
          brand_ids: data.brand_ids,
          linked_product_ids: data.linked_product_ids || [],
          is_new: Boolean(data.is_new),
+         is_discontinued: Boolean(data.is_discontinued),
          ...(formData.deletedAt && { redirect_url: (formData.redirect_url ?? "").trim() || undefined }),
        };
 
@@ -1011,6 +1017,14 @@ function BasicInfoTab() {
           </Grid>
         )}
         
+        <Grid item xs={12}>
+          <FormCheckboxField
+            name="is_discontinued"
+            control={control}
+            label="Discontinued (permanently out of stock)"
+          />
+        </Grid>
+
         <Grid item xs={12}>
           <MuiBox sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
             <FormMultiSelectWithMapping

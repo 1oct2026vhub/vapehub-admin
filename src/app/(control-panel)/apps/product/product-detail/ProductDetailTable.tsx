@@ -109,6 +109,7 @@ interface Variant {
   low_stock_threshold: number;
   stock_status: string;
   status: string;
+  is_discontinued?: boolean;
   variantImages: ProductImage[];
   variantAttributes: VariantAttribute[];
 }
@@ -139,6 +140,7 @@ export interface ProductType {
   productAttributeTerms: ProductAttributeTerm[];
   variants: Variant[];
   status: string;
+  is_discontinued?: boolean;
 }
 
 export default function ProductDetailTable() {
@@ -411,6 +413,18 @@ export default function ProductDetailTable() {
                         SKU
                       </TableCell>
                       <TableCell>{productDetail.sku || "N/A"}</TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell component="th" className="font-semibold">
+                        Discontinued
+                      </TableCell>
+                      <TableCell>
+                        <Chip
+                          label={productDetail.is_discontinued ? "Yes" : "No"}
+                          size="small"
+                          color={productDetail.is_discontinued ? "warning" : "default"}
+                        />
+                      </TableCell>
                     </TableRow>
                     <TableRow>
                       <TableCell component="th" className="font-semibold">
@@ -710,8 +724,16 @@ export default function ProductDetailTable() {
                                           : "default"
                                       }
                                       size="small"
-                                      sx={{ ml: "auto" }}
+                                      sx={!variant.is_discontinued ? { ml: "auto" } : undefined}
                                     />
+                                    {variant.is_discontinued && (
+                                      <Chip
+                                        label="Discontinued"
+                                        color="warning"
+                                        size="small"
+                                        sx={{ ml: "auto" }}
+                                      />
+                                    )}
                                   </Box>
                                 </Grid>
 
@@ -790,6 +812,18 @@ export default function ProductDetailTable() {
                                                   }
                                                 />
                                               </Box>
+                                            </TableCell>
+                                          </TableRow>
+                                          <TableRow>
+                                            <TableCell className="font-semibold">
+                                              Discontinued
+                                            </TableCell>
+                                            <TableCell>
+                                              <Chip
+                                                label={variant.is_discontinued ? "Yes" : "No"}
+                                                size="small"
+                                                color={variant.is_discontinued ? "warning" : "default"}
+                                              />
                                             </TableCell>
                                           </TableRow>
                                           <TableRow>
