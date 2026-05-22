@@ -7,6 +7,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import AppButton from '@/components/Shared/AppButton';
 import FormTextField from '@/components/Shared/FormTextField';
+import FormCheckboxField from '@/components/Shared/FormCheckboxField';
 import FormCKEditor from '@/components/Shared/FormCKEditor';
 import FuseLoading from '@fuse/core/FuseLoading';
 import { FieldError } from 'react-hook-form';
@@ -153,7 +154,8 @@ interface ManualVariantData {
   stock: number; 
   low_stock_threshold: number | null;
   stock_status: string; 
-  status: string; 
+  status: string;
+  is_discontinued?: boolean;
   variantImages: ManualVariantImage[];
   variantAttributes: ManualVariantAttribute[];
 }
@@ -203,6 +205,7 @@ const variantEditSchema = z.object({
   ),
   status: z.enum(["active", "inactive"]).default("active"),
   stockStatus: z.enum(["In Stock", "Out of Stock"]).default("In Stock"),
+  is_discontinued: z.boolean().optional().default(false),
   depositPrice: z.preprocess(
     (val) => {
       if (val === "" || val === null || val === undefined) return null;
@@ -782,6 +785,7 @@ const ManualVariantView: React.FC<ManualVariantViewProps> = ({
         stock: getEditNumericValue(selectedManualVariant.stock),
         status: (selectedManualVariant.status?.toLowerCase() === 'active' ? 'active' : 'inactive') as 'active' | 'inactive',
         stockStatus: getEditValidStockStatus(selectedManualVariant.stock_status, selectedManualVariant.stock),
+        is_discontinued: Boolean(selectedManualVariant.is_discontinued),
         depositPrice: getEditNumericValue(selectedManualVariant.discount_price),
         purchasePrice: getEditNumericValue(selectedManualVariant.purchase_price),
         lowStockThreshold: getEditNumericValue(selectedManualVariant.low_stock_threshold),
@@ -799,7 +803,7 @@ const ManualVariantView: React.FC<ManualVariantViewProps> = ({
       prevSelectedManualVariantIdRef.current = selectedManualVariant.id;
     } else {
       resetEditForm({ // Reset to defaults if no variant selected
-        slug: "", sku: "", regular_price: 0, stock: 0, status: "active", stockStatus: "In Stock",
+        slug: "", sku: "", regular_price: 0, stock: 0, status: "active", stockStatus: "In Stock", is_discontinued: false,
         depositPrice: null, purchasePrice: null, lowStockThreshold: null,
         weight: null, length: null, width: null, height: null,
         barcode: null, description: null,
@@ -823,7 +827,7 @@ const ManualVariantView: React.FC<ManualVariantViewProps> = ({
     if (formValues.status !== originalVariant.status?.toLowerCase()) return true;
     // For stockStatus, compare against the original value, not a re-derived one, unless it needs re-deriving based on new stock for some logic
     if (formValues.stockStatus !== getEditValidStockStatus(originalVariant.stock_status, originalVariant.stock) ) return true; 
-
+    if (Boolean(formValues.is_discontinued) !== Boolean(originalVariant.is_discontinued)) return true;
 
     const originalDiscountPrice = getEditNumericValue(originalVariant.discount_price);
     const formDiscountPrice = getEditNumericValue(formValues.depositPrice);
@@ -887,6 +891,7 @@ const ManualVariantView: React.FC<ManualVariantViewProps> = ({
       stock_status: data.stockStatus === "In Stock" ? "in_stock" :
                     data.stockStatus === "Out of Stock" ? "out_of_stock" :
                     "",
+      is_discontinued: Boolean(data.is_discontinued),
       discount_price: transformPriceNumber(data.depositPrice), 
       purchase_price: transformPriceNumber(data.purchasePrice), 
       low_stock_threshold: data.lowStockThreshold,
@@ -1185,6 +1190,13 @@ const ManualVariantView: React.FC<ManualVariantViewProps> = ({
                     {fieldState.error && <FormHelperText>{fieldState.error.message}</FormHelperText>}
                   </FormControl>
                 )}
+              />
+            </div>
+            <div className="mb-4">
+              <FormCheckboxField
+                name="is_discontinued"
+                control={createControl}
+                label="Discontinued (permanently out of stock)"
               />
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">

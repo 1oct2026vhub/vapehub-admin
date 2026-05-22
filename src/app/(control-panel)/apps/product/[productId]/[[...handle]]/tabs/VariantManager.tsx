@@ -131,6 +131,7 @@ interface Variant {
   stock: number; // Changed from number | null
   status: string; // Changed from 'Active' | 'Inactive' to e.g., "active"
   stock_status: string; // Changed from UI enum to API string e.g., "in_stock", MADE REQUIRED
+  is_discontinued?: boolean;
   discount_price: string | null; // Renamed from depositPrice, changed type, MADE NON-OPTIONAL
   purchase_price: string | null; // Changed type, MADE NON-OPTIONAL
   low_stock_threshold: number | null; // Kept as number | null, MADE NON-OPTIONAL
@@ -201,6 +202,7 @@ const variantSchema = z.object({
   ),
   status: z.enum(["active", "inactive"]).default("active"),
   stockStatus: z.enum(["In Stock", "Out of Stock"]).default("In Stock"), // Keep as is for UI logic
+  is_discontinued: z.boolean().optional().default(false),
   depositPrice: z.preprocess(
     (val) => {
       // Treat cleared input as 0 to avoid triggering other field validations
@@ -1297,7 +1299,8 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
             regular_price: String(apiVariant.regular_price), // Store as string
             stock: Number(apiVariant.stock),   // Store as number
             status: apiVariant.status, // Store API string (e.g., "active")
-            stock_status: apiVariant.stock_status, 
+            stock_status: apiVariant.stock_status,
+            is_discontinued: Boolean(apiVariant.is_discontinued),
             discount_price: apiVariant.discount_price !== null && apiVariant.discount_price !== undefined ? String(apiVariant.discount_price) : null,
             purchase_price: apiVariant.purchase_price !== null && apiVariant.purchase_price !== undefined ? String(apiVariant.purchase_price) : null,
             low_stock_threshold: apiVariant.low_stock_threshold !== null && apiVariant.low_stock_threshold !== undefined ? Number(apiVariant.low_stock_threshold) : null,
@@ -1545,6 +1548,7 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
             stock: apiVariant.stock,
             status: apiVariant.status === 'active' ? 'Active' : 'Inactive',
             stock_status: mapApiStockStatusToForm(apiVariant.stock_status),
+            is_discontinued: Boolean(apiVariant.is_discontinued),
             discount_price: apiVariant.discount_price,
             purchase_price: apiVariant.purchase_price,
             low_stock_threshold: apiVariant.low_stock_threshold,
@@ -1823,7 +1827,9 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
         width: transformOptionalNumber(data.width),
         height: transformOptionalNumber(data.height),
         barcode: data.barcode?.trim() || undefined,
-        description: data.description?.trim() || undefined
+        description: data.description?.trim() || undefined,
+        stock_status: mapFormStockStatusToApi(data.stockStatus) || undefined,
+        is_discontinued: Boolean(data.is_discontinued),
       };
 
       // Only add non-null/undefined optional fields to payload
@@ -1868,6 +1874,7 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
         stock: Number(transformOptionalNumber(data.stock)),
         status: data.status === 'active' ? 'Active' : 'Inactive',
         stock_status: data.stockStatus === 'In Stock' ? 'in_stock' : data.stockStatus === 'Out of Stock' ? 'out_of_stock' : '',
+        is_discontinued: Boolean(data.is_discontinued),
         discount_price: String(transformPriceNumber(data.depositPrice)),
         purchase_price: String(transformPriceNumber(data.purchasePrice)),
         low_stock_threshold: transformOptionalNumber(data.lowStockThreshold),
@@ -2641,6 +2648,11 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
       }
       // --- END EDIT ---
 
+      if (Boolean(data.is_discontinued) !== Boolean(originalVariant.is_discontinued)) {
+        apiPayload.is_discontinued = Boolean(data.is_discontinued);
+        hasChanges = true;
+      }
+
       // Optional fields (compare simple types, use API names)
       const saleCleared =
         (data.depositPrice as any) === '' || data.depositPrice === null || data.depositPrice === undefined;
@@ -2747,6 +2759,7 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
               status: displayStatus, 
               // --- Add stockStatus update here --- 
               stock_status: mapFormStockStatusToApi(data.stockStatus), 
+              is_discontinued: Boolean(data.is_discontinued),
               // --- End Add --- 
               discount_price: String(saleCleared ? 0 : transformPriceNumber(data.depositPrice)),
               purchase_price: String(purchaseCleared ? 0 : transformPriceNumber(data.purchasePrice)),
@@ -2770,6 +2783,7 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
               stock: updatedVariant.stock ?? 0,
               status: displayStatus.toLowerCase() as 'active' | 'inactive',
               stockStatus: getValidStockStatus(updatedVariant.stock_status),
+              is_discontinued: Boolean(updatedVariant.is_discontinued),
               depositPrice: updatedVariant.discount_price ? Number(updatedVariant.discount_price) : null,
               purchasePrice: updatedVariant.purchase_price ? Number(updatedVariant.purchase_price) : null,
               lowStockThreshold: updatedVariant.low_stock_threshold ?? null,
@@ -3013,6 +3027,7 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
           stock: currentSelectedVariant.stock ?? 0,
           status: formStatus as 'active' | 'inactive', // Use the derived lowercase formStatus
           stockStatus: getValidStockStatus(currentSelectedVariant.stock_status),
+          is_discontinued: Boolean(currentSelectedVariant.is_discontinued),
           depositPrice: currentSelectedVariant.discount_price ? Number(currentSelectedVariant.discount_price) : null,
           purchasePrice: currentSelectedVariant.purchase_price ? Number(currentSelectedVariant.purchase_price) : null,
           lowStockThreshold: currentSelectedVariant.low_stock_threshold ?? null,
@@ -3032,7 +3047,7 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
     } else {
       resetEditForm({ 
         slug: "", sku: "", regular_price: null as any, stock: null as any, status: "active",
-        depositPrice: null, purchasePrice: null, stockStatus: "In Stock", 
+        depositPrice: null, purchasePrice: null, stockStatus: "In Stock", is_discontinued: false,
         lowStockThreshold: null, weight: null, length: null, width: null, height: null, 
         barcode: null, description: null
       });
@@ -3072,6 +3087,7 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
       status: formValues.status === 'active' ? 'Active' : 'Inactive',
       stock_status: formValues.stockStatus === 'In Stock' ? 'in_stock' : 
                     formValues.stockStatus === 'Out of Stock' ? 'out_of_stock' : '',
+      is_discontinued: formValues.is_discontinued ?? variant.is_discontinued,
       discount_price: formValues.depositPrice !== null && formValues.depositPrice !== undefined ? 
                       String(formValues.depositPrice) : variant.discount_price,
       purchase_price: formValues.purchasePrice !== null && formValues.purchasePrice !== undefined ? 
@@ -3160,6 +3176,7 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
       low_stock_threshold: variant.low_stock_threshold,
       stock_status: variant.stock_status,
       status: variant.status,
+      is_discontinued: variant.is_discontinued,
       variantImages: variant.variantImages,
       variantAttributes: variant.variantAttributes
     };
@@ -3189,6 +3206,7 @@ const VariantManager: React.FC<VariantManagerProps> = ({ isActive }) => { // Add
       low_stock_threshold: variant.low_stock_threshold,
       stock_status: variant.stock_status,
       status: variant.status,
+      is_discontinued: variant.is_discontinued,
       variantImages: variant.variantImages,
       variantAttributes: variant.variantAttributes
     };

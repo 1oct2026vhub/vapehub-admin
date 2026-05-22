@@ -75,6 +75,7 @@ interface GeneratedVariant {
   low_stock_threshold: number;
   stock_status: string;
   status: string;
+  is_discontinued?: boolean;
   variantImages: VariantImage[];
   variantAttributes: VariantAttribute[];
 }
@@ -180,6 +181,7 @@ const variantSchema = z.object({
   ),
   status: z.enum(["active", "inactive"]).default("active"),
   stockStatus: z.enum(["In Stock", "Out of Stock"]).default("In Stock"),
+  is_discontinued: z.boolean().optional().default(false),
   depositPrice: z.preprocess(
     (val) => {
       if (val === "" || val === null || val === undefined) return null;
@@ -1146,6 +1148,7 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
           purchasePrice: getNumericValue(selectedVariant.purchase_price),
           lowStockThreshold: getNumericValue(selectedVariant.low_stock_threshold),
           stockStatus: getValidStockStatus(selectedVariant.stock_status),
+          is_discontinued: Boolean(selectedVariant.is_discontinued),
           weight: getNumericValue(selectedVariant.weight),
           length: getNumericValue(selectedVariant.length),
           width: getNumericValue(selectedVariant.width),
@@ -1175,6 +1178,7 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
         purchasePrice: null,
         lowStockThreshold: null,
         stockStatus: 'In Stock',
+        is_discontinued: false,
         weight: null,
         length: null,
         width: null,
@@ -1220,6 +1224,7 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
         description: formValues.description ?? originalSelectedVariantRef.current.description, // Fallback to original if form value is null/undefined
         barcode: formValues.barcode ?? originalSelectedVariantRef.current.barcode,
         stock_status: formValues.stockStatus, // e.g., "In Stock", "Out of Stock"
+        is_discontinued: Boolean(formValues.is_discontinued),
     };
 
     const dirty = JSON.stringify(currentStateToCompare) !== JSON.stringify(originalSelectedVariantRef.current);
@@ -1303,6 +1308,9 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
           default: apiPayload.stock_status = null; // Or handle as error/default
         }
       }
+      if (dirtyFields.is_discontinued) {
+        apiPayload.is_discontinued = Boolean(data.is_discontinued);
+      }
 
       // --- IMPORTANT: Always include attributes if required by backend --- 
       apiPayload.attributes = selectedVariant.variantAttributes.map(attr => ({
@@ -1347,7 +1355,8 @@ const GenerateVariantsView: React.FC<GenerateVariantsViewProps> = ({ isLoading: 
               barcode: data.barcode || '',
               description: data.description || '',
               stock_status: data.stockStatus,
-              status: data.status
+              status: data.status,
+              is_discontinued: Boolean(data.is_discontinued),
             };
           }
           return variant;
