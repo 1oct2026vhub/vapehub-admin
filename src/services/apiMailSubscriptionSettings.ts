@@ -160,3 +160,37 @@ export async function getPromotionalCampaignById(
   );
   return response.data;
 }
+
+export type RequeueCampaignChunksScope = 'cron_recovered' | 'all_pending';
+
+export interface RequeueCampaignChunksRequest {
+  scope?: RequeueCampaignChunksScope;
+  chunkIds?: number[];
+  staleMinutes?: number;
+}
+
+export interface RequeueCampaignChunksResult {
+  campaignId: number;
+  matched: number;
+  enqueued: number;
+  failed: number;
+  failedItems: unknown[];
+  chunkIds: number[];
+}
+
+export interface RequeueCampaignChunksResponse {
+  success: boolean;
+  data: RequeueCampaignChunksResult;
+  message?: string;
+}
+
+export async function requeuePromotionalCampaignChunks(
+  id: string | number,
+  body: RequeueCampaignChunksRequest = { scope: 'cron_recovered' },
+): Promise<RequeueCampaignChunksResponse> {
+  const response = await axiosInstance.post(
+    `/api/admin/mail-subscription-settings/promotional/campaigns/${encodeURIComponent(String(id))}/requeue-chunks`,
+    body,
+  );
+  return response.data;
+}
