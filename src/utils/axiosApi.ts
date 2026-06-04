@@ -148,7 +148,7 @@ import { deleteCookie } from "cookies-next";
 
 const axiosApi = axios.create({
   baseURL: process.env.NEXT_PUBLIC_BASE_URL,
-  timeout: 15000,
+  timeout: 10000,
 });
 
 // Request Interceptor - Attach Token & Set Content-Type
