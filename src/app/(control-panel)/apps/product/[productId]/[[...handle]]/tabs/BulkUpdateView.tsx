@@ -9,6 +9,7 @@ import { useSnackbar } from '@/contexts/SnackbarContext';
 import { Paper, FormControlLabel, Checkbox, Select, MenuItem, FormControl, InputLabel, FormHelperText, Typography, IconButton, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, Button, CircularProgress } from '@mui/material';
 import AppButton from '@/components/Shared/AppButton';
 import FormTextField from '@/components/Shared/FormTextField';
+import FormCheckboxField from '@/components/Shared/FormCheckboxField';
 import { styled } from '@mui/material/styles';
 import TextField from '@mui/material/TextField';
 import { 
@@ -137,6 +138,7 @@ interface EditableVariantData {
   low_stock_threshold: number | null;
   stock_status: string; // e.g., "in_stock", "out_of_stock"
   status: string; // e.g., "active", "inactive"
+  is_discontinued?: boolean;
   sku?: string | null; // Added SKU as it's common
   
   // Using locally defined detailed types for images and attributes
@@ -210,6 +212,7 @@ const bulkUpdateSchema = z.object({
     ),
     stockStatus: z.enum(['In Stock', 'Out of Stock']).optional(),
     status: z.enum(['active', 'inactive']).optional(),
+    is_discontinued: z.boolean().optional(),
     weight: z.preprocess(
         (val) => (val === "" || val === null || val === undefined ? undefined : Number(val)),
         z.number({ invalid_type_error: "Weight must be a number" }).min(0).optional()
@@ -254,6 +257,7 @@ const individualVariantEditSchema = z.object({
   ),
   status: z.enum(["active", "inactive"]).default("active"),
   stockStatus: z.enum(["In Stock", "Out of Stock"]).default("In Stock"),
+  is_discontinued: z.boolean().optional().default(false),
   depositPrice: z.preprocess(
     (val) => (val === "" || val === null || val === undefined ? null : Number(val)),
     z.number({ invalid_type_error: "Please enter a valid number for sale price" })
@@ -682,6 +686,7 @@ const BulkUpdateView: React.FC<BulkUpdateViewProps> = ({
         stock: getEditNumericValue(selectedVariantForEdit.stock),
         status: (selectedVariantForEdit.status?.toLowerCase() === 'active' ? 'active' : 'inactive') as 'active' | 'inactive',
         stockStatus: getDisplayStockStatus(selectedVariantForEdit.stock_status, selectedVariantForEdit.stock),
+        is_discontinued: Boolean(selectedVariantForEdit.is_discontinued),
         depositPrice: transformPriceNumber(selectedVariantForEdit.discount_price),
         purchasePrice: transformPriceNumber(selectedVariantForEdit.purchase_price),
         lowStockThreshold: getEditNumericValue(selectedVariantForEdit.low_stock_threshold),
@@ -698,7 +703,7 @@ const BulkUpdateView: React.FC<BulkUpdateViewProps> = ({
       prevSelectedVariantIdRef.current = selectedVariantForEdit.id;
     } else {
       resetEditDetailForm({
-        slug: "", sku: "", regular_price: 0, stock: 0, status: "active", stockStatus: "In Stock",
+        slug: "", sku: "", regular_price: 0, stock: 0, status: "active", stockStatus: "In Stock", is_discontinued: false,
         depositPrice: null, purchasePrice: null, lowStockThreshold: null,
         weight: null, length: null, width: null, height: null,
         barcode: null, description: null,
@@ -750,6 +755,8 @@ const BulkUpdateView: React.FC<BulkUpdateViewProps> = ({
         case "In Stock": updateRequestData.stock_status = "in_stock"; break;
         case "Out of Stock": updateRequestData.stock_status = "out_of_stock"; break;
       }
+
+      updateRequestData.is_discontinued = Boolean(data.is_discontinued);
       
       // Filter out null/undefined values from the payload
       const finalApiPayload = Object.entries(updateRequestData).reduce((acc, [key, value]) => {
@@ -780,6 +787,7 @@ const BulkUpdateView: React.FC<BulkUpdateViewProps> = ({
           stock: updatedVariantFromApi.stock,
           status: updatedVariantFromApi.status,
           stock_status: updatedVariantFromApi.stock_status, // API version
+          is_discontinued: Boolean(updatedVariantFromApi.is_discontinued),
           discount_price: updatedVariantFromApi.discount_price !== null && updatedVariantFromApi.discount_price !== undefined ? String(updatedVariantFromApi.discount_price) : null,
           purchase_price: updatedVariantFromApi.purchase_price !== null && updatedVariantFromApi.purchase_price !== undefined ? String(updatedVariantFromApi.purchase_price) : null,
           low_stock_threshold: updatedVariantFromApi.low_stock_threshold,
@@ -1102,6 +1110,9 @@ const BulkUpdateView: React.FC<BulkUpdateViewProps> = ({
           case 'In Stock': updates.stock_status = 'in_stock'; break;
           case 'Out of Stock': updates.stock_status = 'out_of_stock'; break;
         }
+      }
+      if (data.is_discontinued !== undefined) {
+        updates.is_discontinued = data.is_discontinued;
       }
 
       const payload: BulkUpdateProductVariantsPayload = { updates };
@@ -1520,6 +1531,11 @@ const BulkUpdateView: React.FC<BulkUpdateViewProps> = ({
                       {error && <FormHelperText>{error.message}</FormHelperText>}
                     </FormControl>
                   )}
+                />
+                <FormCheckboxField
+                  name="is_discontinued"
+                  control={bulkControl}
+                  label="Discontinued (permanently out of stock)"
                 />
               </div>
 

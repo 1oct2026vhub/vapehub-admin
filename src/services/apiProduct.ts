@@ -159,6 +159,7 @@ export interface CreateProductData {
   brand_ids?: number[];
   linked_product_ids?: number[];
   is_new?: boolean;
+  is_discontinued?: boolean;
   /** Redirect URL for deleted products (301 from product URL to this path) */
   redirect_url?: string;
 }
@@ -237,6 +238,7 @@ export interface ProductVariant {
   barcode?: string;
   description?: string;
   status: "active" | "inactive";
+  is_discontinued?: boolean;
   attributes: {
     attribute_id: number;
     term_id: number;
@@ -309,6 +311,7 @@ export interface UpdateProductVariantRequest {
   description?: string | null;
   status?: 'active' | 'inactive';
   stock_status?: 'in_stock' | 'out_of_stock' | null;
+  is_discontinued?: boolean;
   attributes: Array<{
     attribute_id: number;
     term_id: number;
@@ -531,6 +534,7 @@ interface BulkVariantUpdateFields {
   low_stock_threshold?: number;
   stock_status?: 'in_stock' | 'out_of_stock'; // Assuming backend expects snake_case
   status?: 'active' | 'inactive';
+  is_discontinued?: boolean;
   description?: string;
 }
 

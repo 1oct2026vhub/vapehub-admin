@@ -13,6 +13,7 @@ export interface ProductFormData {
   brand_ids: number[];
   linked_product_ids?: number[];
   is_new: boolean;
+  is_discontinued: boolean;
 
   // Pricing Info
   price: string;
@@ -97,6 +98,7 @@ const initialFormData: ProductFormData = {
   brand_ids: [],
   linked_product_ids: [],
   is_new: true,
+  is_discontinued: false,
 
   price: "",
   discount_price: "",

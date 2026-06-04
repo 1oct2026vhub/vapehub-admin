@@ -5,6 +5,7 @@ import { DropzoneRootProps, DropzoneInputProps } from 'react-dropzone';
 import AppButton from '@/components/Shared/AppButton';
 import FormTextField from '@/components/Shared/FormTextField';
 import FormCKEditor from '@/components/Shared/FormCKEditor';
+import FormCheckboxField from '@/components/Shared/FormCheckboxField';
 import FuseLoading from '@fuse/core/FuseLoading';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -98,6 +99,7 @@ export interface VariantFormData {
   stock: number;
   status: 'active' | 'inactive';
   stockStatus: 'In Stock' | 'Out of Stock';
+  is_discontinued?: boolean;
   depositPrice?: number | null;
   purchasePrice?: number | null;
   lowStockThreshold?: number | null;
@@ -273,6 +275,14 @@ const VariantDetailsForm: React.FC<VariantDetailsFormProps> = ({
               </Select>
             </FormField>
           )}
+        />
+      </div>
+
+      <div className="mb-4">
+        <FormCheckboxField
+          name="is_discontinued"
+          control={control}
+          label="Discontinued (permanently out of stock)"
         />
       </div>
 
