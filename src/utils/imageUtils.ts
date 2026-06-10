@@ -189,6 +189,61 @@ export const validateImageDimensionsWithinBounds = (
  *  - `message` (string|undefined): An error message if validation fails.
  *  - `dimensions` (object|undefined): The actual dimensions { width, height } of the image if loaded.
  */
+/** Frontend mobile promo slot 1: square 450×450. Slots 2–3: wide 361×274. */
+export const MOBILE_BANNER_SQUARE_SIZE = 450;
+export const MOBILE_BANNER_WIDE_WIDTH = 361;
+export const MOBILE_BANNER_WIDE_HEIGHT = 274;
+
+const isMobileBannerSquare = (width: number, height: number): boolean =>
+  width === MOBILE_BANNER_SQUARE_SIZE && height === MOBILE_BANNER_SQUARE_SIZE;
+
+const isMobileBannerWide = (width: number, height: number): boolean =>
+  width === MOBILE_BANNER_WIDE_WIDTH && height === MOBILE_BANNER_WIDE_HEIGHT;
+
+/**
+ * Validates mobile banner image (`image_low`):
+ * - Square: exactly 450×450 px (display order 1)
+ * - Wide rectangle: exactly 361×274 px (display order 2–3)
+ */
+export const validateMobileBannerImage = (
+  file: File
+): Promise<{ valid: boolean; message?: string; dimensions?: { width: number; height: number } }> => {
+  return new Promise((resolve) => {
+    if (!file || !(file instanceof File) || !file.type.startsWith("image/")) {
+      resolve({ valid: false, message: "Invalid image file." });
+      return;
+    }
+
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(img.src);
+      const { width, height } = img;
+
+      const isSquare = isMobileBannerSquare(width, height);
+      const isWide = isMobileBannerWide(width, height);
+
+      if (!isSquare && !isWide) {
+        resolve({
+          valid: false,
+          message: `Mobile image must be square ${MOBILE_BANNER_SQUARE_SIZE}×${MOBILE_BANNER_SQUARE_SIZE} px (display order 1) or wide ${MOBILE_BANNER_WIDE_WIDTH}×${MOBILE_BANNER_WIDE_HEIGHT} px (display order 2–3). Current: ${width} × ${height} px.`,
+          dimensions: { width, height },
+        });
+        return;
+      }
+
+      resolve({
+        valid: true,
+        dimensions: { width, height },
+      });
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(img.src);
+      resolve({ valid: false, message: "Could not load image to validate dimensions." });
+    };
+    img.src = URL.createObjectURL(file);
+  });
+};
+
 export const validateDesktopBannerImage = (
   file: File
 ): Promise<{ valid: boolean; message?: string; dimensions?: { width: number; height: number } }> => {
