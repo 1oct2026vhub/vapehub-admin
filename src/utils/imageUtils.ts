@@ -178,10 +178,21 @@ export const validateImageDimensionsWithinBounds = (
   });
 };
 
+/** Frontend desktop promo slot 1: square 700×700. Slots 2–3: wide 1920×700. */
+export const DESKTOP_BANNER_SQUARE_SIZE = 700;
+export const DESKTOP_BANNER_RECTANGLE_WIDTH = 1920;
+export const DESKTOP_BANNER_RECTANGLE_HEIGHT = 700;
+
+const isDesktopBannerSquare = (width: number, height: number): boolean =>
+  width === DESKTOP_BANNER_SQUARE_SIZE && height === DESKTOP_BANNER_SQUARE_SIZE;
+
+const isDesktopBannerRectangle = (width: number, height: number): boolean =>
+  width === DESKTOP_BANNER_RECTANGLE_WIDTH && height === DESKTOP_BANNER_RECTANGLE_HEIGHT;
+
 /**
  * Validates desktop banner image dimensions with specific rules:
- * - Square images: dimensions must be between 450x450 and 700x700 (inclusive, same dimensions)
- * - Rectangle images: dimensions must be exactly 1920x700
+ * - Square images: exactly 700×700 px
+ * - Rectangle images: exactly 1920×700 px
  *
  * @param file The image File object to validate.
  * @returns A promise that resolves to an object containing:
@@ -257,28 +268,17 @@ export const validateDesktopBannerImage = (
     img.onload = () => {
       URL.revokeObjectURL(img.src);
       const { width, height } = img;
-      const isSquare = width === height;
-      
-      if (isSquare) {
-        // Square images: dimensions must be between 450x450 and 700x700 (inclusive)
-        if (width < 450 || width > 700 || height < 450 || height > 700) {
-          resolve({
-            valid: false,
-            message: `Square image dimensions must be between 450 × 450 and 700 × 700 px (same dimensions). Current dimensions: ${width} × ${height} px.`,
-            dimensions: { width, height }
-          });
-          return;
-        }
-      } else {
-        // Rectangle images: dimensions must be exactly 1920x700
-        if (width !== 1920 || height !== 700) {
-          resolve({
-            valid: false,
-            message: `Rectangle image dimensions must be exactly 1920 × 700 px. Current dimensions: ${width} × ${height} px.`,
-            dimensions: { width, height }
-          });
-          return;
-        }
+
+      const isSquare = isDesktopBannerSquare(width, height);
+      const isRectangle = isDesktopBannerRectangle(width, height);
+
+      if (!isSquare && !isRectangle) {
+        resolve({
+          valid: false,
+          message: `Desktop image must be square (${DESKTOP_BANNER_SQUARE_SIZE}×${DESKTOP_BANNER_SQUARE_SIZE} px) or rectangle (${DESKTOP_BANNER_RECTANGLE_WIDTH}×${DESKTOP_BANNER_RECTANGLE_HEIGHT} px). Current: ${width} × ${height} px.`,
+          dimensions: { width, height },
+        });
+        return;
       }
       
       resolve({ 

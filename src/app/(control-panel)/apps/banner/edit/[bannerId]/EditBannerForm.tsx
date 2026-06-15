@@ -60,7 +60,7 @@ const bannerEditFormSchema = z.object({
       if (!valid) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
-          message: message || 'Desktop image must be square (450×450 to 700×700 px) or rectangle (1920×700 px).',
+          message: message || 'Desktop image must be square (700×700 px) or rectangle (1920×700 px).',
         });
       }
     }),
@@ -255,7 +255,7 @@ const EditBannerForm: React.FC<EditBannerFormProps> = ({ initialBannerData }) =>
               name="image" // This name in form state will hold the new File if selected
               control={control}
               label="New Desktop Image"
-              helperText="Square images: 450×450 to 700×700 px (same dimensions). Rectangle images: 1920×700 px. PNG, JPG, WebP. Max 5MB. Leave empty to keep existing."
+              helperText="Square images: 700×700 px. Rectangle images: 1920×700 px. PNG, JPG, WebP. Max 5MB. Leave empty to keep existing."
               defaultImage={initialBannerData?.image_url} // Show current image
             />
           </Grid>
