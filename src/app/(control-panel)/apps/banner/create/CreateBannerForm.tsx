@@ -23,10 +23,18 @@ import {
   FormHelperText
 } from '@mui/material';
 import { Controller } from 'react-hook-form';
-import { validateDesktopBannerImage, validateImageDimensions } from "@/utils/imageUtils";
+import { validateDesktopBannerImage, validateMobileBannerImage } from "@/utils/imageUtils";
+
+const MOBILE_BANNER_HELPER_TEXT =
+  'Square: 450×450 px (display order 1). Rectangle: 361×274 px (display order 2–3). PNG, JPG, WebP. Max 5MB.';
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const ACCEPTED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'];
+
+const optionalRedirectUrlSchema = z.string().refine(
+  (value) => !value || value === '#' || z.string().url().safeParse(value).success,
+  { message: 'Invalid URL format' },
+);
 
 const bannerFormSchema = z.object({
   title: z.string().min(1, 'Title is required').max(100, 'Title must be 100 characters or less'),
@@ -34,7 +42,7 @@ const bannerFormSchema = z.object({
   alt_text: z.string().optional(),
   alt_text_mobile: z.string().optional(),
   status: z.enum(['active', 'inactive'], { required_error: 'Status is required' }),
-  redirect_url: z.string().url('Invalid URL format').optional().or(z.literal('')),
+  redirect_url: optionalRedirectUrlSchema.optional(),
   display_order: z.coerce.number().int().min(0, 'Display order must be 0 or greater').optional(),
   image: z
     .instanceof(File, { message: 'Desktop banner image is required' })
@@ -49,7 +57,7 @@ const bannerFormSchema = z.object({
       if (!valid) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
-          message: message || 'Desktop image must be square (450×450 to 700×700 px) or rectangle (1920×700 px).',
+          message: message || 'Desktop image must be square (700×700 px) or rectangle (1920×700 px).',
         });
       }
     }),
@@ -62,11 +70,11 @@ const bannerFormSchema = z.object({
     )
     .superRefine(async (file, ctx) => {
       if (!file) return;
-      const { valid, message } = await validateImageDimensions(file, 450, 450);
+      const { valid, message } = await validateMobileBannerImage(file);
       if (!valid) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
-          message: message || 'Mobile image dimensions must be 450x450px.',
+          message: message || 'Mobile image must be square 450×450 or rectangle 361×274 px.',
         });
       }
     }),
@@ -199,7 +207,7 @@ const CreateBannerForm: React.FC = () => {
               name="image"
               control={control}
               label="Desktop Image"
-              helperText="Square images: 450×450 to 700×700 px (same dimensions). Rectangle images: 1920×700 px. PNG, JPG, WebP. Max 5MB."
+              helperText="Square images: 700×700 px. Rectangle images: 1920×700 px. PNG, JPG, WebP. Max 5MB."
               required
             />
           </Grid>
@@ -219,11 +227,9 @@ const CreateBannerForm: React.FC = () => {
             <FormFileUploadField
               name="image_low"
               control={control}
-              label="Mobile Image (Mobile: 450 x 450 px)"
-              helperText="Mobile: 450 x 450 px. PNG, JPG, WebP. Max 5MB."
+              label="Mobile Image"
+              helperText={MOBILE_BANNER_HELPER_TEXT}
               required
-              exactWidth={450}
-              exactHeight={450}
             />
           </Grid>
 

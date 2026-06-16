@@ -178,10 +178,21 @@ export const validateImageDimensionsWithinBounds = (
   });
 };
 
+/** Frontend desktop promo slot 1: square 700×700. Slots 2–3: wide 1920×700. */
+export const DESKTOP_BANNER_SQUARE_SIZE = 700;
+export const DESKTOP_BANNER_RECTANGLE_WIDTH = 1920;
+export const DESKTOP_BANNER_RECTANGLE_HEIGHT = 700;
+
+const isDesktopBannerSquare = (width: number, height: number): boolean =>
+  width === DESKTOP_BANNER_SQUARE_SIZE && height === DESKTOP_BANNER_SQUARE_SIZE;
+
+const isDesktopBannerRectangle = (width: number, height: number): boolean =>
+  width === DESKTOP_BANNER_RECTANGLE_WIDTH && height === DESKTOP_BANNER_RECTANGLE_HEIGHT;
+
 /**
  * Validates desktop banner image dimensions with specific rules:
- * - Square images: dimensions must be between 450x450 and 700x700 (inclusive, same dimensions)
- * - Rectangle images: dimensions must be exactly 1920x700
+ * - Square images: exactly 700×700 px
+ * - Rectangle images: exactly 1920×700 px
  *
  * @param file The image File object to validate.
  * @returns A promise that resolves to an object containing:
@@ -189,6 +200,61 @@ export const validateImageDimensionsWithinBounds = (
  *  - `message` (string|undefined): An error message if validation fails.
  *  - `dimensions` (object|undefined): The actual dimensions { width, height } of the image if loaded.
  */
+/** Frontend mobile promo slot 1: square 450×450. Slots 2–3: wide 361×274. */
+export const MOBILE_BANNER_SQUARE_SIZE = 450;
+export const MOBILE_BANNER_WIDE_WIDTH = 361;
+export const MOBILE_BANNER_WIDE_HEIGHT = 274;
+
+const isMobileBannerSquare = (width: number, height: number): boolean =>
+  width === MOBILE_BANNER_SQUARE_SIZE && height === MOBILE_BANNER_SQUARE_SIZE;
+
+const isMobileBannerWide = (width: number, height: number): boolean =>
+  width === MOBILE_BANNER_WIDE_WIDTH && height === MOBILE_BANNER_WIDE_HEIGHT;
+
+/**
+ * Validates mobile banner image (`image_low`):
+ * - Square: exactly 450×450 px (display order 1)
+ * - Wide rectangle: exactly 361×274 px (display order 2–3)
+ */
+export const validateMobileBannerImage = (
+  file: File
+): Promise<{ valid: boolean; message?: string; dimensions?: { width: number; height: number } }> => {
+  return new Promise((resolve) => {
+    if (!file || !(file instanceof File) || !file.type.startsWith("image/")) {
+      resolve({ valid: false, message: "Invalid image file." });
+      return;
+    }
+
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(img.src);
+      const { width, height } = img;
+
+      const isSquare = isMobileBannerSquare(width, height);
+      const isWide = isMobileBannerWide(width, height);
+
+      if (!isSquare && !isWide) {
+        resolve({
+          valid: false,
+          message: `Mobile image must be square ${MOBILE_BANNER_SQUARE_SIZE}×${MOBILE_BANNER_SQUARE_SIZE} px (display order 1) or wide ${MOBILE_BANNER_WIDE_WIDTH}×${MOBILE_BANNER_WIDE_HEIGHT} px (display order 2–3). Current: ${width} × ${height} px.`,
+          dimensions: { width, height },
+        });
+        return;
+      }
+
+      resolve({
+        valid: true,
+        dimensions: { width, height },
+      });
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(img.src);
+      resolve({ valid: false, message: "Could not load image to validate dimensions." });
+    };
+    img.src = URL.createObjectURL(file);
+  });
+};
+
 export const validateDesktopBannerImage = (
   file: File
 ): Promise<{ valid: boolean; message?: string; dimensions?: { width: number; height: number } }> => {
@@ -202,28 +268,17 @@ export const validateDesktopBannerImage = (
     img.onload = () => {
       URL.revokeObjectURL(img.src);
       const { width, height } = img;
-      const isSquare = width === height;
-      
-      if (isSquare) {
-        // Square images: dimensions must be between 450x450 and 700x700 (inclusive)
-        if (width < 450 || width > 700 || height < 450 || height > 700) {
-          resolve({
-            valid: false,
-            message: `Square image dimensions must be between 450 × 450 and 700 × 700 px (same dimensions). Current dimensions: ${width} × ${height} px.`,
-            dimensions: { width, height }
-          });
-          return;
-        }
-      } else {
-        // Rectangle images: dimensions must be exactly 1920x700
-        if (width !== 1920 || height !== 700) {
-          resolve({
-            valid: false,
-            message: `Rectangle image dimensions must be exactly 1920 × 700 px. Current dimensions: ${width} × ${height} px.`,
-            dimensions: { width, height }
-          });
-          return;
-        }
+
+      const isSquare = isDesktopBannerSquare(width, height);
+      const isRectangle = isDesktopBannerRectangle(width, height);
+
+      if (!isSquare && !isRectangle) {
+        resolve({
+          valid: false,
+          message: `Desktop image must be square (${DESKTOP_BANNER_SQUARE_SIZE}×${DESKTOP_BANNER_SQUARE_SIZE} px) or rectangle (${DESKTOP_BANNER_RECTANGLE_WIDTH}×${DESKTOP_BANNER_RECTANGLE_HEIGHT} px). Current: ${width} × ${height} px.`,
+          dimensions: { width, height },
+        });
+        return;
       }
       
       resolve({ 

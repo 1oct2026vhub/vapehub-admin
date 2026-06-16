@@ -28,10 +28,18 @@ import {
   FormHelperText,
 } from '@mui/material';
 import { Controller } from 'react-hook-form';
-import { validateDesktopBannerImage, validateImageDimensions } from "@/utils/imageUtils";
+import { validateDesktopBannerImage, validateMobileBannerImage } from "@/utils/imageUtils";
+
+const MOBILE_BANNER_HELPER_TEXT =
+  'Square: 450×450 px (display order 1). Rectangle: 361×274 px (display order 2–3). PNG, JPG, WebP. Max 5MB. Leave empty to keep existing.';
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const ACCEPTED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'];
+
+const optionalRedirectUrlSchema = z.string().refine(
+  (value) => !value || value === '#' || z.string().url().safeParse(value).success,
+  { message: 'Invalid URL format' },
+);
 
 // Schema for editing a banner
 const bannerEditFormSchema = z.object({
@@ -40,7 +48,7 @@ const bannerEditFormSchema = z.object({
   alt_text: z.string().optional(),
   alt_text_mobile: z.string().optional(),
   status: z.enum(['active', 'inactive'], { required_error: 'Status is required' }),
-  redirect_url: z.string().url('Invalid URL format').optional().or(z.literal('')),
+  redirect_url: optionalRedirectUrlSchema.optional(),
   display_order: z.coerce.number().int().min(0, 'Display order must be 0 or greater').optional(),
   image: z
     .instanceof(File)
@@ -52,7 +60,7 @@ const bannerEditFormSchema = z.object({
       if (!valid) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
-          message: message || 'Desktop image must be square (450×450 to 700×700 px) or rectangle (1920×700 px).',
+          message: message || 'Desktop image must be square (700×700 px) or rectangle (1920×700 px).',
         });
       }
     }),
@@ -62,11 +70,11 @@ const bannerEditFormSchema = z.object({
     .nullable()
     .superRefine(async (file, ctx) => {
       if (!file) return; // Only validate if a new file is provided
-      const { valid, message } = await validateImageDimensions(file, 450, 450);
+      const { valid, message } = await validateMobileBannerImage(file);
       if (!valid) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
-          message: message || 'Mobile image dimensions must be 450x450px.',
+          message: message || 'Mobile image must be square 450×450 or rectangle 361×274 px.',
         });
       }
     }),
@@ -96,10 +104,22 @@ const EditBannerForm: React.FC<EditBannerFormProps> = ({ initialBannerData }) =>
   } = useForm<BannerEditFormValues>({
     resolver: zodResolver(bannerEditFormSchema),
     mode: 'onChange',
+    defaultValues: {
+      title: '',
+      description: '',
+      alt_text: '',
+      alt_text_mobile: '',
+      status: 'active',
+      redirect_url: '',
+      image: undefined,
+      image_low: undefined,
+    },
   });
 
   const imageValue = watch("image");
   const imageLowValue = watch("image_low");
+  const hasNewImage = imageValue instanceof File || imageLowValue instanceof File;
+  const hasChanges = Object.keys(dirtyFields).length > 0 || hasNewImage;
 
   useEffect(() => {
     if (initialBannerData) {
@@ -235,7 +255,7 @@ const EditBannerForm: React.FC<EditBannerFormProps> = ({ initialBannerData }) =>
               name="image" // This name in form state will hold the new File if selected
               control={control}
               label="New Desktop Image"
-              helperText="Square images: 450×450 to 700×700 px (same dimensions). Rectangle images: 1920×700 px. PNG, JPG, WebP. Max 5MB. Leave empty to keep existing."
+              helperText="Square images: 700×700 px. Rectangle images: 1920×700 px. PNG, JPG, WebP. Max 5MB. Leave empty to keep existing."
               defaultImage={initialBannerData?.image_url} // Show current image
             />
           </Grid>
@@ -255,10 +275,8 @@ const EditBannerForm: React.FC<EditBannerFormProps> = ({ initialBannerData }) =>
             <FormFileUploadField
               name="image_low" // This name in form state will hold the new File if selected
               control={control}
-              label="New Mobile Image (Mobile: 450 x 450 px)"
-              helperText="Mobile: 450 x 450 px. PNG, JPG, WebP. Max 5MB. Leave empty to keep existing."
-              exactWidth={450}
-              exactHeight={450}
+              label="New Mobile Image"
+              helperText={MOBILE_BANNER_HELPER_TEXT}
               defaultImage={initialBannerData?.image_url_low} // Show current image
             />
           </Grid>
@@ -278,7 +296,7 @@ const EditBannerForm: React.FC<EditBannerFormProps> = ({ initialBannerData }) =>
               type="submit"
               label={isSubmitting ? 'Updating Banner...' : 'Update Banner'}
               loading={isSubmitting}
-              disabled={isSubmitting || !isValid || Object.keys(dirtyFields).length === 0}
+              disabled={isSubmitting || !isValid || !hasChanges}
               fullWidth
               variant="contained"
             />
