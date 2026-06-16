@@ -8,6 +8,7 @@ export type OrderStatus =
   | "draft"
   | "pending"
   | "processing"
+  | "packed"
   | "shipped"
   | "delivered"
   | "completed"
@@ -345,16 +346,106 @@ export interface BulkStatusUpdateRequest {
   status: OrderStatus;
 }
 
-// Function to bulk update order status
+export const BULK_STATUS_SYNC_MAX = 100;
+export const BULK_STATUS_ASYNC_MAX = 500;
+export const BULK_STATUS_JOB_SESSION_KEY = "bulkStatusJobId";
+
+export type BulkStatusJobStatus =
+  | "queued"
+  | "processing"
+  | "completed"
+  | "partial_failed"
+  | "failed";
+
+export interface BulkStatusJobError {
+  order_id: number;
+  order_unique_id: string;
+  error: string;
+}
+
+export interface BulkStatusJobData {
+  job_id: string;
+  status: BulkStatusJobStatus;
+  progress_percent: number;
+  successful: number;
+  failed: number;
+  skipped: number;
+  pending: number;
+  total?: number;
+  errors?: BulkStatusJobError[];
+}
+
+export interface BulkStatusAsyncStartResponse {
+  success: boolean;
+  message?: string;
+  data: {
+    job_id: string;
+  };
+}
+
+export interface BulkStatusJobResponse {
+  success: boolean;
+  message?: string;
+  data: BulkStatusJobData;
+}
+
+const isTerminalBulkStatusJob = (status: BulkStatusJobStatus) =>
+  status === "completed" || status === "partial_failed" || status === "failed";
+
+// Sync bulk update — up to 100 orders, 60s timeout
 export const bulkUpdateOrderStatus = async (
   orderIds: number[],
   status: OrderStatus
 ): Promise<BulkStatusUpdateResponse> => {
-  const response = await updater("/api/admin/orders/bulk-status", {
-    order_ids: orderIds,
-    status,
-  });
-  return response;
+  const response = await axiosInstance.put(
+    "/api/admin/orders/bulk-status",
+    { order_ids: orderIds, status },
+    { timeout: 60000 }
+  );
+  return response.data;
+};
+
+// Async bulk update — 101–500 orders, 15s timeout to receive job_id
+export const bulkUpdateOrderStatusAsync = async (
+  orderIds: number[],
+  status: OrderStatus
+): Promise<BulkStatusAsyncStartResponse> => {
+  const response = await axiosInstance.post(
+    "/api/admin/orders/bulk-status/async",
+    { order_ids: orderIds, status },
+    { timeout: 15000 }
+  );
+  return response.data;
+};
+
+// Poll async bulk status job — 15s timeout per request
+export const getBulkStatusJob = async (
+  jobId: string
+): Promise<BulkStatusJobResponse> => {
+  const response = await axiosInstance.get(
+    `/api/admin/orders/bulk-status/jobs/${jobId}`,
+    { timeout: 15000 }
+  );
+  return response.data;
+};
+
+export { isTerminalBulkStatusJob };
+
+export const storeBulkStatusJobId = (jobId: string) => {
+  if (typeof window !== "undefined") {
+    sessionStorage.setItem(BULK_STATUS_JOB_SESSION_KEY, jobId);
+  }
+};
+
+export const getStoredBulkStatusJobId = (): string | null => {
+  if (typeof window === "undefined") return null;
+  return sessionStorage.getItem(BULK_STATUS_JOB_SESSION_KEY);
+};
+
+export const clearStoredBulkStatusJobId = () => {
+  if (typeof window !== "undefined") {
+    sessionStorage.removeItem(BULK_STATUS_JOB_SESSION_KEY);
+  }
 };
 
 // Function to get list of orders with filtering and pagination
