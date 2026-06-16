@@ -28,7 +28,18 @@ import {
   ListItemText,
   Divider,
 } from "@mui/material";
-import { getOrders, OrderStatus, PaymentStatus, bulkUpdateOrderStatus } from "@/services/apiOrder";
+import {
+  getOrders,
+  OrderStatus,
+  PaymentStatus,
+  bulkUpdateOrderStatus,
+  bulkUpdateOrderStatusAsync,
+  BULK_STATUS_SYNC_MAX,
+  BULK_STATUS_ASYNC_MAX,
+  getStoredBulkStatusJobId,
+  BulkStatusJobData,
+} from "@/services/apiOrder";
+import BulkStatusProgressDialog from "./BulkStatusProgressDialog";
 import { useSnackbar } from "@/contexts/SnackbarContext";
 import { useFetch } from "@/hooks/useFetch";
 import { mutate } from "swr";
@@ -146,6 +157,25 @@ const OrdersTable = ({
   const [bulkStatusDialogOpen, setBulkStatusDialogOpen] = useState(false);
   const [selectedBulkStatus, setSelectedBulkStatus] = useState<OrderStatus | "">("");
   const [isBulkUpdating, setIsBulkUpdating] = useState(false);
+  const [bulkProgressDialogOpen, setBulkProgressDialogOpen] = useState(false);
+  const [bulkJobId, setBulkJobId] = useState<string | null>(null);
+
+  const selectedOrderCount = useMemo(
+    () => Object.keys(rowSelection).filter((key) => rowSelection[key]).length,
+    [rowSelection]
+  );
+
+  const selectedOrderIds = useMemo(
+    () =>
+      Object.keys(rowSelection)
+        .filter((key) => rowSelection[key])
+        .map((key) => parseInt(key))
+        .filter((id) => !isNaN(id)) as number[],
+    [rowSelection]
+  );
+
+  const isBulkBatchTooLarge = selectedOrderCount > BULK_STATUS_ASYNC_MAX;
+  const isBulkBatchAsync = selectedOrderCount > BULK_STATUS_SYNC_MAX && !isBulkBatchTooLarge;
 
   // Handle limit change with proper state batching
   const handleLimitChange = useCallback((newLimit: number) => {
@@ -222,6 +252,15 @@ const OrdersTable = ({
         clearTimeout(searchDebounceRef.current);
       }
     };
+  }, []);
+
+  // Resume async bulk job polling after navigation
+  useEffect(() => {
+    const storedJobId = getStoredBulkStatusJobId();
+    if (storedJobId) {
+      setBulkJobId(storedJobId);
+      setBulkProgressDialogOpen(true);
+    }
   }, []);
 
   const queryParams = useMemo(
@@ -335,6 +374,119 @@ const OrdersTable = ({
       setManuallyRefreshing(false);
     }
   }, [queryParams]);
+
+  const handleBulkJobComplete = useCallback(
+    async (job: BulkStatusJobData) => {
+      if (job.status === "completed") {
+        showSnackbar(
+          `Successfully updated ${job.successful} order(s).`,
+          "success"
+        );
+      } else if (job.status === "partial_failed") {
+        showSnackbar(
+          `Updated ${job.successful} order(s). ${job.failed} failed.`,
+          "warning"
+        );
+      } else {
+        showSnackbar("Bulk status update failed.", "error");
+      }
+
+      await refreshData();
+      setRowSelection({});
+      setSelectedBulkStatus("");
+    },
+    [refreshData, showSnackbar]
+  );
+
+  const handleBulkStatusUpdate = useCallback(async () => {
+    if (!selectedBulkStatus) {
+      showSnackbar("Please select a status", "warning");
+      return;
+    }
+
+    if (selectedOrderIds.length === 0) {
+      showSnackbar("No orders selected", "warning");
+      return;
+    }
+
+    if (isBulkBatchTooLarge) {
+      showSnackbar(`Maximum ${BULK_STATUS_ASYNC_MAX} orders per batch.`, "error");
+      return;
+    }
+
+    setIsBulkUpdating(true);
+
+    try {
+      if (isBulkBatchAsync) {
+        const response = await bulkUpdateOrderStatusAsync(
+          selectedOrderIds,
+          selectedBulkStatus
+        );
+
+        if (!response?.success || !response.data?.job_id) {
+          throw new Error(response?.message || "Failed to queue bulk update");
+        }
+
+        setBulkStatusDialogOpen(false);
+        setBulkJobId(response.data.job_id);
+        setBulkProgressDialogOpen(true);
+        showSnackbar(
+          selectedBulkStatus === "packed"
+            ? "Queued — ShipStation orders created without labels in bulk."
+            : "Bulk update queued. Processing in background.",
+          "info"
+        );
+        return;
+      }
+
+      const response = await bulkUpdateOrderStatus(
+        selectedOrderIds,
+        selectedBulkStatus
+      );
+
+      if (response.success) {
+        const { successful, failed, total } = response.data;
+        let message = `Successfully updated ${successful} out of ${total} order(s)`;
+
+        if (failed > 0) {
+          message += `. ${failed} order(s) failed to update.`;
+          if (response.data.errors?.length > 0) {
+            const errorDetails = response.data.errors
+              .slice(0, 50)
+              .map((err) => `${err.order_unique_id}: ${err.error}`)
+              .join(", ");
+            message += ` Errors: ${errorDetails}`;
+          }
+          showSnackbar(message, "warning");
+        } else {
+          showSnackbar(response.message || message, "success");
+        }
+
+        await refreshData();
+        setRowSelection({});
+        setBulkStatusDialogOpen(false);
+        setSelectedBulkStatus("");
+      } else {
+        showSnackbar(response.message || "Failed to update orders", "error");
+      }
+    } catch (error: unknown) {
+      const err = error as { message?: string; errors?: Array<{ msg?: string }> };
+      const errorMessage =
+        err?.message ||
+        err?.errors?.[0]?.msg ||
+        "Failed to update orders. Please check your connection and try again.";
+      showSnackbar(errorMessage, "error");
+    } finally {
+      setIsBulkUpdating(false);
+    }
+  }, [
+    isBulkBatchAsync,
+    isBulkBatchTooLarge,
+    refreshData,
+    selectedBulkStatus,
+    selectedOrderIds,
+    showSnackbar,
+  ]);
 
   useEffect(() => {
     if (data?.data) {
@@ -462,10 +614,10 @@ const OrdersTable = ({
       
       <div className="flex items-center justify-between mb-4">
         <Box className="flex items-center gap-2">
-          {Object.keys(rowSelection).filter(key => rowSelection[key]).length > 0 && (
+          {selectedOrderCount > 0 && (
             <>
               <AppButton
-                label={`Update Status (${Object.keys(rowSelection).filter(key => rowSelection[key]).length} selected)`}
+                label={`Update Status (${selectedOrderCount} selected)`}
                 variant="contained"
                 onClick={() => setBulkStatusDialogOpen(true)}
                 disabled={isBulkUpdating}
@@ -607,9 +759,9 @@ const OrdersTable = ({
         <DialogContent>
           <Box sx={{ pt: 2 }}>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-              You have selected {Object.keys(rowSelection).filter(key => rowSelection[key]).length} order(s). 
+              You have selected {selectedOrderCount} order(s).
               Choose a new status to update all selected orders.
-              {Object.keys(rowSelection).filter(key => rowSelection[key]).length > 0 && (
+              {selectedOrderCount > 0 && (
                 <Box component="span" sx={{ display: 'block', mt: 1, fontSize: '0.75rem', color: 'text.disabled' }}>
                   Selected orders will be updated regardless of which page they're on.
                 </Box>
@@ -617,11 +769,27 @@ const OrdersTable = ({
             </Typography>
 
             {/* Selected Orders List */}
-            {Object.keys(rowSelection).filter(key => rowSelection[key]).length > 0 && (
+            {isBulkBatchTooLarge && (
+              <Alert severity="error" sx={{ mb: 2 }}>
+                Maximum {BULK_STATUS_ASYNC_MAX} orders per batch. Please reduce your selection.
+              </Alert>
+            )}
+
+            {isBulkBatchAsync && (
+              <Alert severity="info" sx={{ mb: 2 }}>
+                {selectedBulkStatus === "packed"
+                  ? "Queued — ShipStation orders created without labels in bulk. "
+                  : ""}
+                Large batch ({selectedOrderCount} orders) will be processed in the background.
+                May take several minutes (~2 sec/order).
+              </Alert>
+            )}
+
+            {selectedOrderCount > 0 && (
               <Box sx={{ mb: 3, maxHeight: 300, overflow: 'auto', border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
                 <Box sx={{ p: 1.5, bgcolor: 'action.hover', borderBottom: '1px solid', borderColor: 'divider' }}>
                   <Typography variant="subtitle2" fontWeight="medium">
-                    Selected Orders ({Object.keys(rowSelection).filter(key => rowSelection[key]).length})
+                    Selected Orders ({selectedOrderCount})
                   </Typography>
                 </Box>
                 <List dense sx={{ p: 0 }}>
@@ -631,7 +799,7 @@ const OrdersTable = ({
                       const orderId = parseInt(orderIdStr);
                       // Find order in current page orders
                       const order = orders.find((o: any) => o.id === orderId);
-                      const isLast = index === Object.keys(rowSelection).filter(key => rowSelection[key]).length - 1;
+                      const isLast = index === selectedOrderCount - 1;
                       
                       return (
                         <Box key={orderIdStr}>
@@ -721,71 +889,25 @@ const OrdersTable = ({
             disabled={isBulkUpdating}
           />
           <AppButton
-            label="Update"
+            label={isBulkBatchAsync ? "Queue Update" : "Update"}
             variant="contained"
             loading={isBulkUpdating}
-            onClick={async () => {
-              if (!selectedBulkStatus) {
-                showSnackbar("Please select a status", "warning");
-                return;
-              }
-
-              // Since we're using getRowId with order IDs, the keys in rowSelection are already order IDs
-              const selectedOrderIds = Object.keys(rowSelection)
-                .filter(key => rowSelection[key])
-                .map(key => parseInt(key))
-                .filter(id => !isNaN(id)) as number[];
-
-              if (selectedOrderIds.length === 0) {
-                showSnackbar("No orders selected", "warning");
-                return;
-              }
-
-              setIsBulkUpdating(true);
-              try {
-                const response = await bulkUpdateOrderStatus(
-                  selectedOrderIds,
-                  selectedBulkStatus
-                );
-
-                if (response.success) {
-                  const { successful, failed, total } = response.data;
-                  let message = `Successfully updated ${successful} out of ${total} order(s)`;
-                  
-                  if (failed > 0) {
-                    message += `. ${failed} order(s) failed to update.`;
-                    if (response.data.errors && response.data.errors.length > 0) {
-                      const errorDetails = response.data.errors
-                        .map(err => `${err.order_unique_id}: ${err.error}`)
-                        .join(", ");
-                      message += ` Errors: ${errorDetails}`;
-                    }
-                    showSnackbar(message, "warning");
-                  } else {
-                    showSnackbar(response.message || message, "success");
-                  }
-
-                  // Refresh data
-                  await refreshData();
-                  
-                  // Clear selection
-                  setRowSelection({});
-                  setBulkStatusDialogOpen(false);
-                  setSelectedBulkStatus("");
-                } else {
-                  showSnackbar(response.message || "Failed to update orders", "error");
-                }
-              } catch (error: any) {
-                const errorMessage = error?.message || error?.errors?.[0]?.msg || "Failed to update orders";
-                showSnackbar(errorMessage, "error");
-              } finally {
-                setIsBulkUpdating(false);
-              }
-            }}
-            disabled={!selectedBulkStatus || isBulkUpdating}
+            onClick={handleBulkStatusUpdate}
+            disabled={!selectedBulkStatus || isBulkUpdating || isBulkBatchTooLarge}
           />
         </DialogActions>
       </Dialog>
+
+      <BulkStatusProgressDialog
+        open={bulkProgressDialogOpen}
+        jobId={bulkJobId}
+        targetStatus={selectedBulkStatus || undefined}
+        onClose={() => {
+          setBulkProgressDialogOpen(false);
+          setBulkJobId(null);
+        }}
+        onComplete={handleBulkJobComplete}
+      />
     </>
   );
 };
