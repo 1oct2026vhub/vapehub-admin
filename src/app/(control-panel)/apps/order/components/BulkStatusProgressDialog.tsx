@@ -19,13 +19,13 @@ import AppButton from "@/components/Shared/AppButton";
 import {
   BulkStatusJobData,
   BulkStatusJobStatus,
+  BULK_STATUS_POLL_INTERVAL_MS,
   clearStoredBulkStatusJobId,
   getBulkStatusJob,
   isTerminalBulkStatusJob,
   storeBulkStatusJobId,
 } from "@/services/apiOrder";
 
-const POLL_INTERVAL_MS = 2500;
 const MAX_ERRORS_SHOWN = 50;
 
 interface BulkStatusProgressDialogProps {
@@ -117,7 +117,7 @@ const BulkStatusProgressDialog = ({
     storeBulkStatusJobId(jobId);
 
     pollJob(jobId);
-    pollingRef.current = setInterval(() => pollJob(jobId), POLL_INTERVAL_MS);
+    pollingRef.current = setInterval(() => pollJob(jobId), BULK_STATUS_POLL_INTERVAL_MS);
 
     return () => stopPolling();
   }, [open, jobId, pollJob, stopPolling]);
