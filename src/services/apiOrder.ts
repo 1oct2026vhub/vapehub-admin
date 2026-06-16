@@ -346,8 +346,13 @@ export interface BulkStatusUpdateRequest {
   status: OrderStatus;
 }
 
-export const BULK_STATUS_SYNC_MAX = 100;
+// TEST ONLY — revert before production: sync max 100, timeouts 60s/15s, poll 2.5s
+export const BULK_STATUS_SYNC_MAX = 2;
 export const BULK_STATUS_ASYNC_MAX = 500;
+export const BULK_STATUS_SYNC_TIMEOUT_MS = 1000;
+export const BULK_STATUS_ASYNC_TIMEOUT_MS = 1000;
+export const BULK_STATUS_POLL_TIMEOUT_MS = 1000;
+export const BULK_STATUS_POLL_INTERVAL_MS = 1000;
 export const BULK_STATUS_JOB_SESSION_KEY = "bulkStatusJobId";
 
 export type BulkStatusJobStatus =
@@ -392,7 +397,7 @@ export interface BulkStatusJobResponse {
 const isTerminalBulkStatusJob = (status: BulkStatusJobStatus) =>
   status === "completed" || status === "partial_failed" || status === "failed";
 
-// Sync bulk update — up to 100 orders, 60s timeout
+// Sync bulk update — up to BULK_STATUS_SYNC_MAX orders
 export const bulkUpdateOrderStatus = async (
   orderIds: number[],
   status: OrderStatus
@@ -400,12 +405,12 @@ export const bulkUpdateOrderStatus = async (
   const response = await axiosInstance.put(
     "/api/admin/orders/bulk-status",
     { order_ids: orderIds, status },
-    { timeout: 60000 }
+    { timeout: BULK_STATUS_SYNC_TIMEOUT_MS }
   );
   return response.data;
 };
 
-// Async bulk update — 101–500 orders, 15s timeout to receive job_id
+// Async bulk update — orders above sync max
 export const bulkUpdateOrderStatusAsync = async (
   orderIds: number[],
   status: OrderStatus
@@ -413,18 +418,18 @@ export const bulkUpdateOrderStatusAsync = async (
   const response = await axiosInstance.post(
     "/api/admin/orders/bulk-status/async",
     { order_ids: orderIds, status },
-    { timeout: 15000 }
+    { timeout: BULK_STATUS_ASYNC_TIMEOUT_MS }
   );
   return response.data;
 };
 
-// Poll async bulk status job — 15s timeout per request
+// Poll async bulk status job
 export const getBulkStatusJob = async (
   jobId: string
 ): Promise<BulkStatusJobResponse> => {
   const response = await axiosInstance.get(
     `/api/admin/orders/bulk-status/jobs/${jobId}`,
-    { timeout: 15000 }
+    { timeout: BULK_STATUS_POLL_TIMEOUT_MS }
   );
   return response.data;
 };
