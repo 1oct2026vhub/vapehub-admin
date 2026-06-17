@@ -10,7 +10,6 @@ import React, {
   type ReactNode,
 } from "react";
 import { mutate } from "swr";
-import BulkStatusProgressDialog from "@/app/(control-panel)/apps/order/components/BulkStatusProgressDialog";
 import {
   BulkStatusJobData,
   BULK_STATUS_POLL_INTERVAL_MS,
@@ -25,7 +24,15 @@ import { useSnackbar } from "@/contexts/SnackbarContext";
 interface BulkStatusJobContextType {
   startJob: (jobId: string, targetStatus?: string) => void;
   hideDialog: () => void;
+  showDialog: () => void;
+  handleDialogClose: () => void;
   registerCompleteListener: (listener: () => void) => () => void;
+  jobId: string | null;
+  job: BulkStatusJobData | null;
+  pollError: string | null;
+  targetStatus: string | undefined;
+  isProcessing: boolean;
+  dialogOpen: boolean;
 }
 
 const BulkStatusJobContext = createContext<BulkStatusJobContextType | undefined>(
@@ -88,6 +95,13 @@ export function BulkStatusJobProvider({ children }: { children: ReactNode }) {
     [notifyCompleteListeners, showSnackbar]
   );
 
+  const resumeJob = useCallback((id: string) => {
+    completedRef.current = false;
+    setPollError(null);
+    setIsJobFinished(false);
+    setJobId(id);
+  }, []);
+
   const startJob = useCallback((id: string, status?: string) => {
     completedRef.current = false;
     setJob(null);
@@ -103,6 +117,10 @@ export function BulkStatusJobProvider({ children }: { children: ReactNode }) {
     setDialogOpen(false);
   }, []);
 
+  const showDialog = useCallback(() => {
+    setDialogOpen(true);
+  }, []);
+
   const registerCompleteListener = useCallback((listener: () => void) => {
     completeListenersRef.current.add(listener);
     return () => {
@@ -113,9 +131,9 @@ export function BulkStatusJobProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const storedJobId = getStoredBulkStatusJobId();
     if (storedJobId) {
-      startJob(storedJobId);
+      resumeJob(storedJobId);
     }
-  }, [startJob]);
+  }, [resumeJob]);
 
   useEffect(() => {
     if (!jobId) {
@@ -214,18 +232,21 @@ export function BulkStatusJobProvider({ children }: { children: ReactNode }) {
 
   return (
     <BulkStatusJobContext.Provider
-      value={{ startJob, hideDialog, registerCompleteListener }}
+      value={{
+        startJob,
+        hideDialog,
+        showDialog,
+        handleDialogClose,
+        registerCompleteListener,
+        jobId,
+        job,
+        pollError,
+        targetStatus,
+        isProcessing,
+        dialogOpen,
+      }}
     >
       {children}
-      <BulkStatusProgressDialog
-        open={dialogOpen}
-        job={job}
-        pollError={pollError}
-        targetStatus={targetStatus}
-        isProcessing={isProcessing}
-        onDismiss={hideDialog}
-        onClose={handleDialogClose}
-      />
     </BulkStatusJobContext.Provider>
   );
 }

@@ -48,6 +48,7 @@ import OrderFilters from "./OrderFilters";
 import OrderFilterDrawer from "./OrderFilterDrawer";
 import GenerateReportButton from "./GenerateReportButton";
 import OrderStatistics from "./OrderStatistics";
+import BulkStatusProgressDialog from "./BulkStatusProgressDialog";
 import AppButton from "@/components/Shared/AppButton";
 import relativeTime from "dayjs/plugin/relativeTime";
 import useColumnOrder from "@/hooks/useColumnOrder";
@@ -94,7 +95,19 @@ const OrdersTable = ({
 }: OrdersTableProps) => {
   const router = useRouter();
   const { showSnackbar } = useSnackbar();
-  const { startJob, registerCompleteListener } = useBulkStatusJob();
+  const {
+    startJob,
+    registerCompleteListener,
+    showDialog,
+    hideDialog,
+    handleDialogClose,
+    jobId,
+    job,
+    pollError,
+    targetStatus,
+    isProcessing,
+    dialogOpen,
+  } = useBulkStatusJob();
   
   // Use session storage for filter state
   const [pageState, setPageState, clearPageState] = usePageState(
@@ -380,6 +393,15 @@ const OrdersTable = ({
       await mutate(["orderList", queryParams]);
     }
   }, [queryParams]);
+
+  useEffect(() => {
+    if (jobId) {
+      showDialog();
+    }
+    return () => {
+      hideDialog();
+    };
+  }, [jobId, showDialog, hideDialog]);
 
   useEffect(() => {
     return registerCompleteListener(() => {
@@ -847,6 +869,16 @@ const OrdersTable = ({
           />
         </DialogActions>
       </Dialog>
+
+      <BulkStatusProgressDialog
+        open={dialogOpen}
+        job={job}
+        pollError={pollError}
+        targetStatus={targetStatus}
+        isProcessing={isProcessing}
+        onDismiss={hideDialog}
+        onClose={handleDialogClose}
+      />
     </>
   );
 };
