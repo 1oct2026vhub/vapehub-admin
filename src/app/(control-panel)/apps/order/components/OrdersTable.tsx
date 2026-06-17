@@ -34,11 +34,8 @@ import {
   PaymentStatus,
   bulkUpdateOrderStatusAsync,
   BULK_STATUS_BATCH_MAX,
-  getStoredBulkStatusJobId,
-  clearStoredBulkStatusJobId,
-  BulkStatusJobData,
 } from "@/services/apiOrder";
-import BulkStatusProgressDialog from "./BulkStatusProgressDialog";
+import { useBulkStatusJob } from "@/contexts/BulkStatusJobContext";
 import { useSnackbar } from "@/contexts/SnackbarContext";
 import { useFetch } from "@/hooks/useFetch";
 import { mutate } from "swr";
@@ -97,6 +94,7 @@ const OrdersTable = ({
 }: OrdersTableProps) => {
   const router = useRouter();
   const { showSnackbar } = useSnackbar();
+  const { startJob, registerCompleteListener } = useBulkStatusJob();
   
   // Use session storage for filter state
   const [pageState, setPageState, clearPageState] = usePageState(
@@ -125,7 +123,6 @@ const OrdersTable = ({
   const [isLoading, setIsLoading] = useState(false);
   const [searchInput, setSearchInput] = useState(search);
   const searchDebounceRef = useRef<NodeJS.Timeout | null>(null);
-  const bulkCompleteHandledRef = useRef(false);
   const [hasUserFiltered, setHasUserFiltered] = useState(false);
   
   // Convert date strings to dayjs objects
@@ -157,8 +154,6 @@ const OrdersTable = ({
   const [bulkStatusDialogOpen, setBulkStatusDialogOpen] = useState(false);
   const [selectedBulkStatus, setSelectedBulkStatus] = useState<OrderStatus | "">("");
   const [isBulkUpdating, setIsBulkUpdating] = useState(false);
-  const [bulkProgressDialogOpen, setBulkProgressDialogOpen] = useState(false);
-  const [bulkJobId, setBulkJobId] = useState<string | null>(null);
   const [statisticsRefreshKey, setStatisticsRefreshKey] = useState(0);
 
   const selectedOrderCount = useMemo(
@@ -252,15 +247,6 @@ const OrdersTable = ({
         clearTimeout(searchDebounceRef.current);
       }
     };
-  }, []);
-
-  // Resume async bulk job polling after navigation
-  useEffect(() => {
-    const storedJobId = getStoredBulkStatusJobId();
-    if (storedJobId) {
-      setBulkJobId(storedJobId);
-      setBulkProgressDialogOpen(true);
-    }
   }, []);
 
   const queryParams = useMemo(
@@ -395,36 +381,11 @@ const OrdersTable = ({
     }
   }, [queryParams]);
 
-  const handleBulkJobComplete = useCallback(
-    async (job: BulkStatusJobData) => {
-      if (bulkCompleteHandledRef.current) return;
-      bulkCompleteHandledRef.current = true;
-
-      if (job.status === "completed") {
-        showSnackbar(
-          `Successfully updated ${job.successful} order(s).`,
-          "success"
-        );
-      } else if (job.status === "partial_failed") {
-        showSnackbar(
-          `Updated ${job.successful} order(s). ${job.failed} failed.`,
-          "warning"
-        );
-      } else {
-        showSnackbar("Bulk status update failed.", "error");
-      }
-
-      setRowSelection({});
-      setSelectedBulkStatus("");
-
-      await refreshOrdersList();
-
-      setBulkProgressDialogOpen(false);
-      setBulkJobId(null);
-      clearStoredBulkStatusJobId();
-    },
-    [refreshOrdersList, showSnackbar]
-  );
+  useEffect(() => {
+    return registerCompleteListener(() => {
+      void refreshOrdersList();
+    });
+  }, [registerCompleteListener, refreshOrdersList]);
 
   const handleBulkStatusUpdate = useCallback(async () => {
     if (!selectedBulkStatus) {
@@ -445,7 +406,6 @@ const OrdersTable = ({
     setIsBulkUpdating(true);
 
     try {
-      bulkCompleteHandledRef.current = false;
       const response = await bulkUpdateOrderStatusAsync(
         selectedOrderIds,
         selectedBulkStatus
@@ -460,8 +420,9 @@ const OrdersTable = ({
       }
 
       setBulkStatusDialogOpen(false);
-      setBulkJobId(String(jobId));
-      setBulkProgressDialogOpen(true);
+      setRowSelection({});
+      setSelectedBulkStatus("");
+      startJob(String(jobId), selectedBulkStatus);
       showSnackbar(
         selectedBulkStatus === "packed"
           ? "Queued — ShipStation orders created without labels in bulk."
@@ -483,6 +444,7 @@ const OrdersTable = ({
     selectedBulkStatus,
     selectedOrderIds,
     showSnackbar,
+    startJob,
   ]);
 
   useEffect(() => {
@@ -885,17 +847,6 @@ const OrdersTable = ({
           />
         </DialogActions>
       </Dialog>
-
-      <BulkStatusProgressDialog
-        open={bulkProgressDialogOpen}
-        jobId={bulkJobId}
-        targetStatus={selectedBulkStatus || undefined}
-        onClose={() => {
-          setBulkProgressDialogOpen(false);
-          setBulkJobId(null);
-        }}
-        onComplete={handleBulkJobComplete}
-      />
     </>
   );
 };
