@@ -9,12 +9,14 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  IconButton,
   LinearProgress,
   List,
   ListItem,
   ListItemText,
   Typography,
 } from "@mui/material";
+import FuseSvgIcon from "@fuse/core/FuseSvgIcon";
 import AppButton from "@/components/Shared/AppButton";
 import {
   BulkStatusJobData,
@@ -65,8 +67,15 @@ const BulkStatusProgressDialog = ({
 }: BulkStatusProgressDialogProps) => {
   const [job, setJob] = useState<BulkStatusJobData | null>(null);
   const [pollError, setPollError] = useState<string | null>(null);
+  const [isJobFinished, setIsJobFinished] = useState(false);
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pollInFlightRef = useRef(false);
   const completedRef = useRef(false);
+  const onCompleteRef = useRef(onComplete);
+
+  useEffect(() => {
+    onCompleteRef.current = onComplete;
+  }, [onComplete]);
 
   const stopPolling = useCallback(() => {
     if (pollingRef.current) {
@@ -75,10 +84,33 @@ const BulkStatusProgressDialog = ({
     }
   }, []);
 
-  const pollJob = useCallback(
-    async (id: string) => {
+  useEffect(() => {
+    if (!open || !jobId) {
+      stopPolling();
+      return;
+    }
+
+    let cancelled = false;
+    completedRef.current = false;
+    pollInFlightRef.current = false;
+    setIsJobFinished(false);
+    setJob(null);
+    setPollError(null);
+    storeBulkStatusJobId(jobId);
+
+    const pollOnce = async () => {
+      if (cancelled || completedRef.current || pollInFlightRef.current) {
+        return;
+      }
+
+      pollInFlightRef.current = true;
+
       try {
-        const response = await getBulkStatusJob(id);
+        const response = await getBulkStatusJob(jobId);
+
+        if (cancelled || completedRef.current) {
+          return;
+        }
 
         if (!response?.success || !response.data) {
           throw new Error(response?.message || "Failed to fetch job status");
@@ -87,13 +119,22 @@ const BulkStatusProgressDialog = ({
         setJob(response.data);
         setPollError(null);
 
-        if (isTerminalBulkStatusJob(response.data.status) && !completedRef.current) {
+        const isFinished =
+          isTerminalBulkStatusJob(response.data.status) ||
+          response.data.progress_percent >= 100;
+
+        if (isFinished && !completedRef.current) {
           completedRef.current = true;
+          setIsJobFinished(true);
           stopPolling();
           clearStoredBulkStatusJobId();
-          onComplete(response.data);
+          onCompleteRef.current(response.data);
         }
       } catch (error: unknown) {
+        if (cancelled || completedRef.current) {
+          return;
+        }
+
         const err = error as { message?: string; status?: number };
         const message =
           err?.status === 404
@@ -101,29 +142,33 @@ const BulkStatusProgressDialog = ({
             : err?.message || "Failed to check job status. Please try again.";
 
         setPollError(message);
+        completedRef.current = true;
+        setIsJobFinished(true);
         stopPolling();
         clearStoredBulkStatusJobId();
+      } finally {
+        pollInFlightRef.current = false;
       }
-    },
-    [onComplete, stopPolling]
-  );
+    };
 
-  useEffect(() => {
-    if (!open || !jobId) return;
+    void pollOnce();
+    pollingRef.current = setInterval(() => {
+      void pollOnce();
+    }, BULK_STATUS_POLL_INTERVAL_MS);
 
-    completedRef.current = false;
-    setJob(null);
-    setPollError(null);
-    storeBulkStatusJobId(jobId);
-
-    pollJob(jobId);
-    pollingRef.current = setInterval(() => pollJob(jobId), BULK_STATUS_POLL_INTERVAL_MS);
-
-    return () => stopPolling();
-  }, [open, jobId, pollJob, stopPolling]);
+    return () => {
+      cancelled = true;
+      stopPolling();
+      pollInFlightRef.current = false;
+    };
+  }, [open, jobId, stopPolling]);
 
   const isProcessing =
-    !!job && !isTerminalBulkStatusJob(job.status) && !pollError;
+    open &&
+    !!jobId &&
+    !pollError &&
+    !isJobFinished &&
+    (!job || !isTerminalBulkStatusJob(job.status));
   const errors = (job?.errors ?? []).slice(0, MAX_ERRORS_SHOWN);
   const hiddenErrorCount = Math.max(0, (job?.errors?.length ?? 0) - MAX_ERRORS_SHOWN);
 
@@ -133,9 +178,32 @@ const BulkStatusProgressDialog = ({
     onClose();
   };
 
+  const handleDismiss = () => {
+    stopPolling();
+    clearStoredBulkStatusJobId();
+    onClose();
+  };
+
   return (
     <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth>
-      <DialogTitle>Bulk Status Update Progress</DialogTitle>
+      <DialogTitle
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          pr: 1,
+        }}
+      >
+        Bulk Status Update Progress
+        <IconButton
+          aria-label="Close"
+          onClick={handleDismiss}
+          size="small"
+          edge="end"
+        >
+          <FuseSvgIcon>heroicons-outline:x-mark</FuseSvgIcon>
+        </IconButton>
+      </DialogTitle>
       <DialogContent>
         <Box sx={{ pt: 1, display: "flex", flexDirection: "column", gap: 2 }}>
           {targetStatus === "packed" && (

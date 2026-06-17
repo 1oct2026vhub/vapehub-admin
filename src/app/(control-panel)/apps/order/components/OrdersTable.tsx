@@ -37,6 +37,7 @@ import {
   BULK_STATUS_SYNC_MAX,
   BULK_STATUS_ASYNC_MAX,
   getStoredBulkStatusJobId,
+  clearStoredBulkStatusJobId,
   BulkStatusJobData,
 } from "@/services/apiOrder";
 import BulkStatusProgressDialog from "./BulkStatusProgressDialog";
@@ -126,6 +127,7 @@ const OrdersTable = ({
   const [isLoading, setIsLoading] = useState(false);
   const [searchInput, setSearchInput] = useState(search);
   const searchDebounceRef = useRef<NodeJS.Timeout | null>(null);
+  const bulkCompleteHandledRef = useRef(false);
   const [hasUserFiltered, setHasUserFiltered] = useState(false);
   
   // Convert date strings to dayjs objects
@@ -377,6 +379,13 @@ const OrdersTable = ({
 
   const handleBulkJobComplete = useCallback(
     async (job: BulkStatusJobData) => {
+      if (bulkCompleteHandledRef.current) return;
+      bulkCompleteHandledRef.current = true;
+
+      setBulkProgressDialogOpen(false);
+      setBulkJobId(null);
+      clearStoredBulkStatusJobId();
+
       if (job.status === "completed") {
         showSnackbar(
           `Successfully updated ${job.successful} order(s).`,
@@ -391,11 +400,13 @@ const OrdersTable = ({
         showSnackbar("Bulk status update failed.", "error");
       }
 
-      await refreshData();
       setRowSelection({});
       setSelectedBulkStatus("");
+
+      await mutate(["orderList", queryParams]);
+      router.push("/apps/order/list");
     },
-    [refreshData, showSnackbar]
+    [queryParams, router, showSnackbar]
   );
 
   const handleBulkStatusUpdate = useCallback(async () => {
@@ -418,6 +429,7 @@ const OrdersTable = ({
 
     try {
       if (isBulkBatchAsync) {
+        bulkCompleteHandledRef.current = false;
         const response = await bulkUpdateOrderStatusAsync(
           selectedOrderIds,
           selectedBulkStatus
