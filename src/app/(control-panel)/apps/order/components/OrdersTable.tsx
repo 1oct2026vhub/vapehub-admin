@@ -32,10 +32,8 @@ import {
   getOrders,
   OrderStatus,
   PaymentStatus,
-  bulkUpdateOrderStatus,
   bulkUpdateOrderStatusAsync,
-  BULK_STATUS_SYNC_MAX,
-  BULK_STATUS_ASYNC_MAX,
+  BULK_STATUS_BATCH_MAX,
   getStoredBulkStatusJobId,
   clearStoredBulkStatusJobId,
   BulkStatusJobData,
@@ -161,6 +159,7 @@ const OrdersTable = ({
   const [isBulkUpdating, setIsBulkUpdating] = useState(false);
   const [bulkProgressDialogOpen, setBulkProgressDialogOpen] = useState(false);
   const [bulkJobId, setBulkJobId] = useState<string | null>(null);
+  const [statisticsRefreshKey, setStatisticsRefreshKey] = useState(0);
 
   const selectedOrderCount = useMemo(
     () => Object.keys(rowSelection).filter((key) => rowSelection[key]).length,
@@ -176,8 +175,7 @@ const OrdersTable = ({
     [rowSelection]
   );
 
-  const isBulkBatchTooLarge = selectedOrderCount > BULK_STATUS_ASYNC_MAX;
-  const isBulkBatchAsync = selectedOrderCount > BULK_STATUS_SYNC_MAX && !isBulkBatchTooLarge;
+  const isBulkBatchTooLarge = selectedOrderCount > BULK_STATUS_BATCH_MAX;
 
   // Handle limit change with proper state batching
   const handleLimitChange = useCallback((newLimit: number) => {
@@ -377,14 +375,30 @@ const OrdersTable = ({
     }
   }, [queryParams]);
 
+  const refreshOrdersList = useCallback(async () => {
+    try {
+      const freshData = await getOrders(queryParams);
+
+      if (freshData?.data) {
+        setOrders(freshData.data.orders || []);
+        if (freshData.data.pagination) {
+          setTotalRecords(freshData.data.pagination.total || 0);
+          setTotalPages(freshData.data.pagination.total_pages || 1);
+        }
+      }
+
+      await mutate(["orderList", queryParams], freshData, { revalidate: false });
+      setStatisticsRefreshKey((key) => key + 1);
+    } catch (error) {
+      console.error("Failed to refresh orders after bulk update:", error);
+      await mutate(["orderList", queryParams]);
+    }
+  }, [queryParams]);
+
   const handleBulkJobComplete = useCallback(
     async (job: BulkStatusJobData) => {
       if (bulkCompleteHandledRef.current) return;
       bulkCompleteHandledRef.current = true;
-
-      setBulkProgressDialogOpen(false);
-      setBulkJobId(null);
-      clearStoredBulkStatusJobId();
 
       if (job.status === "completed") {
         showSnackbar(
@@ -403,10 +417,13 @@ const OrdersTable = ({
       setRowSelection({});
       setSelectedBulkStatus("");
 
-      await mutate(["orderList", queryParams]);
-      router.push("/apps/order/list");
+      await refreshOrdersList();
+
+      setBulkProgressDialogOpen(false);
+      setBulkJobId(null);
+      clearStoredBulkStatusJobId();
     },
-    [queryParams, router, showSnackbar]
+    [refreshOrdersList, showSnackbar]
   );
 
   const handleBulkStatusUpdate = useCallback(async () => {
@@ -421,66 +438,36 @@ const OrdersTable = ({
     }
 
     if (isBulkBatchTooLarge) {
-      showSnackbar(`Maximum ${BULK_STATUS_ASYNC_MAX} orders per batch.`, "error");
+      showSnackbar(`Maximum ${BULK_STATUS_BATCH_MAX} orders per batch.`, "error");
       return;
     }
 
     setIsBulkUpdating(true);
 
     try {
-      if (isBulkBatchAsync) {
-        bulkCompleteHandledRef.current = false;
-        const response = await bulkUpdateOrderStatusAsync(
-          selectedOrderIds,
-          selectedBulkStatus
-        );
-
-        if (!response?.success || !response.data?.job_id) {
-          throw new Error(response?.message || "Failed to queue bulk update");
-        }
-
-        setBulkStatusDialogOpen(false);
-        setBulkJobId(response.data.job_id);
-        setBulkProgressDialogOpen(true);
-        showSnackbar(
-          selectedBulkStatus === "packed"
-            ? "Queued — ShipStation orders created without labels in bulk."
-            : "Bulk update queued. Processing in background.",
-          "info"
-        );
-        return;
-      }
-
-      const response = await bulkUpdateOrderStatus(
+      bulkCompleteHandledRef.current = false;
+      const response = await bulkUpdateOrderStatusAsync(
         selectedOrderIds,
         selectedBulkStatus
       );
 
-      if (response.success) {
-        const { successful, failed, total } = response.data;
-        let message = `Successfully updated ${successful} out of ${total} order(s)`;
+      const jobId =
+        response?.data?.job_id ??
+        (response?.data as { jobId?: string | number })?.jobId;
 
-        if (failed > 0) {
-          message += `. ${failed} order(s) failed to update.`;
-          if (response.data.errors?.length > 0) {
-            const errorDetails = response.data.errors
-              .slice(0, 50)
-              .map((err) => `${err.order_unique_id}: ${err.error}`)
-              .join(", ");
-            message += ` Errors: ${errorDetails}`;
-          }
-          showSnackbar(message, "warning");
-        } else {
-          showSnackbar(response.message || message, "success");
-        }
-
-        await refreshData();
-        setRowSelection({});
-        setBulkStatusDialogOpen(false);
-        setSelectedBulkStatus("");
-      } else {
-        showSnackbar(response.message || "Failed to update orders", "error");
+      if (!response?.success || !jobId) {
+        throw new Error(response?.message || "Failed to queue bulk update");
       }
+
+      setBulkStatusDialogOpen(false);
+      setBulkJobId(String(jobId));
+      setBulkProgressDialogOpen(true);
+      showSnackbar(
+        selectedBulkStatus === "packed"
+          ? "Queued — ShipStation orders created without labels in bulk."
+          : "Bulk update queued. Processing in background.",
+        "info"
+      );
     } catch (error: unknown) {
       const err = error as { message?: string; errors?: Array<{ msg?: string }> };
       const errorMessage =
@@ -492,9 +479,7 @@ const OrdersTable = ({
       setIsBulkUpdating(false);
     }
   }, [
-    isBulkBatchAsync,
     isBulkBatchTooLarge,
-    refreshData,
     selectedBulkStatus,
     selectedOrderIds,
     showSnackbar,
@@ -619,6 +604,7 @@ const OrdersTable = ({
   return (
     <>
       <OrderStatistics 
+        key={statisticsRefreshKey}
         externalStartDate={startDateFilter?.format("YYYY-MM-DD")}
         externalEndDate={endDateFilter?.format("YYYY-MM-DD")}
         className="mb-6"
@@ -783,17 +769,7 @@ const OrdersTable = ({
             {/* Selected Orders List */}
             {isBulkBatchTooLarge && (
               <Alert severity="error" sx={{ mb: 2 }}>
-                Maximum {BULK_STATUS_ASYNC_MAX} orders per batch. Please reduce your selection.
-              </Alert>
-            )}
-
-            {isBulkBatchAsync && (
-              <Alert severity="info" sx={{ mb: 2 }}>
-                {selectedBulkStatus === "packed"
-                  ? "Queued — ShipStation orders created without labels in bulk. "
-                  : ""}
-                Large batch ({selectedOrderCount} orders) will be processed in the background.
-                May take several minutes (~2 sec/order).
+                Maximum {BULK_STATUS_BATCH_MAX} orders per batch. Please reduce your selection.
               </Alert>
             )}
 
@@ -901,7 +877,7 @@ const OrdersTable = ({
             disabled={isBulkUpdating}
           />
           <AppButton
-            label={isBulkBatchAsync ? "Queue Update" : "Update"}
+            label="Update"
             variant="contained"
             loading={isBulkUpdating}
             onClick={handleBulkStatusUpdate}
