@@ -238,7 +238,7 @@ export interface OrderFilterParams {
   limit?: number;
 }
 
-// Function to get order statistics
+// Function to get order sync
 export const getOrderStatistics = async (
   startDate?: string,
   endDate?: string
@@ -346,13 +346,8 @@ export interface BulkStatusUpdateRequest {
   status: OrderStatus;
 }
 
-// TEST ONLY — revert before production: sync max 100, timeouts 60s/15s, poll 2.5s
-export const BULK_STATUS_SYNC_MAX = 2;
-export const BULK_STATUS_ASYNC_MAX = 500;
-export const BULK_STATUS_SYNC_TIMEOUT_MS = 1000;
-export const BULK_STATUS_ASYNC_TIMEOUT_MS = 1000;
-export const BULK_STATUS_POLL_TIMEOUT_MS = 1000;
-export const BULK_STATUS_POLL_INTERVAL_MS = 1000;
+export const BULK_STATUS_BATCH_MAX = 500;
+export const BULK_STATUS_POLL_INTERVAL_MS = 2500;
 export const BULK_STATUS_JOB_SESSION_KEY = "bulkStatusJobId";
 
 export type BulkStatusJobStatus =
@@ -397,28 +392,26 @@ export interface BulkStatusJobResponse {
 const isTerminalBulkStatusJob = (status: BulkStatusJobStatus) =>
   status === "completed" || status === "partial_failed" || status === "failed";
 
-// Sync bulk update — up to BULK_STATUS_SYNC_MAX orders
-export const bulkUpdateOrderStatus = async (
-  orderIds: number[],
-  status: OrderStatus
-): Promise<BulkStatusUpdateResponse> => {
-  const response = await axiosInstance.put(
-    "/api/admin/orders/bulk-status",
-    { order_ids: orderIds, status },
-    { timeout: BULK_STATUS_SYNC_TIMEOUT_MS }
-  );
-  return response.data;
-};
+// Sync bulk status — disabled; use async endpoint for all bulk updates
+// export const bulkUpdateOrderStatus = async (
+//   orderIds: number[],
+//   status: OrderStatus
+// ): Promise<BulkStatusUpdateResponse> => {
+//   const response = await updater("/api/admin/orders/bulk-status", {
+//     order_ids: orderIds,
+//     status,
+//   });
+//   return response;
+// };
 
-// Async bulk update — orders above sync max
+// Async bulk update — POST /api/admin/orders/bulk-status/async (all cases)
 export const bulkUpdateOrderStatusAsync = async (
   orderIds: number[],
   status: OrderStatus
 ): Promise<BulkStatusAsyncStartResponse> => {
   const response = await axiosInstance.post(
     "/api/admin/orders/bulk-status/async",
-    { order_ids: orderIds, status },
-    { timeout: BULK_STATUS_ASYNC_TIMEOUT_MS }
+    { order_ids: orderIds, status }
   );
   return response.data;
 };
@@ -428,8 +421,7 @@ export const getBulkStatusJob = async (
   jobId: string
 ): Promise<BulkStatusJobResponse> => {
   const response = await axiosInstance.get(
-    `/api/admin/orders/bulk-status/jobs/${jobId}`,
-    { timeout: BULK_STATUS_POLL_TIMEOUT_MS }
+    `/api/admin/orders/bulk-status/jobs/${jobId}`
   );
   return response.data;
 };
