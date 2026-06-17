@@ -1,6 +1,5 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Alert,
   Box,
@@ -21,21 +20,19 @@ import AppButton from "@/components/Shared/AppButton";
 import {
   BulkStatusJobData,
   BulkStatusJobStatus,
-  BULK_STATUS_POLL_INTERVAL_MS,
-  clearStoredBulkStatusJobId,
-  getBulkStatusJob,
   isTerminalBulkStatusJob,
-  storeBulkStatusJobId,
 } from "@/services/apiOrder";
 
 const MAX_ERRORS_SHOWN = 50;
 
 interface BulkStatusProgressDialogProps {
   open: boolean;
-  jobId: string | null;
+  job: BulkStatusJobData | null;
+  pollError: string | null;
   targetStatus?: string;
+  isProcessing: boolean;
+  onDismiss: () => void;
   onClose: () => void;
-  onComplete: (job: BulkStatusJobData) => void;
 }
 
 const statusChipColor = (
@@ -60,132 +57,31 @@ const formatJobStatus = (status: BulkStatusJobStatus) =>
 
 const BulkStatusProgressDialog = ({
   open,
-  jobId,
+  job,
+  pollError,
   targetStatus,
+  isProcessing,
+  onDismiss,
   onClose,
-  onComplete,
 }: BulkStatusProgressDialogProps) => {
-  const [job, setJob] = useState<BulkStatusJobData | null>(null);
-  const [pollError, setPollError] = useState<string | null>(null);
-  const [isJobFinished, setIsJobFinished] = useState(false);
-  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const pollInFlightRef = useRef(false);
-  const completedRef = useRef(false);
-  const onCompleteRef = useRef(onComplete);
-
-  useEffect(() => {
-    onCompleteRef.current = onComplete;
-  }, [onComplete]);
-
-  const stopPolling = useCallback(() => {
-    if (pollingRef.current) {
-      clearInterval(pollingRef.current);
-      pollingRef.current = null;
-    }
-  }, []);
-
-  useEffect(() => {
-    if (!open || !jobId) {
-      stopPolling();
-      return;
-    }
-
-    let cancelled = false;
-    completedRef.current = false;
-    pollInFlightRef.current = false;
-    setIsJobFinished(false);
-    setJob(null);
-    setPollError(null);
-    storeBulkStatusJobId(jobId);
-
-    const pollOnce = async () => {
-      if (cancelled || completedRef.current || pollInFlightRef.current) {
-        return;
-      }
-
-      pollInFlightRef.current = true;
-
-      try {
-        const response = await getBulkStatusJob(jobId);
-
-        if (cancelled || completedRef.current) {
-          return;
-        }
-
-        if (!response?.success || !response.data) {
-          throw new Error(response?.message || "Failed to fetch job status");
-        }
-
-        setJob(response.data);
-        setPollError(null);
-
-        const isFinished =
-          isTerminalBulkStatusJob(response.data.status) ||
-          response.data.progress_percent >= 100;
-
-        if (isFinished && !completedRef.current) {
-          completedRef.current = true;
-          setIsJobFinished(true);
-          stopPolling();
-          clearStoredBulkStatusJobId();
-          onCompleteRef.current(response.data);
-        }
-      } catch (error: unknown) {
-        if (cancelled || completedRef.current) {
-          return;
-        }
-
-        const err = error as { message?: string; status?: number };
-        const message =
-          err?.status === 404
-            ? "Bulk update job not found. It may have expired."
-            : err?.message || "Failed to check job status. Please try again.";
-
-        setPollError(message);
-        completedRef.current = true;
-        setIsJobFinished(true);
-        stopPolling();
-        clearStoredBulkStatusJobId();
-      } finally {
-        pollInFlightRef.current = false;
-      }
-    };
-
-    void pollOnce();
-    pollingRef.current = setInterval(() => {
-      void pollOnce();
-    }, BULK_STATUS_POLL_INTERVAL_MS);
-
-    return () => {
-      cancelled = true;
-      stopPolling();
-      pollInFlightRef.current = false;
-    };
-  }, [open, jobId, stopPolling]);
-
-  const isProcessing =
-    open &&
-    !!jobId &&
-    !pollError &&
-    !isJobFinished &&
-    (!job || !isTerminalBulkStatusJob(job.status));
   const errors = (job?.errors ?? []).slice(0, MAX_ERRORS_SHOWN);
   const hiddenErrorCount = Math.max(0, (job?.errors?.length ?? 0) - MAX_ERRORS_SHOWN);
 
-  const handleClose = () => {
-    if (isProcessing) return;
-    stopPolling();
-    onClose();
-  };
-
-  const handleDismiss = () => {
-    stopPolling();
-    clearStoredBulkStatusJobId();
-    onClose();
-  };
-
   return (
-    <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth>
+    <Dialog
+      open={open}
+      onClose={onDismiss}
+      maxWidth="md"
+      fullWidth
+      hideBackdrop
+      disableEnforceFocus
+      disableScrollLock
+      sx={{
+        pointerEvents: "none",
+        "& .MuiDialog-container": { pointerEvents: "none" },
+        "& .MuiDialog-paper": { pointerEvents: "auto" },
+      }}
+    >
       <DialogTitle
         sx={{
           display: "flex",
@@ -197,7 +93,7 @@ const BulkStatusProgressDialog = ({
         Bulk Status Update Progress
         <IconButton
           aria-label="Close"
-          onClick={handleDismiss}
+          onClick={onDismiss}
           size="small"
           edge="end"
         >
@@ -206,6 +102,13 @@ const BulkStatusProgressDialog = ({
       </DialogTitle>
       <DialogContent>
         <Box sx={{ pt: 1, display: "flex", flexDirection: "column", gap: 2 }}>
+          {isProcessing && (
+            <Alert severity="info">
+              Update running in the background. You can navigate to other pages
+              using the sidebar.
+            </Alert>
+          )}
+
           {targetStatus === "packed" && (
             <Alert severity="info">
               Queued — ShipStation orders created without labels in bulk.
@@ -339,10 +242,9 @@ const BulkStatusProgressDialog = ({
       </DialogContent>
       <DialogActions>
         <AppButton
-          label={isProcessing ? "Processing…" : "Close"}
+          label={isProcessing ? "Run in background" : "Close"}
           variant="outlined"
-          onClick={handleClose}
-          disabled={isProcessing}
+          onClick={onClose}
         />
       </DialogActions>
     </Dialog>
