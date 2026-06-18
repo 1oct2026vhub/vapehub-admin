@@ -8,6 +8,7 @@ export type OrderStatus =
   | "draft"
   | "pending"
   | "processing"
+  | "packed"
   | "shipped"
   | "delivered"
   | "completed"
@@ -237,7 +238,7 @@ export interface OrderFilterParams {
   limit?: number;
 }
 
-// Function to get order statistics
+// Function to get order sync
 export const getOrderStatistics = async (
   startDate?: string,
   endDate?: string
@@ -345,16 +346,103 @@ export interface BulkStatusUpdateRequest {
   status: OrderStatus;
 }
 
-// Function to bulk update order status
-export const bulkUpdateOrderStatus = async (
+export const BULK_STATUS_BATCH_MAX = 500;
+export const BULK_STATUS_POLL_INTERVAL_MS = 2500;
+export const BULK_STATUS_JOB_SESSION_KEY = "bulkStatusJobId";
+
+export type BulkStatusJobStatus =
+  | "queued"
+  | "processing"
+  | "completed"
+  | "partial_failed"
+  | "failed";
+
+export interface BulkStatusJobError {
+  order_id: number;
+  order_unique_id: string;
+  error: string;
+}
+
+export interface BulkStatusJobData {
+  job_id: string;
+  status: BulkStatusJobStatus;
+  progress_percent: number;
+  successful: number;
+  failed: number;
+  skipped: number;
+  pending: number;
+  total?: number;
+  errors?: BulkStatusJobError[];
+}
+
+export interface BulkStatusAsyncStartResponse {
+  success: boolean;
+  message?: string;
+  data: {
+    job_id: string;
+  };
+}
+
+export interface BulkStatusJobResponse {
+  success: boolean;
+  message?: string;
+  data: BulkStatusJobData;
+}
+
+const isTerminalBulkStatusJob = (status: BulkStatusJobStatus) =>
+  status === "completed" || status === "partial_failed" || status === "failed";
+
+// Sync bulk status — disabled; use async endpoint for all bulk updates
+// export const bulkUpdateOrderStatus = async (
+//   orderIds: number[],
+//   status: OrderStatus
+// ): Promise<BulkStatusUpdateResponse> => {
+//   const response = await updater("/api/admin/orders/bulk-status", {
+//     order_ids: orderIds,
+//     status,
+//   });
+//   return response;
+// };
+
+// Async bulk update — POST /api/admin/orders/bulk-status/async (all cases)
+export const bulkUpdateOrderStatusAsync = async (
   orderIds: number[],
   status: OrderStatus
-): Promise<BulkStatusUpdateResponse> => {
-  const response = await updater("/api/admin/orders/bulk-status", {
-    order_ids: orderIds,
-    status,
-  });
-  return response;
+): Promise<BulkStatusAsyncStartResponse> => {
+  const response = await axiosInstance.post(
+    "/api/admin/orders/bulk-status/async",
+    { order_ids: orderIds, status }
+  );
+  return response.data;
+};
+
+// Poll async bulk status job
+export const getBulkStatusJob = async (
+  jobId: string
+): Promise<BulkStatusJobResponse> => {
+  const response = await axiosInstance.get(
+    `/api/admin/orders/bulk-status/jobs/${jobId}`
+  );
+  return response.data;
+};
+
+export { isTerminalBulkStatusJob };
+
+export const storeBulkStatusJobId = (jobId: string) => {
+  if (typeof window !== "undefined") {
+    sessionStorage.setItem(BULK_STATUS_JOB_SESSION_KEY, jobId);
+  }
+};
+
+export const getStoredBulkStatusJobId = (): string | null => {
+  if (typeof window === "undefined") return null;
+  return sessionStorage.getItem(BULK_STATUS_JOB_SESSION_KEY);
+};
+
+export const clearStoredBulkStatusJobId = () => {
+  if (typeof window !== "undefined") {
+    sessionStorage.removeItem(BULK_STATUS_JOB_SESSION_KEY);
+  }
 };
 
 // Function to get list of orders with filtering and pagination

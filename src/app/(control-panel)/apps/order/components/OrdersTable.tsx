@@ -28,7 +28,14 @@ import {
   ListItemText,
   Divider,
 } from "@mui/material";
-import { getOrders, OrderStatus, PaymentStatus, bulkUpdateOrderStatus } from "@/services/apiOrder";
+import {
+  getOrders,
+  OrderStatus,
+  PaymentStatus,
+  bulkUpdateOrderStatusAsync,
+  BULK_STATUS_BATCH_MAX,
+} from "@/services/apiOrder";
+import { useBulkStatusJob } from "@/contexts/BulkStatusJobContext";
 import { useSnackbar } from "@/contexts/SnackbarContext";
 import { useFetch } from "@/hooks/useFetch";
 import { mutate } from "swr";
@@ -41,6 +48,7 @@ import OrderFilters from "./OrderFilters";
 import OrderFilterDrawer from "./OrderFilterDrawer";
 import GenerateReportButton from "./GenerateReportButton";
 import OrderStatistics from "./OrderStatistics";
+import BulkStatusProgressDialog from "./BulkStatusProgressDialog";
 import AppButton from "@/components/Shared/AppButton";
 import relativeTime from "dayjs/plugin/relativeTime";
 import useColumnOrder from "@/hooks/useColumnOrder";
@@ -87,6 +95,19 @@ const OrdersTable = ({
 }: OrdersTableProps) => {
   const router = useRouter();
   const { showSnackbar } = useSnackbar();
+  const {
+    startJob,
+    registerCompleteListener,
+    showDialog,
+    hideDialog,
+    handleDialogClose,
+    jobId,
+    job,
+    pollError,
+    targetStatus,
+    isProcessing,
+    dialogOpen,
+  } = useBulkStatusJob();
   
   // Use session storage for filter state
   const [pageState, setPageState, clearPageState] = usePageState(
@@ -146,6 +167,23 @@ const OrdersTable = ({
   const [bulkStatusDialogOpen, setBulkStatusDialogOpen] = useState(false);
   const [selectedBulkStatus, setSelectedBulkStatus] = useState<OrderStatus | "">("");
   const [isBulkUpdating, setIsBulkUpdating] = useState(false);
+  const [statisticsRefreshKey, setStatisticsRefreshKey] = useState(0);
+
+  const selectedOrderCount = useMemo(
+    () => Object.keys(rowSelection).filter((key) => rowSelection[key]).length,
+    [rowSelection]
+  );
+
+  const selectedOrderIds = useMemo(
+    () =>
+      Object.keys(rowSelection)
+        .filter((key) => rowSelection[key])
+        .map((key) => parseInt(key))
+        .filter((id) => !isNaN(id)) as number[],
+    [rowSelection]
+  );
+
+  const isBulkBatchTooLarge = selectedOrderCount > BULK_STATUS_BATCH_MAX;
 
   // Handle limit change with proper state batching
   const handleLimitChange = useCallback((newLimit: number) => {
@@ -336,6 +374,101 @@ const OrdersTable = ({
     }
   }, [queryParams]);
 
+  const refreshOrdersList = useCallback(async () => {
+    try {
+      const freshData = await getOrders(queryParams);
+
+      if (freshData?.data) {
+        setOrders(freshData.data.orders || []);
+        if (freshData.data.pagination) {
+          setTotalRecords(freshData.data.pagination.total || 0);
+          setTotalPages(freshData.data.pagination.total_pages || 1);
+        }
+      }
+
+      await mutate(["orderList", queryParams], freshData, { revalidate: false });
+      setStatisticsRefreshKey((key) => key + 1);
+    } catch (error) {
+      console.error("Failed to refresh orders after bulk update:", error);
+      await mutate(["orderList", queryParams]);
+    }
+  }, [queryParams]);
+
+  useEffect(() => {
+    if (jobId) {
+      showDialog();
+    }
+    return () => {
+      hideDialog();
+    };
+  }, [jobId, showDialog, hideDialog]);
+
+  useEffect(() => {
+    return registerCompleteListener(() => {
+      void refreshOrdersList();
+    });
+  }, [registerCompleteListener, refreshOrdersList]);
+
+  const handleBulkStatusUpdate = useCallback(async () => {
+    if (!selectedBulkStatus) {
+      showSnackbar("Please select a status", "warning");
+      return;
+    }
+
+    if (selectedOrderIds.length === 0) {
+      showSnackbar("No orders selected", "warning");
+      return;
+    }
+
+    if (isBulkBatchTooLarge) {
+      showSnackbar(`Maximum ${BULK_STATUS_BATCH_MAX} orders per batch.`, "error");
+      return;
+    }
+
+    setIsBulkUpdating(true);
+
+    try {
+      const response = await bulkUpdateOrderStatusAsync(
+        selectedOrderIds,
+        selectedBulkStatus
+      );
+
+      const jobId =
+        response?.data?.job_id ??
+        (response?.data as { jobId?: string | number })?.jobId;
+
+      if (!response?.success || !jobId) {
+        throw new Error(response?.message || "Failed to queue bulk update");
+      }
+
+      setBulkStatusDialogOpen(false);
+      setRowSelection({});
+      setSelectedBulkStatus("");
+      startJob(String(jobId), selectedBulkStatus);
+      showSnackbar(
+        selectedBulkStatus === "packed"
+          ? "Queued — ShipStation orders created without labels in bulk."
+          : "Bulk update queued. Processing in background.",
+        "info"
+      );
+    } catch (error: unknown) {
+      const err = error as { message?: string; errors?: Array<{ msg?: string }> };
+      const errorMessage =
+        err?.message ||
+        err?.errors?.[0]?.msg ||
+        "Failed to update orders. Please check your connection and try again.";
+      showSnackbar(errorMessage, "error");
+    } finally {
+      setIsBulkUpdating(false);
+    }
+  }, [
+    isBulkBatchTooLarge,
+    selectedBulkStatus,
+    selectedOrderIds,
+    showSnackbar,
+    startJob,
+  ]);
+
   useEffect(() => {
     if (data?.data) {
       setOrders(data.data.orders || []);
@@ -455,6 +588,7 @@ const OrdersTable = ({
   return (
     <>
       <OrderStatistics 
+        key={statisticsRefreshKey}
         externalStartDate={startDateFilter?.format("YYYY-MM-DD")}
         externalEndDate={endDateFilter?.format("YYYY-MM-DD")}
         className="mb-6"
@@ -462,10 +596,10 @@ const OrdersTable = ({
       
       <div className="flex items-center justify-between mb-4">
         <Box className="flex items-center gap-2">
-          {Object.keys(rowSelection).filter(key => rowSelection[key]).length > 0 && (
+          {selectedOrderCount > 0 && (
             <>
               <AppButton
-                label={`Update Status (${Object.keys(rowSelection).filter(key => rowSelection[key]).length} selected)`}
+                label={`Update Status (${selectedOrderCount} selected)`}
                 variant="contained"
                 onClick={() => setBulkStatusDialogOpen(true)}
                 disabled={isBulkUpdating}
@@ -607,9 +741,9 @@ const OrdersTable = ({
         <DialogContent>
           <Box sx={{ pt: 2 }}>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-              You have selected {Object.keys(rowSelection).filter(key => rowSelection[key]).length} order(s). 
+              You have selected {selectedOrderCount} order(s).
               Choose a new status to update all selected orders.
-              {Object.keys(rowSelection).filter(key => rowSelection[key]).length > 0 && (
+              {selectedOrderCount > 0 && (
                 <Box component="span" sx={{ display: 'block', mt: 1, fontSize: '0.75rem', color: 'text.disabled' }}>
                   Selected orders will be updated regardless of which page they're on.
                 </Box>
@@ -617,11 +751,17 @@ const OrdersTable = ({
             </Typography>
 
             {/* Selected Orders List */}
-            {Object.keys(rowSelection).filter(key => rowSelection[key]).length > 0 && (
+            {isBulkBatchTooLarge && (
+              <Alert severity="error" sx={{ mb: 2 }}>
+                Maximum {BULK_STATUS_BATCH_MAX} orders per batch. Please reduce your selection.
+              </Alert>
+            )}
+
+            {selectedOrderCount > 0 && (
               <Box sx={{ mb: 3, maxHeight: 300, overflow: 'auto', border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
                 <Box sx={{ p: 1.5, bgcolor: 'action.hover', borderBottom: '1px solid', borderColor: 'divider' }}>
                   <Typography variant="subtitle2" fontWeight="medium">
-                    Selected Orders ({Object.keys(rowSelection).filter(key => rowSelection[key]).length})
+                    Selected Orders ({selectedOrderCount})
                   </Typography>
                 </Box>
                 <List dense sx={{ p: 0 }}>
@@ -631,7 +771,7 @@ const OrdersTable = ({
                       const orderId = parseInt(orderIdStr);
                       // Find order in current page orders
                       const order = orders.find((o: any) => o.id === orderId);
-                      const isLast = index === Object.keys(rowSelection).filter(key => rowSelection[key]).length - 1;
+                      const isLast = index === selectedOrderCount - 1;
                       
                       return (
                         <Box key={orderIdStr}>
@@ -724,68 +864,21 @@ const OrdersTable = ({
             label="Update"
             variant="contained"
             loading={isBulkUpdating}
-            onClick={async () => {
-              if (!selectedBulkStatus) {
-                showSnackbar("Please select a status", "warning");
-                return;
-              }
-
-              // Since we're using getRowId with order IDs, the keys in rowSelection are already order IDs
-              const selectedOrderIds = Object.keys(rowSelection)
-                .filter(key => rowSelection[key])
-                .map(key => parseInt(key))
-                .filter(id => !isNaN(id)) as number[];
-
-              if (selectedOrderIds.length === 0) {
-                showSnackbar("No orders selected", "warning");
-                return;
-              }
-
-              setIsBulkUpdating(true);
-              try {
-                const response = await bulkUpdateOrderStatus(
-                  selectedOrderIds,
-                  selectedBulkStatus
-                );
-
-                if (response.success) {
-                  const { successful, failed, total } = response.data;
-                  let message = `Successfully updated ${successful} out of ${total} order(s)`;
-                  
-                  if (failed > 0) {
-                    message += `. ${failed} order(s) failed to update.`;
-                    if (response.data.errors && response.data.errors.length > 0) {
-                      const errorDetails = response.data.errors
-                        .map(err => `${err.order_unique_id}: ${err.error}`)
-                        .join(", ");
-                      message += ` Errors: ${errorDetails}`;
-                    }
-                    showSnackbar(message, "warning");
-                  } else {
-                    showSnackbar(response.message || message, "success");
-                  }
-
-                  // Refresh data
-                  await refreshData();
-                  
-                  // Clear selection
-                  setRowSelection({});
-                  setBulkStatusDialogOpen(false);
-                  setSelectedBulkStatus("");
-                } else {
-                  showSnackbar(response.message || "Failed to update orders", "error");
-                }
-              } catch (error: any) {
-                const errorMessage = error?.message || error?.errors?.[0]?.msg || "Failed to update orders";
-                showSnackbar(errorMessage, "error");
-              } finally {
-                setIsBulkUpdating(false);
-              }
-            }}
-            disabled={!selectedBulkStatus || isBulkUpdating}
+            onClick={handleBulkStatusUpdate}
+            disabled={!selectedBulkStatus || isBulkUpdating || isBulkBatchTooLarge}
           />
         </DialogActions>
       </Dialog>
+
+      <BulkStatusProgressDialog
+        open={dialogOpen}
+        job={job}
+        pollError={pollError}
+        targetStatus={targetStatus}
+        isProcessing={isProcessing}
+        onDismiss={hideDialog}
+        onClose={handleDialogClose}
+      />
     </>
   );
 };
