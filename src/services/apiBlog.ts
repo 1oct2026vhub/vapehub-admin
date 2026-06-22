@@ -1,6 +1,25 @@
 import { fetcher, poster, updater, deleter } from "./apiService";
 import axiosInstance from '@/utils/axiosApi';
 
+export interface BlogSource {
+  label: string;
+  href: string;
+  description?: string;
+}
+
+export interface BlogRelatedBlog {
+  id: number;
+  title: string;
+  slug?: string;
+  image_url?: string;
+  alt_text?: string;
+  status?: string;
+  published_at?: string;
+}
+
+/** @deprecated Use BlogRelatedBlog — kept for backward compatibility */
+export type BlogRelatedPost = BlogRelatedBlog;
+
 // Types for Blog Posts, Categories, and Tags
 export interface BlogPost {
   id: number;
@@ -11,18 +30,33 @@ export interface BlogPost {
   image_url?: string;
   alt_text?: string;
   published_at?: string;
-  is_active: boolean;
+  is_active?: boolean;
   status?: string;
   created_at?: string;
   updated_at?: string;
   deleted_at?: string | null;
   categories?: BlogCategory[];
   tags?: BlogTag[];
+  author_id?: number | null;
   author?: {
+    id?: number;
     first_name: string;
     last_name: string;
     email: string;
+    profile_pic_url?: string;
+    blog_author_role?: string;
+    blog_author_bio?: string;
+    blog_author_slug?: string;
+    blog_author_archive_url?: string;
+    blog_author_team_url?: string;
   };
+  sources?: BlogSource[];
+  related_blog_ids?: number[];
+  related_blogs?: BlogRelatedBlog[];
+  /** @deprecated Use related_blogs */
+  related_posts?: BlogRelatedBlog[];
+  redirect_url?: string;
+  redirect?: { redirect_url?: string };
 }
 
 export interface BlogCategory {
