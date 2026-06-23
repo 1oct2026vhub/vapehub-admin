@@ -301,24 +301,6 @@ export default function AuthorBioBlock({
                 placeholder="Part of the VapeHub product team. Writes the Geek Zone's hands-on guides..."
               />
             </Grid>
-            <Grid item xs={12} md={6}>
-              <FormInputField
-                name="author_profile.blog_author_archive_url"
-                control={control}
-                label="Author archive URL"
-                helperText="All articles by this author"
-                sx={commonFieldStyles}
-              />
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <FormInputField
-                name="author_profile.blog_author_team_url"
-                control={control}
-                label="Team page URL"
-                helperText="Meet the team link"
-                sx={commonFieldStyles}
-              />
-            </Grid>
             <Grid item xs={12}>
               <Typography variant="caption" color="text.secondary">
                 Profile photo uses{" "}
