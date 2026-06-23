@@ -29,7 +29,7 @@ interface AuthorBioBlockProps {
   setValue: UseFormSetValue<BlogPostFormType>;
 }
 
-function mapUserToAuthorProfile(user: {
+type AuthorUserFields = {
   first_name?: string;
   last_name?: string;
   profile_pic_url?: string;
@@ -37,7 +37,24 @@ function mapUserToAuthorProfile(user: {
   blog_author_bio?: string;
   blog_author_archive_url?: string;
   blog_author_team_url?: string;
-}): BlogPostFormType["author_profile"] {
+};
+
+function parseUserDetailResponse(response: unknown): AuthorUserFields | null {
+  const dataObj =
+    (response as { data?: AuthorUserFields & { user?: AuthorUserFields } })
+      ?.data ?? response;
+  const user =
+    (dataObj as { user?: AuthorUserFields })?.user ??
+    (dataObj as AuthorUserFields);
+  if (!user || typeof user !== "object") {
+    return null;
+  }
+  return user;
+}
+
+function mapUserToAuthorProfile(
+  user: AuthorUserFields,
+): BlogPostFormType["author_profile"] {
   return {
     first_name: user.first_name || "",
     last_name: user.last_name || "",
@@ -47,6 +64,23 @@ function mapUserToAuthorProfile(user: {
     blog_author_archive_url: user.blog_author_archive_url || "",
     blog_author_team_url: user.blog_author_team_url || "",
   };
+}
+
+function hasAuthorProfileData(
+  profile: BlogPostFormType["author_profile"] | undefined,
+): boolean {
+  if (!profile) {
+    return false;
+  }
+
+  return Boolean(
+    profile.first_name?.trim() ||
+      profile.last_name?.trim() ||
+      profile.blog_author_role?.trim() ||
+      profile.blog_author_bio?.trim() ||
+      profile.blog_author_archive_url?.trim() ||
+      profile.blog_author_team_url?.trim(),
+  );
 }
 
 export default function AuthorBioBlock({
@@ -88,12 +122,21 @@ export default function AuthorBioBlock({
       return;
     }
 
+    // Edit flow: blog detail API already hydrated author_profile — don't overwrite.
+    if (
+      lastLoadedAuthorId.current === null &&
+      hasAuthorProfileData(authorProfile)
+    ) {
+      lastLoadedAuthorId.current = authorId;
+      return;
+    }
+
     let cancelled = false;
 
     const loadAuthor = async () => {
       try {
         const response = await getUserDetail(authorId);
-        const user = response?.data || response;
+        const user = parseUserDetailResponse(response);
         if (!cancelled && user) {
           setValue("author_profile", mapUserToAuthorProfile(user));
           lastLoadedAuthorId.current = authorId;
@@ -108,7 +151,7 @@ export default function AuthorBioBlock({
     return () => {
       cancelled = true;
     };
-  }, [authorId, setValue]);
+  }, [authorId, authorProfile, setValue]);
 
   const profile = authorProfile || defaultAuthorProfile;
   const displayName = getAuthorDisplayName(profile);
