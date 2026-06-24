@@ -5,9 +5,7 @@ import AppButton from "@/components/Shared/AppButton";
 import { useBulkStatusJob } from "@/contexts/BulkStatusJobContext";
 
 const BulkStatusJobsToolbarButton = () => {
-  const { jobs, activeJobCount, openDrawer } = useBulkStatusJob();
-
-  if (jobs.length === 0) return null;
+  const { activeJobCount, openDrawer } = useBulkStatusJob();
 
   return (
     <Badge badgeContent={activeJobCount} color="primary" invisible={activeJobCount === 0}>

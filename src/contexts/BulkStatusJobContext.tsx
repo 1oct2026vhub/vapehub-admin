@@ -27,6 +27,7 @@ import {
   upsertStoredBulkStatusJob,
 } from "@/services/apiOrder";
 import { useSnackbar } from "@/contexts/SnackbarContext";
+import { getAuthToken } from "@/utils/auth";
 import BulkStatusActivityDrawer from "@/app/(control-panel)/apps/order/components/BulkStatusActivityDrawer";
 import {
   BulkJobState,
@@ -148,6 +149,8 @@ export function BulkStatusJobProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const refreshActiveBulkOrdersOnly = useCallback(async () => {
+    if (!getAuthToken()) return;
+
     try {
       const response = await getBulkStatusActiveOrders();
       if (response?.success && response.data) {
@@ -362,6 +365,7 @@ export function BulkStatusJobProvider({ children }: { children: ReactNode }) {
   );
 
   const refreshBulkJobState = useCallback(async () => {
+    if (!getAuthToken()) return;
     if (syncInFlightRef.current) return;
     syncInFlightRef.current = true;
 
@@ -442,11 +446,12 @@ export function BulkStatusJobProvider({ children }: { children: ReactNode }) {
   ]);
 
   const reconcileJobsFromServer = useCallback(async () => {
+    if (!getAuthToken()) return;
+
     const stored = getStoredBulkStatusJobs();
 
     try {
       const listResponse = await listBulkStatusJobs({
-        status: "active",
         limit: 50,
       });
       const serverJobs = listResponse?.success ? listResponse.data.jobs : [];
@@ -484,18 +489,24 @@ export function BulkStatusJobProvider({ children }: { children: ReactNode }) {
         return next;
       });
     } catch {
-      if (stored.length > 0) {
-        setJobs((prev) => {
-          const next = { ...prev };
-          stored.forEach((meta) => {
-            const id = bulkJobIdKey(meta.jobId);
-            if (!next[id]) {
-              next[id] = createJobState({ ...meta, jobId: id });
-            }
-          });
-          return next;
+      if (stored.length === 0) return;
+
+      // Show cached jobs in history only — never as active (avoids polling loops).
+      setJobs((prev) => {
+        const next = { ...prev };
+        stored.forEach((meta) => {
+          const id = bulkJobIdKey(meta.jobId);
+          if (next[id]) return;
+          next[id] = {
+            meta: { ...meta, jobId: id },
+            pollData: null,
+            pollError: null,
+            isFinished: true,
+            needsDetailFetch: true,
+          };
         });
-      }
+        return next;
+      });
     }
   }, [mergeServerJob]);
 
@@ -557,6 +568,8 @@ export function BulkStatusJobProvider({ children }: { children: ReactNode }) {
 
   const openDrawer = useCallback(
     (jobId?: string) => {
+      void reconcileJobsFromServer();
+
       if (jobId) {
         setSelectedJobId(jobId);
       } else if (!selectedJobId && jobsList.length > 0) {
@@ -565,7 +578,7 @@ export function BulkStatusJobProvider({ children }: { children: ReactNode }) {
       }
       setDrawerOpen(true);
     },
-    [jobsList, selectedJobId]
+    [jobsList, reconcileJobsFromServer, selectedJobId]
   );
 
   const closeDrawer = useCallback(() => {
