@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, useEffect, useCallback, useRef } from "react";
-import { type MRT_ColumnDef } from "material-react-table";
+import { type MRT_ColumnDef, type MRT_Row } from "material-react-table";
 import DataTable from "@/components/data-table/DataTable";
 import FuseLoading from "@fuse/core/FuseLoading";
 import MenuIcon from "@mui/icons-material/Menu";
@@ -37,6 +37,7 @@ import {
 } from "@/services/apiOrder";
 import { useBulkStatusJob } from "@/contexts/BulkStatusJobContext";
 import { useSnackbar } from "@/contexts/SnackbarContext";
+import { isAxiosError } from "axios";
 import { useFetch } from "@/hooks/useFetch";
 import { mutate } from "swr";
 import { useRouter } from "next/navigation";
@@ -48,7 +49,8 @@ import OrderFilters from "./OrderFilters";
 import OrderFilterDrawer from "./OrderFilterDrawer";
 import GenerateReportButton from "./GenerateReportButton";
 import OrderStatistics from "./OrderStatistics";
-import BulkStatusProgressDialog from "./BulkStatusProgressDialog";
+import BulkStatusJobsToolbarButton from "./BulkStatusJobsToolbarButton";
+import { formatItemStatus, isOrderBulkSelectionLocked } from "./bulkStatusJobUtils";
 import AppButton from "@/components/Shared/AppButton";
 import relativeTime from "dayjs/plugin/relativeTime";
 import useColumnOrder from "@/hooks/useColumnOrder";
@@ -98,15 +100,8 @@ const OrdersTable = ({
   const {
     startJob,
     registerCompleteListener,
-    showDialog,
-    hideDialog,
-    handleDialogClose,
-    jobId,
-    job,
-    pollError,
-    targetStatus,
-    isProcessing,
-    dialogOpen,
+    activeBulkByOrderId,
+    refreshActiveBulkOrders,
   } = useBulkStatusJob();
   
   // Use session storage for filter state
@@ -138,9 +133,21 @@ const OrdersTable = ({
   const searchDebounceRef = useRef<NodeJS.Timeout | null>(null);
   const [hasUserFiltered, setHasUserFiltered] = useState(false);
   
-  // Convert date strings to dayjs objects
-  const startDateFilter = startDate ? dayjs(startDate) : (initialStartDate ? dayjs(initialStartDate) : dayjs().subtract(1, 'month'));
-  const endDateFilter = endDate ? dayjs(endDate) : (initialEndDate ? dayjs(initialEndDate) : dayjs());
+  // Stable date strings — avoid new dayjs() instances in useMemo deps (prevents SWR refetch loops)
+  const startDateStr = useMemo(() => {
+    if (startDate) return startDate;
+    if (initialStartDate) return initialStartDate;
+    return dayjs().subtract(1, "month").format("YYYY-MM-DD");
+  }, [startDate, initialStartDate]);
+
+  const endDateStr = useMemo(() => {
+    if (endDate) return endDate;
+    if (initialEndDate) return initialEndDate;
+    return dayjs().format("YYYY-MM-DD");
+  }, [endDate, initialEndDate]);
+
+  const startDateFilter = useMemo(() => dayjs(startDateStr), [startDateStr]);
+  const endDateFilter = useMemo(() => dayjs(endDateStr), [endDateStr]);
   
   // Helper functions to update pageState
   const setOrder = (value: "ASC" | "DESC") => setPageState(prev => ({ ...prev, order: value }));
@@ -179,8 +186,23 @@ const OrdersTable = ({
       Object.keys(rowSelection)
         .filter((key) => rowSelection[key])
         .map((key) => parseInt(key))
-        .filter((id) => !isNaN(id)) as number[],
-    [rowSelection]
+        .filter((id) => !isNaN(id))
+        .filter(
+          (id) => !isOrderBulkSelectionLocked(activeBulkByOrderId.get(id))
+        ) as number[],
+    [rowSelection, activeBulkByOrderId]
+  );
+
+  const isRowBulkSelectionLocked = useCallback(
+    (orderId: number) =>
+      isOrderBulkSelectionLocked(activeBulkByOrderId.get(orderId)),
+    [activeBulkByOrderId]
+  );
+
+  const canSelectRow = useCallback(
+    (row: MRT_Row<(typeof orders)[number]>) =>
+      !isRowBulkSelectionLocked(row.original.id),
+    [isRowBulkSelectionLocked]
   );
 
   const isBulkBatchTooLarge = selectedOrderCount > BULK_STATUS_BATCH_MAX;
@@ -200,6 +222,8 @@ const OrdersTable = ({
   const [productSearch, setProductSearch] = useState("");
   const [debouncedProductSearch, setDebouncedProductSearch] = useState("");
   const [isLoadingProducts, setIsLoadingProducts] = useState(false);
+  const lastProductsFetchKeyRef = useRef<string | null>(null);
+  const productsFetchInFlightRef = useRef(false);
   
   // Update selectedProduct when selectedProductId changes
   useEffect(() => {
@@ -271,10 +295,8 @@ const OrdersTable = ({
       ...(status && { status }),
       ...(paymentStatus && { payment_status: paymentStatus }),
       ...(search && { search }),
-      ...(startDateFilter && {
-        start_date: startDateFilter.format("YYYY-MM-DD"),
-      }),
-      ...(endDateFilter && { end_date: endDateFilter.format("YYYY-MM-DD") }),
+      start_date: startDateStr,
+      end_date: endDateStr,
       ...(selectedProduct && { product_id: selectedProduct.id }),
     }),
     [
@@ -283,8 +305,8 @@ const OrdersTable = ({
       status,
       paymentStatus,
       search, // This will now only change after debounce
-      startDateFilter,
-      endDateFilter,
+      startDateStr,
+      endDateStr,
       selectedProduct,
       page,
       limit,
@@ -395,13 +417,26 @@ const OrdersTable = ({
   }, [queryParams]);
 
   useEffect(() => {
-    if (jobId) {
-      showDialog();
-    }
-    return () => {
-      hideDialog();
-    };
-  }, [jobId, showDialog, hideDialog]);
+    void refreshActiveBulkOrders();
+  }, [refreshActiveBulkOrders]);
+
+  useEffect(() => {
+    if (activeBulkByOrderId.size === 0) return;
+
+    setRowSelection((prev) => {
+      const next = { ...prev };
+      let changed = false;
+
+      Object.keys(next).forEach((id) => {
+        if (next[id] && isRowBulkSelectionLocked(Number(id))) {
+          delete next[id];
+          changed = true;
+        }
+      });
+
+      return changed ? next : prev;
+    });
+  }, [activeBulkByOrderId, isRowBulkSelectionLocked]);
 
   useEffect(() => {
     return registerCompleteListener(() => {
@@ -420,6 +455,20 @@ const OrdersTable = ({
       return;
     }
 
+    const lockedSelected = Object.keys(rowSelection)
+      .filter((key) => rowSelection[key])
+      .map((key) => Number(key))
+      .filter((id) => isRowBulkSelectionLocked(id));
+
+    if (lockedSelected.length > 0) {
+      showSnackbar(
+        "Some selected orders are already in a bulk update. Deselect them and try again.",
+        "error"
+      );
+      void refreshActiveBulkOrders();
+      return;
+    }
+
     if (isBulkBatchTooLarge) {
       showSnackbar(`Maximum ${BULK_STATUS_BATCH_MAX} orders per batch.`, "error");
       return;
@@ -433,18 +482,21 @@ const OrdersTable = ({
         selectedBulkStatus
       );
 
-      const jobId =
-        response?.data?.job_id ??
-        (response?.data as { jobId?: string | number })?.jobId;
+      const { job_id, job_key, target_status } = response.data;
 
-      if (!response?.success || !jobId) {
+      if (!response?.success || job_id == null) {
         throw new Error(response?.message || "Failed to queue bulk update");
       }
 
       setBulkStatusDialogOpen(false);
       setRowSelection({});
       setSelectedBulkStatus("");
-      startJob(String(jobId), selectedBulkStatus);
+      startJob(
+        job_id,
+        target_status || selectedBulkStatus,
+        selectedOrderIds,
+        job_key
+      );
       showSnackbar(
         selectedBulkStatus === "packed"
           ? "Queued — ShipStation orders created without labels in bulk."
@@ -452,6 +504,17 @@ const OrdersTable = ({
         "info"
       );
     } catch (error: unknown) {
+      if (isAxiosError(error) && error.response?.status === 409) {
+        const data = error.response.data as { message?: string };
+        showSnackbar(
+          data?.message ||
+            "Some orders are already in an active bulk update. Wait for the current batch to finish.",
+          "error"
+        );
+        void refreshActiveBulkOrders();
+        return;
+      }
+
       const err = error as { message?: string; errors?: Array<{ msg?: string }> };
       const errorMessage =
         err?.message ||
@@ -463,6 +526,9 @@ const OrdersTable = ({
     }
   }, [
     isBulkBatchTooLarge,
+    isRowBulkSelectionLocked,
+    refreshActiveBulkOrders,
+    rowSelection,
     selectedBulkStatus,
     selectedOrderIds,
     showSnackbar,
@@ -487,33 +553,35 @@ const OrdersTable = ({
     return () => clearTimeout(timer);
   }, [productSearch]);
 
-  // Fetch products for product filter
+  // Fetch products for product filter (single effect — debounced keyword)
   const fetchProducts = useCallback(async (keyword: string) => {
+    const fetchKey = keyword.trim();
+
+    if (productsFetchInFlightRef.current) return;
+    if (lastProductsFetchKeyRef.current === fetchKey) return;
+
+    productsFetchInFlightRef.current = true;
+
     try {
       setIsLoadingProducts(true);
-      if (!keyword.trim()) {
+      if (!fetchKey) {
         const response = await listProducts({ limit: 50 });
         setProducts(response.data?.products || []);
       } else {
-        const response = await listProducts({ keyword, limit: 20 });
+        const response = await listProducts({ keyword: fetchKey, limit: 20 });
         setProducts(response.data?.products || []);
       }
+      lastProductsFetchKeyRef.current = fetchKey;
     } catch (err) {
-      // eslint-disable-next-line no-console
-      console.error('Failed to fetch products', err);
+      console.error("Failed to fetch products", err);
     } finally {
       setIsLoadingProducts(false);
+      productsFetchInFlightRef.current = false;
     }
   }, []);
 
-  // Load initial products
   useEffect(() => {
-    fetchProducts("");
-  }, [fetchProducts]);
-
-  // Fetch products on debounced search change
-  useEffect(() => {
-    fetchProducts(debouncedProductSearch);
+    void fetchProducts(debouncedProductSearch);
   }, [debouncedProductSearch, fetchProducts]);
 
   const handleViewDetails = useCallback((orderId: number) => {
@@ -554,7 +622,26 @@ const OrdersTable = ({
     {
       accessorKey: "status",
       header: "Status",
-      Cell: ({ row }) => row.original.status ? <OrderStatusChip status={row.original.status} /> : "N/A",
+      Cell: ({ row }) => {
+        const bulk = activeBulkByOrderId.get(row.original.id);
+        return (
+          <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, flexWrap: "wrap" }}>
+            {row.original.status ? (
+              <OrderStatusChip status={row.original.status} />
+            ) : (
+              "N/A"
+            )}
+            {bulk && (
+              <Chip
+                size="small"
+                variant="outlined"
+                color="info"
+                label={`Bulk: ${formatStatusText(bulk.target_status)} (${formatItemStatus(bulk.item_status)})`}
+              />
+            )}
+          </Box>
+        );
+      },
     },
     {
       accessorKey: "orderItems",
@@ -571,7 +658,7 @@ const OrdersTable = ({
       header: "Created At",
       Cell: ({ row }) => row.original.createdAt ? formatDate(row.original.createdAt) : "N/A",
     },
-  ], []);
+  ], [activeBulkByOrderId]);
 
   // Use our custom hook for column ordering
   const { columns, columnOrder, onColumnOrderChange } = useColumnOrder('orders', defaultColumns);
@@ -587,10 +674,10 @@ const OrdersTable = ({
 
   return (
     <>
-      <OrderStatistics 
-        key={statisticsRefreshKey}
-        externalStartDate={startDateFilter?.format("YYYY-MM-DD")}
-        externalEndDate={endDateFilter?.format("YYYY-MM-DD")}
+      <OrderStatistics
+        refreshTrigger={statisticsRefreshKey}
+        externalStartDate={startDateStr}
+        externalEndDate={endDateStr}
         className="mb-6"
       />
       
@@ -614,6 +701,7 @@ const OrdersTable = ({
           )}
         </Box>
         <Box className="flex items-end gap-2">
+          <BulkStatusJobsToolbarButton />
           <GenerateReportButton 
             status={status || undefined}
             paymentStatus={paymentStatus || undefined}
@@ -666,7 +754,17 @@ const OrdersTable = ({
         <DataTable
           data={orders}
           columns={columns}
-          enableRowSelection
+          enableRowSelection={canSelectRow}
+          muiSelectCheckboxProps={({ row }) => {
+            const bulk = activeBulkByOrderId.get(row.original.id);
+            const locked = isOrderBulkSelectionLocked(bulk);
+            return {
+              disabled: locked,
+              title: locked
+                ? `In bulk update (${formatItemStatus(bulk!.item_status)})`
+                : undefined,
+            };
+          }}
           onRowSelectionChange={setRowSelection}
           // Use order ID as row identifier so selections persist across searches/pages
           getRowId={(row) => row.id.toString()}
@@ -869,16 +967,6 @@ const OrdersTable = ({
           />
         </DialogActions>
       </Dialog>
-
-      <BulkStatusProgressDialog
-        open={dialogOpen}
-        job={job}
-        pollError={pollError}
-        targetStatus={targetStatus}
-        isProcessing={isProcessing}
-        onDismiss={hideDialog}
-        onClose={handleDialogClose}
-      />
     </>
   );
 };
