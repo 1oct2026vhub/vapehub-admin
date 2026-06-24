@@ -20,6 +20,16 @@ export interface BlogRelatedBlog {
 /** @deprecated Use BlogRelatedBlog — kept for backward compatibility */
 export type BlogRelatedPost = BlogRelatedBlog;
 
+export interface BlogAuthorOverride {
+  first_name?: string;
+  last_name?: string;
+  role?: string;
+  bio?: string;
+  avatar_url?: string;
+  archive_url?: string;
+  team_url?: string;
+}
+
 // Types for Blog Posts, Categories, and Tags
 export interface BlogPost {
   id: number;
@@ -38,6 +48,7 @@ export interface BlogPost {
   categories?: BlogCategory[];
   tags?: BlogTag[];
   author_id?: number | null;
+  author_override?: BlogAuthorOverride;
   author?: {
     id?: number;
     first_name: string;

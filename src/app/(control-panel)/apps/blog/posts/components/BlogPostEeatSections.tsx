@@ -33,6 +33,7 @@ interface BlogPostEeatSectionsProps {
   control: Control<BlogPostFormType>;
   setValue: UseFormSetValue<BlogPostFormType>;
   initialAuthor?: BlogAuthorOption | null;
+  defaultAvatarUrl?: string;
 }
 
 function SectionHeading({
@@ -95,6 +96,7 @@ export default function BlogPostEeatSections({
   control,
   setValue,
   initialAuthor,
+  defaultAvatarUrl,
 }: BlogPostEeatSectionsProps) {
   const [authors, setAuthors] = useState<BlogAuthorOption[]>(
     initialAuthor ? [initialAuthor] : [],
@@ -247,7 +249,11 @@ export default function BlogPostEeatSections({
 
       <Divider />
 
-      <AuthorBioBlock control={control} setValue={setValue} />
+      <AuthorBioBlock
+        control={control}
+        setValue={setValue}
+        defaultAvatarUrl={defaultAvatarUrl}
+      />
     </Box>
   );
 }

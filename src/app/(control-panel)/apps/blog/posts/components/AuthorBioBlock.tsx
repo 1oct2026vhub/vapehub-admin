@@ -1,11 +1,10 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Avatar,
   Box,
   Grid,
-  Link,
   Typography,
 } from "@mui/material";
 import PersonOutlineIcon from "@mui/icons-material/PersonOutline";
@@ -17,9 +16,10 @@ import {
 import { getUserDetail } from "@/services/apiService";
 import FormInputField from "@/components/Shared/FormInputField";
 import FormTextareaField from "@/components/Shared/FormTextareaField";
+import FormFileUploadField from "@/components/Shared/FormFileUploadField";
 import {
   commonFieldStyles,
-  defaultAuthorProfile,
+  defaultAuthorOverride,
   getAuthorDisplayName,
   type BlogPostFormType,
 } from "./blogPostFormShared";
@@ -27,6 +27,7 @@ import {
 interface AuthorBioBlockProps {
   control: Control<BlogPostFormType>;
   setValue: UseFormSetValue<BlogPostFormType>;
+  defaultAvatarUrl?: string;
 }
 
 type AuthorUserFields = {
@@ -52,69 +53,75 @@ function parseUserDetailResponse(response: unknown): AuthorUserFields | null {
   return user;
 }
 
-function mapUserToAuthorProfile(
+function mapUserToAuthorOverride(
   user: AuthorUserFields,
-): BlogPostFormType["author_profile"] {
+): BlogPostFormType["author_override"] {
   return {
     first_name: user.first_name || "",
     last_name: user.last_name || "",
-    profile_pic_url: user.profile_pic_url || "",
-    blog_author_role: user.blog_author_role || "",
-    blog_author_bio: user.blog_author_bio || "",
-    blog_author_archive_url: user.blog_author_archive_url || "",
-    blog_author_team_url: user.blog_author_team_url || "",
+    avatar_url: user.profile_pic_url || "",
+    role: user.blog_author_role || "",
+    bio: user.blog_author_bio || "",
+    archive_url: user.blog_author_archive_url || "",
+    team_url: user.blog_author_team_url || "",
   };
 }
 
-function hasAuthorProfileData(
-  profile: BlogPostFormType["author_profile"] | undefined,
+function hasAuthorOverrideData(
+  override: BlogPostFormType["author_override"] | undefined,
 ): boolean {
-  if (!profile) {
+  if (!override) {
     return false;
   }
 
   return Boolean(
-    profile.first_name?.trim() ||
-      profile.last_name?.trim() ||
-      profile.blog_author_role?.trim() ||
-      profile.blog_author_bio?.trim() ||
-      profile.blog_author_archive_url?.trim() ||
-      profile.blog_author_team_url?.trim(),
+    override.first_name?.trim() ||
+      override.last_name?.trim() ||
+      override.role?.trim() ||
+      override.bio?.trim() ||
+      override.avatar_url?.trim() ||
+      override.archive_url?.trim() ||
+      override.team_url?.trim(),
   );
 }
 
 export default function AuthorBioBlock({
   control,
   setValue,
+  defaultAvatarUrl,
 }: AuthorBioBlockProps) {
   const authorId = useWatch({ control, name: "author_id" });
-  const authorProfile = useWatch({ control, name: "author_profile" });
-  const blogAuthorRole = useWatch({
+  const authorOverride = useWatch({ control, name: "author_override" });
+  const authorRole = useWatch({
     control,
-    name: "author_profile.blog_author_role",
+    name: "author_override.role",
   });
-  const blogAuthorBio = useWatch({
+  const authorBio = useWatch({
     control,
-    name: "author_profile.blog_author_bio",
+    name: "author_override.bio",
   });
-  const blogAuthorArchiveUrl = useWatch({
+  const avatarUrl = useWatch({
     control,
-    name: "author_profile.blog_author_archive_url",
+    name: "author_override.avatar_url",
   });
-  const blogAuthorTeamUrl = useWatch({
-    control,
-    name: "author_profile.blog_author_team_url",
-  });
-  const profilePicUrl = useWatch({
-    control,
-    name: "author_profile.profile_pic_url",
-  });
+  const authorAvatarFile = useWatch({ control, name: "author_avatar" });
+  const [avatarPreviewUrl, setAvatarPreviewUrl] = useState<string | null>(null);
   const lastLoadedAuthorId = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (authorAvatarFile instanceof File) {
+      const url = URL.createObjectURL(authorAvatarFile);
+      setAvatarPreviewUrl(url);
+      return () => URL.revokeObjectURL(url);
+    }
+    setAvatarPreviewUrl(null);
+  }, [authorAvatarFile]);
 
   useEffect(() => {
     if (!authorId) {
       lastLoadedAuthorId.current = null;
-      setValue("author_profile", { ...defaultAuthorProfile });
+      setValue("author_override", { ...defaultAuthorOverride });
+      setValue("author_avatar", undefined);
       return;
     }
 
@@ -122,10 +129,10 @@ export default function AuthorBioBlock({
       return;
     }
 
-    // Edit flow: blog detail API already hydrated author_profile — don't overwrite.
+    // Edit flow: blog detail API already hydrated author_override — don't overwrite.
     if (
       lastLoadedAuthorId.current === null &&
-      hasAuthorProfileData(authorProfile)
+      hasAuthorOverrideData(authorOverride)
     ) {
       lastLoadedAuthorId.current = authorId;
       return;
@@ -138,7 +145,7 @@ export default function AuthorBioBlock({
         const response = await getUserDetail(authorId);
         const user = parseUserDetailResponse(response);
         if (!cancelled && user) {
-          setValue("author_profile", mapUserToAuthorProfile(user));
+          setValue("author_override", mapUserToAuthorOverride(user));
           lastLoadedAuthorId.current = authorId;
         }
       } catch (error) {
@@ -151,14 +158,15 @@ export default function AuthorBioBlock({
     return () => {
       cancelled = true;
     };
-  }, [authorId, authorProfile, setValue]);
+  }, [authorId, authorOverride, setValue]);
 
-  const profile = authorProfile || defaultAuthorProfile;
-  const displayName = getAuthorDisplayName(profile);
-  const archiveLabel = `All articles by ${displayName} →`;
+  const override = authorOverride || defaultAuthorOverride;
+  const displayName = getAuthorDisplayName(override);
   const hasAuthor = Boolean(authorId);
-  const rolePreview = blogAuthorRole?.trim() || "";
-  const bioPreview = blogAuthorBio?.trim() || "";
+  const rolePreview = authorRole?.trim() || "";
+  const bioPreview = authorBio?.trim() || "";
+  const displayAvatarUrl =
+    avatarPreviewUrl || avatarUrl || defaultAvatarUrl || undefined;
 
   return (
     <Box>
@@ -208,7 +216,7 @@ export default function AuthorBioBlock({
             </Typography>
             <Box sx={{ display: "flex", gap: 2, alignItems: "flex-start" }}>
               <Avatar
-                src={profilePicUrl || undefined}
+                src={displayAvatarUrl}
                 sx={{
                   width: 72,
                   height: 72,
@@ -216,7 +224,7 @@ export default function AuthorBioBlock({
                   color: "#9ca3af",
                 }}
               >
-                {!profilePicUrl && (
+                {!displayAvatarUrl && (
                   <PersonOutlineIcon sx={{ fontSize: 40 }} />
                 )}
               </Avatar>
@@ -244,48 +252,28 @@ export default function AuthorBioBlock({
                 <Typography
                   variant="body2"
                   color={bioPreview ? "text.secondary" : "text.disabled"}
-                  sx={{ mb: 2, fontStyle: bioPreview ? "normal" : "italic" }}
+                  sx={{ fontStyle: bioPreview ? "normal" : "italic" }}
                 >
                   {bioPreview || "Author bio will appear here."}
                 </Typography>
-                <Box sx={{ display: "flex", flexWrap: "wrap", gap: 2 }}>
-                  {blogAuthorArchiveUrl?.trim() ? (
-                    <Link
-                      href={blogAuthorArchiveUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      sx={{ color: "#247c5c", fontWeight: 500 }}
-                    >
-                      {archiveLabel}
-                    </Link>
-                  ) : (
-                    <Typography variant="body2" color="text.disabled">
-                      {archiveLabel}
-                    </Typography>
-                  )}
-                  {blogAuthorTeamUrl?.trim() ? (
-                    <Link
-                      href={blogAuthorTeamUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      sx={{ color: "#247c5c", fontWeight: 500 }}
-                    >
-                      Meet the team →
-                    </Link>
-                  ) : (
-                    <Typography variant="body2" color="text.disabled">
-                      Meet the team →
-                    </Typography>
-                  )}
-                </Box>
               </Box>
             </Box>
           </Box>
 
           <Grid container spacing={2}>
             <Grid item xs={12}>
+              <FormFileUploadField
+                name="author_avatar"
+                control={control}
+                label="Author profile photo"
+                helperText="Optional. PNG, JPG, JPEG, or WebP (max 5MB). Shown in the author bio block."
+                defaultImage={defaultAvatarUrl || avatarUrl || undefined}
+                sx={commonFieldStyles}
+              />
+            </Grid>
+            <Grid item xs={12}>
               <FormInputField
-                name="author_profile.blog_author_role"
+                name="author_override.role"
                 control={control}
                 label="Author role (byline)"
                 helperText='Shown under the name in the byline, e.g. "VapeHub product team"'
@@ -294,23 +282,12 @@ export default function AuthorBioBlock({
             </Grid>
             <Grid item xs={12}>
               <FormTextareaField
-                name="author_profile.blog_author_bio"
+                name="author_override.bio"
                 control={control}
                 label="Author bio"
                 rows={4}
                 placeholder="Part of the VapeHub product team. Writes the Geek Zone's hands-on guides..."
               />
-            </Grid>
-            <Grid item xs={12}>
-              <Typography variant="caption" color="text.secondary">
-                Profile photo uses{" "}
-                <code>profile_pic_url</code> on the user account. Upload or
-                update it in{" "}
-                <Link href={`/apps/users/user-update/${authorId}`}>
-                  user settings
-                </Link>
-                .
-              </Typography>
             </Grid>
           </Grid>
         </>

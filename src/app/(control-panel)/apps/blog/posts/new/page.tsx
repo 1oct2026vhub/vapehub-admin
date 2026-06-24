@@ -34,7 +34,6 @@ import {
   buildBlogPostFormData,
   blogPostBaseSchema,
   blogPostDefaultValues,
-  saveAuthorProfile,
   MIN_IMAGE_HEIGHT,
   MIN_IMAGE_WIDTH,
   MAX_IMAGE_HEIGHT,
@@ -189,9 +188,6 @@ export default function CreateBlogPost() {
 
       await createBlogPost(formData);
 
-      if (data.author_id) {
-        await saveAuthorProfile(data.author_id, data.author_profile);
-      }
       showSnackbar("Post created successfully", "success");
       router.push("/apps/blog/posts");
     } catch (error: any) {

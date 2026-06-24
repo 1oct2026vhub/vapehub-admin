@@ -37,7 +37,6 @@ import {
   blogPostBaseSchema,
   blogPostDefaultValues,
   mapBlogPostToFormValues,
-  saveAuthorProfile,
   MIN_IMAGE_HEIGHT,
   MIN_IMAGE_WIDTH,
   MAX_IMAGE_HEIGHT,
@@ -92,6 +91,14 @@ export default function EditBlogPost() {
       id: post.author.id,
       label: name || post.author.email || `User #${post.author.id}`,
     };
+  }, [post]);
+
+  const defaultAvatarUrl = useMemo(() => {
+    return (
+      post?.author_override?.avatar_url ||
+      post?.author?.profile_pic_url ||
+      undefined
+    );
   }, [post]);
 
   const fetchCategories = debounce(async (searchTerm: string) => {
@@ -235,9 +242,6 @@ export default function EditBlogPost() {
 
       await updateBlogPost(post.id, formData);
 
-      if (data.author_id) {
-        await saveAuthorProfile(data.author_id, data.author_profile);
-      }
       showSnackbar("Post updated successfully", "success");
       router.push("/apps/blog/posts");
     } catch (error: any) {
@@ -335,6 +339,7 @@ export default function EditBlogPost() {
                 control={control}
                 setValue={setValue}
                 initialAuthor={initialAuthor}
+                defaultAvatarUrl={defaultAvatarUrl}
               />
             </Paper>
           )}

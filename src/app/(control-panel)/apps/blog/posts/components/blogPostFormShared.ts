@@ -1,7 +1,6 @@
 import { z } from "zod";
 import { SxProps, Theme } from "@mui/material/styles";
-import type { BlogPost, BlogSource } from "@/services/apiBlog";
-import { updateUser } from "@/services/apiService";
+import type { BlogAuthorOverride, BlogPost, BlogSource } from "@/services/apiBlog";
 
 export const MAX_FILE_SIZE = 5 * 1024 * 1024;
 export const MIN_IMAGE_WIDTH = 1091;
@@ -48,32 +47,24 @@ const relatedPostSchema = z.object({
   title: z.string(),
 });
 
-const authorProfileSchema = z.object({
+const authorOverrideSchema = z.object({
   first_name: z.string().optional(),
   last_name: z.string().optional(),
-  profile_pic_url: z.string().optional(),
-  blog_author_role: z.string().optional(),
-  blog_author_bio: z.string().optional(),
-  blog_author_archive_url: z
-    .string()
-    .url("Invalid URL")
-    .optional()
-    .or(z.literal("")),
-  blog_author_team_url: z
-    .string()
-    .url("Invalid URL")
-    .optional()
-    .or(z.literal("")),
+  role: z.string().optional(),
+  bio: z.string().optional(),
+  avatar_url: z.string().optional(),
+  archive_url: z.string().optional().or(z.literal("")),
+  team_url: z.string().optional().or(z.literal("")),
 });
 
-export const defaultAuthorProfile: z.infer<typeof authorProfileSchema> = {
+export const defaultAuthorOverride: z.infer<typeof authorOverrideSchema> = {
   first_name: "",
   last_name: "",
-  profile_pic_url: "",
-  blog_author_role: "",
-  blog_author_bio: "",
-  blog_author_archive_url: "",
-  blog_author_team_url: "",
+  role: "",
+  bio: "",
+  avatar_url: "",
+  archive_url: "",
+  team_url: "",
 };
 
 export const blogPostBaseSchema = z.object({
@@ -103,7 +94,15 @@ export const blogPostBaseSchema = z.object({
   categories: z.array(categoryTagSchema).default([]),
   tags: z.array(categoryTagSchema).default([]),
   author_id: z.number().nullable().optional(),
-  author_profile: authorProfileSchema.default(defaultAuthorProfile),
+  author_override: authorOverrideSchema.default(defaultAuthorOverride),
+  author_avatar: z
+    .any()
+    .refine(
+      (file) =>
+        !file || !(file instanceof File) || file.size <= MAX_FILE_SIZE,
+      "File size exceeds the maximum limit of 5MB.",
+    )
+    .optional(),
   sources: z.array(sourceSchema).default([]),
   related_posts: z.array(relatedPostSchema).max(3, "Maximum 3 related guides").default([]),
   redirect_url: z.string().url("Invalid URL format").optional().or(z.literal("")),
@@ -121,7 +120,7 @@ export const blogPostDefaultValues: BlogPostFormType = {
   categories: [],
   tags: [],
   author_id: null,
-  author_profile: { ...defaultAuthorProfile },
+  author_override: { ...defaultAuthorOverride },
   sources: [],
   related_posts: [],
   redirect_url: "",
@@ -135,19 +134,33 @@ function mapSourceToFormValue(source: BlogSource & { text?: string; url?: string
   };
 }
 
-function mapAuthorToProfile(author?: BlogPost["author"]) {
+function mapAuthorOverrideFromPost(post: BlogPost): BlogPostFormType["author_override"] {
+  const override = post.author_override;
+  if (override) {
+    return {
+      first_name: override.first_name || "",
+      last_name: override.last_name || "",
+      role: override.role || "",
+      bio: override.bio || "",
+      avatar_url: override.avatar_url || "",
+      archive_url: override.archive_url || "",
+      team_url: override.team_url || "",
+    };
+  }
+
+  const author = post.author;
   if (!author) {
-    return { ...defaultAuthorProfile };
+    return { ...defaultAuthorOverride };
   }
 
   return {
     first_name: author.first_name || "",
     last_name: author.last_name || "",
-    profile_pic_url: author.profile_pic_url || "",
-    blog_author_role: author.blog_author_role || "",
-    blog_author_bio: author.blog_author_bio || "",
-    blog_author_archive_url: author.blog_author_archive_url || "",
-    blog_author_team_url: author.blog_author_team_url || "",
+    role: author.blog_author_role || "",
+    bio: author.blog_author_bio || "",
+    avatar_url: author.profile_pic_url || "",
+    archive_url: author.blog_author_archive_url || "",
+    team_url: author.blog_author_team_url || "",
   };
 }
 
@@ -164,7 +177,7 @@ export function mapBlogPostToFormValues(post: BlogPost): BlogPostFormType {
     categories: post.categories || [],
     tags: post.tags || [],
     author_id: post.author_id ?? post.author?.id ?? null,
-    author_profile: mapAuthorToProfile(post.author),
+    author_override: mapAuthorOverrideFromPost(post),
     sources: (post.sources || []).map(mapSourceToFormValue),
     related_posts: relatedBlogs.map((blog) => ({
       id: blog.id,
@@ -212,6 +225,21 @@ export function buildBlogPostFormData(
     formData.append("author_id", String(data.author_id));
   }
 
+  const authorAvatarFile =
+    data.author_avatar instanceof File ? data.author_avatar : null;
+  const authorOverridePayload = buildAuthorOverridePayload(
+    data.author_override,
+    authorAvatarFile,
+  );
+
+  if (authorOverridePayload) {
+    formData.append("author_override", JSON.stringify(authorOverridePayload));
+  }
+
+  if (authorAvatarFile) {
+    formData.append("author_avatar", authorAvatarFile);
+  }
+
   const validSources = data.sources.filter((source) => source.label?.trim());
   if (validSources.length > 0) {
     formData.append(
@@ -246,23 +274,42 @@ export function buildBlogPostFormData(
 }
 
 export function getAuthorDisplayName(
-  profile: BlogPostFormType["author_profile"],
+  override: BlogPostFormType["author_override"],
 ): string {
-  const name = [profile.first_name, profile.last_name]
+  const name = [override.first_name, override.last_name]
     .filter(Boolean)
     .join(" ")
     .trim();
   return name || "Author";
 }
 
-export async function saveAuthorProfile(
-  authorId: number,
-  profile: BlogPostFormType["author_profile"],
-) {
-  await updateUser(authorId, {
-    blog_author_role: profile.blog_author_role?.trim() || "",
-    blog_author_bio: profile.blog_author_bio?.trim() || "",
-    blog_author_archive_url: profile.blog_author_archive_url?.trim() || "",
-    blog_author_team_url: profile.blog_author_team_url?.trim() || "",
-  });
+function buildAuthorOverridePayload(
+  override: BlogPostFormType["author_override"],
+  authorAvatarFile: File | null,
+): BlogAuthorOverride | null {
+  const payload: BlogAuthorOverride = {};
+
+  if (override.first_name?.trim()) {
+    payload.first_name = override.first_name.trim();
+  }
+  if (override.last_name?.trim()) {
+    payload.last_name = override.last_name.trim();
+  }
+  if (override.role?.trim()) {
+    payload.role = override.role.trim();
+  }
+  if (override.bio?.trim()) {
+    payload.bio = override.bio.trim();
+  }
+  if (override.archive_url?.trim()) {
+    payload.archive_url = override.archive_url.trim();
+  }
+  if (override.team_url?.trim()) {
+    payload.team_url = override.team_url.trim();
+  }
+  if (!authorAvatarFile && override.avatar_url?.trim()) {
+    payload.avatar_url = override.avatar_url.trim();
+  }
+
+  return Object.keys(payload).length > 0 || authorAvatarFile ? payload : null;
 }
