@@ -348,14 +348,32 @@ export interface BulkStatusUpdateRequest {
 
 export const BULK_STATUS_BATCH_MAX = 500;
 export const BULK_STATUS_POLL_INTERVAL_MS = 2500;
+/** @deprecated Use BULK_STATUS_JOBS_SESSION_KEY — migrated on read */
 export const BULK_STATUS_JOB_SESSION_KEY = "bulkStatusJobId";
+export const BULK_STATUS_JOBS_SESSION_KEY = "bulkStatusJobs";
+
+export interface BulkStatusJobClientMeta {
+  jobId: string;
+  jobKey?: string;
+  targetStatus: string;
+  orderIds: number[];
+  startedAt: string;
+}
 
 export type BulkStatusJobStatus =
   | "queued"
   | "processing"
   | "completed"
   | "partial_failed"
-  | "failed";
+  | "failed"
+  | "cancelled";
+
+export type BulkStatusItemStatus =
+  | "queued"
+  | "processing"
+  | "completed"
+  | "failed"
+  | "skipped";
 
 export interface BulkStatusJobError {
   order_id: number;
@@ -364,23 +382,37 @@ export interface BulkStatusJobError {
 }
 
 export interface BulkStatusJobData {
-  job_id: string;
+  job_id: number;
+  job_key?: string;
   status: BulkStatusJobStatus;
+  target_status: string;
   progress_percent: number;
+  order_count: number;
+  total: number;
   successful: number;
   failed: number;
   skipped: number;
   pending: number;
-  total?: number;
+  created_at: string;
+  started_at: string | null;
+  completed_at: string | null;
+  created_by?: number | null;
   errors?: BulkStatusJobError[];
+}
+
+export interface BulkStatusAsyncStartData {
+  job_id: number;
+  job_key: string;
+  order_count: number;
+  total: number;
+  status: BulkStatusJobStatus;
+  target_status: OrderStatus;
 }
 
 export interface BulkStatusAsyncStartResponse {
   success: boolean;
   message?: string;
-  data: {
-    job_id: string;
-  };
+  data: BulkStatusAsyncStartData;
 }
 
 export interface BulkStatusJobResponse {
@@ -389,8 +421,86 @@ export interface BulkStatusJobResponse {
   data: BulkStatusJobData;
 }
 
+export interface BulkStatusJobListParams {
+  status?: string;
+  page?: number;
+  limit?: number;
+  sort?: string;
+  order?: "ASC" | "DESC";
+}
+
+export interface BulkStatusJobListResponse {
+  success: boolean;
+  message?: string;
+  data: {
+    jobs: BulkStatusJobData[];
+    pagination: {
+      page: number;
+      limit: number;
+      total: number;
+      total_pages: number;
+    };
+  };
+}
+
+export interface BulkStatusJobOrderItem {
+  order_id: number;
+  order_unique_id: string;
+  item_status: BulkStatusItemStatus;
+  previous_status: OrderStatus | null;
+  new_status: OrderStatus | null;
+  error: string | null;
+  processed_at: string | null;
+}
+
+export interface BulkStatusJobOrdersParams {
+  item_status?: BulkStatusItemStatus;
+  page?: number;
+  limit?: number;
+  search?: string;
+}
+
+export interface BulkStatusJobOrdersResponse {
+  success: boolean;
+  message?: string;
+  data: {
+    job_id: number;
+    target_status: OrderStatus;
+    job_status: BulkStatusJobStatus;
+    orders: BulkStatusJobOrderItem[];
+    pagination: {
+      page: number;
+      limit: number;
+      total: number;
+      total_pages: number;
+    };
+    summary: Record<BulkStatusItemStatus, number>;
+  };
+}
+
+export interface BulkStatusActiveOrderItem {
+  order_id: number;
+  job_id: number;
+  item_status: BulkStatusItemStatus;
+  target_status: OrderStatus;
+}
+
+export interface BulkStatusActiveOrdersResponse {
+  success: boolean;
+  message?: string;
+  data: {
+    order_ids: number[];
+    items: BulkStatusActiveOrderItem[];
+  };
+}
+
+export const bulkJobIdKey = (jobId: number | string) => String(jobId);
+
 const isTerminalBulkStatusJob = (status: BulkStatusJobStatus) =>
-  status === "completed" || status === "partial_failed" || status === "failed";
+  status === "completed" ||
+  status === "partial_failed" ||
+  status === "failed" ||
+  status === "cancelled";
 
 // Sync bulk status — disabled; use async endpoint for all bulk updates
 // export const bulkUpdateOrderStatus = async (
@@ -416,9 +526,9 @@ export const bulkUpdateOrderStatusAsync = async (
   return response.data;
 };
 
-// Poll async bulk status job
+// Poll async bulk status job — :id is numeric job_id (e.g. 12)
 export const getBulkStatusJob = async (
-  jobId: string
+  jobId: number | string
 ): Promise<BulkStatusJobResponse> => {
   const response = await axiosInstance.get(
     `/api/admin/orders/bulk-status/jobs/${jobId}`
@@ -426,22 +536,121 @@ export const getBulkStatusJob = async (
   return response.data;
 };
 
+export const listBulkStatusJobs = async (
+  params: BulkStatusJobListParams = {}
+): Promise<BulkStatusJobListResponse> => {
+  const response = await axiosInstance.get(
+    "/api/admin/orders/bulk-status/jobs",
+    { params }
+  );
+  return response.data;
+};
+
+export const getBulkStatusJobOrders = async (
+  jobId: number | string,
+  params: BulkStatusJobOrdersParams = {}
+): Promise<BulkStatusJobOrdersResponse> => {
+  const response = await axiosInstance.get(
+    `/api/admin/orders/bulk-status/jobs/${jobId}/orders`,
+    { params }
+  );
+  return response.data;
+};
+
+export const getBulkStatusActiveOrders = async (
+  targetStatus?: OrderStatus
+): Promise<BulkStatusActiveOrdersResponse> => {
+  const response = await axiosInstance.get(
+    "/api/admin/orders/bulk-status/active-orders",
+    { params: targetStatus ? { target_status: targetStatus } : undefined }
+  );
+  return response.data;
+};
+
 export { isTerminalBulkStatusJob };
 
-export const storeBulkStatusJobId = (jobId: string) => {
-  if (typeof window !== "undefined") {
-    sessionStorage.setItem(BULK_STATUS_JOB_SESSION_KEY, jobId);
+const parseStoredJobs = (raw: string | null): BulkStatusJobClientMeta[] => {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw) as BulkStatusJobClientMeta[];
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter(
+      (job) =>
+        typeof job.jobId === "string" &&
+        typeof job.targetStatus === "string" &&
+        Array.isArray(job.orderIds) &&
+        typeof job.startedAt === "string"
+    );
+  } catch {
+    return [];
   }
 };
 
-export const getStoredBulkStatusJobId = (): string | null => {
-  if (typeof window === "undefined") return null;
-  return sessionStorage.getItem(BULK_STATUS_JOB_SESSION_KEY);
+export const getStoredBulkStatusJobs = (): BulkStatusJobClientMeta[] => {
+  if (typeof window === "undefined") return [];
+
+  const jobs = parseStoredJobs(
+    sessionStorage.getItem(BULK_STATUS_JOBS_SESSION_KEY)
+  );
+  if (jobs.length > 0) return jobs;
+
+  const legacyJobId = sessionStorage.getItem(BULK_STATUS_JOB_SESSION_KEY);
+  if (!legacyJobId) return [];
+
+  const migrated: BulkStatusJobClientMeta = {
+    jobId: legacyJobId,
+    targetStatus: "",
+    orderIds: [],
+    startedAt: new Date().toISOString(),
+  };
+  storeBulkStatusJobs([migrated]);
+  sessionStorage.removeItem(BULK_STATUS_JOB_SESSION_KEY);
+  return [migrated];
 };
 
+export const storeBulkStatusJobs = (jobs: BulkStatusJobClientMeta[]) => {
+  if (typeof window === "undefined") return;
+  sessionStorage.setItem(BULK_STATUS_JOBS_SESSION_KEY, JSON.stringify(jobs));
+};
+
+export const upsertStoredBulkStatusJob = (meta: BulkStatusJobClientMeta) => {
+  const jobs = getStoredBulkStatusJobs();
+  const index = jobs.findIndex((job) => job.jobId === meta.jobId);
+  if (index >= 0) {
+    jobs[index] = meta;
+  } else {
+    jobs.push(meta);
+  }
+  storeBulkStatusJobs(jobs);
+};
+
+export const removeStoredBulkStatusJob = (jobId: string) => {
+  storeBulkStatusJobs(
+    getStoredBulkStatusJobs().filter((job) => job.jobId !== jobId)
+  );
+};
+
+/** @deprecated Use upsertStoredBulkStatusJob */
+export const storeBulkStatusJobId = (jobId: string) => {
+  upsertStoredBulkStatusJob({
+    jobId,
+    targetStatus: "",
+    orderIds: [],
+    startedAt: new Date().toISOString(),
+  });
+};
+
+/** @deprecated Use getStoredBulkStatusJobs */
+export const getStoredBulkStatusJobId = (): string | null => {
+  const jobs = getStoredBulkStatusJobs();
+  return jobs.length > 0 ? jobs[jobs.length - 1].jobId : null;
+};
+
+/** @deprecated Use removeStoredBulkStatusJob */
 export const clearStoredBulkStatusJobId = () => {
   if (typeof window !== "undefined") {
     sessionStorage.removeItem(BULK_STATUS_JOB_SESSION_KEY);
+    sessionStorage.removeItem(BULK_STATUS_JOBS_SESSION_KEY);
   }
 };
 
