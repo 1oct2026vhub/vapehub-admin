@@ -1,20 +1,15 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   Card,
   CardContent,
   Typography,
   Grid,
   Box,
-  Paper,
   Chip,
-  CircularProgress,
-  Button,
   Tooltip,
 } from "@mui/material";
-import dayjs, { Dayjs } from "dayjs";
-import DownloadIcon from "@mui/icons-material/Download";
 import { getOrderStatistics, OrderStatusStatistics } from "@/services/apiOrder";
 import { useSnackbar } from "@/contexts/SnackbarContext";
 import FuseLoading from "@fuse/core/FuseLoading";
@@ -24,152 +19,94 @@ interface OrderStatisticsProps {
   className?: string;
   externalStartDate?: string;
   externalEndDate?: string;
+  refreshTrigger?: number;
 }
 
 const OrderStatistics = ({
   className,
   externalStartDate,
   externalEndDate,
+  refreshTrigger = 0,
 }: OrderStatisticsProps) => {
-  const [startDate, setStartDate] = useState<Dayjs | null>(
-    externalStartDate ? dayjs(externalStartDate) : dayjs().subtract(30, "day")
-  );
-  const [endDate, setEndDate] = useState<Dayjs | null>(
-    externalEndDate ? dayjs(externalEndDate) : dayjs()
-  );
   const [loading, setLoading] = useState(false);
-  const [exportLoading, setExportLoading] = useState(false);
   const [statistics, setStatistics] = useState<OrderStatusStatistics[]>([]);
   const { showSnackbar } = useSnackbar();
+  const fetchInFlightRef = useRef(false);
+  const lastFetchedKeyRef = useRef<string | null>(null);
 
-  // Update local dates when external dates change
-  useEffect(() => {
-    if (externalStartDate) {
-      setStartDate(dayjs(externalStartDate));
-      fetchStatistics(dayjs(externalStartDate), endDate);
-    }
-  }, [externalStartDate]);
-
-  useEffect(() => {
-    if (externalEndDate) {
-      setEndDate(dayjs(externalEndDate));
-      fetchStatistics(startDate, dayjs(externalEndDate));
-    }
-  }, [externalEndDate]);
-
-  // Define status colors and match UI from screenshot
   const getStatusColor = (status: string) => {
     const colors: Record<string, string> = {
-      pending: "#FF9800", // Orange
-      processing: "#2196F3", // Blue
-      shipped: "#9C27B0", // Purple
-      completed: "#009688", // Teal
-      fail: "#E53935", // Red
-      cancel: "#795548", // Brown
-      draft: "#9E9E9E", // Grey
-      return_requested: "#FF5722", // Deep Orange
-      return_approved: "#FF9800", // Orange
-      return_received: "#9E9E9E", // Grey
-      refunded: "#607D8B", // Blue Grey
-      out_for_delivery: "#00ACC1", // Cyan
-      delivered: "#4CAF50", // Green
-      packed: "#8BC34A", // Light Green
+      pending: "#FF9800",
+      processing: "#2196F3",
+      shipped: "#9C27B0",
+      completed: "#009688",
+      fail: "#E53935",
+      cancel: "#795548",
+      draft: "#9E9E9E",
+      return_requested: "#FF5722",
+      return_approved: "#FF9800",
+      return_received: "#9E9E9E",
+      refunded: "#607D8B",
+      out_for_delivery: "#00ACC1",
+      delivered: "#4CAF50",
+      packed: "#8BC34A",
     };
-    return colors[status.toLowerCase()] || "#9E9E9E"; // Default to grey
+    return colors[status.toLowerCase()] || "#9E9E9E";
   };
 
-  // Fetch statistics
-  const fetchStatistics = async (start: Dayjs | null = null, end: Dayjs | null = null) => {
-    const useStart = start || startDate;
-    const useEnd = end || endDate;
-    
-    if (!useStart || !useEnd) return;
+  const fetchStatistics = useCallback(async () => {
+    if (!externalStartDate || !externalEndDate) return;
+
+    const requestKey = `${externalStartDate}|${externalEndDate}|${refreshTrigger}`;
+    if (fetchInFlightRef.current || lastFetchedKeyRef.current === requestKey) {
+      return;
+    }
+
+    fetchInFlightRef.current = true;
 
     try {
       setLoading(true);
       const response = await getOrderStatistics(
-        useStart.format("YYYY-MM-DD"),
-        useEnd.format("YYYY-MM-DD")
+        externalStartDate,
+        externalEndDate
       );
 
       if (response.success && response.data.order_status) {
         setStatistics(response.data.order_status);
+        lastFetchedKeyRef.current = requestKey;
       } else {
         showSnackbar("Failed to load order statistics", "error");
       }
     } catch (error) {
       console.error("Error fetching order statistics:", error);
-      // showSnackbar("Error loading statistics", "error");
     } finally {
       setLoading(false);
+      fetchInFlightRef.current = false;
     }
-  };
+  }, [externalEndDate, externalStartDate, refreshTrigger, showSnackbar]);
 
-  // Fetch data when component mounts
   useEffect(() => {
-    fetchStatistics();
-  }, []);
-
-  // Handle Excel export
-  const handleExportExcel = () => {
-    try {
-      setExportLoading(true);
-
-      // Create CSV content
-      let csvContent = "Status,Orders,Revenue\n";
-      statistics.forEach((stat) => {
-        // Use raw values for export, not abbreviated ones
-        csvContent += `${formatStatusText(stat.status)},${stat.count},${formatPounds(stat.total_amount)}\n`;
-      });
-
-      // Create blob and download
-      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.setAttribute(
-        "download",
-        `order-statistics-${startDate?.format(
-          "YYYY-MM-DD"
-        )}-to-${endDate?.format("YYYY-MM-DD")}.csv`
-      );
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-
-      showSnackbar("Statistics exported successfully", "success");
-    } catch (error) {
-      console.error("Export failed:", error);
-      showSnackbar("Failed to export statistics", "error");
-    } finally {
-      setExportLoading(false);
-    }
-  };
+    void fetchStatistics();
+  }, [fetchStatistics]);
 
   return (
+    <Box className={className}>
       <Box className="p-4">
-        {/* Title */}
-        {/* <Typography variant="h6" className="mb-3">
-          Orders by Status
-        </Typography> */}
-
         {loading ? (
           <Box className="flex justify-center p-4">
             <FuseLoading />
           </Box>
         ) : (
           <Box>
-            {/* Status Cards */}
             <Grid container spacing={1}>
               {statistics.map((stat) => {
-                // Format the status for display using the helper function
                 const displayStatus = formatStatusText(stat.status);
                 const backgroundColor = getStatusColor(stat.status);
-                
+
                 return (
                   <Grid item xs={6} sm={4} md={2} key={stat.status}>
-                    <Card variant="outlined" className="h-full" sx={{ minHeight: '70px' }}>
-                      <CardContent sx={{ p: 1, '&:last-child': { pb: 1 } }}>
+                    <Card variant="outlined" className="h-full" sx={{ minHeight: "70px" }}>
+                      <CardContent sx={{ p: 1, "&:last-child": { pb: 1 } }}>
                         <Box className="mb-1">
                           <Chip
                             label={displayStatus}
@@ -181,44 +118,65 @@ const OrderStatistics = ({
                               padding: "0px 4px",
                               borderRadius: "8px",
                               fontSize: "0.6rem",
-                              height: "16px"
+                              height: "16px",
                             }}
                           />
                         </Box>
                         <Grid container>
                           <Grid item xs={6}>
-                            <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.6rem' }}>
+                            <Typography
+                              variant="body2"
+                              color="text.secondary"
+                              sx={{ fontSize: "0.6rem" }}
+                            >
                               Orders
                             </Typography>
-                            {/* Display abbreviated count values (e.g., "1.2K") when available */}
-                            <Typography variant="subtitle2" component="div" sx={{ fontWeight: 500, fontSize: '0.8rem', mt: 0.25 }}>
+                            <Typography
+                              variant="subtitle2"
+                              component="div"
+                              sx={{ fontWeight: 500, fontSize: "0.8rem", mt: 0.25 }}
+                            >
                               {stat.count_abbreviated || stat.count}
                             </Typography>
                           </Grid>
-                          
+
                           <Grid item xs={6} className="text-right">
-                            <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.6rem' }}>
+                            <Typography
+                              variant="body2"
+                              color="text.secondary"
+                              sx={{ fontSize: "0.6rem" }}
+                            >
                               Revenue
                             </Typography>
-                            {/* Use abbreviated amount values (e.g., "116.89K") from API when available */}
-                            {stat.total_amount_abbreviated && stat.total_amount_abbreviated.includes('K') ? (
-                              <Tooltip 
-                                title={`${formatPounds(stat.total_amount)}`} 
-                                arrow 
+                            {stat.total_amount_abbreviated &&
+                            stat.total_amount_abbreviated.includes("K") ? (
+                              <Tooltip
+                                title={`${formatPounds(stat.total_amount)}`}
+                                arrow
                                 placement="top"
                               >
-                                <Typography variant="subtitle2" component="div" sx={{ 
-                                  fontWeight: 500, 
-                                  fontSize: '0.8rem', 
-                                  mt: 0.25,
-                                  cursor: 'help'
-                                }}>
+                                <Typography
+                                  variant="subtitle2"
+                                  component="div"
+                                  sx={{
+                                    fontWeight: 500,
+                                    fontSize: "0.8rem",
+                                    mt: 0.25,
+                                    cursor: "help",
+                                  }}
+                                >
                                   £{stat.total_amount_abbreviated}
                                 </Typography>
                               </Tooltip>
                             ) : (
-                              <Typography variant="subtitle2" component="div" sx={{ fontWeight: 500, fontSize: '0.8rem', mt: 0.25 }}>
-                                {stat.total_amount_abbreviated ? `£${stat.total_amount_abbreviated}` : formatPounds(stat.total_amount)}
+                              <Typography
+                                variant="subtitle2"
+                                component="div"
+                                sx={{ fontWeight: 500, fontSize: "0.8rem", mt: 0.25 }}
+                              >
+                                {stat.total_amount_abbreviated
+                                  ? `£${stat.total_amount_abbreviated}`
+                                  : formatPounds(stat.total_amount)}
                               </Typography>
                             )}
                           </Grid>
@@ -232,6 +190,7 @@ const OrderStatistics = ({
           </Box>
         )}
       </Box>
+    </Box>
   );
 };
 
