@@ -481,7 +481,6 @@ const OrdersTable = ({
         selectedOrderIds,
         selectedBulkStatus
       );
-
       const { job_id, job_key, target_status } = response.data;
 
       if (!response?.success || job_id == null) {
