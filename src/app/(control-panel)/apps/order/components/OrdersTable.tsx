@@ -650,7 +650,7 @@ const OrdersTable = ({
     },
     {
       accessorKey: "updatedAt",
-      header: "Date",
+      header: "Updated At",
       Cell: ({ row }) => row.original.updatedAt ? formatRelativeTime(row.original.updatedAt) : "N/A",
     },
     {
