@@ -4,7 +4,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useEffect, useState, useRef } from "react";
-import { useRouter, useParams } from "next/navigation";
+import { useRouter, useParams, useSearchParams } from "next/navigation";
 import { Alert, Typography, Box, Button, CircularProgress, Tabs, Tab, Grid, IconButton, Card, CardMedia, CardContent, CardActions } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
@@ -27,6 +27,7 @@ import axiosInstance from "@/utils/axiosApi";
 import PageBreadcrumb from "@/components/PageBreadcrumb";
 import FaqAccordion from "../../faq/FaqAccordion";
 import SeoForm from "@/app/(control-panel)/apps/seo/components/SeoForm";
+import BuyingGuideForm from "../components/BuyingGuideForm";
 import BannerModal from "../components/BannerModal";
 import DeleteConfirmationModal from "@/components/Shared/DeleteConfirmationModal";
 
@@ -160,6 +161,7 @@ const EditCategoryForm = ({
   }
   const router = useRouter();
   const params = useParams();
+  const searchParams = useSearchParams();
   const id = params?.id ? (Array.isArray(params.id) ? params.id[0] : params.id) : undefined;
   const categoryId = params?.id ? (Array.isArray(params.id) ? parseInt(params.id[0], 10) : parseInt(params.id as string, 10)) : null;
   const { showSnackbar } = useSnackbar();
@@ -173,7 +175,13 @@ const EditCategoryForm = ({
   const [isDeletingBanner, setIsDeletingBanner] = useState<number | null>(null);
   const [bannerToDelete, setBannerToDelete] = useState<number | null>(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<number>(0); // 0 for Details, 1 for FAQ, 2 for SEO
+  const [activeTab, setActiveTab] = useState<number>(() => {
+    const tab = searchParams?.get("tab");
+    if (tab === "buying-guide") return 3;
+    if (tab === "seo") return 2;
+    if (tab === "faq") return 1;
+    return 0;
+  }); // 0 Details, 1 FAQ, 2 SEO, 3 Buying Guide
 
   const categoryRef = useRef<FormType>(initialCategory);
 
@@ -487,6 +495,7 @@ const EditCategoryForm = ({
               <Tab label="Category Details" id="category-details-tab" aria-controls="category-details-panel" />
               <Tab label="FAQ" id="category-faq-tab" aria-controls="category-faq-panel" />
               <Tab label="SEO" id="category-seo-tab" aria-controls="category-seo-panel" />
+              <Tab label="Buying Guide" id="category-buying-guide-tab" aria-controls="category-buying-guide-panel" />
             </Tabs>
           </Box>
           <form
@@ -704,6 +713,21 @@ const EditCategoryForm = ({
             )}
             {activeTab === 2 && !categoryId && (
                 <Typography color="error">Category ID is missing. Cannot load SEO details.</Typography>
+            )}
+          </div>
+
+          {/* Buying Guide Tab Panel */}
+          <div role="tabpanel" hidden={activeTab !== 3} id="category-buying-guide-panel" aria-labelledby="category-buying-guide-tab">
+            {activeTab === 3 && categoryId && (
+              <Box sx={{ pt: 2 }}>
+                <BuyingGuideForm
+                  categoryId={categoryId}
+                  categoryName={nameValue || initialCategory?.name}
+                />
+              </Box>
+            )}
+            {activeTab === 3 && !categoryId && (
+              <Typography color="error">Category ID is missing. Cannot load buying guide.</Typography>
             )}
           </div>
         </>
