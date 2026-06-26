@@ -158,6 +158,7 @@ export interface CreateProductData {
   category_ids?: number[];
   brand_ids?: number[];
   linked_product_ids?: number[];
+  related_blog_ids?: number[];
   is_new?: boolean;
   is_discontinued?: boolean;
   /** Redirect URL for deleted products (301 from product URL to this path) */
