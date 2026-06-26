@@ -486,7 +486,6 @@ const OrdersTable = ({
       if (!response?.success || job_id == null) {
         throw new Error(response?.message || "Failed to queue bulk update");
       }
-
       setBulkStatusDialogOpen(false);
       setRowSelection({});
       setSelectedBulkStatus("");
