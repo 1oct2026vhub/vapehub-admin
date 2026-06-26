@@ -201,8 +201,13 @@ function CreateCategoryForm() {
       setCreatedCategoryId(categoryId);
 
       showSnackbar("Category created successfully!", "success");
-      // Don't redirect immediately, allow user to save banner if needed
-      router.push("/apps/product-category");
+      if (categoryId) {
+        router.push(
+          `/apps/product-category/category-update/${categoryId}?tab=buying-guide`
+        );
+      } else {
+        router.push("/apps/product-category");
+      }
     } catch (error) {
       if (error?.errors) {
         showSnackbar(error?.errors[0]?.msg, "error");
@@ -398,6 +403,11 @@ function CreateCategoryForm() {
             type="number"
           />
         </div>
+
+        <Typography variant="body2" color="text.secondary" sx={{ mt: 2, mb: 1 }}>
+          After creating the category, you will be redirected to configure the
+          Buying Guide, FAQ, SEO, and banners.
+        </Typography>
 
         <AppButton
           label="Create"
