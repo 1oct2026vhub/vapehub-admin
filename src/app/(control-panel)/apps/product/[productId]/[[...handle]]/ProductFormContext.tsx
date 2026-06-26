@@ -12,6 +12,7 @@ export interface ProductFormData {
   category_ids: number[];
   brand_ids: number[];
   linked_product_ids?: number[];
+  related_blog_ids?: number[];
   is_new: boolean;
   is_discontinued: boolean;
 
@@ -97,6 +98,7 @@ const initialFormData: ProductFormData = {
   category_ids: [],
   brand_ids: [],
   linked_product_ids: [],
+  related_blog_ids: [],
   is_new: true,
   is_discontinued: false,
 

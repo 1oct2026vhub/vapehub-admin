@@ -12,6 +12,7 @@ import {
   updateProduct,
   listProducts,
 } from "@/services/apiProduct";
+import { getBlogPosts, getBlogPost } from "@/services/apiBlog";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -23,7 +24,7 @@ import { getAuthToken } from "@/utils/auth";
 import { Autocomplete, TextField, Chip } from "@mui/material";
 import FormCKEditor from "@/components/Shared/FormCKEditor";
 import debounce from 'lodash/debounce';
-import { Grid, Stack, Button as MuiButton, Box as MuiBox } from "@mui/material";
+import { Grid, Stack, Button as MuiButton, Box as MuiBox, Typography } from "@mui/material";
 import AddNewCategoryModal from "../components/AddNewCategoryModal";
 import AddNewBrandModal from "../components/AddNewBrandModal";
 import FormMultiTextField from '@/components/Shared/FormMultiTextField';
@@ -48,6 +49,7 @@ const schema = z.object({
   category_ids: z.array(z.number()).min(1, "At least one category is required"),
   brand_ids: z.array(z.number()).min(1, "At least one brand is required"),
   linked_product_ids: z.array(z.number()).optional().default([]),
+  related_blog_ids: z.array(z.number()).optional().default([]),
   is_new: z.boolean().optional(),
   is_discontinued: z.boolean().optional(),
 });
@@ -55,6 +57,41 @@ const schema = z.object({
 const redirectUrlSchema = z.string().url("Invalid URL format").optional().or(z.literal(""));
 
 type FormData = z.infer<typeof schema>;
+
+interface RelatedBlogOption {
+  id: number;
+  title: string;
+}
+
+function extractRelatedBlogIds(productData: Record<string, unknown>): number[] {
+  const relatedBlogs =
+    (productData.RelatedBlogs as RelatedBlogOption[] | undefined) ||
+    (productData.related_blogs as RelatedBlogOption[] | undefined);
+
+  if (Array.isArray(relatedBlogs) && relatedBlogs.length > 0) {
+    return relatedBlogs.map((blog) => blog.id);
+  }
+
+  const relatedBlogIds = productData.related_blog_ids as number[] | undefined;
+  return Array.isArray(relatedBlogIds) ? relatedBlogIds : [];
+}
+
+function extractRelatedBlogOptions(productData: Record<string, unknown>): Option[] {
+  const relatedBlogs =
+    (productData.RelatedBlogs as RelatedBlogOption[] | undefined) ||
+    (productData.related_blogs as RelatedBlogOption[] | undefined);
+
+  if (Array.isArray(relatedBlogs) && relatedBlogs.length > 0) {
+    return relatedBlogs.map((blog) => ({ value: blog.id, label: blog.title }));
+  }
+
+  const relatedBlogIds = productData.related_blog_ids as number[] | undefined;
+  if (Array.isArray(relatedBlogIds) && relatedBlogIds.length > 0) {
+    return relatedBlogIds.map((id) => ({ value: id, label: `Blog #${id}` }));
+  }
+
+  return [];
+}
 
 interface Option {
   value: number | string;
@@ -190,6 +227,11 @@ function BasicInfoTab() {
   const [linkedProductError, setLinkedProductError] = useState("");
   const [linkedProductSearchInput, setLinkedProductSearchInput] = useState("");
 
+  const [relatedBlogLoading, setRelatedBlogLoading] = useState(false);
+  const [relatedBlogOptions, setRelatedBlogOptions] = useState<Option[]>([]);
+  const [relatedBlogError, setRelatedBlogError] = useState("");
+  const [relatedBlogSearchInput, setRelatedBlogSearchInput] = useState("");
+
   const [redirectUrlError, setRedirectUrlError] = useState("");
 
   // Determine if we're in edit mode
@@ -215,6 +257,7 @@ function BasicInfoTab() {
       category_ids: formData.category_ids || [],
       brand_ids: formData.brand_ids || [],
       linked_product_ids: formData.linked_product_ids || [],
+      related_blog_ids: [],
       is_discontinued: formData.is_discontinued ?? false,
       // is_new: formData.is_new ?? true,
     },
@@ -226,12 +269,14 @@ function BasicInfoTab() {
     fetchCategories("");
     fetchBrands("");
     fetchLinkedProducts("");
+    fetchRelatedBlogs("");
   }, []);
 
   // Watch form values and trigger validation when category_ids or brand_ids change
   const watchedCategoryIds = watch("category_ids");
   const watchedBrandIds = watch("brand_ids");
   const watchedLinkedProductIds = watch("linked_product_ids");
+  const watchedRelatedBlogIds = watch("related_blog_ids");
 
   useEffect(() => {
     console.log("Category IDs changed:", watchedCategoryIds);
@@ -500,8 +545,63 @@ function BasicInfoTab() {
     [watchedLinkedProductIds, productId]
   );
 
-  // Fetch selected category, brand, and linked products on edit
-  const fetchSelectedOptions = async (category_id: number[], brand_id: number[], linked_product_id: number[]) => {
+  const fetchRelatedBlogs = useMemo(
+    () =>
+      debounce(async (query: string) => {
+        try {
+          setRelatedBlogLoading(true);
+          setRelatedBlogError("");
+
+          const response = await getBlogPosts({
+            search: query,
+            limit: 50,
+            is_active: true,
+          });
+
+          const blogs = response?.data?.blogs || [];
+          const options = blogs.map((blog) => ({
+            value: blog.id,
+            label: blog.title,
+          }));
+
+          setRelatedBlogOptions((prev) => {
+            const currentSelectedIds = watchedRelatedBlogIds || [];
+            const selectedOptions = currentSelectedIds.map((id) => {
+              const existingOption = prev.find((opt) => opt.value === id);
+              return existingOption || { value: id, label: `Blog #${id}` };
+            });
+
+            const mergedOptions = [...selectedOptions];
+            options.forEach((newOption) => {
+              if (!mergedOptions.some((opt) => opt.value === newOption.value)) {
+                mergedOptions.push(newOption);
+              }
+            });
+
+            return mergedOptions;
+          });
+        } catch (error) {
+          console.error("Error fetching related blogs:", error);
+          setRelatedBlogOptions((prev) => {
+            const currentSelectedIds = watchedRelatedBlogIds || [];
+            return prev.filter((option) =>
+              currentSelectedIds.includes(Number(option.value)),
+            );
+          });
+        } finally {
+          setRelatedBlogLoading(false);
+        }
+      }, 400),
+    [watchedRelatedBlogIds],
+  );
+
+  // Fetch selected category, brand, linked products, and related blogs on edit
+  const fetchSelectedOptions = async (
+    category_id: number[],
+    brand_id: number[],
+    linked_product_id: number[],
+    related_blog_id: number[] = [],
+  ) => {
     if (category_id?.length > 0) {
       try {
         const response = await listProductCategory({ 
@@ -588,6 +688,33 @@ function BasicInfoTab() {
         showSnackbar("Failed to load linked product details", "error");
       }
     }
+
+    if (related_blog_id?.length > 0) {
+      try {
+        const responses = await Promise.all(
+          related_blog_id.map((id) =>
+            getBlogPost(id).catch(() => null),
+          ),
+        );
+
+        const blogs = responses
+          .map((response) => response?.data)
+          .filter((blog): blog is { id: number; title: string } => Boolean(blog?.id));
+
+        setRelatedBlogOptions((prev) => {
+          const newOptions = [...prev];
+          blogs.forEach((blog) => {
+            if (!newOptions.some((option) => option.value === blog.id)) {
+              newOptions.push({ value: blog.id, label: blog.title });
+            }
+          });
+          return newOptions;
+        });
+      } catch (error) {
+        console.error("Error fetching selected related blogs:", error);
+        showSnackbar("Failed to load related blog details", "error");
+      }
+    }
   };
 
   // Fetch product data when component mounts or productId changes
@@ -602,6 +729,8 @@ function BasicInfoTab() {
           const response = await getProduct(Number(finalProductId));
           if (response?.data) {
             const productData = response.data;
+            const relatedBlogIds = extractRelatedBlogIds(productData);
+            const relatedBlogOptionSeed = extractRelatedBlogOptions(productData);
 
             // Update form with fetched data
                          setValue("name", productData.name || "");
@@ -612,14 +741,28 @@ function BasicInfoTab() {
              setValue("category_ids", productData.Categories?.map(c => c.id) || []);
              setValue("brand_ids", productData.Brands?.map(b => b.id) || []);
              setValue("linked_product_ids", productData.LinkedProducts?.map(p => p.id) || []);
+             setValue("related_blog_ids", relatedBlogIds);
              setValue("is_new", productData.is_new ?? true);
              setValue("is_discontinued", productData.is_discontinued ?? false);
 
-            // Fetch selected category, brand, and linked product details
+            if (relatedBlogOptionSeed.length > 0) {
+              setRelatedBlogOptions((prev) => {
+                const mergedOptions = [...prev];
+                relatedBlogOptionSeed.forEach((option) => {
+                  if (!mergedOptions.some((existing) => existing.value === option.value)) {
+                    mergedOptions.push(option);
+                  }
+                });
+                return mergedOptions;
+              });
+            }
+
+            // Fetch selected category, brand, linked product, and related blog details
             await fetchSelectedOptions(
               productData.Categories?.map(c => c.id) || [],
               productData.Brands?.map(b => b.id) || [],
-              productData.LinkedProducts?.map(p => p.id) || []
+              productData.LinkedProducts?.map(p => p.id) || [],
+              relatedBlogIds,
             );
 
                          // Update form context
@@ -636,6 +779,7 @@ function BasicInfoTab() {
                category_ids: productData.Categories?.map(c => c.id) || [],
                brand_ids: productData.Brands?.map(b => b.id) || [],
                linked_product_ids: productData.LinkedProducts?.map(p => p.id) || [],
+               related_blog_ids: relatedBlogIds,
                is_new: productData.is_new ?? true,
                is_discontinued: productData.is_discontinued ?? false,
                productId: Number(finalProductId),
@@ -686,6 +830,7 @@ function BasicInfoTab() {
          category_ids: data.category_ids,
          brand_ids: data.brand_ids,
          linked_product_ids: data.linked_product_ids || [],
+         related_blog_ids: data.related_blog_ids || [],
          is_new: Boolean(data.is_new),
          is_discontinued: Boolean(data.is_discontinued),
          ...(formData.deletedAt && { redirect_url: (formData.redirect_url ?? "").trim() || undefined }),
@@ -1041,6 +1186,32 @@ function BasicInfoTab() {
               loading={linkedProductLoading}
               placeholder="Search for a product..."
               searchTerm={linkedProductSearchInput}
+            />
+          </MuiBox>
+        </Grid>
+
+        <Grid item xs={12}>
+          <MuiBox sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+            <Typography variant="body2" color="text.secondary">
+              Link Geek Zone articles to this product. Selected blogs are saved in
+              display order.
+            </Typography>
+            <FormMultiSelectWithMapping
+              name="related_blog_ids"
+              control={control}
+              label="Related Blogs"
+              options={relatedBlogOptions}
+              error={!!errors.related_blog_ids}
+              errorMessage={
+                relatedBlogError || errors.related_blog_ids?.message?.toString()
+              }
+              onInputChange={(query) => {
+                setRelatedBlogSearchInput(query);
+                fetchRelatedBlogs(query);
+              }}
+              loading={relatedBlogLoading}
+              placeholder="Search for a blog post..."
+              searchTerm={relatedBlogSearchInput}
             />
           </MuiBox>
         </Grid>
