@@ -16,7 +16,7 @@ import {
 import { getUserDetail } from "@/services/apiService";
 import FormInputField from "@/components/Shared/FormInputField";
 import FormTextareaField from "@/components/Shared/FormTextareaField";
-import FormFileUploadField from "@/components/Shared/FormFileUploadField";
+import FormAvatarUploadField from "@/components/Shared/FormAvatarUploadField";
 import {
   commonFieldStyles,
   defaultAuthorOverride,
@@ -262,11 +262,11 @@ export default function AuthorBioBlock({
 
           <Grid container spacing={2}>
             <Grid item xs={12}>
-              <FormFileUploadField
+              <FormAvatarUploadField
                 name="author_avatar"
                 control={control}
                 label="Author profile photo"
-                helperText="Optional. PNG, JPG, JPEG, or WebP (max 5MB). Shown in the author bio block."
+                helperText="Optional. PNG, JPG, JPEG, or WebP (max 5MB). Crop to a square — shown as a circle in the author bio block."
                 defaultImage={defaultAvatarUrl || avatarUrl || undefined}
                 sx={commonFieldStyles}
               />
