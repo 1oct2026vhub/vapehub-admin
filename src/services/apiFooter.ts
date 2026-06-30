@@ -24,6 +24,34 @@ export interface FooterSection {
   links?: FooterLink[];
 }
 
+const extractFooterLinkId = (response: unknown): number => {
+  const payload = response as { data?: { id?: number | string }; id?: number | string } | null | undefined;
+  const rawId = payload?.data?.id ?? payload?.id;
+
+  if (rawId == null || rawId === "") {
+    throw new Error("Footer link response missing id");
+  }
+
+  const id = Number(rawId);
+  if (!Number.isFinite(id) || id <= 0) {
+    throw new Error("Footer link response missing id");
+  }
+
+  return id;
+};
+
+const unwrapFooterLink = (response: unknown): FooterLink => {
+  const payload = response as { data?: FooterLink; id?: number } | null | undefined;
+  const link =
+    payload?.data && typeof payload.data === "object" && payload.data.id != null
+      ? payload.data
+      : (payload as FooterLink);
+
+  const id = extractFooterLinkId(response);
+
+  return { ...link, id };
+};
+
 // Footer Sections API Functions
 export const getFooterSections = async (params: { is_active?: boolean } = {}) => {
   const response = await fetcher('/api/admin/footer/sections', params);
@@ -85,6 +113,13 @@ export const getFooterLinks = async () => {
   return response?.data || [];
 };
 
+export const getFooterLinksBySection = async (sectionId: number): Promise<FooterLink[]> => {
+  const links = await getFooterLinks();
+  return links
+    .filter((link: FooterLink) => link.section_id === sectionId)
+    .sort((a: FooterLink, b: FooterLink) => a.order - b.order);
+};
+
 export const createFooterLink = async (link: {
   section_id: number;
   label: string;
@@ -93,7 +128,7 @@ export const createFooterLink = async (link: {
   is_active: boolean;
 }) => {
   const response = await poster('/api/admin/footer/links', link);
-  return response?.data;
+  return unwrapFooterLink(response);
 };
 
 export const updateFooterLink = async (
@@ -109,7 +144,7 @@ export const updateFooterLink = async (
   try {
     console.log(`Updating link ${id} with data:`, linkData);
     const response = await updater(`/api/admin/footer/links/${id}`, linkData);
-    return response?.data;
+    return unwrapFooterLink(response);
   } catch (error) {
     console.error(`Failed to update link ${id}:`, error);
     throw error;
