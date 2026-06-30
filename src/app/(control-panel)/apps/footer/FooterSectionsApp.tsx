@@ -147,14 +147,9 @@ export default function FooterSectionsApp() {
         showActiveOnly ? { is_active: true } : {}
       );
       if (Array.isArray(data)) {
-        // Add temporary id if missing to satisfy type requirements
         const sectionsWithId = data.map((section) => ({
           ...section,
-          id: section.id || Math.random() * -1000, // Use negative random number for temporary id
-          links: section.links?.map((link) => ({
-            ...link,
-            id: link.id || Math.random() * -1000,
-          })),
+          links: section.links || [],
         }));
         // Sort by order
         sectionsWithId.sort((a, b) => a.order - b.order);
@@ -300,8 +295,22 @@ export default function FooterSectionsApp() {
 
   // Handle showing links for a section
   const handleShowLinks = (section: FooterSection) => {
-    setSelectedSection(section);
+    const latestSection = sections.find((s) => s.id === section.id) || section;
+    setSelectedSection(latestSection);
     setOpenLinksDialog(true);
+  };
+
+  const handleLinksChange = (sectionId: number, updatedLinks: FooterLink[]) => {
+    setSections((prevSections) =>
+      prevSections.map((section) =>
+        section.id === sectionId ? { ...section, links: updatedLinks } : section
+      )
+    );
+    setSelectedSection((prevSection) =>
+      prevSection?.id === sectionId
+        ? { ...prevSection, links: updatedLinks }
+        : prevSection
+    );
   };
 
   // Handle links dialog close
@@ -545,6 +554,7 @@ export default function FooterSectionsApp() {
               section={selectedSection}
               onSuccess={(message) => showSnackbar(message, "success")}
               onError={(message) => showSnackbar(message, "error")}
+              onLinksChange={handleLinksChange}
             />
           )}
 
