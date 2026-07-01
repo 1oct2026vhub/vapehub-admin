@@ -118,6 +118,7 @@ interface BlogPostParams {
   order?: "ASC" | "DESC";
   deleted?: boolean;
   is_active?: boolean;
+  status?: string;
 }
 
 export interface BlogCategoryResponse {
