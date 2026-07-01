@@ -15,14 +15,18 @@ import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { FooterLink } from '@/services/apiFooter';
 
+export const getFooterLinkSortableId = (link: FooterLink) => `footer-link-${link.id}`;
+
 interface DraggableFooterLinkProps {
   link: FooterLink;
+  sortableId: string;
   onEdit: () => void;
   onDelete: () => void;
 }
 
 export default function DraggableFooterLink({
   link,
+  sortableId,
   onEdit,
   onDelete,
 }: DraggableFooterLinkProps) {
@@ -33,7 +37,7 @@ export default function DraggableFooterLink({
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: link.id.toString() });
+  } = useSortable({ id: sortableId });
 
   const style = {
     transform: CSS.Transform.toString(transform),
