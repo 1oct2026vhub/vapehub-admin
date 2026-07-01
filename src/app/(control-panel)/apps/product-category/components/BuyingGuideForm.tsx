@@ -24,25 +24,27 @@ import FormInputField from "@/components/Shared/FormInputField";
 import FormCKEditor from "@/components/Shared/FormCKEditor";
 import FormFileUploadField from "@/components/Shared/FormFileUploadField";
 import { useSnackbar } from "@/contexts/SnackbarContext";
-import { listProductCategory } from "@/services/apiProductCategory";
+import { getBlogPosts } from "@/services/apiBlog";
 import {
   getCategoryBuyingGuide,
+  getBuyingGuideErrorMessage,
   saveCategoryBuyingGuide,
   type BuyingGuideHighlight,
   type BuyingGuideTab,
+  type CategoryBuyingGuide,
 } from "@/services/apiCategoryBuyingGuide";
 
 const MAX_HIGHLIGHTS = 3;
-const MAX_RELATED_CATEGORIES = 3;
+const MAX_RELATED_BLOGS = 3;
 
 const highlightSchema = z.object({
   text: z.string(),
 });
 
 const tabSchema = z.object({
-  tab_title: z.string().min(1, "Tab title is required"),
-  section_heading: z.string().min(1, "Section heading is required"),
-  section_body: z.string().min(1, "Section body is required"),
+  tab_title: z.string(),
+  section_heading: z.string(),
+  section_body: z.string(),
   order: z.number().optional(),
 });
 
@@ -56,14 +58,14 @@ const buyingGuideSchema = z
     banner_alt: z.string().optional(),
     highlights: z.array(highlightSchema).max(MAX_HIGHLIGHTS),
     tabs: z.array(tabSchema),
-    related_categories: z
+    related_blogs: z
       .array(
         z.object({
           id: z.number(),
-          name: z.string(),
+          title: z.string(),
         })
       )
-      .max(MAX_RELATED_CATEGORIES),
+      .max(MAX_RELATED_BLOGS),
   })
   .superRefine((data, ctx) => {
     if (!data.is_enabled) return;
@@ -116,9 +118,9 @@ const buyingGuideSchema = z
 
 type BuyingGuideFormType = z.infer<typeof buyingGuideSchema>;
 
-interface CategoryOption {
+interface BlogOption {
   id: number;
-  name: string;
+  title: string;
 }
 
 interface BuyingGuideFormProps {
@@ -142,7 +144,7 @@ const defaultValues: BuyingGuideFormType = {
       order: 0,
     },
   ],
-  related_categories: [],
+  related_blogs: [],
 };
 
 const whiteCardSx = {
@@ -177,6 +179,51 @@ const inputFieldSx = {
   },
 } as const;
 
+function resolveRelatedBlogs(guide: CategoryBuyingGuide): BlogOption[] {
+  if (guide.related_blogs?.length) {
+    return guide.related_blogs.map((blog) => ({
+      id: blog.id,
+      title: blog.title,
+    }));
+  }
+
+  return (guide.related_blog_ids ?? []).map((id) => ({
+    id,
+    title: `Blog #${id}`,
+  }));
+}
+
+function mapGuideToFormValues(
+  guide: CategoryBuyingGuide,
+  categoryName?: string
+): BuyingGuideFormType {
+  const highlights =
+    guide.highlights?.length > 0
+      ? [...guide.highlights]
+      : [...defaultValues.highlights];
+
+  while (highlights.length < MAX_HIGHLIGHTS) {
+    highlights.push({ text: "" });
+  }
+
+  const tabs =
+    guide.tabs?.length > 0
+      ? [...guide.tabs].sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+      : defaultValues.tabs;
+
+  return {
+    is_enabled: guide.is_enabled ?? false,
+    guide_label: guide.guide_label || "Buying Guide",
+    title: guide.title || categoryName || "",
+    intro_content: guide.intro_content || "",
+    banner_image: guide.banner_image || null,
+    banner_alt: guide.banner_alt || "",
+    highlights: highlights.slice(0, MAX_HIGHLIGHTS),
+    tabs,
+    related_blogs: resolveRelatedBlogs(guide),
+  };
+}
+
 export default function BuyingGuideForm({
   categoryId,
   categoryName,
@@ -185,9 +232,10 @@ export default function BuyingGuideForm({
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [bannerFile, setBannerFile] = useState<File | null>(null);
+  const [bannerCleared, setBannerCleared] = useState(false);
   const [bannerImageUrl, setBannerImageUrl] = useState<string | undefined>();
-  const [categories, setCategories] = useState<CategoryOption[]>([]);
-  const [categorySearch, setCategorySearch] = useState("");
+  const [blogPosts, setBlogPosts] = useState<BlogOption[]>([]);
+  const [blogSearch, setBlogSearch] = useState("");
 
   const { control, handleSubmit, reset, setValue, watch } =
     useForm<BuyingGuideFormType>({
@@ -200,7 +248,7 @@ export default function BuyingGuideForm({
     });
 
   const isEnabled = watch("is_enabled");
-  const selectedCategories = watch("related_categories") || [];
+  const selectedBlogs = watch("related_blogs") || [];
 
   const {
     fields: highlightFields,
@@ -214,52 +262,53 @@ export default function BuyingGuideForm({
     remove: removeTab,
   } = useFieldArray({ control, name: "tabs" });
 
-  const mergedCategoryOptions = useMemo(() => {
-    const byId = new Map<number, CategoryOption>();
-    categories.forEach((cat) => byId.set(cat.id, cat));
-    selectedCategories.forEach((selected) => {
+  const mergedBlogOptions = useMemo(() => {
+    const byId = new Map<number, BlogOption>();
+    blogPosts.forEach((post) => byId.set(post.id, post));
+    selectedBlogs.forEach((selected) => {
       if (!byId.has(selected.id)) {
         byId.set(selected.id, {
           id: selected.id,
-          name: selected.name,
+          title: selected.title,
         });
       }
     });
-    return Array.from(byId.values()).filter((cat) => cat.id !== categoryId);
-  }, [categories, selectedCategories, categoryId]);
+    return Array.from(byId.values());
+  }, [blogPosts, selectedBlogs]);
 
-  const fetchCategories = useMemo(
+  const fetchBlogPosts = useMemo(
     () =>
       debounce(async (searchTerm: string) => {
         try {
-          const response = await listProductCategory({
+          const response = await getBlogPosts({
             search: searchTerm,
             limit: 50,
-            deleted: false,
+            is_active: true,
+            status: "published",
           });
-          const results = response?.data?.categories || [];
-          setCategories(
-            results
-              .filter((cat: CategoryOption) => cat.id !== categoryId)
-              .map((cat: CategoryOption) => ({
-                id: cat.id,
-                name: cat.name,
-              }))
+          const blogs = (response?.data?.blogs || []).filter(
+            (post) => post.status === "published"
+          );
+          setBlogPosts(
+            blogs.map((post) => ({
+              id: post.id,
+              title: post.title,
+            }))
           );
         } catch (error) {
-          console.error("Failed to fetch categories:", error);
+          console.error("Failed to fetch blog posts:", error);
         }
       }, 300),
-    [categoryId]
+    []
   );
 
   useEffect(() => {
-    fetchCategories(categorySearch);
-  }, [categorySearch, fetchCategories]);
+    fetchBlogPosts(blogSearch);
+  }, [blogSearch, fetchBlogPosts]);
 
   useEffect(() => {
-    fetchCategories("");
-  }, [fetchCategories]);
+    fetchBlogPosts("");
+  }, [fetchBlogPosts]);
 
   useEffect(() => {
     const fetchBuyingGuide = async () => {
@@ -271,56 +320,10 @@ export default function BuyingGuideForm({
         const guide = response?.data?.buyingGuide;
 
         if (guide) {
-          const relatedCategories: CategoryOption[] = [];
-          if (guide.related_category_ids?.length) {
-            try {
-              const catResponse = await listProductCategory({
-                limit: 1000,
-                deleted: false,
-              });
-              const allCategories = catResponse?.data?.categories || [];
-              guide.related_category_ids.forEach((id) => {
-                const match = allCategories.find(
-                  (cat: CategoryOption) => cat.id === id
-                );
-                if (match) {
-                  relatedCategories.push({ id: match.id, name: match.name });
-                }
-              });
-            } catch {
-              guide.related_category_ids.forEach((id) => {
-                relatedCategories.push({ id, name: `Category #${id}` });
-              });
-            }
-          }
-
-          const highlights =
-            guide.highlights?.length > 0
-              ? guide.highlights
-              : defaultValues.highlights;
-
-          while (highlights.length < 3) {
-            highlights.push({ text: "" });
-          }
-
-          reset({
-            is_enabled: guide.is_enabled ?? false,
-            guide_label: guide.guide_label || "Buying Guide",
-            title: guide.title || categoryName || "",
-            intro_content: guide.intro_content || "",
-            banner_image: guide.banner_image || null,
-            banner_alt: guide.banner_alt || "",
-            highlights: highlights.slice(0, MAX_HIGHLIGHTS),
-            tabs:
-              guide.tabs?.length > 0
-                ? guide.tabs
-                : defaultValues.tabs,
-            related_categories: relatedCategories,
-          });
-
-          if (guide.banner_image) {
-            setBannerImageUrl(guide.banner_image);
-          }
+          reset(mapGuideToFormValues(guide, categoryName));
+          setBannerImageUrl(guide.banner_image || undefined);
+          setBannerCleared(false);
+          setBannerFile(null);
         } else if (categoryName) {
           setValue("title", categoryName);
         }
@@ -355,7 +358,7 @@ export default function BuyingGuideForm({
         })
       );
 
-      await saveCategoryBuyingGuide(categoryId, {
+      const response = await saveCategoryBuyingGuide(categoryId, {
         is_enabled: formData.is_enabled,
         guide_label: formData.guide_label,
         title: formData.title,
@@ -363,22 +366,30 @@ export default function BuyingGuideForm({
         banner_alt: formData.banner_alt || "",
         highlights: filteredHighlights,
         tabs: tabsWithOrder,
-        related_category_ids: formData.related_categories.map((c) => c.id),
+        related_blog_ids: formData.related_blogs.map((b) => b.id),
         banner_image:
-          typeof formData.banner_image === "string"
+          !bannerCleared && typeof formData.banner_image === "string"
             ? formData.banner_image
             : undefined,
         banner_image_file: bannerFile,
+        clear_banner: bannerCleared && !bannerFile,
         category_id: categoryId,
       });
 
-      showSnackbar("Buying guide saved successfully!", "success");
-    } catch (error: any) {
-      const message =
-        error?.response?.data?.message ||
-        error?.message ||
-        "Failed to save buying guide";
-      showSnackbar(message, "error");
+      const savedGuide = response?.data?.buyingGuide;
+      if (savedGuide) {
+        reset(mapGuideToFormValues(savedGuide, categoryName));
+        setBannerImageUrl(savedGuide.banner_image || undefined);
+        setBannerCleared(false);
+        setBannerFile(null);
+      }
+
+      showSnackbar(
+        response?.message || "Buying guide saved successfully!",
+        "success"
+      );
+    } catch (error: unknown) {
+      showSnackbar(getBuyingGuideErrorMessage(error), "error");
     } finally {
       setSaving(false);
     }
@@ -524,7 +535,17 @@ export default function BuyingGuideForm({
           defaultImage={bannerImageUrl}
           onFileChange={(file) => {
             setBannerFile(file);
+            if (file) {
+              setBannerCleared(false);
+            }
             setValue("banner_image", file, { shouldValidate: true });
+          }}
+          onDeleteDefaultImage={() => {
+            setBannerCleared(true);
+            setBannerFile(null);
+            setBannerImageUrl(undefined);
+            setValue("banner_image", null, { shouldValidate: true });
+            setValue("banner_alt", "");
           }}
           helperText="Upload the wide banner image shown below the intro text. Max size: 5MB. Supported formats: PNG, JPG, JPEG, WebP."
         />
@@ -638,33 +659,32 @@ export default function BuyingGuideForm({
           Related Guides
         </Typography>
         <Typography variant="body2" sx={sectionDescSx}>
-          Select up to {MAX_RELATED_CATEGORIES} related category guides to show
-          at the bottom of the buying guide section.
+          Pick up to {MAX_RELATED_BLOGS} related Geek Zone articles to show at
+          the bottom of the buying guide section (title, image, excerpt, author,
+          and date on storefront).
         </Typography>
 
         <Controller
-          name="related_categories"
+          name="related_blogs"
           control={control}
           render={({ field: { value, onChange } }) => (
             <Autocomplete
               multiple
-              options={mergedCategoryOptions}
-              getOptionLabel={(option) => option.name}
+              options={mergedBlogOptions}
+              getOptionLabel={(option) => option.title}
               isOptionEqualToValue={(option, val) => option.id === val.id}
               value={value}
               onChange={(_, newValue) => {
-                if (newValue.length > MAX_RELATED_CATEGORIES) return;
+                if (newValue.length > MAX_RELATED_BLOGS) return;
                 onChange(newValue);
               }}
-              onInputChange={(_, newInputValue) =>
-                setCategorySearch(newInputValue)
-              }
+              onInputChange={(_, newInputValue) => setBlogSearch(newInputValue)}
               filterSelectedOptions
-              limitTags={MAX_RELATED_CATEGORIES}
+              limitTags={MAX_RELATED_BLOGS}
               renderInput={(params) => (
                 <TextField
                   {...params}
-                  label={`Related categories (max ${MAX_RELATED_CATEGORIES})`}
+                  label={`Related blog posts (max ${MAX_RELATED_BLOGS})`}
                   variant="outlined"
                   sx={{
                     ...inputFieldSx,
@@ -678,7 +698,7 @@ export default function BuyingGuideForm({
               renderTags={(tagValue, getTagProps) =>
                 tagValue.map((option, index) => (
                   <Chip
-                    label={option.name}
+                    label={option.title}
                     {...getTagProps({ index })}
                     key={option.id}
                   />
