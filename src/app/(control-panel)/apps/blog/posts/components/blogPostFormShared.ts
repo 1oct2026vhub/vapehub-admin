@@ -110,6 +110,11 @@ export const blogPostBaseSchema = z.object({
 
 export type BlogPostFormType = z.infer<typeof blogPostBaseSchema>;
 
+export type BlogAuthorOption = {
+  id: number;
+  label: string;
+};
+
 export const blogPostDefaultValues: BlogPostFormType = {
   title: "",
   content: "",

@@ -14,7 +14,6 @@ import {
   useWatch,
 } from "react-hook-form";
 import { getUserDetail } from "@/services/apiService";
-import FormInputField from "@/components/Shared/FormInputField";
 import FormTextareaField from "@/components/Shared/FormTextareaField";
 import FormAvatarUploadField from "@/components/Shared/FormAvatarUploadField";
 import {
@@ -120,7 +119,6 @@ export default function AuthorBioBlock({
   useEffect(() => {
     if (!authorId) {
       lastLoadedAuthorId.current = null;
-      setValue("author_override", { ...defaultAuthorOverride });
       setValue("author_avatar", undefined);
       return;
     }
@@ -174,9 +172,9 @@ export default function AuthorBioBlock({
         Author bio block
       </Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-        Rendered after the Sources block on the live post. Name and avatar come
-        from the selected author; photo is optional (neutral silhouette when
-        empty).
+        Rendered after the Sources block on the live post. Select an admin author
+        in the byline above to load profile defaults; photo is optional (neutral
+        silhouette when empty).
       </Typography>
 
       {!hasAuthor ? (
@@ -189,7 +187,7 @@ export default function AuthorBioBlock({
             color: "text.secondary",
           }}
         >
-          Select an author above to configure the bio block.
+          Select an author in the byline section above to configure the bio block.
         </Box>
       ) : (
         <>
@@ -268,15 +266,6 @@ export default function AuthorBioBlock({
                 label="Author profile photo"
                 helperText="Optional. PNG, JPG, JPEG, or WebP (max 5MB). Crop to a square — shown as a circle in the author bio block."
                 defaultImage={defaultAvatarUrl || avatarUrl || undefined}
-                sx={commonFieldStyles}
-              />
-            </Grid>
-            <Grid item xs={12}>
-              <FormInputField
-                name="author_override.role"
-                control={control}
-                label="Author role (byline)"
-                helperText='Shown under the name in the byline, e.g. "VapeHub product team"'
                 sx={commonFieldStyles}
               />
             </Grid>

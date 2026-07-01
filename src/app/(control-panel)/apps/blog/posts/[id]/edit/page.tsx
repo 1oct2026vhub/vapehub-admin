@@ -28,7 +28,7 @@ import debounce from "lodash/debounce";
 import AddCategoryModal from "@/components/Shared/AddCategoryModal";
 import SeoForm from "@/app/(control-panel)/apps/seo/components/SeoForm";
 import PageBreadcrumb from "@/components/PageBreadcrumb";
-import BlogPostTemplateBanner from "../../components/BlogPostTemplateBanner";
+// import BlogPostTemplateBanner from "../../components/BlogPostTemplateBanner";
 import BlogPostEeatSections from "../../components/BlogPostEeatSections";
 import RelatedGuidesPicker from "../../components/RelatedGuidesPicker";
 import BlogPostDetailsFields from "../../components/BlogPostDetailsFields";
@@ -287,13 +287,13 @@ export default function EditBlogPost() {
         <Typography variant="h4" component="h1" fontWeight="bold">
           Edit Blog Post
         </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+        {/* <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
           Configure post content and E-E-A-T blocks to match the Geek Zone blog
           detail template.
-        </Typography>
+        </Typography> */}
       </Box>
 
-      <BlogPostTemplateBanner />
+      {/* <BlogPostTemplateBanner /> */}
 
       <Box sx={{ borderBottom: 1, borderColor: "divider", mb: 3 }}>
         <Tabs
