@@ -59,6 +59,12 @@ export interface FaqsApiResponse {
   data: FaqsDataPayload;
 }
 
+export interface FaqApiResponse {
+  success: boolean;
+  message: string;
+  data: FaqItem;
+}
+
 // Interface for creating a new FAQ
 export interface CreateFaqPayload {
   entity_type: string;
@@ -79,6 +85,10 @@ export interface CreateFaqResponse {
 // Function to fetch FAQs
 export const getFaqs = (params: FetchFaqsParams = {}): Promise<FaqsApiResponse> => {
   return fetcher("/api/admin/faqs", params);
+};
+
+export const getFaqById = (id: number): Promise<FaqApiResponse> => {
+  return fetcher(`/api/admin/faqs/${id}`);
 };
 
 // Function to create a new FAQ

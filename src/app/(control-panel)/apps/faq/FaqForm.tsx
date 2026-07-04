@@ -65,9 +65,12 @@ export default function FaqForm({
   };
 
   // Use props or fall back to URL parameters
-  const finalEntityId = entityId || (urlEntityId ? parseInt(urlEntityId) : null);
-  const finalEntityType = entityType || urlEntityType;
-  const finalEntityName = entityName || urlEntityName || getEntityDisplayName(entityType || urlEntityType);
+  const finalEntityId = entityId ?? faqToEdit?.entity_id ?? (urlEntityId ? parseInt(urlEntityId) : null);
+  const finalEntityType = entityType ?? faqToEdit?.entity_type ?? urlEntityType;
+  const finalEntityName =
+    entityName ??
+    urlEntityName ??
+    getEntityDisplayName(finalEntityType);
 
   const {
     control,
