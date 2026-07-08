@@ -181,10 +181,7 @@ const FaqAccordion: React.FC<FaqAccordionProps> = ({ entityId, entityType }) => 
 
   const handleOpenEditDialog = (faq: FaqItem) => {
     const params = new URLSearchParams({
-      faqData: encodeURIComponent(JSON.stringify(faq)),
-      entityId: entityId?.toString() || '',
-      entityType: entityType,
-      entityName: getEntityDisplayName(entityType),
+      faqId: faq.id.toString(),
     });
     router.push(`/apps/faq/edit?${params.toString()}`);
   };
