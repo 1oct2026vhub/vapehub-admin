@@ -1,6 +1,11 @@
 import { z } from "zod";
 import { SxProps, Theme } from "@mui/material/styles";
-import type { BlogAuthorOverride, BlogPost, BlogSource } from "@/services/apiBlog";
+import type {
+  BlogAuthorOverride,
+  BlogPost,
+  BlogPullQuoteSourceType,
+  BlogSource,
+} from "@/services/apiBlog";
 
 export const MAX_FILE_SIZE = 5 * 1024 * 1024;
 export const MIN_IMAGE_WIDTH = 1091;
@@ -46,6 +51,129 @@ const relatedPostSchema = z.object({
   id: z.number(),
   title: z.string(),
 });
+
+export const PULL_QUOTE_SOURCE_TYPES = [
+  "UKVIA",
+  "MHRA",
+  "OHID",
+  "peer_reviewed",
+] as const satisfies readonly BlogPullQuoteSourceType[];
+
+export const PULL_QUOTE_SOURCE_TYPE_OPTIONS: {
+  value: BlogPullQuoteSourceType;
+  label: string;
+}[] = [
+  { value: "UKVIA", label: "UKVIA" },
+  { value: "MHRA", label: "MHRA" },
+  { value: "OHID", label: "OHID" },
+  { value: "peer_reviewed", label: "Peer-reviewed study" },
+];
+
+const INTERNAL_ATTRIBUTION_PATTERNS = [
+  /vapehub/i,
+  /geek\s*zone/i,
+  /editorial\s*team/i,
+  /product\s*team/i,
+];
+
+const INTERNAL_SOURCE_HOST_PATTERNS = [/vapehub/i, /geekzone/i, /geek-zone/i];
+
+function isInternalAttribution(value: string): boolean {
+  return INTERNAL_ATTRIBUTION_PATTERNS.some((pattern) => pattern.test(value));
+}
+
+function isInternalSourceUrl(value: string): boolean {
+  try {
+    const hostname = new URL(value).hostname.toLowerCase();
+    return INTERNAL_SOURCE_HOST_PATTERNS.some((pattern) => pattern.test(hostname));
+  } catch {
+    return false;
+  }
+}
+
+const pullQuoteSchema = z
+  .object({
+    enabled: z.boolean().default(false),
+    body: z.string().max(1000, "Quote body must not exceed 1000 characters"),
+    attribution: z.string().max(255, "Attribution must not exceed 255 characters"),
+    source_url: z.string(),
+    source_type: z.enum(PULL_QUOTE_SOURCE_TYPES).or(z.literal("")),
+  })
+  .superRefine((data, ctx) => {
+    if (!data.enabled) {
+      return;
+    }
+
+    if (!data.body.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Quote body is required",
+        path: ["body"],
+      });
+    }
+
+    if (!data.attribution.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Attribution is required",
+        path: ["attribution"],
+      });
+    } else if (isInternalAttribution(data.attribution)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message:
+          "Attribution must be from an authoritative external source, not internal staff",
+        path: ["attribution"],
+      });
+    }
+
+    if (!data.source_url.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Source URL is required",
+        path: ["source_url"],
+      });
+    } else {
+      try {
+        const url = new URL(data.source_url.trim());
+        if (!["http:", "https:"].includes(url.protocol)) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "Source URL must use http or https",
+            path: ["source_url"],
+          });
+        } else if (isInternalSourceUrl(data.source_url.trim())) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "Source URL must not be an internal VapeHub domain",
+            path: ["source_url"],
+          });
+        }
+      } catch {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Source URL must be a valid URL",
+          path: ["source_url"],
+        });
+      }
+    }
+
+    if (!data.source_type) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Source type is required",
+        path: ["source_type"],
+      });
+    }
+  });
+
+export const defaultPullQuote: z.infer<typeof pullQuoteSchema> = {
+  enabled: false,
+  body: "",
+  attribution: "",
+  source_url: "",
+  source_type: "",
+};
 
 const authorOverrideSchema = z.object({
   first_name: z.string().optional(),
@@ -106,6 +234,7 @@ export const blogPostBaseSchema = z.object({
   sources: z.array(sourceSchema).default([]),
   related_posts: z.array(relatedPostSchema).max(3, "Maximum 3 related guides").default([]),
   redirect_url: z.string().url("Invalid URL format").optional().or(z.literal("")),
+  pull_quote: pullQuoteSchema.default(defaultPullQuote),
 });
 
 export type BlogPostFormType = z.infer<typeof blogPostBaseSchema>;
@@ -129,6 +258,7 @@ export const blogPostDefaultValues: BlogPostFormType = {
   sources: [],
   related_posts: [],
   redirect_url: "",
+  pull_quote: { ...defaultPullQuote },
 };
 
 function mapSourceToFormValue(source: BlogSource & { text?: string; url?: string }) {
@@ -189,6 +319,15 @@ export function mapBlogPostToFormValues(post: BlogPost): BlogPostFormType {
       title: blog.title,
     })),
     redirect_url: post.redirect_url || post.redirect?.redirect_url || "",
+    pull_quote: post.pull_quote
+      ? {
+          enabled: true,
+          body: post.pull_quote.body || "",
+          attribution: post.pull_quote.attribution || "",
+          source_url: post.pull_quote.source_url || "",
+          source_type: post.pull_quote.source_type || "",
+        }
+      : { ...defaultPullQuote },
   };
 }
 
@@ -197,6 +336,7 @@ export function buildBlogPostFormData(
   options?: {
     image?: File | null;
     redirectUrl?: string;
+    isEdit?: boolean;
   },
 ): FormData {
   const formData = new FormData();
@@ -273,6 +413,21 @@ export function buildBlogPostFormData(
 
   if (options?.redirectUrl?.trim()) {
     formData.append("redirect_url", options.redirectUrl.trim());
+  }
+
+  if (data.pull_quote.enabled) {
+    formData.append(
+      "pull_quote",
+      JSON.stringify({
+        body: data.pull_quote.body.trim(),
+        attribution: data.pull_quote.attribution.trim(),
+        source_url: data.pull_quote.source_url.trim(),
+        source_type: data.pull_quote.source_type,
+        location: "mid_body_after_h2",
+      }),
+    );
+  } else if (options?.isEdit) {
+    formData.append("pull_quote", "");
   }
 
   return formData;

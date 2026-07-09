@@ -30,6 +30,20 @@ export interface BlogAuthorOverride {
   team_url?: string;
 }
 
+export type BlogPullQuoteSourceType =
+  | "UKVIA"
+  | "MHRA"
+  | "OHID"
+  | "peer_reviewed";
+
+export interface BlogPullQuote {
+  body: string;
+  attribution: string;
+  source_url: string;
+  source_type: BlogPullQuoteSourceType;
+  location: "mid_body_after_h2";
+}
+
 // Types for Blog Posts, Categories, and Tags
 export interface BlogPost {
   id: number;
@@ -68,6 +82,7 @@ export interface BlogPost {
   related_posts?: BlogRelatedBlog[];
   redirect_url?: string;
   redirect?: { redirect_url?: string };
+  pull_quote?: BlogPullQuote | null;
 }
 
 export interface BlogCategory {

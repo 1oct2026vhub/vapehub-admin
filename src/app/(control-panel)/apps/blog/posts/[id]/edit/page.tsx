@@ -31,6 +31,7 @@ import PageBreadcrumb from "@/components/PageBreadcrumb";
 // import BlogPostTemplateBanner from "../../components/BlogPostTemplateBanner";
 import BlogPostEeatSections from "../../components/BlogPostEeatSections";
 import RelatedGuidesPicker from "../../components/RelatedGuidesPicker";
+import BlogPostPullQuoteFields from "../../components/BlogPostPullQuoteFields";
 import BlogPostDetailsFields from "../../components/BlogPostDetailsFields";
 import {
   buildBlogPostFormData,
@@ -238,6 +239,7 @@ export default function EditBlogPost() {
       const formData = buildBlogPostFormData(data, {
         image: selectedFile,
         redirectUrl: post?.deleted_at ? data.redirect_url : undefined,
+        isEdit: true,
       });
 
       await updateBlogPost(post.id, formData);
@@ -277,7 +279,7 @@ export default function EditBlogPost() {
     );
   }
 
-  const showSaveBar = activeTab !== 3;
+  const showSaveBar = activeTab !== 4;
 
   return (
     <div className="md:px-14 p-4">
@@ -304,6 +306,7 @@ export default function EditBlogPost() {
           <Tab label="Post Details" />
           <Tab label="E-E-A-T Blocks" />
           <Tab label="Related Guides" />
+          <Tab label="Pull Quote" />
           <Tab label="SEO" />
         </Tabs>
       </Box>
@@ -353,6 +356,14 @@ export default function EditBlogPost() {
           )}
         </div>
 
+        <div role="tabpanel" hidden={activeTab !== 3}>
+          {activeTab === 3 && (
+            <Paper sx={{ p: 4 }}>
+              <BlogPostPullQuoteFields control={control} />
+            </Paper>
+          )}
+        </div>
+
         {showSaveBar && (
           <Box
             sx={{
@@ -373,8 +384,8 @@ export default function EditBlogPost() {
         )}
       </form>
 
-      <div role="tabpanel" hidden={activeTab !== 3}>
-        {activeTab === 3 && (
+      <div role="tabpanel" hidden={activeTab !== 4}>
+        {activeTab === 4 && (
           <Paper sx={{ p: 4 }}>
             <SeoForm
               entityId={post.id}
