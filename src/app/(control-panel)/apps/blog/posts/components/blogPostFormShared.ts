@@ -2,6 +2,7 @@ import { z } from "zod";
 import { SxProps, Theme } from "@mui/material/styles";
 import type {
   BlogAuthorOverride,
+  BlogInlineProductCardEntityType,
   BlogPost,
   BlogPullQuoteSourceType,
   BlogSource,
@@ -175,6 +176,72 @@ export const defaultPullQuote: z.infer<typeof pullQuoteSchema> = {
   source_type: "",
 };
 
+export const INLINE_PRODUCT_CARD_ENTITY_TYPES = [
+  "product",
+  "category",
+] as const satisfies readonly BlogInlineProductCardEntityType[];
+
+export const INLINE_PRODUCT_CARD_ENTITY_TYPE_OPTIONS: {
+  value: BlogInlineProductCardEntityType;
+  label: string;
+}[] = [
+  { value: "product", label: "Product" },
+  { value: "category", label: "Category" },
+];
+
+const inlineProductCardEntitySchema = z.object({
+  id: z.number(),
+  name: z.string(),
+});
+
+const inlineProductCardSchema = z
+  .object({
+    enabled: z.boolean().default(false),
+    entity_type: z.enum(INLINE_PRODUCT_CARD_ENTITY_TYPES).or(z.literal("")),
+    entity: inlineProductCardEntitySchema.nullable().default(null),
+    blurb: z.string().max(500, "Blurb must not exceed 500 characters"),
+    title: z.string().max(255, "Title must not exceed 255 characters"),
+    cta_label: z.string().max(50, "CTA label must not exceed 50 characters"),
+  })
+  .superRefine((data, ctx) => {
+    if (!data.enabled) {
+      return;
+    }
+
+    if (!data.entity_type) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Entity type is required",
+        path: ["entity_type"],
+      });
+    }
+
+    if (!data.entity?.id) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Product or category is required",
+        path: ["entity"],
+      });
+    }
+
+    if (!data.blurb.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Blurb is required",
+        path: ["blurb"],
+      });
+    }
+  });
+
+export const defaultInlineProductCard: z.infer<typeof inlineProductCardSchema> = {
+  enabled: false,
+  entity_type: "",
+  entity: null,
+  blurb: "",
+  title: "",
+  cta_label: "",
+};
+
 const authorOverrideSchema = z.object({
   first_name: z.string().optional(),
   last_name: z.string().optional(),
@@ -235,6 +302,7 @@ export const blogPostBaseSchema = z.object({
   related_posts: z.array(relatedPostSchema).max(3, "Maximum 3 related guides").default([]),
   redirect_url: z.string().url("Invalid URL format").optional().or(z.literal("")),
   pull_quote: pullQuoteSchema.default(defaultPullQuote),
+  inline_product_card: inlineProductCardSchema.default(defaultInlineProductCard),
 });
 
 export type BlogPostFormType = z.infer<typeof blogPostBaseSchema>;
@@ -259,6 +327,7 @@ export const blogPostDefaultValues: BlogPostFormType = {
   related_posts: [],
   redirect_url: "",
   pull_quote: { ...defaultPullQuote },
+  inline_product_card: { ...defaultInlineProductCard },
 };
 
 function mapSourceToFormValue(source: BlogSource & { text?: string; url?: string }) {
@@ -328,6 +397,31 @@ export function mapBlogPostToFormValues(post: BlogPost): BlogPostFormType {
           source_type: post.pull_quote.source_type || "",
         }
       : { ...defaultPullQuote },
+    inline_product_card: post.inline_product_card
+      ? {
+          enabled: true,
+          entity_type: post.inline_product_card.entity_type || "",
+          entity: post.inline_product_card.entity_id
+            ? {
+                id: post.inline_product_card.entity_id,
+                name:
+                  post.inline_product_card.entity_name ||
+                  post.inline_product_card.title ||
+                  post.inline_product_card.product?.title ||
+                  `#${post.inline_product_card.entity_id}`,
+              }
+            : null,
+          blurb:
+            post.inline_product_card.blurb ||
+            post.inline_product_card.product?.blurb ||
+            "",
+          title:
+            post.inline_product_card.title ||
+            post.inline_product_card.product?.title ||
+            "",
+          cta_label: post.inline_product_card.cta_label || "",
+        }
+      : { ...defaultInlineProductCard },
   };
 }
 
@@ -428,6 +522,26 @@ export function buildBlogPostFormData(
     );
   } else if (options?.isEdit) {
     formData.append("pull_quote", "");
+  }
+
+  if (data.inline_product_card.enabled && data.inline_product_card.entity?.id) {
+    const cardPayload: Record<string, string | number> = {
+      entity_type: data.inline_product_card.entity_type,
+      entity_id: data.inline_product_card.entity.id,
+      blurb: data.inline_product_card.blurb.trim(),
+    };
+
+    if (data.inline_product_card.title.trim()) {
+      cardPayload.title = data.inline_product_card.title.trim();
+    }
+
+    if (data.inline_product_card.cta_label.trim()) {
+      cardPayload.cta_label = data.inline_product_card.cta_label.trim();
+    }
+
+    formData.append("inline_product_card", JSON.stringify(cardPayload));
+  } else if (options?.isEdit) {
+    formData.append("inline_product_card", "");
   }
 
   return formData;

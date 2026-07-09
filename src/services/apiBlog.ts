@@ -44,6 +44,26 @@ export interface BlogPullQuote {
   location: "mid_body_after_h2";
 }
 
+export type BlogInlineProductCardEntityType = "product" | "category";
+
+export interface BlogInlineProductCardProduct {
+  image: string;
+  title: string;
+  blurb: string;
+  url: string;
+}
+
+export interface BlogInlineProductCard {
+  entity_type: BlogInlineProductCardEntityType;
+  entity_id: number;
+  blurb: string;
+  title?: string;
+  cta_label?: string;
+  location?: "mid_article";
+  entity_name?: string;
+  product?: BlogInlineProductCardProduct;
+}
+
 // Types for Blog Posts, Categories, and Tags
 export interface BlogPost {
   id: number;
@@ -83,6 +103,7 @@ export interface BlogPost {
   redirect_url?: string;
   redirect?: { redirect_url?: string };
   pull_quote?: BlogPullQuote | null;
+  inline_product_card?: BlogInlineProductCard | null;
 }
 
 export interface BlogCategory {
