@@ -30,6 +30,7 @@ import PageBreadcrumb from "@/components/PageBreadcrumb";
 import BlogPostEeatSections from "../components/BlogPostEeatSections";
 import RelatedGuidesPicker from "../components/RelatedGuidesPicker";
 import BlogPostPullQuoteFields from "../components/BlogPostPullQuoteFields";
+import BlogPostInlineProductCardFields from "../components/BlogPostInlineProductCardFields";
 import BlogPostDetailsFields from "../components/BlogPostDetailsFields";
 import {
   buildBlogPostFormData,
@@ -241,6 +242,7 @@ export default function CreateBlogPost() {
               <Tab label="E-E-A-T Blocks" />
               <Tab label="Related Guides" />
               <Tab label="Pull Quote" />
+              <Tab label="Inline Product Card" />
             </Tabs>
           </Box>
 
@@ -286,6 +288,14 @@ export default function CreateBlogPost() {
               {activeTab === 3 && (
                 <Paper sx={{ p: 4 }}>
                   <BlogPostPullQuoteFields control={control} />
+                </Paper>
+              )}
+            </div>
+
+            <div role="tabpanel" hidden={activeTab !== 4}>
+              {activeTab === 4 && (
+                <Paper sx={{ p: 4 }}>
+                  <BlogPostInlineProductCardFields control={control} setValue={setValue} />
                 </Paper>
               )}
             </div>
