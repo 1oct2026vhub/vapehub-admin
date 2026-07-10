@@ -2,12 +2,21 @@ import { z } from "zod";
 import { SxProps, Theme } from "@mui/material/styles";
 import type {
   BlogAuthorOverride,
-  BlogFirstPersonCallout,
   BlogInlineProductCardEntityType,
   BlogPost,
   BlogPullQuoteSourceType,
   BlogSource,
 } from "@/services/apiBlog";
+import {
+  BLOG_PLACEHOLDER_TOKENS,
+  countBlogBlockPositions,
+  getFirstPersonCalloutPlaceholderIndexes,
+} from "./blogPlaceholders";
+import {
+  extractFirstPersonCalloutsFromContent,
+  injectFirstPersonCalloutsIntoContent,
+  restoreFirstPersonCalloutPlaceholdersInContent,
+} from "./blogContentInjection";
 
 export const MAX_FILE_SIZE = 5 * 1024 * 1024;
 export const MIN_IMAGE_WIDTH = 1091;
@@ -244,7 +253,16 @@ export const defaultInlineProductCard: z.infer<typeof inlineProductCardSchema> =
 };
 
 function stripHtml(value: string): string {
-  return value.replace(/<[^>]*>/g, "").replace(/&nbsp;/g, " ").trim();
+  return value
+    .replace(/<[^>]*>/g, "")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function getPlainTextLength(value: string): number {
+  return stripHtml(value).length;
 }
 
 export const DEFAULT_FIRST_PERSON_CALLOUT_LABEL = "FROM OUR WAREHOUSE";
@@ -253,15 +271,12 @@ const firstPersonCalloutItemSchema = z.object({
   label: z.string().max(100, "Label must not exceed 100 characters").optional(),
   heading: z.string().max(255, "Heading must not exceed 255 characters"),
   body: z.string(),
-  insert_after_paragraph: z.coerce.number(),
 });
 
 const firstPersonCalloutsSchema = z
   .array(firstPersonCalloutItemSchema)
   .max(2, "Maximum 2 first-person callouts per article")
   .superRefine((items, ctx) => {
-    const paragraphIndexes = new Set<number>();
-
     items.forEach((item, index) => {
       if (!item.heading.trim()) {
         ctx.addIssue({
@@ -277,28 +292,12 @@ const firstPersonCalloutsSchema = z
           message: "Body copy is required",
           path: [index, "body"],
         });
-      } else if (item.body.length > 2000) {
+      } else if (getPlainTextLength(item.body) > 2000) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
-          message: "Body copy must not exceed 2000 characters",
+          message: "Body copy must not exceed 2,000 characters of text",
           path: [index, "body"],
         });
-      }
-
-      if (!Number.isFinite(item.insert_after_paragraph) || item.insert_after_paragraph < 1) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: "Insert after paragraph is required (minimum 1)",
-          path: [index, "insert_after_paragraph"],
-        });
-      } else if (paragraphIndexes.has(item.insert_after_paragraph)) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: "Insert after paragraph must be unique for each callout",
-          path: [index, "insert_after_paragraph"],
-        });
-      } else {
-        paragraphIndexes.add(item.insert_after_paragraph);
       }
     });
   });
@@ -307,28 +306,7 @@ export const defaultFirstPersonCalloutItem: z.infer<typeof firstPersonCalloutIte
   label: "",
   heading: "",
   body: "",
-  insert_after_paragraph: 0,
 };
-
-function parseInsertAfterParagraph(value: unknown): number {
-  if (typeof value === "number" && Number.isFinite(value)) {
-    return Math.trunc(value);
-  }
-
-  const parsed = Number.parseInt(String(value ?? ""), 10);
-  return Number.isFinite(parsed) ? parsed : 0;
-}
-
-export function buildFirstPersonCalloutsPayload(
-  callouts: BlogPostFormType["first_person_callouts"] | undefined,
-): BlogFirstPersonCallout[] {
-  return (callouts ?? []).map((callout) => ({
-    label: callout.label?.trim() || DEFAULT_FIRST_PERSON_CALLOUT_LABEL,
-    heading: callout.heading.trim(),
-    body: callout.body,
-    insert_after_paragraph: parseInsertAfterParagraph(callout.insert_after_paragraph),
-  }));
-}
 
 const authorOverrideSchema = z.object({
   first_name: z.string().optional(),
@@ -350,7 +328,97 @@ export const defaultAuthorOverride: z.infer<typeof authorOverrideSchema> = {
   team_url: "",
 };
 
-export const blogPostBaseSchema = z.object({
+function validateBlogPlaceholders(
+  data: {
+    content?: string;
+    pull_quote?: { enabled?: boolean };
+    inline_product_card?: { enabled?: boolean };
+    first_person_callouts?: unknown[];
+  },
+  ctx: z.RefinementCtx,
+): void {
+  const content = data.content ?? "";
+  const counts = countBlogBlockPositions(content);
+  const calloutCount = data.first_person_callouts?.length ?? 0;
+
+  if (data.pull_quote?.enabled) {
+    if (counts.pullQuote === 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `Add ${BLOG_PLACEHOLDER_TOKENS.pullQuote} in the article content where the pull quote should appear`,
+        path: ["content"],
+      });
+    } else if (counts.pullQuote > 1) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `Only one ${BLOG_PLACEHOLDER_TOKENS.pullQuote} placeholder is allowed per article`,
+        path: ["content"],
+      });
+    }
+  } else if (counts.pullQuote > 0) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: `Remove ${BLOG_PLACEHOLDER_TOKENS.pullQuote} from content or enable the pull quote block`,
+      path: ["content"],
+    });
+  }
+
+  if (data.inline_product_card?.enabled) {
+    if (counts.inlineProductCard === 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `Add ${BLOG_PLACEHOLDER_TOKENS.inlineProductCard} in the article content where the product card should appear`,
+        path: ["content"],
+      });
+    } else if (counts.inlineProductCard > 1) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `Only one ${BLOG_PLACEHOLDER_TOKENS.inlineProductCard} placeholder is allowed per article`,
+        path: ["content"],
+      });
+    }
+  } else if (counts.inlineProductCard > 0) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: `Remove ${BLOG_PLACEHOLDER_TOKENS.inlineProductCard} from content or enable the inline product card block`,
+      path: ["content"],
+    });
+  }
+
+  if (calloutCount > 0) {
+    for (let index = 1; index <= calloutCount; index += 1) {
+      const token = BLOG_PLACEHOLDER_TOKENS.firstPersonCallout(index);
+      const tokenCount = counts.firstPersonCallouts[index] ?? 0;
+
+      if (tokenCount > 1) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `Only one ${token} placeholder is allowed per article`,
+          path: ["content"],
+        });
+      }
+    }
+
+    const extraCalloutIndexes = getFirstPersonCalloutPlaceholderIndexes(counts).filter(
+      (index) => index > calloutCount,
+    );
+
+    if (extraCalloutIndexes.length > 0) {
+      const tokens = extraCalloutIndexes
+        .map((index) => BLOG_PLACEHOLDER_TOKENS.firstPersonCallout(index))
+        .join(", ");
+
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `Remove unused callout placeholders (${tokens}) or add matching callout blocks`,
+        path: ["content"],
+      });
+    }
+  }
+}
+
+export const blogPostBaseSchema = z
+  .object({
   title: z
     .string()
     .min(1, "Title is required")
@@ -392,7 +460,10 @@ export const blogPostBaseSchema = z.object({
   pull_quote: pullQuoteSchema.default(defaultPullQuote),
   inline_product_card: inlineProductCardSchema.default(defaultInlineProductCard),
   first_person_callouts: firstPersonCalloutsSchema.default([]),
-});
+})
+  .superRefine((data, ctx) => {
+    validateBlogPlaceholders(data, ctx);
+  });
 
 export type BlogPostFormType = z.infer<typeof blogPostBaseSchema>;
 
@@ -460,10 +531,18 @@ function mapAuthorOverrideFromPost(post: BlogPost): BlogPostFormType["author_ove
 
 export function mapBlogPostToFormValues(post: BlogPost): BlogPostFormType {
   const relatedBlogs = post.related_blogs || post.related_posts || [];
+  const calloutsFromApi = (post.first_person_callouts || []).map((callout) => ({
+    label: callout.label || "",
+    heading: callout.heading || "",
+    body: callout.body || "",
+  }));
+  const calloutsFromContent = extractFirstPersonCalloutsFromContent(post.content);
+  const firstPersonCallouts =
+    calloutsFromApi.length > 0 ? calloutsFromApi : calloutsFromContent;
 
   return {
     title: post.title,
-    content: post.content,
+    content: restoreFirstPersonCalloutPlaceholdersInContent(post.content),
     slug: post.slug,
     alt_text: post.alt_text || "",
     status: (post.status as BlogPostFormType["status"]) || "draft",
@@ -512,12 +591,7 @@ export function mapBlogPostToFormValues(post: BlogPost): BlogPostFormType {
           cta_label: post.inline_product_card.cta_label || "",
         }
       : { ...defaultInlineProductCard },
-    first_person_callouts: (post.first_person_callouts || []).map((callout) => ({
-      label: callout.label || "",
-      heading: callout.heading || "",
-      body: callout.body || "",
-      insert_after_paragraph: callout.insert_after_paragraph ?? 0,
-    })),
+    first_person_callouts: firstPersonCallouts,
   };
 }
 
@@ -530,9 +604,18 @@ export function buildBlogPostFormData(
   },
 ): FormData {
   const formData = new FormData();
+  const firstPersonCallouts = data.first_person_callouts ?? [];
+  const contentWithInjectedCallouts = injectFirstPersonCalloutsIntoContent(
+    data.content,
+    firstPersonCallouts.map((callout) => ({
+      label: callout.label || "",
+      heading: callout.heading,
+      body: callout.body,
+    })),
+  );
 
   formData.append("title", data.title);
-  formData.append("content", data.content);
+  formData.append("content", contentWithInjectedCallouts);
   formData.append("slug", data.slug);
   formData.append("status", data.status);
 
@@ -613,7 +696,6 @@ export function buildBlogPostFormData(
         attribution: data.pull_quote.attribution.trim(),
         source_url: data.pull_quote.source_url.trim(),
         source_type: data.pull_quote.source_type,
-        location: "mid_body_after_h2",
       }),
     );
   } else if (options?.isEdit) {
@@ -640,14 +722,7 @@ export function buildBlogPostFormData(
     formData.append("inline_product_card", "");
   }
 
-  const firstPersonCallouts = data.first_person_callouts ?? [];
-
-  if (firstPersonCallouts.length > 0) {
-    formData.append(
-      "first_person_callouts",
-      JSON.stringify(buildFirstPersonCalloutsPayload(firstPersonCallouts)),
-    );
-  } else if (options?.isEdit) {
+  if (options?.isEdit) {
     formData.append("first_person_callouts", "");
   }
 

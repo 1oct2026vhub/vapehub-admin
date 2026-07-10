@@ -35,6 +35,8 @@ import BlogPostPullQuoteFields from "../../components/BlogPostPullQuoteFields";
 import BlogPostInlineProductCardFields from "../../components/BlogPostInlineProductCardFields";
 import BlogPostFirstPersonCalloutFields from "../../components/BlogPostFirstPersonCalloutFields";
 import BlogPostDetailsFields from "../../components/BlogPostDetailsFields";
+import { BlogPostContentEditorProvider } from "../../components/BlogPostContentEditorContext";
+import BlogPostFormValidationAlert from "../../components/BlogPostFormValidationAlert";
 import {
   buildBlogPostFormData,
   blogPostBaseSchema,
@@ -73,6 +75,7 @@ export default function EditBlogPost() {
     setValue,
     watch,
     reset,
+    trigger,
     formState: { isValid },
   } = useForm<BlogPostFormType>({
     mode: "all",
@@ -315,6 +318,7 @@ export default function EditBlogPost() {
         </Tabs>
       </Box>
 
+      <BlogPostContentEditorProvider>
       <form onSubmit={handleSubmit(onSubmit)}>
         <div role="tabpanel" hidden={activeTab !== 0}>
           {activeTab === 0 && (
@@ -378,7 +382,7 @@ export default function EditBlogPost() {
 
         <div role="tabpanel" hidden={activeTab !== 5}>
           <Paper sx={{ p: 4, display: activeTab === 5 ? "block" : "none" }}>
-            <BlogPostFirstPersonCalloutFields control={control} />
+            <BlogPostFirstPersonCalloutFields control={control} trigger={trigger} />
           </Paper>
         </div>
 
@@ -401,6 +405,7 @@ export default function EditBlogPost() {
           </Box>
         )}
       </form>
+      </BlogPostContentEditorProvider>
 
       <div role="tabpanel" hidden={activeTab !== 6}>
         {activeTab === 6 && (
