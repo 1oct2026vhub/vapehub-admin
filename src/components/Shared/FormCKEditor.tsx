@@ -47,6 +47,7 @@ interface FormCKEditorProps {
   defaultValue?: string;
   trigger?: any;
   required?: boolean;
+  onEditorReady?: (editor: unknown) => void;
 }
 
 const FormCKEditor = ({ 
@@ -54,7 +55,9 @@ const FormCKEditor = ({
   control, 
   label, 
   defaultValue = "",
-  required = false 
+  required = false,
+  onEditorReady,
+  trigger,
 }: FormCKEditorProps) => {
   const editorRef = useRef<any>(null);
   const editorWordCountRef = useRef<HTMLDivElement>(null);
@@ -1154,6 +1157,7 @@ const FormCKEditor = ({
                     
                     try {
                       configureEditor(editor);
+                      onEditorReady?.(editor);
                       
                       // Set initial content if provided
                       if (defaultValue && !field.value) {
@@ -1203,6 +1207,7 @@ const FormCKEditor = ({
                         if (!data.includes('<')) data = `<p>${data}</p>`;
                         data = removeDefaultHeadingFontSizes(data);
                         currentField.onChange(data);
+                        void trigger?.(name);
                       } catch (error) {
                         console.error('❌ Error getting CKEditor data:', error);
                         try {
@@ -1231,6 +1236,7 @@ const FormCKEditor = ({
                           if (!data.includes('<')) data = `<p>${data}</p>`;
                           field.onChange(removeDefaultHeadingFontSizes(data));
                         }
+                        void trigger?.(name);
                       } catch (e) {
                         console.error('❌ Error syncing CKEditor on blur:', e);
                       }

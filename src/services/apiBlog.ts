@@ -68,7 +68,8 @@ export interface BlogFirstPersonCallout {
   label?: string;
   heading: string;
   body: string;
-  insert_after_paragraph: number;
+  /** @deprecated Placement is via {{firstPersonCallout:n}} placeholders in content */
+  insert_after_paragraph?: number;
 }
 
 // Types for Blog Posts, Categories, and Tags

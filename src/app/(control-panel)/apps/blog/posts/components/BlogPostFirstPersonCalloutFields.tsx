@@ -3,15 +3,15 @@
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
 import {
+  Alert,
   Box,
   Button,
   Divider,
   Grid,
   IconButton,
-  TextField,
   Typography,
 } from "@mui/material";
-import { Control, Controller, useFieldArray, useFormState } from "react-hook-form";
+import { Control, useFieldArray, useFormState, type UseFormTrigger } from "react-hook-form";
 import FormCKEditor from "@/components/Shared/FormCKEditor";
 import FormInputField from "@/components/Shared/FormInputField";
 import {
@@ -20,13 +20,17 @@ import {
   defaultFirstPersonCalloutItem,
   type BlogPostFormType,
 } from "./blogPostFormShared";
+import BlogPlaceholderInsertButton from "./BlogPlaceholderInsertButton";
+import { BLOG_PLACEHOLDER_TOKENS } from "./blogPlaceholders";
 
 interface BlogPostFirstPersonCalloutFieldsProps {
   control: Control<BlogPostFormType>;
+  trigger?: UseFormTrigger<BlogPostFormType>;
 }
 
 export default function BlogPostFirstPersonCalloutFields({
   control,
+  trigger,
 }: BlogPostFirstPersonCalloutFieldsProps) {
   const { errors } = useFormState({ control });
   const { fields, append, remove } = useFieldArray({
@@ -35,18 +39,39 @@ export default function BlogPostFirstPersonCalloutFields({
   });
 
   const calloutErrors = errors.first_person_callouts;
+  const contentError =
+    typeof errors.content?.message === "string" ? errors.content.message : null;
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
+      {contentError ? (
+        <Alert severity="warning">
+          Article content: {contentError}
+        </Alert>
+      ) : null}
       <Box>
         <Typography variant="subtitle1" fontWeight={600}>
           First-person callout
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-          Optional. Renders inline in the article body — use when the piece benefits
-          from a &quot;from the warehouse / team&quot; anecdote that adds first-hand
-          experience. Maximum 2 callouts per article.
+          Optional. Configure each callout here. Add{" "}
+          {BLOG_PLACEHOLDER_TOKENS.firstPersonCallout(1)} in the article content to choose
+          placement, or leave it out and the callout will be appended when you save.
+          Maximum 2 callouts per article.
         </Typography>
+      </Box>
+
+      <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
+        <BlogPlaceholderInsertButton
+          token={BLOG_PLACEHOLDER_TOKENS.firstPersonCallout(1)}
+          label="First callout placeholder"
+          description="Copy and paste into the Content editor where callout 1 should appear."
+        />
+        <BlogPlaceholderInsertButton
+          token={BLOG_PLACEHOLDER_TOKENS.firstPersonCallout(2)}
+          label="Second callout placeholder"
+          description="Copy and paste into the Content editor where callout 2 should appear."
+        />
       </Box>
 
       {fields.length === 0 ? (
@@ -88,41 +113,6 @@ export default function BlogPostFirstPersonCalloutFields({
                 />
               </Grid>
 
-              <Grid item xs={12} md={6}>
-                <Controller
-                  name={`first_person_callouts.${index}.insert_after_paragraph`}
-                  control={control}
-                  render={({ field, fieldState: { error } }) => (
-                    <TextField
-                      label={
-                        <>
-                          Insert after paragraph <span style={{ color: "red" }}>*</span>
-                        </>
-                      }
-                      type="number"
-                      fullWidth
-                      variant="outlined"
-                      value={field.value === 0 ? "" : field.value}
-                      onChange={(event) => {
-                        const nextValue = event.target.value;
-                        field.onChange(
-                          nextValue === "" ? 0 : Number.parseInt(nextValue, 10),
-                        );
-                      }}
-                      onBlur={field.onBlur}
-                      name={field.name}
-                      error={!!error}
-                      helperText={
-                        error?.message ||
-                        "1-based paragraph index in the article body. Must be unique per callout."
-                      }
-                      inputProps={{ min: 1, step: 1 }}
-                      sx={commonFieldStyles}
-                    />
-                  )}
-                />
-              </Grid>
-
               <Grid item xs={12}>
                 <FormInputField
                   name={`first_person_callouts.${index}.heading`}
@@ -145,14 +135,10 @@ export default function BlogPostFirstPersonCalloutFields({
                   control={control}
                   label="Body copy"
                   required
+                  trigger={trigger}
                 />
-                {calloutErrors?.[index]?.body && (
-                  <Typography variant="caption" color="error" sx={{ mt: 0.5, display: "block" }}>
-                    {calloutErrors[index]?.body?.message}
-                  </Typography>
-                )}
                 <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1 }}>
-                  Rich-text HTML body for the anecdote (max 2,000 characters).
+                  Rich-text body for the anecdote (max 2,000 characters of visible text).
                 </Typography>
               </Grid>
             </Grid>

@@ -26,6 +26,8 @@ import {
   INLINE_PRODUCT_CARD_ENTITY_TYPE_OPTIONS,
   type BlogPostFormType,
 } from "./blogPostFormShared";
+import BlogPlaceholderInsertButton from "./BlogPlaceholderInsertButton";
+import { BLOG_PLACEHOLDER_TOKENS } from "./blogPlaceholders";
 
 interface EntityOption {
   id: number;
@@ -130,10 +132,16 @@ export default function BlogPostInlineProductCardFields({
           Inline product card
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-          Optional. Renders mid-article (~halfway through the body) when there is a
-          clear, on-topic product or category to spotlight. Max 1 per article.
+          Optional. Configure the card here, then insert {BLOG_PLACEHOLDER_TOKENS.inlineProductCard}{" "}
+          in the article content where it should appear. Max 1 per article.
         </Typography>
       </Box>
+
+      <BlogPlaceholderInsertButton
+        token={BLOG_PLACEHOLDER_TOKENS.inlineProductCard}
+        label="Inline product card placeholder"
+        description="Copy and paste into the Content editor where the product card should appear."
+      />
 
       <Controller
         name="inline_product_card.enabled"
@@ -272,13 +280,6 @@ export default function BlogPostInlineProductCardFields({
               helperText='Optional. e.g. "SHOP NIC SALTS"'
               sx={commonFieldStyles}
             />
-          </Grid>
-
-          <Grid item xs={12}>
-            <Typography variant="caption" color="text.secondary">
-              Placement is fixed to mid-article (~halfway through the body). Image and
-              URL are hydrated from the selected product or category on the storefront.
-            </Typography>
           </Grid>
         </Grid>
       ) : (

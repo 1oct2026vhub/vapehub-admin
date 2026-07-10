@@ -27,6 +27,8 @@ import {
   MIN_IMAGE_WIDTH,
   type BlogPostFormType,
 } from "./blogPostFormShared";
+import { BLOG_PLACEHOLDER_TOKENS } from "./blogPlaceholders";
+import BlogPlaceholderInsertButton from "./BlogPlaceholderInsertButton";
 
 interface BlogPostDetailsFieldsProps {
   control: Control<BlogPostFormType>;
@@ -97,6 +99,27 @@ export default function BlogPostDetailsFields({
           table of contents from them. Add 2–4 internal product or category links via
           the link tool (accent-green underline on the storefront).
         </Typography>
+        <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1 }}>
+          Place optional inline blocks anywhere in the article using placeholders. Configure
+          each block in its tab, then copy the matching token below into the content editor.
+        </Typography>
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5, mt: 2 }}>
+          <BlogPlaceholderInsertButton
+            token={BLOG_PLACEHOLDER_TOKENS.pullQuote}
+            label="Pull quote"
+            description="Renders the pull quote block configured in the Pull Quote tab."
+          />
+          <BlogPlaceholderInsertButton
+            token={BLOG_PLACEHOLDER_TOKENS.inlineProductCard}
+            label="Inline product card"
+            description="Renders the product card configured in the Inline Product Card tab."
+          />
+          <BlogPlaceholderInsertButton
+            token={BLOG_PLACEHOLDER_TOKENS.firstPersonCallout(1)}
+            label="First-person callout"
+            description="Use {{firstPersonCallout:1}} and {{firstPersonCallout:2}} for multiple callouts."
+          />
+        </Box>
       </Grid>
 
       <Grid item xs={12}>

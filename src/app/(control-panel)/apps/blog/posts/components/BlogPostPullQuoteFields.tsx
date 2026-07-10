@@ -19,6 +19,8 @@ import {
   PULL_QUOTE_SOURCE_TYPE_OPTIONS,
   type BlogPostFormType,
 } from "./blogPostFormShared";
+import BlogPlaceholderInsertButton from "./BlogPlaceholderInsertButton";
+import { BLOG_PLACEHOLDER_TOKENS } from "./blogPlaceholders";
 
 interface BlogPostPullQuoteFieldsProps {
   control: Control<BlogPostFormType>;
@@ -36,10 +38,17 @@ export default function BlogPostPullQuoteFields({
           Pull quote (authoritative source)
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-          Optional. Renders mid-body after a major H2 on the live article. Attribute
-          to an authoritative external source — not internal staff.
+          Optional. Configure the quote here, then insert {BLOG_PLACEHOLDER_TOKENS.pullQuote}{" "}
+          in the article content where it should appear. Attribute to an authoritative
+          external source — not internal staff.
         </Typography>
       </Box>
+
+      <BlogPlaceholderInsertButton
+        token={BLOG_PLACEHOLDER_TOKENS.pullQuote}
+        label="Pull quote placeholder"
+        description="Copy and paste into the Content editor where the pull quote should appear."
+      />
 
       <Controller
         name="pull_quote.enabled"
@@ -128,12 +137,6 @@ export default function BlogPostPullQuoteFields({
                   helperText="Valid http/https URL from an external domain (not VapeHub)."
                   sx={commonFieldStyles}
                 />
-              </Grid>
-
-              <Grid item xs={12}>
-                <Typography variant="caption" color="text.secondary">
-                  Placement is fixed to mid-body after a major H2 section heading.
-                </Typography>
               </Grid>
             </Grid>
           ) : (
