@@ -2,6 +2,7 @@ import { z } from "zod";
 import { SxProps, Theme } from "@mui/material/styles";
 import type {
   BlogAuthorOverride,
+  BlogFirstPersonCallout,
   BlogInlineProductCardEntityType,
   BlogPost,
   BlogPullQuoteSourceType,
@@ -242,6 +243,93 @@ export const defaultInlineProductCard: z.infer<typeof inlineProductCardSchema> =
   cta_label: "",
 };
 
+function stripHtml(value: string): string {
+  return value.replace(/<[^>]*>/g, "").replace(/&nbsp;/g, " ").trim();
+}
+
+export const DEFAULT_FIRST_PERSON_CALLOUT_LABEL = "FROM OUR WAREHOUSE";
+
+const firstPersonCalloutItemSchema = z.object({
+  label: z.string().max(100, "Label must not exceed 100 characters").optional(),
+  heading: z.string().max(255, "Heading must not exceed 255 characters"),
+  body: z.string(),
+  insert_after_paragraph: z.coerce.number(),
+});
+
+const firstPersonCalloutsSchema = z
+  .array(firstPersonCalloutItemSchema)
+  .max(2, "Maximum 2 first-person callouts per article")
+  .superRefine((items, ctx) => {
+    const paragraphIndexes = new Set<number>();
+
+    items.forEach((item, index) => {
+      if (!item.heading.trim()) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Heading is required",
+          path: [index, "heading"],
+        });
+      }
+
+      if (!stripHtml(item.body)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Body copy is required",
+          path: [index, "body"],
+        });
+      } else if (item.body.length > 2000) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Body copy must not exceed 2000 characters",
+          path: [index, "body"],
+        });
+      }
+
+      if (!Number.isFinite(item.insert_after_paragraph) || item.insert_after_paragraph < 1) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Insert after paragraph is required (minimum 1)",
+          path: [index, "insert_after_paragraph"],
+        });
+      } else if (paragraphIndexes.has(item.insert_after_paragraph)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Insert after paragraph must be unique for each callout",
+          path: [index, "insert_after_paragraph"],
+        });
+      } else {
+        paragraphIndexes.add(item.insert_after_paragraph);
+      }
+    });
+  });
+
+export const defaultFirstPersonCalloutItem: z.infer<typeof firstPersonCalloutItemSchema> = {
+  label: "",
+  heading: "",
+  body: "",
+  insert_after_paragraph: 0,
+};
+
+function parseInsertAfterParagraph(value: unknown): number {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return Math.trunc(value);
+  }
+
+  const parsed = Number.parseInt(String(value ?? ""), 10);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+export function buildFirstPersonCalloutsPayload(
+  callouts: BlogPostFormType["first_person_callouts"] | undefined,
+): BlogFirstPersonCallout[] {
+  return (callouts ?? []).map((callout) => ({
+    label: callout.label?.trim() || DEFAULT_FIRST_PERSON_CALLOUT_LABEL,
+    heading: callout.heading.trim(),
+    body: callout.body,
+    insert_after_paragraph: parseInsertAfterParagraph(callout.insert_after_paragraph),
+  }));
+}
+
 const authorOverrideSchema = z.object({
   first_name: z.string().optional(),
   last_name: z.string().optional(),
@@ -303,6 +391,7 @@ export const blogPostBaseSchema = z.object({
   redirect_url: z.string().url("Invalid URL format").optional().or(z.literal("")),
   pull_quote: pullQuoteSchema.default(defaultPullQuote),
   inline_product_card: inlineProductCardSchema.default(defaultInlineProductCard),
+  first_person_callouts: firstPersonCalloutsSchema.default([]),
 });
 
 export type BlogPostFormType = z.infer<typeof blogPostBaseSchema>;
@@ -328,6 +417,7 @@ export const blogPostDefaultValues: BlogPostFormType = {
   redirect_url: "",
   pull_quote: { ...defaultPullQuote },
   inline_product_card: { ...defaultInlineProductCard },
+  first_person_callouts: [],
 };
 
 function mapSourceToFormValue(source: BlogSource & { text?: string; url?: string }) {
@@ -422,6 +512,12 @@ export function mapBlogPostToFormValues(post: BlogPost): BlogPostFormType {
           cta_label: post.inline_product_card.cta_label || "",
         }
       : { ...defaultInlineProductCard },
+    first_person_callouts: (post.first_person_callouts || []).map((callout) => ({
+      label: callout.label || "",
+      heading: callout.heading || "",
+      body: callout.body || "",
+      insert_after_paragraph: callout.insert_after_paragraph ?? 0,
+    })),
   };
 }
 
@@ -542,6 +638,17 @@ export function buildBlogPostFormData(
     formData.append("inline_product_card", JSON.stringify(cardPayload));
   } else if (options?.isEdit) {
     formData.append("inline_product_card", "");
+  }
+
+  const firstPersonCallouts = data.first_person_callouts ?? [];
+
+  if (firstPersonCallouts.length > 0) {
+    formData.append(
+      "first_person_callouts",
+      JSON.stringify(buildFirstPersonCalloutsPayload(firstPersonCallouts)),
+    );
+  } else if (options?.isEdit) {
+    formData.append("first_person_callouts", "");
   }
 
   return formData;

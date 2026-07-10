@@ -33,6 +33,7 @@ import BlogPostEeatSections from "../../components/BlogPostEeatSections";
 import RelatedGuidesPicker from "../../components/RelatedGuidesPicker";
 import BlogPostPullQuoteFields from "../../components/BlogPostPullQuoteFields";
 import BlogPostInlineProductCardFields from "../../components/BlogPostInlineProductCardFields";
+import BlogPostFirstPersonCalloutFields from "../../components/BlogPostFirstPersonCalloutFields";
 import BlogPostDetailsFields from "../../components/BlogPostDetailsFields";
 import {
   buildBlogPostFormData,
@@ -280,7 +281,7 @@ export default function EditBlogPost() {
     );
   }
 
-  const showSaveBar = activeTab !== 5;
+  const showSaveBar = activeTab !== 6;
 
   return (
     <div className="md:px-14 p-4">
@@ -309,6 +310,7 @@ export default function EditBlogPost() {
           <Tab label="Related Guides" />
           <Tab label="Pull Quote" />
           <Tab label="Inline Product Card" />
+          <Tab label="First-person Callout" />
           <Tab label="SEO" />
         </Tabs>
       </Box>
@@ -374,6 +376,12 @@ export default function EditBlogPost() {
           )}
         </div>
 
+        <div role="tabpanel" hidden={activeTab !== 5}>
+          <Paper sx={{ p: 4, display: activeTab === 5 ? "block" : "none" }}>
+            <BlogPostFirstPersonCalloutFields control={control} />
+          </Paper>
+        </div>
+
         {showSaveBar && (
           <Box
             sx={{
@@ -394,8 +402,8 @@ export default function EditBlogPost() {
         )}
       </form>
 
-      <div role="tabpanel" hidden={activeTab !== 5}>
-        {activeTab === 5 && (
+      <div role="tabpanel" hidden={activeTab !== 6}>
+        {activeTab === 6 && (
           <Paper sx={{ p: 4 }}>
             <SeoForm
               entityId={post.id}
