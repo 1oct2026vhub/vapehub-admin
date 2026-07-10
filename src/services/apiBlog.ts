@@ -64,6 +64,13 @@ export interface BlogInlineProductCard {
   product?: BlogInlineProductCardProduct;
 }
 
+export interface BlogFirstPersonCallout {
+  label?: string;
+  heading: string;
+  body: string;
+  insert_after_paragraph: number;
+}
+
 // Types for Blog Posts, Categories, and Tags
 export interface BlogPost {
   id: number;
@@ -104,6 +111,7 @@ export interface BlogPost {
   redirect?: { redirect_url?: string };
   pull_quote?: BlogPullQuote | null;
   inline_product_card?: BlogInlineProductCard | null;
+  first_person_callouts?: BlogFirstPersonCallout[];
 }
 
 export interface BlogCategory {
