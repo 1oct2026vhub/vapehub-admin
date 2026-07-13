@@ -1,13 +1,9 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { TextField } from "@mui/material";
-import {
-  Control,
-  Controller,
-  UseFormSetValue,
-  useWatch,
-} from "react-hook-form";
+import { Grid } from "@mui/material";
+import { Control, UseFormSetValue, useWatch } from "react-hook-form";
+import FormInputField from "@/components/Shared/FormInputField";
 import { getUser } from "@/utils/auth";
 import {
   commonFieldStyles,
@@ -19,14 +15,6 @@ interface AuthorNameFieldProps {
   setValue: UseFormSetValue<BlogPostFormType>;
   /** Edit flow: name already resolved from author / author_override. */
   disableDefaults?: boolean;
-}
-
-function formatAuthorDisplayName(
-  override: BlogPostFormType["author_override"] | undefined,
-): string {
-  return [override?.first_name, override?.last_name]
-    .filter((part): part is string => typeof part === "string" && part.length > 0)
-    .join(" ");
 }
 
 function getLoggedInAdminDefaults(): {
@@ -111,27 +99,25 @@ export default function AuthorNameField({
   }, [authorId, authorOverride, setValue, disableDefaults]);
 
   return (
-    <Controller
-      name="author_override"
-      control={control}
-      render={({ field: { value, onChange } }) => (
-        <TextField
-          label="Author"
-          variant="outlined"
-          fullWidth
-          value={formatAuthorDisplayName(value)}
-          onChange={(event) => {
-            // Keep the full free-text name editable as a single string.
-            onChange({
-              ...(value || {}),
-              first_name: event.target.value,
-              last_name: "",
-            });
-          }}
-          helperText="Shown in the author byline. Defaults to the logged-in admin; edit freely to use any name."
+    <Grid container spacing={2}>
+      <Grid item xs={12} md={6}>
+        <FormInputField
+          name="author_override.first_name"
+          control={control}
+          label="First name"
+          helperText="Shown in the author byline. Defaults to the logged-in admin."
           sx={commonFieldStyles}
         />
-      )}
-    />
+      </Grid>
+      <Grid item xs={12} md={6}>
+        <FormInputField
+          name="author_override.last_name"
+          control={control}
+          label="Last name"
+          helperText="Shown in the author byline. Defaults to the logged-in admin."
+          sx={commonFieldStyles}
+        />
+      </Grid>
+    </Grid>
   );
 }
