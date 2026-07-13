@@ -27,6 +27,8 @@ interface AuthorBioBlockProps {
   control: Control<BlogPostFormType>;
   setValue: UseFormSetValue<BlogPostFormType>;
   defaultAvatarUrl?: string;
+  /** When true, form was hydrated from blog detail — don't refetch/overwrite author fields. */
+  skipAuthorProfileLoad?: boolean;
 }
 
 type AuthorUserFields = {
@@ -66,28 +68,11 @@ function mapUserToAuthorOverride(
   };
 }
 
-function hasAuthorOverrideData(
-  override: BlogPostFormType["author_override"] | undefined,
-): boolean {
-  if (!override) {
-    return false;
-  }
-
-  return Boolean(
-    override.first_name?.trim() ||
-      override.last_name?.trim() ||
-      override.role?.trim() ||
-      override.bio?.trim() ||
-      override.avatar_url?.trim() ||
-      override.archive_url?.trim() ||
-      override.team_url?.trim(),
-  );
-}
-
 export default function AuthorBioBlock({
   control,
   setValue,
   defaultAvatarUrl,
+  skipAuthorProfileLoad = false,
 }: AuthorBioBlockProps) {
   const authorId = useWatch({ control, name: "author_id" });
   const authorOverride = useWatch({ control, name: "author_override" });
@@ -123,16 +108,12 @@ export default function AuthorBioBlock({
       return;
     }
 
-    if (lastLoadedAuthorId.current === authorId) {
+    if (skipAuthorProfileLoad) {
+      lastLoadedAuthorId.current = authorId;
       return;
     }
 
-    // Edit flow: blog detail API already hydrated author_override — don't overwrite.
-    if (
-      lastLoadedAuthorId.current === null &&
-      hasAuthorOverrideData(authorOverride)
-    ) {
-      lastLoadedAuthorId.current = authorId;
+    if (lastLoadedAuthorId.current === authorId) {
       return;
     }
 
@@ -143,7 +124,22 @@ export default function AuthorBioBlock({
         const response = await getUserDetail(authorId);
         const user = parseUserDetailResponse(response);
         if (!cancelled && user) {
-          setValue("author_override", mapUserToAuthorOverride(user));
+          const profile = mapUserToAuthorOverride(user);
+          // Preserve byline name/role already entered; only fill empty bio fields.
+          setValue("author_override", {
+            first_name:
+              authorOverride?.first_name?.trim() || profile.first_name || "",
+            last_name:
+              authorOverride?.last_name?.trim() || profile.last_name || "",
+            role: authorOverride?.role?.trim() || profile.role || "",
+            bio: authorOverride?.bio?.trim() || profile.bio || "",
+            avatar_url:
+              authorOverride?.avatar_url?.trim() || profile.avatar_url || "",
+            archive_url:
+              authorOverride?.archive_url?.trim() || profile.archive_url || "",
+            team_url:
+              authorOverride?.team_url?.trim() || profile.team_url || "",
+          });
           lastLoadedAuthorId.current = authorId;
         }
       } catch (error) {
@@ -156,7 +152,7 @@ export default function AuthorBioBlock({
     return () => {
       cancelled = true;
     };
-  }, [authorId, authorOverride, setValue]);
+  }, [authorId, authorOverride, setValue, skipAuthorProfileLoad]);
 
   const override = authorOverride || defaultAuthorOverride;
   const displayName = getAuthorDisplayName(override);
@@ -172,9 +168,9 @@ export default function AuthorBioBlock({
         Author bio block
       </Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-        Rendered after the Sources block on the live post. Select an admin author
-        in the byline above to load profile defaults; photo is optional (neutral
-        silhouette when empty).
+        Rendered after the Sources block on the live post. Uses the byline author
+        name above; profile defaults load from the linked admin when available.
+        Photo is optional (neutral silhouette when empty).
       </Typography>
 
       {!hasAuthor ? (
@@ -187,7 +183,8 @@ export default function AuthorBioBlock({
             color: "text.secondary",
           }}
         >
-          Select an author in the byline section above to configure the bio block.
+          Author bio will appear once the logged-in admin is linked. You can still
+          edit the byline name above.
         </Box>
       ) : (
         <>

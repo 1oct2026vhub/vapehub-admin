@@ -467,11 +467,6 @@ export const blogPostBaseSchema = z
 
 export type BlogPostFormType = z.infer<typeof blogPostBaseSchema>;
 
-export type BlogAuthorOption = {
-  id: number;
-  label: string;
-};
-
 export const blogPostDefaultValues: BlogPostFormType = {
   title: "",
   content: "",
@@ -499,9 +494,33 @@ function mapSourceToFormValue(source: BlogSource & { text?: string; url?: string
   };
 }
 
-function mapAuthorOverrideFromPost(post: BlogPost): BlogPostFormType["author_override"] {
-  const override = post.author_override;
-  if (override) {
+/** True when the API returned a real author_override (user edited author details). */
+export function hasAuthorOverrideContent(
+  override?: BlogAuthorOverride | null,
+): boolean {
+  if (!override || typeof override !== "object") {
+    return false;
+  }
+
+  return Boolean(
+    override.first_name?.trim() ||
+      override.last_name?.trim() ||
+      override.role?.trim() ||
+      override.bio?.trim() ||
+      override.avatar_url?.trim() ||
+      override.archive_url?.trim() ||
+      override.team_url?.trim(),
+  );
+}
+
+/**
+ * Blog detail API rule:
+ * - If author_override has content → use override (user customized byline/bio)
+ * - Otherwise → use author (linked admin profile)
+ */
+export function resolveAuthorFieldsFromPost(post: BlogPost): BlogPostFormType["author_override"] {
+  if (hasAuthorOverrideContent(post.author_override)) {
+    const override = post.author_override!;
     return {
       first_name: override.first_name || "",
       last_name: override.last_name || "",
@@ -527,6 +546,10 @@ function mapAuthorOverrideFromPost(post: BlogPost): BlogPostFormType["author_ove
     archive_url: author.blog_author_archive_url || "",
     team_url: author.blog_author_team_url || "",
   };
+}
+
+function mapAuthorOverrideFromPost(post: BlogPost): BlogPostFormType["author_override"] {
+  return resolveAuthorFieldsFromPost(post);
 }
 
 export function mapBlogPostToFormValues(post: BlogPost): BlogPostFormType {

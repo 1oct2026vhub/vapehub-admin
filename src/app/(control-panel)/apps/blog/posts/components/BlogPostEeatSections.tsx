@@ -11,18 +11,18 @@ import {
 import FormInputField from "@/components/Shared/FormInputField";
 import FormTextareaField from "@/components/Shared/FormTextareaField";
 import AuthorBioBlock from "./AuthorBioBlock";
-import AuthorSelectField from "./AuthorSelectField";
+import AuthorNameField from "./AuthorNameField";
 import {
   commonFieldStyles,
-  type BlogAuthorOption,
   type BlogPostFormType,
 } from "./blogPostFormShared";
 
 interface BlogPostEeatSectionsProps {
   control: Control<BlogPostFormType>;
   setValue: UseFormSetValue<BlogPostFormType>;
-  initialAuthor?: BlogAuthorOption | null;
   defaultAvatarUrl?: string;
+  /** Edit flow: author fields already resolved from author / author_override. */
+  skipAuthorProfileLoad?: boolean;
 }
 
 function SectionHeading({
@@ -49,8 +49,8 @@ function SectionHeading({
 export default function BlogPostEeatSections({
   control,
   setValue,
-  initialAuthor,
   defaultAvatarUrl,
+  skipAuthorProfileLoad = false,
 }: BlogPostEeatSectionsProps) {
   const {
     fields: sourceFields,
@@ -63,11 +63,15 @@ export default function BlogPostEeatSections({
       <Box>
         <SectionHeading
           title="Author byline"
-          description="Powers the author line below the post title. Defaults to the authenticated admin when omitted."
+          description="Powers the author line below the post title. Defaults to the logged-in admin; you can edit the name freely."
         />
         <Grid container spacing={2}>
           <Grid item xs={12}>
-            <AuthorSelectField control={control} initialAuthor={initialAuthor} />
+            <AuthorNameField
+              control={control}
+              setValue={setValue}
+              disableDefaults={skipAuthorProfileLoad}
+            />
           </Grid>
           <Grid item xs={12}>
             <FormInputField
@@ -153,6 +157,7 @@ export default function BlogPostEeatSections({
         control={control}
         setValue={setValue}
         defaultAvatarUrl={defaultAvatarUrl}
+        skipAuthorProfileLoad={skipAuthorProfileLoad}
       />
     </Box>
   );
