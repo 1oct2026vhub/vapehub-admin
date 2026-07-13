@@ -42,6 +42,7 @@ import {
   blogPostBaseSchema,
   blogPostDefaultValues,
   mapBlogPostToFormValues,
+  resolveAuthorFieldsFromPost,
   MIN_IMAGE_HEIGHT,
   MIN_IMAGE_WIDTH,
   MAX_IMAGE_HEIGHT,
@@ -88,23 +89,9 @@ export default function EditBlogPost() {
   const currentStatus = watch("status");
   const imageValue = watch("image");
 
-  const initialAuthor = useMemo(() => {
-    if (!post?.author?.id) return null;
-    const name = [post.author.first_name, post.author.last_name]
-      .filter(Boolean)
-      .join(" ");
-    return {
-      id: post.author.id,
-      label: name || post.author.email || `User #${post.author.id}`,
-    };
-  }, [post]);
-
   const defaultAvatarUrl = useMemo(() => {
-    return (
-      post?.author_override?.avatar_url ||
-      post?.author?.profile_pic_url ||
-      undefined
-    );
+    if (!post) return undefined;
+    return resolveAuthorFieldsFromPost(post).avatar_url || undefined;
   }, [post]);
 
   const fetchCategories = debounce(async (searchTerm: string) => {
@@ -349,8 +336,8 @@ export default function EditBlogPost() {
               <BlogPostEeatSections
                 control={control}
                 setValue={setValue}
-                initialAuthor={initialAuthor}
                 defaultAvatarUrl={defaultAvatarUrl}
+                skipAuthorProfileLoad
               />
             </Paper>
           )}

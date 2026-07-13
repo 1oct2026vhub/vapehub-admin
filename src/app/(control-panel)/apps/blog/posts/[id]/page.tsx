@@ -24,6 +24,7 @@ import { formatDate } from "@/utils/actions";
 import FuseSvgIcon from "@fuse/core/FuseSvgIcon";
 import { ckEditorStyles, ckEditorBoxStyles } from "@/styles/ckEditorStyles";
 import PageBreadcrumb from "@/components/PageBreadcrumb";
+import { resolveAuthorFieldsFromPost } from "../components/blogPostFormShared";
 
 export default function BlogPostDetailPage() {
   const { id } = useParams();
@@ -271,25 +272,38 @@ export default function BlogPostDetailPage() {
                   Author Information
                 </Typography>
 
-              <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
-                      <Avatar sx={{ mr: 2 }}>
-                        {post.author?.first_name
-                          ? post.author.first_name[0]
-                          : post.author?.last_name
-                          ? post.author.last_name[0]
-                          : post.author?.email
-                          ? post.author.email[0]
-                          : "N/A"}
-                      </Avatar>
+                {(() => {
+                  const authorFields = resolveAuthorFieldsFromPost(post);
+                  const displayName =
+                    [authorFields.first_name, authorFields.last_name]
+                      .filter(Boolean)
+                      .join(" ")
+                      .trim() ||
+                    post.author?.email ||
+                    "N/A";
+                  const initial = displayName[0] || "N";
 
+                  return (
+                    <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
+                      <Avatar
+                        src={authorFields.avatar_url || undefined}
+                        sx={{ mr: 2 }}
+                      >
+                        {initial}
+                      </Avatar>
                       <Box>
                         <Typography variant="subtitle1" fontWeight="bold">
-                          {post.author?.first_name || post.author?.last_name
-                            ? `${post.author?.first_name || ""} ${post.author?.last_name || ""}`.trim()
-                            : post.author?.email || "N/A"}
+                          {displayName}
                         </Typography>
+                        {authorFields.role ? (
+                          <Typography variant="body2" color="text.secondary">
+                            {authorFields.role}
+                          </Typography>
+                        ) : null}
                       </Box>
                     </Box>
+                  );
+                })()}
 
               </CardContent>
             </Card>
