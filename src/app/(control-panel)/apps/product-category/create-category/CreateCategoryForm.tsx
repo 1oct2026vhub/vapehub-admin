@@ -3,12 +3,19 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useRouter } from "next/navigation";
-import { Alert, Typography, Box } from "@mui/material";
+import { Alert, Typography, Box, Tabs, Tab } from "@mui/material";
 import AppButton from "@/components/Shared/AppButton";
 import FormInputField from "@/components/Shared/FormInputField";
 import FormCKEditor from "@/components/Shared/FormCKEditor";
 import { usePost } from "@/hooks/useFetch";
-import { createCategory, getEntityBanners, createEntityBanner, updateEntityBanner, deleteEntityBanner } from "@/services/apiProductCategory";
+import {
+  createCategory,
+  getEntityBanners,
+  createEntityBanner,
+  updateEntityBanner,
+  deleteEntityBanner,
+  saveCategoryRelatedCategories,
+} from "@/services/apiProductCategory";
 import { useSnackbar } from "@/contexts/SnackbarContext";
 import FormFileUploadField from "@/components/Shared/FormFileUploadField";
 import { useState, useEffect } from "react";
@@ -18,6 +25,7 @@ import DeleteConfirmationModal from "@/components/Shared/DeleteConfirmationModal
 import { Grid, IconButton, Card, CardMedia, CardContent, CardActions } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
+import RelatedCategoriesSelector from "../components/RelatedCategoriesSelector";
 
 // const schema = z.object({
 //   name: z.string().min(1, "Brand Name is required"),
@@ -140,6 +148,8 @@ function CreateCategoryForm() {
   const [isDeletingBanner, setIsDeletingBanner] = useState<number | null>(null);
   const [bannerToDelete, setBannerToDelete] = useState<number | null>(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<number>(0); // 0 Details, 1 Related Categories
+  const [relatedCategoryIds, setRelatedCategoryIds] = useState<number[]>([]);
 
   const { control, formState, handleSubmit, setValue, watch } = useForm<InferredSchemaType>({
     mode: "all",
@@ -201,7 +211,26 @@ function CreateCategoryForm() {
       setCreatedCategoryId(categoryId);
 
       showSnackbar("Category created successfully!", "success");
-      if (categoryId) {
+        if (categoryId) {
+          const cleanedRelatedIds = Array.from(new Set(relatedCategoryIds)).slice(
+            0,
+            3
+          );
+          try {
+            await saveCategoryRelatedCategories(
+              Number(categoryId),
+              cleanedRelatedIds
+            );
+          } catch (relError: any) {
+            const msg =
+              relError?.response?.data?.errors?.[0]?.msg ||
+              relError?.response?.data?.message ||
+              relError?.errors?.[0]?.msg ||
+              relError?.message ||
+              "Category created, but failed to save related categories";
+            showSnackbar(msg, "error");
+          }
+
         router.push(
           `/apps/product-category/category-update/${categoryId}?tab=buying-guide`
         );
@@ -341,6 +370,24 @@ function CreateCategoryForm() {
           New Category
         </Typography>
       </div>
+      <Box sx={{ borderBottom: 1, borderColor: "divider", mb: 3 }}>
+        <Tabs
+          value={activeTab}
+          onChange={(_, value) => setActiveTab(value)}
+          aria-label="category create tabs"
+        >
+          <Tab
+            label="Category Details"
+            id="category-create-details-tab"
+            aria-controls="category-create-details-panel"
+          />
+          <Tab
+            label="Related Categories"
+            id="category-create-related-categories-tab"
+            aria-controls="category-create-related-categories-panel"
+          />
+        </Tabs>
+      </Box>
       <form
         name="categoryForm"
         noValidate
@@ -353,54 +400,69 @@ function CreateCategoryForm() {
           </Alert>
         )}
 
-        <FormInputField
-          name="name"
-          control={control}
-          label="Name"
-          type="text"
-          required
-        />
-        <FormInputField
-          name="slug"
-          control={control}
-          label="Slug"
-          type="text"
-          required
-        />
-        <FormCKEditor
-          name="description"
-          control={control}
-          label="Description"
-        />
-        
-        <Box sx={{ mt: 2, mb: 2 }}>
-          <FormFileUploadField
-            name="logo"
+        <Box hidden={activeTab !== 0}>
+          <FormInputField
+            name="name"
             control={control}
-            label="Category Logo"
-            onFileChange={(file) => {
-              setSelectedFile(file);
-              setValue("logo", file, { shouldValidate: true });
-            }}
-            helperText={`Upload a category slider image (${MAX_IMAGE_WIDTH} × ${MAX_IMAGE_HEIGHT} px, Max size: 5MB). Supported formats: PNG, JPG, JPEG, WebP`}
+            label="Name"
+            type="text"
+            required
           />
+          <FormInputField
+            name="slug"
+            control={control}
+            label="Slug"
+            type="text"
+            required
+          />
+          <FormCKEditor
+            name="description"
+            control={control}
+            label="Description"
+          />
+
+          <Box sx={{ mt: 2, mb: 2 }}>
+            <FormFileUploadField
+              name="logo"
+              control={control}
+              label="Category Logo"
+              onFileChange={(file) => {
+                setSelectedFile(file);
+                setValue("logo", file, { shouldValidate: true });
+              }}
+              helperText={`Upload a category slider image (${MAX_IMAGE_WIDTH} × ${MAX_IMAGE_HEIGHT} px, Max size: 5MB). Supported formats: PNG, JPG, JPEG, WebP`}
+            />
+          </Box>
+
+          {(selectedFile || logoValue) && (
+            <FormInputField
+              name="alt_text"
+              control={control}
+              label="Alt Text"
+              type="text"
+            />
+          )}
+
+          <div className="mt-6">
+            <FormInputField
+              name="parent_id"
+              control={control}
+              label="Parent ID"
+              type="number"
+            />
+          </div>
         </Box>
 
-        {(selectedFile || logoValue) && (
-          <FormInputField
-            name="alt_text"
-            control={control}
-            label="Alt Text"
-            type="text"
-          />
-        )}
-
-        <div className="mt-6">
-          <FormInputField
-            name="parent_id"
-            control={control}
-            label="Parent ID"
-            type="number"
+        <div
+          role="tabpanel"
+          hidden={activeTab !== 1}
+          id="category-create-related-categories-panel"
+          aria-labelledby="category-create-related-categories-tab"
+        >
+          <RelatedCategoriesSelector
+            selectedIds={relatedCategoryIds}
+            onSelectedIdsChange={setRelatedCategoryIds}
+            maxCount={3}
           />
         </div>
 
