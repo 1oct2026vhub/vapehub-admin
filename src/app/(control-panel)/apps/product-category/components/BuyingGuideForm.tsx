@@ -33,6 +33,11 @@ import {
   type BuyingGuideTab,
   type CategoryBuyingGuide,
 } from "@/services/apiCategoryBuyingGuide";
+import {
+  getBrandBuyingGuide,
+  saveBrandBuyingGuide,
+  type BrandBuyingGuide,
+} from "@/services/apiBrandBuyingGuide";
 
 const MAX_HIGHLIGHTS = 3;
 const MAX_RELATED_BLOGS = 3;
@@ -124,8 +129,11 @@ interface BlogOption {
 }
 
 interface BuyingGuideFormProps {
-  categoryId: number;
+  categoryId?: number;
   categoryName?: string;
+  brandId?: number;
+  brandName?: string;
+  entityType?: "category" | "brand";
 }
 
 const defaultValues: BuyingGuideFormType = {
@@ -179,7 +187,9 @@ const inputFieldSx = {
   },
 } as const;
 
-function resolveRelatedBlogs(guide: CategoryBuyingGuide): BlogOption[] {
+type BuyingGuide = CategoryBuyingGuide | BrandBuyingGuide;
+
+function resolveRelatedBlogs(guide: BuyingGuide): BlogOption[] {
   if (guide.related_blogs?.length) {
     return guide.related_blogs.map((blog) => ({
       id: blog.id,
@@ -194,8 +204,8 @@ function resolveRelatedBlogs(guide: CategoryBuyingGuide): BlogOption[] {
 }
 
 function mapGuideToFormValues(
-  guide: CategoryBuyingGuide,
-  categoryName?: string
+  guide: BuyingGuide,
+  entityName?: string
 ): BuyingGuideFormType {
   const highlights =
     guide.highlights?.length > 0
@@ -214,7 +224,7 @@ function mapGuideToFormValues(
   return {
     is_enabled: guide.is_enabled ?? false,
     guide_label: guide.guide_label || "Buying Guide",
-    title: guide.title || categoryName || "",
+    title: guide.title || entityName || "",
     intro_content: guide.intro_content || "",
     banner_image: guide.banner_image || null,
     banner_alt: guide.banner_alt || "",
@@ -227,7 +237,14 @@ function mapGuideToFormValues(
 export default function BuyingGuideForm({
   categoryId,
   categoryName,
+  brandId,
+  brandName,
+  entityType = "category",
 }: BuyingGuideFormProps) {
+  const isBrand = entityType === "brand";
+  const entityId = isBrand ? brandId : categoryId;
+  const entityName = isBrand ? brandName : categoryName;
+  const entityLabel = isBrand ? "brand" : "category";
   const { showSnackbar } = useSnackbar();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -242,7 +259,7 @@ export default function BuyingGuideForm({
       resolver: zodResolver(buyingGuideSchema),
       defaultValues: {
         ...defaultValues,
-        title: categoryName || "",
+        title: entityName || "",
       },
       mode: "onChange",
     });
@@ -312,27 +329,29 @@ export default function BuyingGuideForm({
 
   useEffect(() => {
     const fetchBuyingGuide = async () => {
-      if (!categoryId) return;
+      if (!entityId) return;
 
       try {
         setLoading(true);
-        const response = await getCategoryBuyingGuide(categoryId);
+        const response = isBrand
+          ? await getBrandBuyingGuide(entityId)
+          : await getCategoryBuyingGuide(entityId);
         const guide = response?.data?.buyingGuide;
 
         if (guide) {
-          reset(mapGuideToFormValues(guide, categoryName));
+          reset(mapGuideToFormValues(guide, entityName));
           setBannerImageUrl(guide.banner_image || undefined);
           setBannerCleared(false);
           setBannerFile(null);
-        } else if (categoryName) {
-          setValue("title", categoryName);
+        } else if (entityName) {
+          setValue("title", entityName);
         }
       } catch (error: any) {
         if (error?.response?.status !== 404) {
           console.error("Failed to fetch buying guide:", error);
         }
-        if (categoryName) {
-          setValue("title", categoryName);
+        if (entityName) {
+          setValue("title", entityName);
         }
       } finally {
         setLoading(false);
@@ -340,7 +359,7 @@ export default function BuyingGuideForm({
     };
 
     fetchBuyingGuide();
-  }, [categoryId, categoryName, reset, setValue]);
+  }, [entityId, entityName, isBrand, reset, setValue]);
 
   const onSubmit = async (formData: BuyingGuideFormType) => {
     setSaving(true);
@@ -358,7 +377,11 @@ export default function BuyingGuideForm({
         })
       );
 
-      const response = await saveCategoryBuyingGuide(categoryId, {
+      if (!entityId) {
+        throw new Error(`${isBrand ? "Brand" : "Category"} ID is missing`);
+      }
+
+      const guideData = {
         is_enabled: formData.is_enabled,
         guide_label: formData.guide_label,
         title: formData.title,
@@ -373,12 +396,20 @@ export default function BuyingGuideForm({
             : undefined,
         banner_image_file: bannerFile,
         clear_banner: bannerCleared && !bannerFile,
-        category_id: categoryId,
-      });
+      };
+      const response = isBrand
+        ? await saveBrandBuyingGuide(entityId, {
+            ...guideData,
+            brand_id: entityId,
+          })
+        : await saveCategoryBuyingGuide(entityId, {
+            ...guideData,
+            category_id: entityId,
+          });
 
       const savedGuide = response?.data?.buyingGuide;
       if (savedGuide) {
-        reset(mapGuideToFormValues(savedGuide, categoryName));
+        reset(mapGuideToFormValues(savedGuide, entityName));
         setBannerImageUrl(savedGuide.banner_image || undefined);
         setBannerCleared(false);
         setBannerFile(null);
@@ -414,12 +445,12 @@ export default function BuyingGuideForm({
           }
           label={
             <Typography variant="body1" color="text.primary" fontWeight={500}>
-              Enable Buying Guide for this category
+              Enable Buying Guide for this {entityLabel}
             </Typography>
           }
         />
         <Typography variant="body2" sx={sectionDescSx}>
-          When enabled, the buying guide section will appear on the category
+          When enabled, the buying guide section will appear on the {entityLabel}
           product filter page.
         </Typography>
       </Paper>

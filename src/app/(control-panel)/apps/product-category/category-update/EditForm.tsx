@@ -30,6 +30,7 @@ import SeoForm from "@/app/(control-panel)/apps/seo/components/SeoForm";
 import BuyingGuideForm from "../components/BuyingGuideForm";
 import BannerModal from "../components/BannerModal";
 import DeleteConfirmationModal from "@/components/Shared/DeleteConfirmationModal";
+import RelatedCategoriesTab from "../components/RelatedCategoriesTab";
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const ACCEPTED_FILE_TYPES = [
@@ -177,11 +178,12 @@ const EditCategoryForm = ({
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<number>(() => {
     const tab = searchParams?.get("tab");
+    if (tab === "related-categories") return 4;
     if (tab === "buying-guide") return 3;
     if (tab === "seo") return 2;
     if (tab === "faq") return 1;
     return 0;
-  }); // 0 Details, 1 FAQ, 2 SEO, 3 Buying Guide
+  }); // 0 Details, 1 FAQ, 2 SEO, 3 Buying Guide, 4 Related Categories
 
   const categoryRef = useRef<FormType>(initialCategory);
 
@@ -496,6 +498,11 @@ const EditCategoryForm = ({
               <Tab label="FAQ" id="category-faq-tab" aria-controls="category-faq-panel" />
               <Tab label="SEO" id="category-seo-tab" aria-controls="category-seo-panel" />
               <Tab label="Buying Guide" id="category-buying-guide-tab" aria-controls="category-buying-guide-panel" />
+              <Tab
+                label="Related Categories"
+                id="category-related-categories-tab"
+                aria-controls="category-related-categories-panel"
+              />
             </Tabs>
           </Box>
           <form
@@ -728,6 +735,25 @@ const EditCategoryForm = ({
             )}
             {activeTab === 3 && !categoryId && (
               <Typography color="error">Category ID is missing. Cannot load buying guide.</Typography>
+            )}
+          </div>
+
+          {/* Related Categories Tab Panel */}
+          <div
+            role="tabpanel"
+            hidden={activeTab !== 4}
+            id="category-related-categories-panel"
+            aria-labelledby="category-related-categories-tab"
+          >
+            {activeTab === 4 && categoryId && (
+              <Box sx={{ pt: 2 }}>
+                <RelatedCategoriesTab categoryId={categoryId} />
+              </Box>
+            )}
+            {activeTab === 4 && !categoryId && (
+              <Typography color="error">
+                Category ID is missing. Cannot load related categories.
+              </Typography>
             )}
           </div>
         </>

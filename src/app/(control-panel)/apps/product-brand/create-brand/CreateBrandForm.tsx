@@ -208,9 +208,14 @@ function CreateBrandForm() {
       setCreatedBrandId(brandId);
 
       showSnackbar("Brand created successfully!", "success");
-      
-      // Don't redirect immediately, allow user to save banner if needed
-      router.push("/apps/product-brand");
+
+      if (brandId) {
+        router.push(
+          `/apps/product-brand/brand-update/${brandId}?tab=buying-guide`
+        );
+      } else {
+        router.push("/apps/product-brand");
+      }
     } catch (error: any) {
       // Handle validation errors from the API
       if (error?.error && Array.isArray(error.error)) {
@@ -413,6 +418,11 @@ function CreateBrandForm() {
               type="text"
             />
           )}
+
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 2, mb: 1 }}>
+            After creating the brand, you will be redirected to configure the
+            Buying Guide, FAQ, SEO, and banners.
+          </Typography>
 
           <AppButton
             label="Create"

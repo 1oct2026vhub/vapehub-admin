@@ -4,16 +4,13 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useEffect, useState, useRef } from "react";
-import { useRouter, useParams } from "next/navigation";
+import { useRouter, useParams, useSearchParams } from "next/navigation";
 import {
   Alert,
   Typography,
   Box,
-  Button,
-  CircularProgress,
   Tabs,
   Tab,
-  Divider,
   Grid,
   IconButton,
   Card,
@@ -27,10 +24,9 @@ import AppButton from "@/components/Shared/AppButton";
 import FormInputField from "@/components/Shared/FormInputField";
 import FormFileUploadField from "@/components/Shared/FormFileUploadField";
 import FormCKEditor from "@/components/Shared/FormCKEditor";
-import { usePost, useFetch } from "@/hooks/useFetch";
+import { usePost } from "@/hooks/useFetch";
 import {
   updateBrand,
-  brandDetails,
   removeBrandImage,
   getEntityBanners,
   createEntityBanner,
@@ -38,10 +34,10 @@ import {
   deleteEntityBanner,
 } from "@/services/apiProductBrand";
 import { useSnackbar } from "@/contexts/SnackbarContext";
-import axiosInstance from "@/utils/axiosApi";
 import PageBreadcrumb from "@/components/PageBreadcrumb";
 import FaqAccordion from "../../faq/FaqAccordion";
 import SeoForm from "@/app/(control-panel)/apps/seo/components/SeoForm";
+import BuyingGuideForm from "@/app/(control-panel)/apps/product-category/components/BuyingGuideForm";
 import BannerModal from "../components/BannerModal";
 import DeleteConfirmationModal from "@/components/Shared/DeleteConfirmationModal";
 
@@ -200,6 +196,7 @@ const EditBrandForm = ({ brand: initialBrand }: { brand: FormType | null }) => {
   }
   const router = useRouter();
   const params = useParams();
+  const searchParams = useSearchParams();
   const brandId = params?.id ? (Array.isArray(params.id) ? parseInt(params.id[0], 10) : parseInt(params.id, 10)) : null;
   const { showSnackbar } = useSnackbar();
   const [isLoading, setIsLoading] = useState(false);
@@ -215,7 +212,13 @@ const EditBrandForm = ({ brand: initialBrand }: { brand: FormType | null }) => {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const brandRef = useRef<FormType>(initialBrand);
 
-  const [activeTab, setActiveTab] = useState<number>(0); // 0 for Details, 1 for FAQ, 2 for SEO
+  const [activeTab, setActiveTab] = useState<number>(() => {
+    const tab = searchParams?.get("tab");
+    if (tab === "buying-guide") return 3;
+    if (tab === "seo") return 2;
+    if (tab === "faq") return 1;
+    return 0;
+  }); // 0 Details, 1 FAQ, 2 SEO, 3 Buying Guide
 
   const { control, formState, handleSubmit, setValue, watch, setError } = useForm<InferredSchemaType>({
     mode: "all",
@@ -482,6 +485,7 @@ const EditBrandForm = ({ brand: initialBrand }: { brand: FormType | null }) => {
               <Tab label="Brand Details" id="brand-details-tab" aria-controls="brand-details-panel" />
               <Tab label="FAQ" id="brand-faq-tab" aria-controls="brand-faq-panel" />
               <Tab label="SEO" id="brand-seo-tab" aria-controls="brand-seo-panel" />
+              <Tab label="Buying Guide" id="brand-buying-guide-tab" aria-controls="brand-buying-guide-panel" />
             </Tabs>
           </Box>
 
@@ -720,6 +724,29 @@ const EditBrandForm = ({ brand: initialBrand }: { brand: FormType | null }) => {
             )}
             {activeTab === 2 && !brandId && (
                 <Typography color="error">Brand ID is missing. Cannot load SEO details.</Typography>
+            )}
+          </div>
+
+          {/* Buying Guide Tab Panel */}
+          <div
+            role="tabpanel"
+            hidden={activeTab !== 3}
+            id="brand-buying-guide-panel"
+            aria-labelledby="brand-buying-guide-tab"
+          >
+            {activeTab === 3 && brandId && (
+              <Box sx={{ pt: 2 }}>
+                <BuyingGuideForm
+                  entityType="brand"
+                  brandId={brandId}
+                  brandName={nameValue || initialBrand?.name}
+                />
+              </Box>
+            )}
+            {activeTab === 3 && !brandId && (
+              <Typography color="error">
+                Brand ID is missing. Cannot load buying guide.
+              </Typography>
             )}
           </div>
         </>
