@@ -43,7 +43,7 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
-import DraggableFooterLink from './DraggableFooterLink';
+import DraggableFooterLink, { getFooterLinkSortableId } from './DraggableFooterLink';
 import EditLinkDialog from './EditLinkDialog';
 
 interface DraggableFooterSectionProps {
@@ -115,8 +115,8 @@ export default function DraggableFooterSection({
     
     try {
       // Find indices
-      const activeIndex = section.links.findIndex(link => link.id.toString() === active.id);
-      const overIndex = section.links.findIndex(link => link.id.toString() === over.id);
+      const activeIndex = section.links.findIndex(link => getFooterLinkSortableId(link) === active.id);
+      const overIndex = section.links.findIndex(link => getFooterLinkSortableId(link) === over.id);
       
       if (activeIndex !== -1 && overIndex !== -1) {
         // Update UI immediately
@@ -284,7 +284,7 @@ export default function DraggableFooterSection({
                   onDragEnd={handleDragEnd}
                 >
                   <SortableContext
-                    items={section.links.map(link => link.id.toString())}
+                    items={section.links.map(link => getFooterLinkSortableId(link))}
                     strategy={verticalListSortingStrategy}
                   >
                     <List sx={{ pl: 2, maxHeight: '300px', overflow: 'auto' }}>
@@ -292,6 +292,7 @@ export default function DraggableFooterSection({
                         <DraggableFooterLink
                           key={link.id}
                           link={link}
+                          sortableId={getFooterLinkSortableId(link)}
                           onEdit={() => handleEditLink(link)}
                           onDelete={() => handleDeleteLink(link)}
                         />

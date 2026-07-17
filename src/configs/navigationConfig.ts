@@ -289,13 +289,13 @@ const navigationConfig: FuseNavItemType[] = [
       // },
     ],
   },
-  {
-    id: "newsletter-abandoned-carts",
-    title: "Abandoned Carts",
-    type: "item",
-    icon: "heroicons-outline:shopping-cart",
-    url: "/apps/newsletter/abandoned-carts"
-  },
+  // {
+  //   id: "newsletter-abandoned-carts",
+  //   title: "Abandoned Carts",
+  //   type: "item",
+  //   icon: "heroicons-outline:shopping-cart",
+  //   url: "/apps/newsletter/abandoned-carts"
+  // },
   {
     id: "contact-us",
     title: "Contact Us",

@@ -6,7 +6,6 @@ import { auth } from "@auth/authJs";
 import generateMetadata from "../utils/generateMetadata";
 import App from "./App";
 import { SnackbarProvider } from "@/contexts/SnackbarContext";
-import { BulkStatusJobProvider } from "@/contexts/BulkStatusJobContext";
 
 // eslint-disable-next-line react-refresh/only-export-components
 export const metadata = await generateMetadata({
@@ -54,9 +53,7 @@ export default async function RootLayout({
       <body id="root" className={clsx("loading")}>
         <SessionProvider basePath="/auth" session={session}>
           <SnackbarProvider>
-            <BulkStatusJobProvider>
-              <App>{children}</App>
-            </BulkStatusJobProvider>
+            <App>{children}</App>
           </SnackbarProvider>
         </SessionProvider>
       </body>

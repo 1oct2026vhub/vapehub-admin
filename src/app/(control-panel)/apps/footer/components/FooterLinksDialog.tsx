@@ -35,6 +35,7 @@ import {
   updateFooterLink,
   deleteFooterLink,
   reorderFooterLink,
+  getFooterLinksBySection,
 } from "@/services/apiFooter";
 
 // dnd-kit imports
@@ -53,7 +54,7 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
-import DraggableFooterLink from "./DraggableFooterLink";
+import DraggableFooterLink, { getFooterLinkSortableId } from "./DraggableFooterLink";
 
 // Define validation schema using Zod
 const linkSchema = z.object({
@@ -75,6 +76,8 @@ const linkSchema = z.object({
 
 // Define the form type
 type LinkFormType = z.infer<typeof linkSchema>;
+
+const getLinkSortableId = getFooterLinkSortableId;
 
 // Helper function to check if section is brand-related
 const isBrandSection = (sectionTitle: string): boolean => {
@@ -126,6 +129,7 @@ interface FooterLinksDialogProps {
   section: FooterSection;
   onSuccess: (message: string) => void;
   onError: (message: string) => void;
+  onLinksChange?: (sectionId: number, links: FooterLink[]) => void;
 }
 
 export default function FooterLinksDialog({
@@ -134,6 +138,7 @@ export default function FooterLinksDialog({
   section,
   onSuccess,
   onError,
+  onLinksChange,
 }: FooterLinksDialogProps) {
   const [links, setLinks] = useState<FooterLink[]>(section.links || []);
   const [editMode, setEditMode] = useState(false);
@@ -168,20 +173,42 @@ export default function FooterLinksDialog({
 
   const { isValid, errors } = methods.formState;
 
-  // Reset form when dialog opens
+  const refreshSectionLinks = async () => {
+    const sectionLinks = await getFooterLinksBySection(section.id);
+    setLinks(sectionLinks);
+    onLinksChange?.(section.id, sectionLinks);
+    return sectionLinks;
+  };
+
+  // Load links from API when dialog opens
   useEffect(() => {
-    if (open) {
-      // Add temporary ids if missing
-      const linksWithIds = (section.links || []).map(link => ({
-        ...link,
-        id: link.id || Math.random() * -1000,
-      }));
-      // Sort by order
-      linksWithIds.sort((a, b) => a.order - b.order);
-      setLinks(linksWithIds);
-      resetForm();
-    }
-  }, [open, section]);
+    if (!open) return;
+
+    let cancelled = false;
+
+    const loadLinks = async () => {
+      try {
+        const sectionLinks = await getFooterLinksBySection(section.id);
+        if (!cancelled) {
+          setLinks(sectionLinks);
+          resetForm();
+        }
+      } catch (error) {
+        console.error("Failed to load footer links:", error);
+        if (!cancelled) {
+          const sortedLinks = [...(section.links || [])].sort((a, b) => a.order - b.order);
+          setLinks(sortedLinks);
+          resetForm();
+        }
+      }
+    };
+
+    loadLinks();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [open, section.id]);
 
   // Reset form
   const resetForm = () => {
@@ -205,42 +232,22 @@ export default function FooterLinksDialog({
         ...data,
         url: formatUrlWithBrand(data.url, section.title),
       };
-      
+
       if (editMode && currentLink?.id) {
-        // Update existing link
         await updateFooterLink(currentLink.id, {
           ...formattedData,
           section_id: section.id,
         });
         onSuccess("Footer link updated successfully");
       } else {
-        // Create new link
         await createFooterLink({
           ...formattedData,
           section_id: section.id,
         } as { section_id: number; label: string; url: string; order: number; is_active: boolean });
         onSuccess("Footer link created successfully");
       }
-      
-      // Update local links array to reflect changes
-      const updatedLinks = editMode
-        ? links.map((link) =>
-            link.id === currentLink?.id
-              ? { ...link, ...formattedData }
-              : link
-          )
-        : [
-            ...links,
-            {
-              ...formattedData,
-              section_id: section.id,
-              id: Date.now(), // Temporary ID for UI purposes
-            } as FooterLink,
-          ];
-      
-      // Sort by order
-      updatedLinks.sort((a, b) => a.order - b.order);
-      setLinks(updatedLinks);
+
+      await refreshSectionLinks();
       resetForm();
     } catch (error: any) {
       console.error("Failed to save footer link:", error);
@@ -266,13 +273,16 @@ export default function FooterLinksDialog({
     }
   };
 
-  // Handle edit link
-  const handleEditLink = (link: FooterLink) => {
+  // Handle edit link — resolve from latest links state by server id
+  const handleEditLink = (linkId: number) => {
+    const link = links.find((item) => item.id === linkId);
+    if (!link) return;
+
     setEditMode(true);
     setCurrentLink(link);
     methods.reset({
       label: link.label,
-      url: removeBrandPrefix(link.url, section.title), // Remove brand prefix for display
+      url: removeBrandPrefix(link.url, section.title),
       order: link.order,
       is_active: link.is_active,
     });
@@ -294,8 +304,7 @@ export default function FooterLinksDialog({
         onSuccess("Footer link deleted successfully");
       }
       
-      // Update local links array
-      setLinks(links.filter((l) => l.id !== linkToDelete.id));
+      await refreshSectionLinks();
     } catch (error: any) {
       console.error("Failed to delete footer link:", error);
       onError(error?.message || "Failed to delete footer link");
@@ -322,8 +331,8 @@ export default function FooterLinksDialog({
     
     try {
       // Find indices
-      const activeIndex = links.findIndex(link => link.id.toString() === active.id);
-      const overIndex = links.findIndex(link => link.id.toString() === over.id);
+      const activeIndex = links.findIndex((link) => getLinkSortableId(link) === active.id);
+      const overIndex = links.findIndex((link) => getLinkSortableId(link) === over.id);
       
       if (activeIndex !== -1 && overIndex !== -1) {
         // Update UI immediately
@@ -336,14 +345,14 @@ export default function FooterLinksDialog({
         }));
         
         setLinks(updatedLinks);
-        
-        // Get the moved link
+        onLinksChange?.(section.id, updatedLinks);
         const movedLink = links[activeIndex];
         const newOrder = overIndex + 1;
         
         // API call to update order
         await reorderFooterLink(movedLink.id, { new_order: newOrder });
         onSuccess(`Link "${movedLink.label}" reordered successfully`);
+        await refreshSectionLinks();
       }
     } catch (error: any) {
       console.error("Failed to reorder link:", error);
@@ -475,7 +484,7 @@ export default function FooterLinksDialog({
               onDragEnd={handleDragEnd}
             >
               <SortableContext
-                items={links.map(link => link.id.toString())}
+                items={links.map((link) => getLinkSortableId(link))}
                 strategy={verticalListSortingStrategy}
               >
                 <List sx={{ maxHeight: '400px', overflow: 'auto' }}>
@@ -483,7 +492,8 @@ export default function FooterLinksDialog({
                     <DraggableFooterLink
                       key={link.id}
                       link={link}
-                      onEdit={() => handleEditLink(link)}
+                      sortableId={getLinkSortableId(link)}
+                      onEdit={() => handleEditLink(link.id)}
                       onDelete={() => handleDeleteLink(link)}
                     />
                   ))}
