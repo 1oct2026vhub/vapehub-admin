@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Alert, Box, Typography } from "@mui/material";
+import { Alert, Box } from "@mui/material";
 import FuseLoading from "@fuse/core/FuseLoading";
 import AppButton from "@/components/Shared/AppButton";
 import RelatedCategoriesSelector from "./RelatedCategoriesSelector";
@@ -9,42 +9,51 @@ import { useSnackbar } from "@/contexts/SnackbarContext";
 import {
   getCategoryRelatedCategories,
   saveCategoryRelatedCategories,
+  type RelatedLink,
 } from "@/services/apiProductCategory";
+import {
+  cleanRelatedLinks,
+  extractRelatedLinksApiErrors,
+  getRelatedLinksValidationErrors,
+  hasRelatedLinksErrors,
+} from "./relatedLinks.utils";
 
 export default function RelatedCategoriesTab({
   categoryId,
-  maxCount = 3,
 }: {
   categoryId: number;
-  maxCount?: number;
 }) {
   const { showSnackbar } = useSnackbar();
-  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [relatedLinks, setRelatedLinks] = useState<RelatedLink[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [validationErrors, setValidationErrors] = useState<string[]>([]);
+  const [attemptedSave, setAttemptedSave] = useState(false);
 
-  const cleanedSelectedIds = useMemo(() => {
-    return Array.from(new Set(selectedIds))
-      .filter((id) => id !== categoryId)
-      .slice(0, maxCount);
-  }, [selectedIds, categoryId, maxCount]);
+  const hasErrors = useMemo(
+    () => hasRelatedLinksErrors(relatedLinks),
+    [relatedLinks]
+  );
 
   useEffect(() => {
     const fetchRelated = async () => {
       setLoading(true);
-      setError(null);
+      setLoadError(null);
       try {
         const res = await getCategoryRelatedCategories(categoryId);
-        const ids = res?.data?.related_category_ids ?? [];
-        setSelectedIds(ids);
-      } catch (e: any) {
-        console.error("Failed to load related categories:", e);
+        setRelatedLinks(res?.data?.related_links ?? []);
+      } catch (e: unknown) {
+        console.error("Failed to load related links:", e);
+        const apiError = e as {
+          response?: { data?: { message?: string } };
+          message?: string;
+        };
         const msg =
-          e?.response?.data?.message ||
-          e?.message ||
-          "Failed to load related categories";
-        setError(msg);
+          apiError?.response?.data?.message ||
+          apiError?.message ||
+          "Failed to load related links";
+        setLoadError(msg);
       } finally {
         setLoading(false);
       }
@@ -54,21 +63,31 @@ export default function RelatedCategoriesTab({
   }, [categoryId]);
 
   const onSave = async () => {
+    setAttemptedSave(true);
+
+    const filledLinks = relatedLinks.filter(
+      (l) => (l.text ?? "").trim() || (l.url ?? "").trim()
+    );
+    const rowErrors = getRelatedLinksValidationErrors(filledLinks);
+
+    if (rowErrors.length > 0) {
+      setValidationErrors(rowErrors);
+      return;
+    }
+
+    const cleanedLinks = cleanRelatedLinks(relatedLinks);
+    setValidationErrors([]);
     setSaving(true);
     try {
-      const res = await saveCategoryRelatedCategories(
-        categoryId,
-        cleanedSelectedIds
-      );
-      showSnackbar(res?.message || "Related categories saved", "success");
-    } catch (e: any) {
-      console.error("Failed to save related categories:", e);
-      const msg =
-        e?.response?.data?.errors?.[0]?.msg ||
-        e?.response?.data?.message ||
-        e?.message ||
-        "Failed to save related categories";
-      showSnackbar(msg, "error");
+      const res = await saveCategoryRelatedCategories(categoryId, cleanedLinks);
+      setRelatedLinks(res?.data?.related_links ?? cleanedLinks);
+      setAttemptedSave(false);
+      showSnackbar(res?.message || "Related links saved", "success");
+    } catch (e: unknown) {
+      console.error("Failed to save related links:", e);
+      const messages = extractRelatedLinksApiErrors(e);
+      setValidationErrors(messages);
+      showSnackbar(messages[0], "error");
     } finally {
       setSaving(false);
     }
@@ -78,25 +97,31 @@ export default function RelatedCategoriesTab({
 
   return (
     <Box>
-      {error ? (
+      {loadError ? (
         <Alert severity="error" sx={{ mb: 2 }}>
-          {error}
+          {loadError}
         </Alert>
       ) : null}
 
       <RelatedCategoriesSelector
-        currentCategoryId={categoryId}
-        selectedIds={selectedIds}
-        onSelectedIdsChange={setSelectedIds}
-        maxCount={maxCount}
+        links={relatedLinks}
+        onLinksChange={(nextLinks) => {
+          setRelatedLinks(nextLinks);
+          if (validationErrors.length > 0) {
+            setValidationErrors([]);
+          }
+        }}
+        validationErrors={validationErrors}
+        showRowErrors={attemptedSave}
       />
 
       <Box sx={{ mt: 3 }}>
         <AppButton
-          label="Save Related Categories"
+          label="Save Related Links"
           type="button"
           loading={saving}
           onClick={onSave}
+          disabled={hasErrors}
           fullWidth
           size="large"
         />
@@ -104,4 +129,3 @@ export default function RelatedCategoriesTab({
     </Box>
   );
 }
-
