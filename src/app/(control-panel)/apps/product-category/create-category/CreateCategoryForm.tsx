@@ -26,6 +26,12 @@ import { Grid, IconButton, Card, CardMedia, CardContent, CardActions } from "@mu
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import RelatedCategoriesSelector from "../components/RelatedCategoriesSelector";
+import {
+  cleanRelatedLinks,
+  getRelatedLinksValidationErrors,
+  hasRelatedLinksErrors,
+} from "../components/relatedLinks.utils";
+import type { RelatedLink } from "@/services/apiProductCategory";
 
 // const schema = z.object({
 //   name: z.string().min(1, "Brand Name is required"),
@@ -149,7 +155,8 @@ function CreateCategoryForm() {
   const [bannerToDelete, setBannerToDelete] = useState<number | null>(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<number>(0); // 0 Details, 1 Related Categories
-  const [relatedCategoryIds, setRelatedCategoryIds] = useState<number[]>([]);
+  const [relatedLinks, setRelatedLinks] = useState<RelatedLink[]>([]);
+  const [relatedLinksErrors, setRelatedLinksErrors] = useState<string[]>([]);
 
   const { control, formState, handleSubmit, setValue, watch } = useForm<InferredSchemaType>({
     mode: "all",
@@ -177,6 +184,17 @@ function CreateCategoryForm() {
   );
 
   async function onSubmit(formData: InferredSchemaType) {
+    const filledRelatedLinks = relatedLinks.filter(
+      (l) => (l.text ?? "").trim() || (l.url ?? "").trim()
+    );
+    const linkErrors = getRelatedLinksValidationErrors(filledRelatedLinks);
+    if (linkErrors.length > 0) {
+      setRelatedLinksErrors(linkErrors);
+      setActiveTab(1);
+      showSnackbar(linkErrors[0], "error");
+      return;
+    }
+
     setIsLoading(true);
 
     try {
@@ -212,23 +230,28 @@ function CreateCategoryForm() {
 
       showSnackbar("Category created successfully!", "success");
         if (categoryId) {
-          const cleanedRelatedIds = Array.from(new Set(relatedCategoryIds)).slice(
-            0,
-            3
-          );
-          try {
-            await saveCategoryRelatedCategories(
-              Number(categoryId),
-              cleanedRelatedIds
-            );
-          } catch (relError: any) {
-            const msg =
-              relError?.response?.data?.errors?.[0]?.msg ||
-              relError?.response?.data?.message ||
-              relError?.errors?.[0]?.msg ||
-              relError?.message ||
-              "Category created, but failed to save related categories";
-            showSnackbar(msg, "error");
+          const cleanedRelatedLinks = cleanRelatedLinks(relatedLinks);
+          const linkErrors = getRelatedLinksValidationErrors(cleanedRelatedLinks);
+
+          if (linkErrors.length > 0) {
+            setRelatedLinksErrors(linkErrors);
+            showSnackbar(linkErrors[0], "error");
+          } else {
+            try {
+              await saveCategoryRelatedCategories(
+                Number(categoryId),
+                cleanedRelatedLinks
+              );
+            } catch (relError: any) {
+              const msg =
+                relError?.response?.data?.errors?.[0]?.msg ||
+                relError?.response?.data?.message ||
+                relError?.errors?.[0]?.msg ||
+                relError?.message ||
+                "Category created, but failed to save related links";
+              setRelatedLinksErrors([msg]);
+              showSnackbar(msg, "error");
+            }
           }
 
         router.push(
@@ -460,9 +483,15 @@ function CreateCategoryForm() {
           aria-labelledby="category-create-related-categories-tab"
         >
           <RelatedCategoriesSelector
-            selectedIds={relatedCategoryIds}
-            onSelectedIdsChange={setRelatedCategoryIds}
-            maxCount={3}
+            links={relatedLinks}
+            onLinksChange={(nextLinks) => {
+              setRelatedLinks(nextLinks);
+              if (relatedLinksErrors.length > 0) {
+                setRelatedLinksErrors([]);
+              }
+            }}
+            validationErrors={relatedLinksErrors}
+            showRowErrors={relatedLinksErrors.length > 0}
           />
         </div>
 
@@ -477,7 +506,12 @@ function CreateCategoryForm() {
           type="submit"
           fullWidth
           size="large"
-          disabled={!isValid || isMutating || hasImageError}
+          disabled={
+            !isValid ||
+            isMutating ||
+            hasImageError ||
+            hasRelatedLinksErrors(relatedLinks)
+          }
           className="mt-4 w-full"
         />
       </form>
