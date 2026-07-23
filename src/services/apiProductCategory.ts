@@ -257,3 +257,4 @@ export const saveCategoryRelatedCategories = async (
 
   return response.data;
 };
+

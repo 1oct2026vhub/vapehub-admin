@@ -5,6 +5,7 @@ import { Controller } from "react-hook-form";
 import dynamic from "next/dynamic";
 import { CKEditor, useCKEditorCloud } from "@ckeditor/ckeditor5-react";
 import { getCKEditorToken } from "@/services/apiService";
+import { CATEGORY_CARDS_4COL_TEMPLATE, RELATED_COLLECTION_CARDS_CSS } from "@/components/Shared/ckEditorCategoryCardsTemplate";
 
 // Debounce onChange to avoid heavy getData + HTML processing on every keystroke with long content
 const ON_CHANGE_DEBOUNCE_MS = 400;
@@ -48,6 +49,8 @@ interface FormCKEditorProps {
   trigger?: any;
   required?: boolean;
   onEditorReady?: (editor: unknown) => void;
+  /** When true, includes Category Cards (4-col) in Templates — use only for Related Collections. */
+  includeCategoryCardsTemplate?: boolean;
 }
 
 const FormCKEditor = ({ 
@@ -58,6 +61,7 @@ const FormCKEditor = ({
   required = false,
   onEditorReady,
   trigger,
+  includeCategoryCardsTemplate = false,
 }: FormCKEditorProps) => {
   const editorRef = useRef<any>(null);
   const editorWordCountRef = useRef<HTMLDivElement>(null);
@@ -596,7 +600,10 @@ const FormCKEditor = ({
                 description: 'Simple introduction to an article',
                 icon: '<svg width="45" height="45" viewBox="0 0 45 45" fill="none" xmlns="http://www.w3.org/2000/svg"><g id="icons/article-image-right"><rect id="icon-bg" width="45" height="45" rx="2" fill="#A5E7EB"/><g id="page" filter="url(#filter0_d_1_507)"><path d="M9 41H36V12L28 5H9V41Z" fill="white"/><path d="M35.25 12.3403V40.25H9.75V5.75H27.7182L35.25 12.3403Z" stroke="#333333" stroke-width="1.5"/></g><g id="image"><path id="Rectangle 22" d="M21.5 23C21.5 22.1716 22.1716 21.5 23 21.5H31C31.8284 21.5 32.5 22.1716 32.5 23V29C32.5 29.8284 31.8284 30.5 31 30.5H23C22.1716 30.5 21.5 29.8284 21.5 29V23Z" fill="#B6E3FC" stroke="#333333"/><path id="Vector 1" d="M24.1184 27.8255C23.9404 27.7499 23.7347 27.7838 23.5904 27.9125L21.6673 29.6268C21.5124 29.7648 21.4589 29.9842 21.5328 30.178C21.6066 30.3719 21.7925 30.5 22 30.5H32C32.2761 30.5 32.5 30.2761 32.5 30V27.7143C32.5 27.5717 32.4391 27.4359 32.3327 27.3411L30.4096 25.6268C30.2125 25.451 29.9127 25.4589 29.7251 25.6448L26.5019 28.8372L24.1184 27.8255Z" fill="#44D500" stroke="#333333" stroke-linejoin="round"/><circle id="Ellipse 1" cx="26" cy="25" r="1.5" fill="#FFD12D" stroke="#333333"/></g><rect id="Rectangle 23" x="13" y="13" width="12" height="2" rx="1" fill="#B4B4B4"/><rect id="Rectangle 24" x="13" y="17" width="19" height="2" rx="1" fill="#B4B4B4"/><rect id="Rectangle 25" x="13" y="21" width="6" height="2" rx="1" fill="#B4B4B4"/><rect id="Rectangle 26" x="13" y="25" width="6" height="2" rx="1" fill="#B4B4B4"/><rect id="Rectangle 27" x="13" y="29" width="6" height="2" rx="1" fill="#B4B4B4"/><rect id="Rectangle 28" x="13" y="33" width="16" height="2" rx="1" fill="#B4B4B4"/></g><defs><filter id="filter0_d_1_507" x="9" y="5" width="28" height="37" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/><feOffset dx="1" dy="1"/><feComposite in2="hardAlpha" operator="out"/><feColorMatrix type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.29 0"/><feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow_1_507"/><feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow_1_507" result="shape"/></filter></defs></svg>',
                 data: "<h2>Introduction</h2><p>In today's fast-paced world, keeping up with the latest trends and insights is essential for both personal growth and professional development. This article aims to shed light on a topic that resonates with many, providing valuable information and actionable advice. Whether you're seeking to enhance your knowledge, improve your skills, or simply stay informed, our comprehensive analysis offers a deep dive into the subject matter, designed to empower and inspire our readers.</p>"
-              }
+              },
+              ...(includeCategoryCardsTemplate
+                ? [CATEGORY_CARDS_4COL_TEMPLATE]
+                : []),
             ]
           },
           // Additional configurations to ensure all features work
@@ -632,7 +639,7 @@ const FormCKEditor = ({
       setEditorError("Failed to initialize editor configuration");
       return {};
     }
-  }, [cloud, isLayoutReady]);
+  }, [cloud, isLayoutReady, includeCategoryCardsTemplate]);
 
   /**
    * Removes default font-size styling from heading tags (h1-h6) while preserving
@@ -981,17 +988,18 @@ const FormCKEditor = ({
         }
         /* Fixed height for CKEditor content area */
         .ck-editor .ck-editor__editable {
-          min-height: 300px !important;
-          max-height: 300px !important;
-          height: 300px !important;
+          min-height: ${includeCategoryCardsTemplate ? "520px" : "300px"} !important;
+          max-height: ${includeCategoryCardsTemplate ? "720px" : "300px"} !important;
+          height: ${includeCategoryCardsTemplate ? "520px" : "300px"} !important;
           overflow-y: auto !important;
         }
         .ck-editor .ck-content {
-          min-height: 300px !important;
-          max-height: 300px !important;
-          height: 300px !important;
+          min-height: ${includeCategoryCardsTemplate ? "520px" : "300px"} !important;
+          max-height: ${includeCategoryCardsTemplate ? "720px" : "300px"} !important;
+          height: ${includeCategoryCardsTemplate ? "auto" : "300px"} !important;
           overflow-y: auto !important;
         }
+        ${includeCategoryCardsTemplate ? RELATED_COLLECTION_CARDS_CSS : ""}
         /* Ensure font-size and font-family work properly in CKEditor */
         /* Inline styles from CKEditor font controls are now preserved */
         /* The problematic CSS overrides have been removed from index.css */
