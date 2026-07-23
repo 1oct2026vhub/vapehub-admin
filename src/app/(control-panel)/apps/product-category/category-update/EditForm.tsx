@@ -31,6 +31,7 @@ import BuyingGuideForm from "../components/BuyingGuideForm";
 import BannerModal from "../components/BannerModal";
 import DeleteConfirmationModal from "@/components/Shared/DeleteConfirmationModal";
 import RelatedCategoriesTab from "../components/RelatedCategoriesTab";
+import RelatedCollectionsTab from "../components/RelatedCollectionsTab";
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const ACCEPTED_FILE_TYPES = [
@@ -144,6 +145,7 @@ export type FormType = {
   name: string;
   slug: string;
   description?: string;
+  type_cards_html?: string | null;
   alt_text?: string;
   logo?: File | string | null | undefined;
   logo_url?: string;
@@ -178,12 +180,13 @@ const EditCategoryForm = ({
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<number>(() => {
     const tab = searchParams?.get("tab");
+    if (tab === "related-collections") return 5;
     if (tab === "related-categories") return 4;
     if (tab === "buying-guide") return 3;
     if (tab === "seo") return 2;
     if (tab === "faq") return 1;
     return 0;
-  }); // 0 Details, 1 FAQ, 2 SEO, 3 Buying Guide, 4 Related Categories
+  }); // 0 Details, 1 FAQ, 2 SEO, 3 Buying Guide, 4 Related Categories, 5 Related Collections
 
   const categoryRef = useRef<FormType>(initialCategory);
 
@@ -302,6 +305,12 @@ const EditCategoryForm = ({
       if (formData.description) {
         formDataObj.append("description", formData.description);
       }
+
+      // Preserve type cards when updating details (managed on Related Collections tab)
+      formDataObj.append(
+        "type_cards_html",
+        categoryRef.current?.type_cards_html ?? ""
+      );
 
       if (formData.alt_text) {
         formDataObj.append("alt_text", formData.alt_text);
@@ -502,6 +511,11 @@ const EditCategoryForm = ({
                 label="Related Categories"
                 id="category-related-categories-tab"
                 aria-controls="category-related-categories-panel"
+              />
+              <Tab
+                label="Related Collections"
+                id="category-related-collections-tab"
+                aria-controls="category-related-collections-panel"
               />
             </Tabs>
           </Box>
@@ -753,6 +767,33 @@ const EditCategoryForm = ({
             {activeTab === 4 && !categoryId && (
               <Typography color="error">
                 Category ID is missing. Cannot load related categories.
+              </Typography>
+            )}
+          </div>
+
+          {/* Related Collections Tab Panel */}
+          <div
+            role="tabpanel"
+            hidden={activeTab !== 5}
+            id="category-related-collections-panel"
+            aria-labelledby="category-related-collections-tab"
+          >
+            {activeTab === 5 && categoryId && (
+              <Box sx={{ pt: 2 }}>
+                <RelatedCollectionsTab
+                  categoryId={categoryId}
+                  initialHtml={categoryRef.current?.type_cards_html}
+                  onSaved={(html) => {
+                    if (categoryRef.current) {
+                      categoryRef.current.type_cards_html = html;
+                    }
+                  }}
+                />
+              </Box>
+            )}
+            {activeTab === 5 && !categoryId && (
+              <Typography color="error">
+                Category ID is missing. Cannot load type cards.
               </Typography>
             )}
           </div>

@@ -26,6 +26,7 @@ import { Grid, IconButton, Card, CardMedia, CardContent, CardActions } from "@mu
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import RelatedCategoriesSelector from "../components/RelatedCategoriesSelector";
+import RelatedCollectionsEditor from "../components/RelatedCollectionsEditor";
 import {
   cleanRelatedLinks,
   getRelatedLinksValidationErrors,
@@ -154,9 +155,10 @@ function CreateCategoryForm() {
   const [isDeletingBanner, setIsDeletingBanner] = useState<number | null>(null);
   const [bannerToDelete, setBannerToDelete] = useState<number | null>(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<number>(0); // 0 Details, 1 Related Categories
+  const [activeTab, setActiveTab] = useState<number>(0); // 0 Details, 1 Related Categories, 2 Type Cards
   const [relatedLinks, setRelatedLinks] = useState<RelatedLink[]>([]);
   const [relatedLinksErrors, setRelatedLinksErrors] = useState<string[]>([]);
+  const [typeCardsHtml, setTypeCardsHtml] = useState("");
 
   const { control, formState, handleSubmit, setValue, watch } = useForm<InferredSchemaType>({
     mode: "all",
@@ -218,6 +220,9 @@ function CreateCategoryForm() {
       if (formData.parent_id !== undefined && formData.parent_id !== null) {
         formDataObj.append("parent_id", formData.parent_id.toString());
       }
+
+      // Type cards HTML (separate from description / related_links)
+      formDataObj.append("type_cards_html", typeCardsHtml ?? "");
 
       // ✅ Debugging: Check FormData values
       for (const pair of formDataObj.entries()) {
@@ -409,6 +414,11 @@ function CreateCategoryForm() {
             id="category-create-related-categories-tab"
             aria-controls="category-create-related-categories-panel"
           />
+          <Tab
+            label="Related Collections"
+            id="category-create-related-collections-tab"
+            aria-controls="category-create-related-collections-panel"
+          />
         </Tabs>
       </Box>
       <form
@@ -493,6 +503,20 @@ function CreateCategoryForm() {
             validationErrors={relatedLinksErrors}
             showRowErrors={relatedLinksErrors.length > 0}
           />
+        </div>
+
+        <div
+          role="tabpanel"
+          hidden={activeTab !== 2}
+          id="category-create-related-collections-panel"
+          aria-labelledby="category-create-related-collections-tab"
+        >
+          {activeTab === 2 && (
+            <RelatedCollectionsEditor
+              content={typeCardsHtml}
+              onContentChange={setTypeCardsHtml}
+            />
+          )}
         </div>
 
         <Typography variant="body2" color="text.secondary" sx={{ mt: 2, mb: 1 }}>
