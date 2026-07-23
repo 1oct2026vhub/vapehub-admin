@@ -55,15 +55,16 @@ function AuthJsCredentialsSignInForm() {
   const password = watch("password");
   const remember = watch("remember");
 
-  // Load saved credentials from localStorage on mount
+  // Load remembered email from localStorage on mount (never store passwords)
   useEffect(() => {
+    // Clear any previously stored password (security fix A-01)
+    localStorage.removeItem("rememberedPassword");
+
     const savedEmail = localStorage.getItem("rememberedEmail") || "";
-    const savedPassword = localStorage.getItem("rememberedPassword") || "";
     const savedRemember = localStorage.getItem("rememberMe") === "true";
 
     if (savedRemember) {
       setValue("email", savedEmail);
-      setValue("password", savedPassword);
       setValue("remember", true);
     }
   }, [setValue]);
@@ -80,16 +81,15 @@ function AuthJsCredentialsSignInForm() {
       // Store user info
       storeUser(result?.data);
 
-      // Save credentials if "Remember Me" is checked
+      // Remember email only if "Remember Me" is checked (never store password)
       if (remember) {
         localStorage.setItem("rememberedEmail", email);
-        localStorage.setItem("rememberedPassword", password);
         localStorage.setItem("rememberMe", "true");
       } else {
         localStorage.removeItem("rememberedEmail");
-        localStorage.removeItem("rememberedPassword");
         localStorage.removeItem("rememberMe");
       }
+      localStorage.removeItem("rememberedPassword");
 
       showSnackbar("Login successful! Redirecting...", "success");
       router.replace("/dashboards/admin");
