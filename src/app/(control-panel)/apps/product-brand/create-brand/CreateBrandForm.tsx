@@ -3,11 +3,19 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useRouter } from "next/navigation";
-import { Alert, Typography, Box } from "@mui/material";
+import { Alert, Typography, Box, Tabs, Tab } from "@mui/material";
 import AppButton from "@/components/Shared/AppButton";
 import FormInputField from "@/components/Shared/FormInputField";
 import { usePost } from "@/hooks/useFetch";
-import { createBrand, getEntityBanners, createEntityBanner, updateEntityBanner, deleteEntityBanner } from "@/services/apiProductBrand";
+import {
+  createBrand,
+  getEntityBanners,
+  createEntityBanner,
+  updateEntityBanner,
+  deleteEntityBanner,
+  saveBrandRelatedBrands,
+  type RelatedLink,
+} from "@/services/apiProductBrand";
 import { useSnackbar } from "@/contexts/SnackbarContext";
 import FormFileUploadField from "@/components/Shared/FormFileUploadField";
 import { useState, useEffect } from "react";
@@ -18,6 +26,13 @@ import DeleteConfirmationModal from "@/components/Shared/DeleteConfirmationModal
 import { Grid, IconButton, Card, CardMedia, CardContent, CardActions } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
+import RelatedCategoriesSelector from "@/app/(control-panel)/apps/product-category/components/RelatedCategoriesSelector";
+import RelatedCollectionsEditor from "@/app/(control-panel)/apps/product-category/components/RelatedCollectionsEditor";
+import {
+  cleanRelatedLinks,
+  getRelatedLinksValidationErrors,
+  hasRelatedLinksErrors,
+} from "@/app/(control-panel)/apps/product-category/components/relatedLinks.utils";
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const ACCEPTED_FILE_TYPES = [
@@ -152,6 +167,10 @@ function CreateBrandForm() {
   const [isDeletingBanner, setIsDeletingBanner] = useState<number | null>(null);
   const [bannerToDelete, setBannerToDelete] = useState<number | null>(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState(0);
+  const [relatedLinks, setRelatedLinks] = useState<RelatedLink[]>([]);
+  const [relatedLinksErrors, setRelatedLinksErrors] = useState<string[]>([]);
+  const [typeCardsHtml, setTypeCardsHtml] = useState("");
 
   const { control, formState, handleSubmit, setValue, watch, setError } = useForm<FormType>({
     mode: "all",
@@ -179,6 +198,18 @@ function CreateBrandForm() {
   );
 
   async function onSubmit(formData: FormType) {
+    if (hasRelatedLinksErrors(relatedLinks)) {
+      const errors = getRelatedLinksValidationErrors(
+        relatedLinks.filter(
+          (l) => (l.text ?? "").trim() || (l.url ?? "").trim()
+        )
+      );
+      setRelatedLinksErrors(errors);
+      setActiveTab(1);
+      showSnackbar(errors[0] || "Fix related brand links before creating", "error");
+      return;
+    }
+
     setIsLoading(true);
 
     try {
@@ -192,6 +223,9 @@ function CreateBrandForm() {
       if (formData.description) {
         formDataObj.append("description", formData.description);
       }
+
+      // Type cards HTML (separate from description / related_links)
+      formDataObj.append("type_cards_html", typeCardsHtml ?? "");
 
       // Append alt_text if it exists
       if (formData.alt_text) {
@@ -210,6 +244,27 @@ function CreateBrandForm() {
       showSnackbar("Brand created successfully!", "success");
 
       if (brandId) {
+        const cleanedRelatedLinks = cleanRelatedLinks(relatedLinks);
+        const linkErrors = getRelatedLinksValidationErrors(cleanedRelatedLinks);
+
+        if (linkErrors.length > 0) {
+          setRelatedLinksErrors(linkErrors);
+          showSnackbar(linkErrors[0], "error");
+        } else {
+          try {
+            await saveBrandRelatedBrands(Number(brandId), cleanedRelatedLinks);
+          } catch (relError: any) {
+            const msg =
+              relError?.response?.data?.errors?.[0]?.msg ||
+              relError?.response?.data?.message ||
+              relError?.errors?.[0]?.msg ||
+              relError?.message ||
+              "Brand created, but failed to save related links";
+            setRelatedLinksErrors([msg]);
+            showSnackbar(msg, "error");
+          }
+        }
+
         router.push(
           `/apps/product-brand/brand-update/${brandId}?tab=buying-guide`
         );
@@ -363,6 +418,29 @@ function CreateBrandForm() {
         New Brand
         </Typography>
       </div>
+      <Box sx={{ borderBottom: 1, borderColor: "divider", mb: 3 }}>
+        <Tabs
+          value={activeTab}
+          onChange={(_, value) => setActiveTab(value)}
+          aria-label="brand create tabs"
+        >
+          <Tab
+            label="Brand Details"
+            id="brand-create-details-tab"
+            aria-controls="brand-create-details-panel"
+          />
+          <Tab
+            label="Related Brands"
+            id="brand-create-related-brands-tab"
+            aria-controls="brand-create-related-brands-panel"
+          />
+          <Tab
+            label="Related Collections"
+            id="brand-create-related-collections-tab"
+            aria-controls="brand-create-related-collections-panel"
+          />
+        </Tabs>
+      </Box>
       <form
         name="brandForm"
         noValidate
@@ -375,7 +453,7 @@ function CreateBrandForm() {
           </Alert>
         )}
 
-        <div className="flex flex-col">
+        <Box hidden={activeTab !== 0}>
           <FormInputField
             name="name"
             control={control}
@@ -418,22 +496,56 @@ function CreateBrandForm() {
               type="text"
             />
           )}
+        </Box>
 
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 2, mb: 1 }}>
-            After creating the brand, you will be redirected to configure the
-            Buying Guide, FAQ, SEO, and banners.
-          </Typography>
-
-          <AppButton
-            label="Create"
-            loading={isLoading}
-            type="submit"
-            fullWidth
-            size="large"
-            disabled={!isValid || isMutating || hasImageError}
-            className="mt-4 w-full"
+        <div
+          role="tabpanel"
+          hidden={activeTab !== 1}
+          id="brand-create-related-brands-panel"
+          aria-labelledby="brand-create-related-brands-tab"
+        >
+          <RelatedCategoriesSelector
+            label="Related Brands"
+            links={relatedLinks}
+            onLinksChange={(nextLinks) => {
+              setRelatedLinks(nextLinks);
+              if (relatedLinksErrors.length > 0) {
+                setRelatedLinksErrors([]);
+              }
+            }}
+            validationErrors={relatedLinksErrors}
+            showRowErrors={relatedLinksErrors.length > 0}
           />
         </div>
+
+        <div
+          role="tabpanel"
+          hidden={activeTab !== 2}
+          id="brand-create-related-collections-panel"
+          aria-labelledby="brand-create-related-collections-tab"
+        >
+          {activeTab === 2 && (
+            <RelatedCollectionsEditor
+              content={typeCardsHtml}
+              onContentChange={setTypeCardsHtml}
+            />
+          )}
+        </div>
+
+        <Typography variant="body2" color="text.secondary" sx={{ mt: 2, mb: 1 }}>
+          After creating the brand, you will be redirected to configure the
+          Buying Guide, FAQ, SEO, and banners.
+        </Typography>
+
+        <AppButton
+          label="Create"
+          loading={isLoading}
+          type="submit"
+          fullWidth
+          size="large"
+          disabled={!isValid || isMutating || hasImageError}
+          className="mt-4 w-full"
+        />
       </form>
 
       {/* Banner Section - Outside the main form */}
