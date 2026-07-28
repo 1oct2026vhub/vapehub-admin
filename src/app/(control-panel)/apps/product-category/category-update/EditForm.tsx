@@ -781,6 +781,7 @@ const EditCategoryForm = ({
             {activeTab === 5 && categoryId && (
               <Box sx={{ pt: 2 }}>
                 <RelatedCollectionsTab
+                  entityType="category"
                   categoryId={categoryId}
                   initialHtml={categoryRef.current?.type_cards_html}
                   onSaved={(html) => {

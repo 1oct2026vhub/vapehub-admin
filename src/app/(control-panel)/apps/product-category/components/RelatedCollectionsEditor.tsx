@@ -39,7 +39,7 @@ export default function RelatedCollectionsEditor({
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
         Optional type-card grid HTML (stored as <code>type_cards_html</code>).
         Open <strong>Templates</strong> → <strong>Category Cards (4-col)</strong>,
-        then replace images, text, and shop links. Separate from Related Categories
+        then replace images, text, and shop links. Separate from related text+URL
         links.
       </Typography>
       <FormCKEditor

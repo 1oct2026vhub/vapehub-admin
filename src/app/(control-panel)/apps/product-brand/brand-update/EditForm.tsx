@@ -38,6 +38,8 @@ import PageBreadcrumb from "@/components/PageBreadcrumb";
 import FaqAccordion from "../../faq/FaqAccordion";
 import SeoForm from "@/app/(control-panel)/apps/seo/components/SeoForm";
 import BuyingGuideForm from "@/app/(control-panel)/apps/product-category/components/BuyingGuideForm";
+import RelatedCollectionsTab from "@/app/(control-panel)/apps/product-category/components/RelatedCollectionsTab";
+import RelatedBrandsTab from "../components/RelatedBrandsTab";
 import BannerModal from "../components/BannerModal";
 import DeleteConfirmationModal from "@/components/Shared/DeleteConfirmationModal";
 
@@ -176,6 +178,7 @@ export type FormType = {
   name: string;
   slug: string;
   description?: string;
+  type_cards_html?: string | null;
   alt_text?: string;
   logo?: File | string | null | undefined;
   logo_url?: string;
@@ -214,11 +217,13 @@ const EditBrandForm = ({ brand: initialBrand }: { brand: FormType | null }) => {
 
   const [activeTab, setActiveTab] = useState<number>(() => {
     const tab = searchParams?.get("tab");
+    if (tab === "related-collections") return 5;
+    if (tab === "related-brands") return 4;
     if (tab === "buying-guide") return 3;
     if (tab === "seo") return 2;
     if (tab === "faq") return 1;
     return 0;
-  }); // 0 Details, 1 FAQ, 2 SEO, 3 Buying Guide
+  }); // 0 Details, 1 FAQ, 2 SEO, 3 Buying Guide, 4 Related Brands, 5 Related Collections
 
   const { control, formState, handleSubmit, setValue, watch, setError } = useForm<InferredSchemaType>({
     mode: "all",
@@ -305,6 +310,11 @@ const EditBrandForm = ({ brand: initialBrand }: { brand: FormType | null }) => {
       if (formData.description) {
         formDataObj.append("description", formData.description);
       }
+      // Preserve type cards when updating details (managed on Related Collections tab)
+      formDataObj.append(
+        "type_cards_html",
+        brandRef.current?.type_cards_html ?? ""
+      );
       if (formData.alt_text) {
         formDataObj.append("alt_text", formData.alt_text);
       }
@@ -486,6 +496,16 @@ const EditBrandForm = ({ brand: initialBrand }: { brand: FormType | null }) => {
               <Tab label="FAQ" id="brand-faq-tab" aria-controls="brand-faq-panel" />
               <Tab label="SEO" id="brand-seo-tab" aria-controls="brand-seo-panel" />
               <Tab label="Buying Guide" id="brand-buying-guide-tab" aria-controls="brand-buying-guide-panel" />
+              <Tab
+                label="Related Brands"
+                id="brand-related-brands-tab"
+                aria-controls="brand-related-brands-panel"
+              />
+              <Tab
+                label="Related Collections"
+                id="brand-related-collections-tab"
+                aria-controls="brand-related-collections-panel"
+              />
             </Tabs>
           </Box>
 
@@ -746,6 +766,53 @@ const EditBrandForm = ({ brand: initialBrand }: { brand: FormType | null }) => {
             {activeTab === 3 && !brandId && (
               <Typography color="error">
                 Brand ID is missing. Cannot load buying guide.
+              </Typography>
+            )}
+          </div>
+
+          {/* Related Brands Tab Panel */}
+          <div
+            role="tabpanel"
+            hidden={activeTab !== 4}
+            id="brand-related-brands-panel"
+            aria-labelledby="brand-related-brands-tab"
+          >
+            {activeTab === 4 && brandId && (
+              <Box sx={{ pt: 2 }}>
+                <RelatedBrandsTab brandId={brandId} />
+              </Box>
+            )}
+            {activeTab === 4 && !brandId && (
+              <Typography color="error">
+                Brand ID is missing. Cannot load related brands.
+              </Typography>
+            )}
+          </div>
+
+          {/* Related Collections Tab Panel (type_cards_html) */}
+          <div
+            role="tabpanel"
+            hidden={activeTab !== 5}
+            id="brand-related-collections-panel"
+            aria-labelledby="brand-related-collections-tab"
+          >
+            {activeTab === 5 && brandId && (
+              <Box sx={{ pt: 2 }}>
+                <RelatedCollectionsTab
+                  entityType="brand"
+                  brandId={brandId}
+                  initialHtml={brandRef.current?.type_cards_html}
+                  onSaved={(html) => {
+                    if (brandRef.current) {
+                      brandRef.current.type_cards_html = html;
+                    }
+                  }}
+                />
+              </Box>
+            )}
+            {activeTab === 5 && !brandId && (
+              <Typography color="error">
+                Brand ID is missing. Cannot load type cards.
               </Typography>
             )}
           </div>
