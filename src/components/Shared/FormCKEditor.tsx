@@ -103,6 +103,33 @@ const FormCKEditor = ({
             if ((editableElement as any).__enterKeyHandler) {
               editableElement.removeEventListener('keydown', (editableElement as any).__enterKeyHandler, true);
             }
+            if ((editableElement as any).__typeCardImgClickHandler) {
+              editableElement.removeEventListener(
+                'click',
+                (editableElement as any).__typeCardImgClickHandler,
+                true
+              );
+            }
+            if ((editableElement as any).__typeCardImgKeyHandler) {
+              editableElement.removeEventListener(
+                'keydown',
+                (editableElement as any).__typeCardImgKeyHandler,
+                true
+              );
+            }
+            if (
+              (editableElement as any).__typeCardImgViewDoc &&
+              (editableElement as any).__typeCardImgViewClick
+            ) {
+              try {
+                (editableElement as any).__typeCardImgViewDoc.off(
+                  'click',
+                  (editableElement as any).__typeCardImgViewClick
+                );
+              } catch {
+                /* ignore */
+              }
+            }
           }
           
           const editorElement = editorRef.current.ui?.element;
@@ -948,6 +975,228 @@ const FormCKEditor = ({
       console.warn('⚠️ Error enabling insertImage button:', error);
     }
 
+    // Type cards: click "No image" placeholder (or existing card image) → file picker → replace
+    if (includeCategoryCardsTemplate && editableElement) {
+      const escapeAttr = (value: string) =>
+        value
+          .replace(/&/g, '&amp;')
+          .replace(/"/g, '&quot;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;');
+
+      const escapeRegExp = (value: string) =>
+        value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+      const readFileAsDataUrl = (file: File) =>
+        new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => {
+            const result = reader.result;
+            if (typeof result === 'string' && result) resolve(result);
+            else reject(new Error('Failed to read image file'));
+          };
+          reader.onerror = () => reject(reader.error ?? new Error('File read error'));
+          reader.readAsDataURL(file);
+        });
+
+      const buildTypeCardImgHtml = (src: string, alt: string, slot: string) =>
+        `<img src="${src}" alt="${escapeAttr(alt)}" data-type-card-img="${escapeAttr(slot)}" style="display:block!important;position:static!important;float:none!important;width:100%!important;height:150px!important;object-fit:contain!important;margin:0 0 14px 0!important;background:#fff;cursor:pointer;" title="Click to replace image">`;
+
+      const replaceTypeCardImageSlot = (
+        el: HTMLElement,
+        slot: string,
+        alt: string,
+        src: string
+      ) => {
+        const imgHtml = buildTypeCardImgHtml(src, alt, slot);
+        let data = editor.getData();
+        const slotRe = escapeRegExp(slot);
+        const imgBySlot = new RegExp(
+          `<img[^>]*\\bdata-type-card-img=["']${slotRe}["'][^>]*\\/?>`,
+          'i'
+        );
+        const placeholderDivBySlot = new RegExp(
+          `<div[^>]*\\bdata-type-card-img=["']${slotRe}["'][^>]*>[\\s\\S]*?<\\/div>`,
+          'i'
+        );
+        const ariaImgRe =
+          alt && alt !== 'Category image'
+            ? new RegExp(
+                `<img[^>]*\\balt=["']${escapeRegExp(alt)}["'][^>]*\\/?>`,
+                'i'
+              )
+            : null;
+
+        if (imgBySlot.test(data)) {
+          data = data.replace(imgBySlot, imgHtml);
+        } else if (placeholderDivBySlot.test(data)) {
+          data = data.replace(placeholderDivBySlot, imgHtml);
+        } else if (ariaImgRe && ariaImgRe.test(data)) {
+          // Prefer replacing placeholder-marked image with same alt inside type cards
+          const placeholderImg =
+            /<img[^>]*\bdata-type-card-placeholder=["']1["'][^>]*\/?>/i;
+          if (placeholderImg.test(data) && el.getAttribute('data-type-card-placeholder') === '1') {
+            const all = data.match(
+              /<img[^>]*\bdata-type-card-placeholder=["']1["'][^>]*\/?>/gi
+            );
+            const domPlaceholders = Array.from(
+              editableElement.querySelectorAll(
+                'img[data-type-card-placeholder="1"], img.type-card__img-placeholder'
+              )
+            );
+            const index = domPlaceholders.indexOf(el);
+            if (all && index >= 0 && index < all.length) {
+              let n = -1;
+              data = data.replace(
+                /<img[^>]*\bdata-type-card-placeholder=["']1["'][^>]*\/?>/gi,
+                (match: string) => {
+                  n += 1;
+                  return n === index ? imgHtml : match;
+                }
+              );
+            } else {
+              data = data.replace(ariaImgRe, imgHtml);
+            }
+          } else {
+            data = data.replace(ariaImgRe, imgHtml);
+          }
+        } else {
+          console.warn('Type card image slot not found in editor HTML:', slot);
+          return false;
+        }
+        editor.setData(data);
+        return true;
+      };
+
+      let pickerOpen = false;
+
+      const openTypeCardImagePicker = (el: HTMLElement) => {
+        if (pickerOpen) return;
+        pickerOpen = true;
+        window.setTimeout(() => {
+          pickerOpen = false;
+        }, 800);
+
+        let slot = el.getAttribute('data-type-card-img');
+        if (!slot) {
+          slot = `slot-${Date.now()}`;
+          el.setAttribute('data-type-card-img', slot);
+        }
+        const alt =
+          el.getAttribute('aria-label') ||
+          el.getAttribute('alt') ||
+          'Category image';
+
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'image/jpeg,image/jpg,image/png,image/gif,image/webp,image/bmp';
+        input.style.display = 'none';
+        document.body.appendChild(input);
+
+        const cleanupInput = () => {
+          try {
+            input.remove();
+          } catch {
+            /* ignore */
+          }
+        };
+
+        input.addEventListener('change', () => {
+          const file = input.files?.[0];
+          cleanupInput();
+          if (!file) return;
+
+          const isPlaceholder =
+            el.getAttribute('data-type-card-placeholder') === '1' ||
+            el.classList.contains('type-card__img-placeholder');
+          if (isPlaceholder && el instanceof HTMLImageElement) {
+            el.style.opacity = '0.5';
+          }
+
+          void readFileAsDataUrl(file)
+            .then((src) => {
+              const ok = replaceTypeCardImageSlot(el, slot!, alt, src);
+              if (!ok && el instanceof HTMLImageElement) {
+                el.style.opacity = '1';
+              }
+            })
+            .catch((err) => {
+              console.error('Type card image upload failed:', err);
+              if (el instanceof HTMLImageElement) {
+                el.style.opacity = '1';
+              }
+            });
+        });
+
+        input.addEventListener('cancel', cleanupInput);
+        requestAnimationFrame(() => input.click());
+      };
+
+      const resolveDomElement = (target: EventTarget | null): Element | null => {
+        if (target instanceof Element) return target;
+        if (target instanceof Text) return target.parentElement;
+        if (target instanceof Node) return (target as Node).parentElement;
+        return null;
+      };
+
+      const findTypeCardImageTarget = (
+        target: EventTarget | null
+      ): HTMLElement | null => {
+        const start = resolveDomElement(target);
+        if (!start || !editableElement.contains(start)) return null;
+
+        const placeholderImg = start.closest(
+          'img.type-card__img-placeholder, img[data-type-card-placeholder="1"], img[data-type-card-img]'
+        ) as HTMLElement | null;
+        if (placeholderImg) return placeholderImg;
+
+        const legacyDiv = start.closest(
+          '.type-card__img-placeholder, [data-type-card-img]'
+        ) as HTMLElement | null;
+        if (legacyDiv) return legacyDiv;
+
+        return null;
+      };
+
+      const onTypeCardImgClick = (e: MouseEvent) => {
+        const el = findTypeCardImageTarget(e.target);
+        if (!el) return;
+        e.preventDefault();
+        e.stopPropagation();
+        openTypeCardImagePicker(el);
+      };
+
+      const onTypeCardImgKeyDown = (e: KeyboardEvent) => {
+        if (e.key !== 'Enter' && e.key !== ' ') return;
+        const el = findTypeCardImageTarget(e.target);
+        if (!el) return;
+        e.preventDefault();
+        e.stopPropagation();
+        openTypeCardImagePicker(el);
+      };
+
+      editableElement.addEventListener('click', onTypeCardImgClick, true);
+      editableElement.addEventListener('keydown', onTypeCardImgKeyDown, true);
+      (editableElement as any).__typeCardImgClickHandler = onTypeCardImgClick;
+      (editableElement as any).__typeCardImgKeyHandler = onTypeCardImgKeyDown;
+
+      // CKEditor view-layer click (more reliable than DOM-only for contenteditable)
+      try {
+        const viewDoc = editor.editing.view.document;
+        const onViewClick = (_evt: unknown, data: { domTarget?: EventTarget; preventDefault?: () => void }) => {
+          const el = findTypeCardImageTarget(data?.domTarget ?? null);
+          if (!el) return;
+          data.preventDefault?.();
+          openTypeCardImagePicker(el);
+        };
+        viewDoc.on('click', onViewClick, { priority: 'highest' });
+        (editableElement as any).__typeCardImgViewClick = onViewClick;
+        (editableElement as any).__typeCardImgViewDoc = viewDoc;
+      } catch (err) {
+        console.warn('Could not bind type-card view click:', err);
+      }
+    }
+
     // Attach word count to ref
     try {
       const wordCount = editor.plugins.get('WordCount');
@@ -999,7 +1248,6 @@ const FormCKEditor = ({
           height: ${includeCategoryCardsTemplate ? "auto" : "300px"} !important;
           overflow-y: auto !important;
         }
-        ${includeCategoryCardsTemplate ? RELATED_COLLECTION_CARDS_CSS : ""}
         /* Ensure font-size and font-family work properly in CKEditor */
         /* Inline styles from CKEditor font controls are now preserved */
         /* The problematic CSS overrides have been removed from index.css */
@@ -1013,6 +1261,8 @@ const FormCKEditor = ({
         .ck-content p:empty {
           min-height: 1em !important;
         }
+        /* Type cards must load after generic .ck-content p rules */
+        ${includeCategoryCardsTemplate ? RELATED_COLLECTION_CARDS_CSS : ""}
         /* Table styles for proper display */
         .ck-content table {
           display: table !important;

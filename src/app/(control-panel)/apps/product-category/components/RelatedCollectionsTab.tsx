@@ -15,6 +15,7 @@ import {
   brandDetails,
   updateBrand,
 } from "@/services/apiProductBrand";
+import { ensureTypeCardsStorefrontStyles } from "@/components/Shared/ckEditorCategoryCardsTemplate";
 
 type TypeCardsFormValues = {
   type_cards_html: string;
@@ -111,7 +112,7 @@ export default function RelatedCollectionsTab({
 
     setSaving(true);
     try {
-      const html = values.type_cards_html ?? "";
+      const html = ensureTypeCardsStorefrontStyles(values.type_cards_html ?? "");
       const formDataObj = new FormData();
       formDataObj.append("name", entityMeta.name);
       formDataObj.append("slug", entityMeta.slug);
@@ -159,8 +160,8 @@ export default function RelatedCollectionsTab({
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
         Type cards HTML for the storefront grid (separate from {relatedLinksLabel}{" "}
         links). Use <strong>Templates → Category Cards (4-col)</strong>, then
-        replace images, text, and shop links. Clear the editor and save to remove
-        the section.
+        click each placeholder image to upload, and update text and shop
+        links. Clear the editor and save to remove the section.
       </Typography>
 
       <form onSubmit={handleSubmit(onSave)} noValidate>
