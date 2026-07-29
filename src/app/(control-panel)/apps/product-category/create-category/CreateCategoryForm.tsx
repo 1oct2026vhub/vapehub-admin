@@ -27,6 +27,7 @@ import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import RelatedCategoriesSelector from "../components/RelatedCategoriesSelector";
 import RelatedCollectionsEditor from "../components/RelatedCollectionsEditor";
+import { prepareTypeCardsHtmlForSave } from "@/components/Shared/typeCardImageEncode";
 import {
   cleanRelatedLinks,
   getRelatedLinksValidationErrors,
@@ -222,7 +223,10 @@ function CreateCategoryForm() {
       }
 
       // Type cards HTML (separate from description / related_links)
-      formDataObj.append("type_cards_html", typeCardsHtml ?? "");
+      formDataObj.append(
+        "type_cards_html",
+        await prepareTypeCardsHtmlForSave(typeCardsHtml ?? "")
+      );
 
       // ✅ Debugging: Check FormData values
       for (const pair of formDataObj.entries()) {

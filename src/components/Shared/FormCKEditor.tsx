@@ -6,6 +6,7 @@ import dynamic from "next/dynamic";
 import { CKEditor, useCKEditorCloud } from "@ckeditor/ckeditor5-react";
 import { getCKEditorToken } from "@/services/apiService";
 import { CATEGORY_CARDS_4COL_TEMPLATE, RELATED_COLLECTION_CARDS_CSS } from "@/components/Shared/ckEditorCategoryCardsTemplate";
+import { encodeTypeCardImageDataUrl } from "@/components/Shared/typeCardImageEncode";
 
 // Debounce onChange to avoid heavy getData + HTML processing on every keystroke with long content
 const ON_CHANGE_DEBOUNCE_MS = 400;
@@ -69,6 +70,8 @@ const FormCKEditor = ({
   const [editorError, setEditorError] = useState<string | null>(null);
   const isMountedRef = useRef(true);
   const onChangeDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** Immediate RHF sync (bypasses debounce) — used after type-card image replace */
+  const formChangeRef = useRef<(value: string) => void>(() => {});
 
   // Use CKEditor Cloud hook
   const cloud = useCKEditorCloud({ version: '47.2.0', premium: true, ckbox: { version: '2.6.1' } });
@@ -984,9 +987,6 @@ const FormCKEditor = ({
           .replace(/</g, '&lt;')
           .replace(/>/g, '&gt;');
 
-      const escapeRegExp = (value: string) =>
-        value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-
       const readFileAsDataUrl = (file: File) =>
         new Promise<string>((resolve, reject) => {
           const reader = new FileReader();
@@ -999,9 +999,37 @@ const FormCKEditor = ({
           reader.readAsDataURL(file);
         });
 
-      const buildTypeCardImgHtml = (src: string, alt: string, slot: string) =>
-        `<img src="${src}" alt="${escapeAttr(alt)}" data-type-card-img="${escapeAttr(slot)}" style="display:block!important;position:static!important;float:none!important;width:100%!important;height:150px!important;object-fit:contain!important;margin:0 0 14px 0!important;background:#fff;cursor:pointer;" title="Click to replace image">`;
+      const resolveCardAlt = (el: HTMLElement, slot: string) => {
+        const article = el.closest('.type-card');
+        const title = article?.querySelector('h3')?.textContent?.trim();
+        if (title) return title;
+        const fromAttr =
+          el.getAttribute('aria-label') || el.getAttribute('alt');
+        if (fromAttr && fromAttr !== 'Category image') return fromAttr;
+        return slot ? `Type card ${slot}` : 'Category image';
+      };
 
+      const syncFormFromEditor = () => {
+        try {
+          let stored = editor.getData();
+          if (typeof stored !== 'string') stored = String(stored || '');
+          if (stored && !stored.includes('<') && stored.trim()) {
+            stored = `<p>${stored}</p>`;
+          }
+          formChangeRef.current(removeDefaultHeadingFontSizes(stored));
+        } catch (err) {
+          console.warn('Failed to sync type-card image to form:', err);
+        }
+      };
+
+      const buildTypeCardImgHtml = (src: string, alt: string, slot: string) =>
+        `<img class="type-card__img type-card__img--${escapeAttr(slot)}" src="${src}" alt="${escapeAttr(alt)}" data-type-card-img="${escapeAttr(slot)}" style="display:block!important;position:static!important;float:none!important;width:100%!important;height:150px!important;object-fit:contain!important;margin:0 0 14px 0!important;background:#fff;cursor:pointer;" title="Click to replace image">`;
+
+      /**
+       * Replace exactly one card image by DOM index among type-card images.
+       * Slot/alt regex matching is unreliable: CKEditor often strips data-* on <img>,
+       * and identical placeholder srcs caused the wrong card (or multiple cards) to update.
+       */
       const replaceTypeCardImageSlot = (
         el: HTMLElement,
         slot: string,
@@ -1009,63 +1037,97 @@ const FormCKEditor = ({
         src: string
       ) => {
         const imgHtml = buildTypeCardImgHtml(src, alt, slot);
-        let data = editor.getData();
-        const slotRe = escapeRegExp(slot);
-        const imgBySlot = new RegExp(
-          `<img[^>]*\\bdata-type-card-img=["']${slotRe}["'][^>]*\\/?>`,
-          'i'
-        );
-        const placeholderDivBySlot = new RegExp(
-          `<div[^>]*\\bdata-type-card-img=["']${slotRe}["'][^>]*>[\\s\\S]*?<\\/div>`,
-          'i'
-        );
-        const ariaImgRe =
-          alt && alt !== 'Category image'
-            ? new RegExp(
-                `<img[^>]*\\balt=["']${escapeRegExp(alt)}["'][^>]*\\/?>`,
-                'i'
-              )
-            : null;
+        const cardRoot: HTMLElement =
+          (editableElement.querySelector('.type-cards') as HTMLElement | null) ??
+          (editableElement as HTMLElement);
 
-        if (imgBySlot.test(data)) {
-          data = data.replace(imgBySlot, imgHtml);
-        } else if (placeholderDivBySlot.test(data)) {
-          data = data.replace(placeholderDivBySlot, imgHtml);
-        } else if (ariaImgRe && ariaImgRe.test(data)) {
-          // Prefer replacing placeholder-marked image with same alt inside type cards
-          const placeholderImg =
-            /<img[^>]*\bdata-type-card-placeholder=["']1["'][^>]*\/?>/i;
-          if (placeholderImg.test(data) && el.getAttribute('data-type-card-placeholder') === '1') {
-            const all = data.match(
-              /<img[^>]*\bdata-type-card-placeholder=["']1["'][^>]*\/?>/gi
-            );
-            const domPlaceholders = Array.from(
-              editableElement.querySelectorAll(
-                'img[data-type-card-placeholder="1"], img.type-card__img-placeholder'
-              )
-            );
-            const index = domPlaceholders.indexOf(el);
-            if (all && index >= 0 && index < all.length) {
-              let n = -1;
-              data = data.replace(
-                /<img[^>]*\bdata-type-card-placeholder=["']1["'][^>]*\/?>/gi,
-                (match: string) => {
-                  n += 1;
-                  return n === index ? imgHtml : match;
-                }
+        let index = -1;
+        if (el instanceof HTMLImageElement) {
+          const domImgs = Array.from(cardRoot.querySelectorAll('img'));
+          index = domImgs.indexOf(el);
+        }
+        // Legacy div placeholder: map card position → image index
+        if (index < 0) {
+          const article = el.closest('.type-card');
+          if (article) {
+            const cards = Array.from(
+              cardRoot.querySelectorAll('.type-card')
+            ) as HTMLElement[];
+            const cardIndex = cards.indexOf(article as HTMLElement);
+            if (cardIndex >= 0) {
+              const imgsInCards = cards.map(
+                (c) => c.querySelector('img') as HTMLImageElement | null
               );
-            } else {
-              data = data.replace(ariaImgRe, imgHtml);
+              // If this card has an img, use its global index; else insert at cardIndex among imgs
+              const existing = imgsInCards[cardIndex];
+              if (existing) {
+                index = Array.from(cardRoot.querySelectorAll('img')).indexOf(existing);
+              } else {
+                index = cardIndex;
+              }
             }
-          } else {
-            data = data.replace(ariaImgRe, imgHtml);
           }
-        } else {
-          console.warn('Type card image slot not found in editor HTML:', slot);
+        }
+
+        let data = editor.getData();
+        if (typeof data !== 'string') data = String(data || '');
+
+        let replaced = false;
+
+        if (index >= 0) {
+          let n = -1;
+          const next = data.replace(/<img\b[^>]*>/gi, (match: string) => {
+            n += 1;
+            if (n === index) {
+              replaced = true;
+              return imgHtml;
+            }
+            return match;
+          });
+          if (replaced) data = next;
+        }
+
+        // Div placeholder with no <img> yet for that card: swap the div
+        if (!replaced) {
+          const slotRe = slot.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          const placeholderDivBySlot = new RegExp(
+            `<div[^>]*\\bdata-type-card-img=["']${slotRe}["'][^>]*>[\\s\\S]*?<\\/div>`,
+            'i'
+          );
+          if (placeholderDivBySlot.test(data)) {
+            data = data.replace(placeholderDivBySlot, imgHtml);
+            replaced = true;
+          }
+        }
+
+        if (!replaced) {
+          console.warn('Type card image slot not found in editor HTML:', { slot, index });
           return false;
         }
+
         editor.setData(data);
+        // Flush RHF immediately so Save cannot submit pre-upload HTML (debounce race)
+        syncFormFromEditor();
         return true;
+      };
+
+      const resolveSlot = (el: HTMLElement): string => {
+        const fromAttr = el.getAttribute('data-type-card-img');
+        if (fromAttr) return fromAttr;
+        const classMatch = el.className?.match?.(/type-card__img--([a-z0-9_-]+)/i);
+        if (classMatch?.[1]) return classMatch[1];
+        const article = el.closest('.type-card');
+        if (article) {
+          const variant = article.className?.match?.(/type-card--([a-z0-9_-]+)/i);
+          if (variant?.[1]) return variant[1];
+          const root: HTMLElement =
+            (editableElement.querySelector('.type-cards') as HTMLElement | null) ??
+            (editableElement as HTMLElement);
+          const cards = Array.from(root.querySelectorAll('.type-card'));
+          const i = cards.indexOf(article);
+          if (i >= 0) return `card-${i}`;
+        }
+        return `slot-${Date.now()}`;
       };
 
       let pickerOpen = false;
@@ -1077,15 +1139,9 @@ const FormCKEditor = ({
           pickerOpen = false;
         }, 800);
 
-        let slot = el.getAttribute('data-type-card-img');
-        if (!slot) {
-          slot = `slot-${Date.now()}`;
-          el.setAttribute('data-type-card-img', slot);
-        }
-        const alt =
-          el.getAttribute('aria-label') ||
-          el.getAttribute('alt') ||
-          'Category image';
+        const slot = resolveSlot(el);
+        el.setAttribute('data-type-card-img', slot);
+        const alt = resolveCardAlt(el, slot);
 
         const input = document.createElement('input');
         input.type = 'file';
@@ -1113,9 +1169,14 @@ const FormCKEditor = ({
             el.style.opacity = '0.5';
           }
 
-          void readFileAsDataUrl(file)
+          // Encode to a unique mime per slot so API S3 keys (inline.{ext}) do not collide
+          void encodeTypeCardImageDataUrl(file, slot)
+            .catch(async () => {
+              // Fallback: raw data URL if canvas encode fails
+              return readFileAsDataUrl(file);
+            })
             .then((src) => {
-              const ok = replaceTypeCardImageSlot(el, slot!, alt, src);
+              const ok = replaceTypeCardImageSlot(el, slot, alt, src);
               if (!ok && el instanceof HTMLImageElement) {
                 el.style.opacity = '1';
               }
@@ -1377,6 +1438,14 @@ const FormCKEditor = ({
         defaultValue={defaultValue}
         rules={{ required: required ? `${label || 'This field'} is required` : false }}
         render={({ field, fieldState }) => {
+          formChangeRef.current = (value: string) => {
+            if (onChangeDebounceRef.current) {
+              clearTimeout(onChangeDebounceRef.current);
+              onChangeDebounceRef.current = null;
+            }
+            field.onChange(value);
+          };
+
           // Show loading state
           if (cloud.status === 'loading' || !ClassicEditor || !editorConfig) {
             return (

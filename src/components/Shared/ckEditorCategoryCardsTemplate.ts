@@ -9,12 +9,16 @@ const ACCENT = {
 
 type AccentKey = keyof typeof ACCENT;
 
-/** Compact SVG placeholder — image (not editable text). Safe tiny data URI for storefront HTML. */
-export const TYPE_CARD_NO_IMAGE_SRC =
-  "data:image/svg+xml," +
-  encodeURIComponent(
-    `<svg xmlns="http://www.w3.org/2000/svg" width="400" height="150" viewBox="0 0 400 150"><rect width="400" height="150" fill="#f1f5f9"/><g fill="none" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="155" y="32" width="90" height="68" rx="6"/><circle cx="182" cy="54" r="8"/><path d="M165 88l22-20 14 12 18-22 26 30H165z"/></g><text x="200" y="128" text-anchor="middle" fill="#94a3b8" font-family="Arial,Helvetica,sans-serif" font-size="14">No image</text></svg>`
-  );
+/**
+ * Placeholder image for empty type-card slots.
+ * Use a static asset (not data:image) — the API treats data URIs as uploads and can
+ * map identical placeholders to the wrong S3 URL across cards.
+ * Per-slot query keeps each card's src distinct for cache / replace matching.
+ */
+export const TYPE_CARD_NO_IMAGE_SRC = "/assets/images/type-card-no-image.svg";
+
+export const typeCardPlaceholderSrc = (slot: string) =>
+  `${TYPE_CARD_NO_IMAGE_SRC}?slot=${encodeURIComponent(slot)}`;
 
 /**
  * Embedded in saved `type_cards_html` so the customer storefront keeps layout
@@ -313,7 +317,7 @@ const card = (
   return (
     `<article class="type-card type-card--${variant}" style="display:flex;flex-direction:column;height:100%;min-height:100%;background:#ffffff;border:1px solid #e2e8f0;border-top:4px solid ${accent};border-radius:10px;box-shadow:0 1px 3px rgba(15,23,42,.06);padding:16px;box-sizing:border-box;margin:0;overflow:hidden;">` +
     `<div class="type-card__body" style="flex:1 1 auto;width:100%;">` +
-    `<img class="type-card__img-placeholder" data-type-card-img="${variant}" data-type-card-placeholder="1" src="${TYPE_CARD_NO_IMAGE_SRC}" alt="${opts.imgAlt}" title="Click to upload image" style="display:block!important;position:static!important;float:none!important;width:100%!important;height:150px!important;object-fit:contain!important;margin:0 0 14px 0!important;background:#f1f5f9;cursor:pointer;" />` +
+    `<img class="type-card__img-placeholder type-card__img type-card__img--${variant}" data-type-card-img="${variant}" data-type-card-placeholder="1" src="${typeCardPlaceholderSrc(variant)}" alt="${opts.imgAlt}" title="Click to upload image" style="display:block!important;position:static!important;float:none!important;width:100%!important;height:150px!important;object-fit:contain!important;margin:0 0 14px 0!important;background:#f1f5f9;cursor:pointer;" />` +
     `<p class="type-card__label type-card__label--${variant}" style="display:block!important;position:static!important;margin:0 0 6px 0;font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:${accent};line-height:1.3;">${opts.label}</p>` +
     `<h3 style="display:block!important;position:static!important;margin:0 0 8px 0;font-size:20px;line-height:1.25;font-weight:800;color:#0f172a;">${opts.title}</h3>` +
     `<p style="display:block!important;position:static!important;margin:0 0 12px 0;font-size:14px;line-height:1.55;color:#475569;">${opts.description}</p>` +

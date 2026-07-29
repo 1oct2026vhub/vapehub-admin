@@ -28,6 +28,7 @@ import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import RelatedCategoriesSelector from "@/app/(control-panel)/apps/product-category/components/RelatedCategoriesSelector";
 import RelatedCollectionsEditor from "@/app/(control-panel)/apps/product-category/components/RelatedCollectionsEditor";
+import { prepareTypeCardsHtmlForSave } from "@/components/Shared/typeCardImageEncode";
 import {
   cleanRelatedLinks,
   getRelatedLinksValidationErrors,
@@ -225,7 +226,10 @@ function CreateBrandForm() {
       }
 
       // Type cards HTML (separate from description / related_links)
-      formDataObj.append("type_cards_html", typeCardsHtml ?? "");
+      formDataObj.append(
+        "type_cards_html",
+        await prepareTypeCardsHtmlForSave(typeCardsHtml ?? "")
+      );
 
       // Append alt_text if it exists
       if (formData.alt_text) {
