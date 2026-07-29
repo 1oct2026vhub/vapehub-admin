@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Alert, Box, Typography } from "@mui/material";
 import { useForm } from "react-hook-form";
 import FuseLoading from "@fuse/core/FuseLoading";
@@ -16,12 +16,52 @@ import {
   updateBrand,
 } from "@/services/apiProductBrand";
 import { ensureTypeCardsStorefrontStyles } from "@/components/Shared/ckEditorCategoryCardsTemplate";
+import { prepareTypeCardsHtmlForSave } from "@/components/Shared/typeCardImageEncode";
 
 type TypeCardsFormValues = {
   type_cards_html: string;
 };
 
 type EntityType = "category" | "brand";
+
+/** Bust browser cache for http(s) type-card images after S3 overwrite (same URL, new bytes). */
+function bustTypeCardImageCache(html: string): string {
+  const v = Date.now();
+  return html.replace(
+    /(<img\b[^>]*?\bsrc=["'])(https?:\/\/[^"']+)(["'])/gi,
+    (_m, pre: string, src: string, post: string) => {
+      try {
+        const url = new URL(src);
+        url.searchParams.set("_tc", String(v));
+        return `${pre}${url.toString()}${post}`;
+      } catch {
+        const sep = src.includes("?") ? "&" : "?";
+        return `${pre}${src}${sep}_tc=${v}${post}`;
+      }
+    }
+  );
+}
+
+/** Remove display-only cache busters before persisting. */
+function stripTypeCardCacheBusters(html: string): string {
+  return html.replace(
+    /(<img\b[^>]*?\bsrc=["'])([^"']+)(["'])/gi,
+    (_m, pre: string, src: string, post: string) => {
+      try {
+        if (!/^https?:\/\//i.test(src)) return `${pre}${src}${post}`;
+        const url = new URL(src);
+        url.searchParams.delete("_tc");
+        return `${pre}${url.toString()}${post}`;
+      } catch {
+        const cleaned = src
+          .replace(/([?&])_tc=\d+/g, "")
+          .replace(/\?$/, "")
+          .replace(/&&+/g, "&");
+        return `${pre}${cleaned}${post}`;
+      }
+    }
+  );
+}
 
 /**
  * Type cards (CKEditor HTML) — stored as `type_cards_html`.
@@ -52,6 +92,8 @@ export default function RelatedCollectionsTab({
     name: string;
     slug: string;
   } | null>(null);
+  const editorInstanceRef = useRef<{ getData: () => string } | null>(null);
+  const [editorMountKey, setEditorMountKey] = useState(0);
 
   const { control, handleSubmit, reset } = useForm<TypeCardsFormValues>({
     defaultValues: { type_cards_html: initialHtml ?? "" },
@@ -73,7 +115,8 @@ export default function RelatedCollectionsTab({
           name: data?.name ?? "",
           slug: data?.slug ?? "",
         });
-        reset({ type_cards_html: html });
+        reset({ type_cards_html: bustTypeCardImageCache(html) });
+        setEditorMountKey((k) => k + 1);
       } catch (e: unknown) {
         console.error("Failed to load type cards:", e);
         const apiError = e as {
@@ -112,7 +155,20 @@ export default function RelatedCollectionsTab({
 
     setSaving(true);
     try {
-      const html = ensureTypeCardsStorefrontStyles(values.type_cards_html ?? "");
+      // Always prefer live editor HTML — RHF can lag behind image uploads (debounced onChange)
+      let html = values.type_cards_html ?? "";
+      try {
+        const live = editorInstanceRef.current?.getData?.();
+        if (typeof live === "string") html = live;
+      } catch {
+        /* keep form value */
+      }
+      html = stripTypeCardCacheBusters(
+        ensureTypeCardsStorefrontStyles(html)
+      );
+      // Unique mime per card so backend inline.{ext} S3 keys do not collide
+      html = await prepareTypeCardsHtmlForSave(html);
+
       const formDataObj = new FormData();
       formDataObj.append("name", entityMeta.name);
       formDataObj.append("slug", entityMeta.slug);
@@ -125,7 +181,10 @@ export default function RelatedCollectionsTab({
           : await updateCategory(entityId, formDataObj);
       const savedHtml =
         res?.data?.type_cards_html ?? res?.type_cards_html ?? html;
-      reset({ type_cards_html: savedHtml });
+      // Cache-bust so replaced S3 objects show immediately; remount editor with API HTML
+      const displayHtml = bustTypeCardImageCache(savedHtml);
+      reset({ type_cards_html: displayHtml });
+      setEditorMountKey((k) => k + 1);
       onSaved?.(savedHtml);
       showSnackbar(res?.message || "Type cards saved", "success");
     } catch (e: unknown) {
@@ -161,15 +220,20 @@ export default function RelatedCollectionsTab({
         Type cards HTML for the storefront grid (separate from {relatedLinksLabel}{" "}
         links). Use <strong>Templates → Category Cards (4-col)</strong>, then
         click each placeholder image to upload, and update text and shop
-        links. Clear the editor and save to remove the section.
+        links. Clear the editor and save to remove the section. Re-upload each
+        card image once if older saves shared the same image across cards.
       </Typography>
 
       <form onSubmit={handleSubmit(onSave)} noValidate>
         <FormCKEditor
+          key={editorMountKey}
           name="type_cards_html"
           control={control}
           label="Type Cards Content"
           includeCategoryCardsTemplate
+          onEditorReady={(editor) => {
+            editorInstanceRef.current = editor as { getData: () => string };
+          }}
         />
         <Box sx={{ mt: 3 }}>
           <AppButton
