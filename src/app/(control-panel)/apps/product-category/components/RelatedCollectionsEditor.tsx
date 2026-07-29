@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { Box, Typography } from "@mui/material";
 import { useForm } from "react-hook-form";
 import FormCKEditor from "@/components/Shared/FormCKEditor";
+import { ensureTypeCardsStorefrontStyles } from "@/components/Shared/ckEditorCategoryCardsTemplate";
 
 type TypeCardsFormValues = {
   type_cards_html: string;
@@ -26,7 +27,9 @@ export default function RelatedCollectionsEditor({
 
   useEffect(() => {
     const subscription = watch((values) => {
-      onContentChange(values.type_cards_html ?? "");
+      onContentChange(
+        ensureTypeCardsStorefrontStyles(values.type_cards_html ?? "")
+      );
     });
     return () => subscription.unsubscribe();
   }, [watch, onContentChange]);
