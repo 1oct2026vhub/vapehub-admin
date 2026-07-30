@@ -130,16 +130,6 @@ export const RELATED_COLLECTION_CARDS_CSS = `
     margin: 0 0 14px 0 !important;
     background: #f1f5f9 !important;
     box-sizing: border-box !important;
-    cursor: pointer !important;
-    user-select: none !important;
-  }
-  .ck-content .type-card img.type-card__img-placeholder:hover,
-  .ck-content .type-card img[data-type-card-placeholder="1"]:hover {
-    outline: 2px solid #94a3b8 !important;
-    outline-offset: -2px !important;
-  }
-  .ck-content .type-card img[data-type-card-img] {
-    cursor: pointer !important;
   }
   .ck-content .type-card h3 {
     display: block !important;
@@ -317,7 +307,7 @@ const card = (
   return (
     `<article class="type-card type-card--${variant}" style="display:flex;flex-direction:column;height:100%;min-height:100%;background:#ffffff;border:1px solid #e2e8f0;border-top:4px solid ${accent};border-radius:10px;box-shadow:0 1px 3px rgba(15,23,42,.06);padding:16px;box-sizing:border-box;margin:0;overflow:hidden;">` +
     `<div class="type-card__body" style="flex:1 1 auto;width:100%;">` +
-    `<img class="type-card__img-placeholder type-card__img type-card__img--${variant}" data-type-card-img="${variant}" data-type-card-placeholder="1" src="${typeCardPlaceholderSrc(variant)}" alt="${opts.imgAlt}" title="Click to upload image" style="display:block!important;position:static!important;float:none!important;width:100%!important;height:150px!important;object-fit:contain!important;margin:0 0 14px 0!important;background:#f1f5f9;cursor:pointer;" />` +
+    `<img class="type-card__img-placeholder type-card__img type-card__img--${variant}" data-type-card-img="${variant}" data-type-card-placeholder="1" src="${typeCardPlaceholderSrc(variant)}" alt="${opts.imgAlt}" style="display:block!important;position:static!important;float:none!important;width:100%!important;height:150px!important;object-fit:contain!important;margin:0 0 14px 0!important;background:#f1f5f9;" />` +
     `<p class="type-card__label type-card__label--${variant}" style="display:block!important;position:static!important;margin:0 0 6px 0;font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:${accent};line-height:1.3;">${opts.label}</p>` +
     `<h3 style="display:block!important;position:static!important;margin:0 0 8px 0;font-size:20px;line-height:1.25;font-weight:800;color:#0f172a;">${opts.title}</h3>` +
     `<p style="display:block!important;position:static!important;margin:0 0 12px 0;font-size:14px;line-height:1.55;color:#475569;">${opts.description}</p>` +

@@ -221,6 +221,7 @@ const FormCKEditor = ({
         Strikethrough,
         Subscript,
         Superscript,
+        ButtonView,
         Table,
         TableCaption,
         TableCellProperties,
@@ -258,6 +259,40 @@ const FormCKEditor = ({
         ClassicEditor,
         editorConfig: {
           licenseKey: LICENSE_KEY,
+          // Register balloon "Replace image" early (before image toolbar builds)
+          extraPlugins:
+            includeCategoryCardsTemplate && ButtonView
+              ? [
+                  function TypeCardReplaceImagePlugin(editor: {
+                    ui: {
+                      componentFactory: {
+                        add: (name: string, cb: (locale: unknown) => unknown) => void;
+                      };
+                    };
+                    __typeCardReplaceImageHandler?: () => void;
+                  }) {
+                    editor.ui.componentFactory.add(
+                      'typeCardReplaceImage',
+                      (locale: unknown) => {
+                        const button = new ButtonView(locale as never);
+                        // Official CKBox "Edit image" icon (pencil on image)
+                        button.set({
+                          label: 'Edit image',
+                          tooltip: true,
+                          withText: false,
+                          isEnabled: true,
+                          icon:
+                            '<svg viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M1.201 1C.538 1 0 1.47 0 2.1v14.363c0 .64.534 1.037 1.186 1.037H5.06l5.058-5.078L6.617 9.15a.696.696 0 0 0-.957-.033L1.5 13.6V2.5h15v4.354a3.478 3.478 0 0 1 1.5.049V2.1c0-.63-.547-1.1-1.2-1.1H1.202Zm11.713 2.803a2.147 2.147 0 0 0-2.049 1.992 2.14 2.14 0 0 0 1.28 2.096 2.13 2.13 0 0 0 2.642-3.11 2.129 2.129 0 0 0-1.873-.978ZM8.089 17.635v2.388h2.389l7.046-7.046-2.39-2.39-7.045 7.048Zm11.282-6.507a.637.637 0 0 0 .139-.692.603.603 0 0 0-.139-.205l-1.49-1.488a.63.63 0 0 0-.899 0l-1.166 1.163 2.39 2.39 1.165-1.168Z"/></svg>',
+                        });
+                        button.on('execute', () => {
+                          editor.__typeCardReplaceImageHandler?.();
+                        });
+                        return button;
+                      }
+                    );
+                  },
+                ]
+              : [],
           toolbar: {
             items: [
               'undo',
@@ -566,7 +601,10 @@ const FormCKEditor = ({
           } as any,
           image: {
             toolbar: [
-              'toggleImageCaption',
+              // Omit toggleImageCaption for type cards (not needed for card images)
+              ...(includeCategoryCardsTemplate
+                ? []
+                : (['toggleImageCaption'] as const)),
               'imageTextAlternative',
               '|',
               'imageStyle:inline',
@@ -575,13 +613,19 @@ const FormCKEditor = ({
               '|',
               'resizeImage',
               '|',
-              'ckboxImageEdit'
+              // CKBox edit fails on S3/data URLs ("Failed to determine category…").
+              // Type cards use a custom replace/upload button instead.
+              ...(includeCategoryCardsTemplate
+                ? (['typeCardReplaceImage'] as const)
+                : (['ckboxImageEdit'] as const)),
             ],
             upload: {
               types: ['jpeg', 'jpg', 'png', 'gif', 'bmp', 'webp', 'svg']
             },
             insert: {
-              integrations: ['upload', 'url', 'ckbox']
+              integrations: includeCategoryCardsTemplate
+                ? ['upload', 'url']
+                : ['upload', 'url', 'ckbox']
             }
           },
           lineHeight: {
@@ -978,7 +1022,7 @@ const FormCKEditor = ({
       console.warn('⚠️ Error enabling insertImage button:', error);
     }
 
-    // Type cards: click "No image" placeholder (or existing card image) → file picker → replace
+    // Type cards: toolbar "Edit image" opens file picker (not click-on-image)
     if (includeCategoryCardsTemplate && editableElement) {
       const escapeAttr = (value: string) =>
         value
@@ -1023,7 +1067,7 @@ const FormCKEditor = ({
       };
 
       const buildTypeCardImgHtml = (src: string, alt: string, slot: string) =>
-        `<img class="type-card__img type-card__img--${escapeAttr(slot)}" src="${src}" alt="${escapeAttr(alt)}" data-type-card-img="${escapeAttr(slot)}" style="display:block!important;position:static!important;float:none!important;width:100%!important;height:150px!important;object-fit:contain!important;margin:0 0 14px 0!important;background:#fff;cursor:pointer;" title="Click to replace image">`;
+        `<img class="type-card__img type-card__img--${escapeAttr(slot)}" src="${src}" alt="${escapeAttr(alt)}" data-type-card-img="${escapeAttr(slot)}" style="display:block!important;position:static!important;float:none!important;width:100%!important;height:150px!important;object-fit:contain!important;margin:0 0 14px 0!important;background:#fff;" title="Use Edit image on the toolbar to replace">`;
 
       /**
        * Replace exactly one card image by DOM index among type-card images.
@@ -1193,68 +1237,96 @@ const FormCKEditor = ({
         requestAnimationFrame(() => input.click());
       };
 
-      const resolveDomElement = (target: EventTarget | null): Element | null => {
-        if (target instanceof Element) return target;
-        if (target instanceof Text) return target.parentElement;
-        if (target instanceof Node) return (target as Node).parentElement;
+      const getSelectedTypeCardImageDom = (): HTMLElement | null => {
+        const widgetImg = editableElement.querySelector(
+          '.type-card figure.ck-widget_selected img, .type-card .ck-widget_selected img, .type-card img.ck-widget_selected, .type-cards figure.ck-widget_selected img, .type-cards .ck-widget_selected img'
+        ) as HTMLElement | null;
+        if (widgetImg) return widgetImg;
+
+        try {
+          const selected = editor.model.document.selection.getSelectedElement();
+          if (
+            selected &&
+            (selected.name === 'imageBlock' || selected.name === 'imageInline')
+          ) {
+            const viewEl = editor.editing.mapper.toViewElement(selected);
+            if (viewEl) {
+              const dom = editor.editing.view.domConverter.mapViewToDom(viewEl);
+              if (dom instanceof HTMLElement) {
+                const img =
+                  dom.tagName === 'IMG'
+                    ? dom
+                    : (dom.querySelector('img') as HTMLElement | null);
+                if (img?.closest('.type-card') || img?.closest('.type-cards')) {
+                  return img;
+                }
+                if (img && includeCategoryCardsTemplate) return img;
+              }
+            }
+          }
+        } catch {
+          /* ignore */
+        }
+
+        if (includeCategoryCardsTemplate) {
+          return editableElement.querySelector(
+            'figure.ck-widget_selected img, .ck-widget_selected img, img.ck-widget_selected'
+          ) as HTMLElement | null;
+        }
         return null;
       };
 
-      const findTypeCardImageTarget = (
-        target: EventTarget | null
-      ): HTMLElement | null => {
-        const start = resolveDomElement(target);
-        if (!start || !editableElement.contains(start)) return null;
-
-        const placeholderImg = start.closest(
-          'img.type-card__img-placeholder, img[data-type-card-placeholder="1"], img[data-type-card-img]'
-        ) as HTMLElement | null;
-        if (placeholderImg) return placeholderImg;
-
-        const legacyDiv = start.closest(
-          '.type-card__img-placeholder, [data-type-card-img]'
-        ) as HTMLElement | null;
-        if (legacyDiv) return legacyDiv;
-
-        return null;
+      // Balloon toolbar click can clear selection — remember last selected card image
+      let lastTypeCardImg: HTMLElement | null = null;
+      const refreshRememberedTypeCardImg = () => {
+        const img = getSelectedTypeCardImageDom();
+        if (img && editableElement.contains(img)) lastTypeCardImg = img;
       };
-
-      const onTypeCardImgClick = (e: MouseEvent) => {
-        const el = findTypeCardImageTarget(e.target);
-        if (!el) return;
-        e.preventDefault();
-        e.stopPropagation();
-        openTypeCardImagePicker(el);
-      };
-
-      const onTypeCardImgKeyDown = (e: KeyboardEvent) => {
-        if (e.key !== 'Enter' && e.key !== ' ') return;
-        const el = findTypeCardImageTarget(e.target);
-        if (!el) return;
-        e.preventDefault();
-        e.stopPropagation();
-        openTypeCardImagePicker(el);
-      };
-
-      editableElement.addEventListener('click', onTypeCardImgClick, true);
-      editableElement.addEventListener('keydown', onTypeCardImgKeyDown, true);
-      (editableElement as any).__typeCardImgClickHandler = onTypeCardImgClick;
-      (editableElement as any).__typeCardImgKeyHandler = onTypeCardImgKeyDown;
-
-      // CKEditor view-layer click (more reliable than DOM-only for contenteditable)
+      refreshRememberedTypeCardImg();
       try {
-        const viewDoc = editor.editing.view.document;
-        const onViewClick = (_evt: unknown, data: { domTarget?: EventTarget; preventDefault?: () => void }) => {
-          const el = findTypeCardImageTarget(data?.domTarget ?? null);
-          if (!el) return;
-          data.preventDefault?.();
-          openTypeCardImagePicker(el);
+        editor.model.document.selection.on('change', refreshRememberedTypeCardImg);
+        editor.editing.view.document.on('selectionChange', refreshRememberedTypeCardImg);
+      } catch {
+        /* ignore */
+      }
+
+      // Toolbar "Edit image" only — do not open upload when clicking the card image
+      (editor as { __typeCardReplaceImageHandler?: () => void }).__typeCardReplaceImageHandler =
+        () => {
+          const img =
+            (lastTypeCardImg && editableElement.contains(lastTypeCardImg)
+              ? lastTypeCardImg
+              : null) || getSelectedTypeCardImageDom();
+          if (img) {
+            openTypeCardImagePicker(img);
+            return;
+          }
+          const focused = editableElement.querySelector(
+            '.type-card img:focus, .type-card figure.ck-widget_selected img, .type-card .ck-widget_selected img'
+          ) as HTMLElement | null;
+          if (focused) openTypeCardImagePicker(focused);
         };
-        viewDoc.on('click', onViewClick, { priority: 'highest' });
-        (editableElement as any).__typeCardImgViewClick = onViewClick;
-        (editableElement as any).__typeCardImgViewDoc = viewDoc;
-      } catch (err) {
-        console.warn('Could not bind type-card view click:', err);
+
+      // Safety: if CKBox edit still fires, redirect to upload for type-card images
+      try {
+        const ckboxEditCmd = editor.commands.get('ckboxImageEdit');
+        if (ckboxEditCmd) {
+          ckboxEditCmd.on(
+            'execute',
+            (evt: { stop: () => void }) => {
+              const img =
+                (lastTypeCardImg && editableElement.contains(lastTypeCardImg)
+                  ? lastTypeCardImg
+                  : null) || getSelectedTypeCardImageDom();
+              if (!img) return;
+              evt.stop();
+              openTypeCardImagePicker(img);
+            },
+            { priority: 'highest' }
+          );
+        }
+      } catch {
+        /* ignore */
       }
     }
 
