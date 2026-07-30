@@ -14,7 +14,7 @@ import {
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
-import { Controller, useFieldArray, useForm } from "react-hook-form";
+import { Controller, useFieldArray, useForm, type Control, type FieldPath } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import debounce from "lodash/debounce";
@@ -73,8 +73,6 @@ const buyingGuideSchema = z
       .max(MAX_RELATED_BLOGS),
   })
   .superRefine((data, ctx) => {
-    if (!data.is_enabled) return;
-
     if (!data.guide_label?.trim()) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
@@ -111,7 +109,11 @@ const buyingGuideSchema = z
           path: ["tabs", index, "section_heading"],
         });
       }
-      if (!tab.section_body?.trim()) {
+      const bodyText = (tab.section_body ?? "")
+        .replace(/<[^>]*>/g, " ")
+        .replace(/&nbsp;/gi, " ")
+        .trim();
+      if (!bodyText) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           message: "Section body is required",
@@ -180,12 +182,74 @@ const inputFieldSx = {
   "& .MuiOutlinedInput-root": {
     backgroundColor: "#ffffff",
     bgcolor: "#ffffff",
+    borderRadius: "0",
+    "& fieldset": {
+      borderColor: "#2E9970",
+      borderRadius: "0",
+    },
+    "&:hover fieldset": {
+      borderColor: "#247C5C",
+    },
+    "&.Mui-focused fieldset": {
+      borderColor: "#1E7A56",
+      borderWidth: "2px",
+    },
+    "&.Mui-error fieldset": {
+      borderColor: "#d32f2f",
+    },
   },
   "& .MuiOutlinedInput-input": {
     backgroundColor: "#ffffff",
     color: "rgba(0, 0, 0, 0.87)",
   },
+  "& .MuiInputLabel-root": {
+    color: "#2E9970",
+  },
+  "& .MuiInputLabel-root.Mui-focused": {
+    color: "#2E9970",
+  },
 } as const;
+
+/** Local field that shows zod errors after submit (FormInputField only shows after focus). */
+function BuyingGuideTextField({
+  name,
+  control,
+  label,
+  required = false,
+}: {
+  name: FieldPath<BuyingGuideFormType>;
+  control: Control<BuyingGuideFormType>;
+  label: string;
+  required?: boolean;
+}) {
+  return (
+    <Controller
+      name={name}
+      control={control}
+      render={({ field, fieldState: { error, isTouched }, formState: { isSubmitted } }) => {
+        const showError = Boolean(error) && (isSubmitted || isTouched);
+        return (
+          <TextField
+            {...field}
+            value={field.value ?? ""}
+            label={
+              <>
+                {label} {required ? <span style={{ color: "red" }}>*</span> : null}
+              </>
+            }
+            fullWidth
+            variant="outlined"
+            className="mb-6"
+            error={showError}
+            helperText={showError ? error?.message : undefined}
+            onBlur={field.onBlur}
+            sx={inputFieldSx}
+          />
+        );
+      }}
+    />
+  );
+}
 
 type BuyingGuide = CategoryBuyingGuide | BrandBuyingGuide;
 
@@ -254,17 +318,21 @@ export default function BuyingGuideForm({
   const [blogPosts, setBlogPosts] = useState<BlogOption[]>([]);
   const [blogSearch, setBlogSearch] = useState("");
 
-  const { control, handleSubmit, reset, setValue, watch } =
+  const { control, handleSubmit, reset, setValue, watch, formState } =
     useForm<BuyingGuideFormType>({
       resolver: zodResolver(buyingGuideSchema),
       defaultValues: {
         ...defaultValues,
         title: entityName || "",
       },
-      mode: "onChange",
+      mode: "onSubmit",
+      reValidateMode: "onChange",
     });
 
-  const isEnabled = watch("is_enabled");
+  // Ensure Controllers re-render with field errors after submit
+  void formState.isSubmitted;
+  void formState.errors;
+
   const selectedBlogs = watch("related_blogs") || [];
 
   const {
@@ -460,20 +528,17 @@ export default function BuyingGuideForm({
           Header
         </Typography>
 
-        <FormInputField
+        <BuyingGuideTextField
           name="guide_label"
           control={control}
           label="Guide Label"
-          type="text"
-          sx={inputFieldSx}
+          required
         />
-        <FormInputField
+        <BuyingGuideTextField
           name="title"
           control={control}
           label="Main Title"
-          type="text"
-          required={isEnabled}
-          sx={inputFieldSx}
+          required
         />
       </Paper>
 
@@ -658,21 +723,17 @@ export default function BuyingGuideForm({
               )}
             </Box>
 
-            <FormInputField
+            <BuyingGuideTextField
               name={`tabs.${index}.tab_title`}
               control={control}
               label="Tab Title"
-              type="text"
-              required={isEnabled}
-              sx={inputFieldSx}
+              required
             />
-            <FormInputField
+            <BuyingGuideTextField
               name={`tabs.${index}.section_heading`}
               control={control}
               label="Section Heading"
-              type="text"
-              required={isEnabled}
-              sx={inputFieldSx}
+              required
             />
             <FormCKEditor
               key={`tab-body-${field.id}`}
@@ -680,6 +741,7 @@ export default function BuyingGuideForm({
               control={control}
               label="Section Body"
               defaultValue=""
+              required
             />
           </Paper>
         ))}

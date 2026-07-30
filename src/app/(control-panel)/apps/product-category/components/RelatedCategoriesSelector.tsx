@@ -24,6 +24,7 @@ export default function RelatedCategoriesSelector({
   onLinksChange,
   validationErrors = [],
   showRowErrors = false,
+  requireAllFields = false,
   label = "Related Links",
 }: {
   links: RelatedLink[];
@@ -31,6 +32,8 @@ export default function RelatedCategoriesSelector({
   validationErrors?: string[];
   /** When true, also show missing text/URL errors (after save attempt). */
   showRowErrors?: boolean;
+  /** When true with showRowErrors, blank rows show required-field errors. */
+  requireAllFields?: boolean;
   label?: string;
 }) {
   const displayLinks = useMemo(() => {
@@ -77,7 +80,11 @@ export default function RelatedCategoriesSelector({
       ) : null}
 
       {displayLinks.map((link, index) => {
-        const rowErrors = showRowErrors ? getRelatedLinkRowErrors(link) : {};
+        const rowErrors = showRowErrors
+          ? getRelatedLinkRowErrors(link, {
+              requireFields: requireAllFields,
+            })
+          : {};
         const liveUrlError = getLiveRelatedLinkUrlError(link.url);
         const urlError = rowErrors.url || liveUrlError;
         const textError = rowErrors.text;

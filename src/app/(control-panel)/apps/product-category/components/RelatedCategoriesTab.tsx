@@ -13,6 +13,7 @@ import {
 } from "@/services/apiProductCategory";
 import {
   cleanRelatedLinks,
+  EMPTY_RELATED_LINK,
   extractRelatedLinksApiErrors,
   getRelatedLinksValidationErrors,
   hasRelatedLinksErrors,
@@ -65,13 +66,14 @@ export default function RelatedCategoriesTab({
   const onSave = async () => {
     setAttemptedSave(true);
 
-    const filledLinks = relatedLinks.filter(
-      (l) => (l.text ?? "").trim() || (l.url ?? "").trim()
-    );
-    const rowErrors = getRelatedLinksValidationErrors(filledLinks);
+    const linksToValidate =
+      relatedLinks.length > 0 ? relatedLinks : [{ ...EMPTY_RELATED_LINK }];
+    const rowErrors = getRelatedLinksValidationErrors(linksToValidate, {
+      requireFields: true,
+    });
 
     if (rowErrors.length > 0) {
-      setValidationErrors(rowErrors);
+      setValidationErrors([]);
       return;
     }
 
@@ -113,6 +115,7 @@ export default function RelatedCategoriesTab({
         }}
         validationErrors={validationErrors}
         showRowErrors={attemptedSave}
+        requireAllFields
       />
 
       <Box sx={{ mt: 3 }}>
