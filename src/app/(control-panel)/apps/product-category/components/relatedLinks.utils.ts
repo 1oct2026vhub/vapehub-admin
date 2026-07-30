@@ -53,13 +53,15 @@ export type RelatedLinkFieldErrors = {
 };
 
 export function getRelatedLinkRowErrors(
-  link: RelatedLink
+  link: RelatedLink,
+  options?: { requireFields?: boolean }
 ): RelatedLinkFieldErrors {
   const text = (link.text ?? "").trim();
   const url = (link.url ?? "").trim();
   const errors: RelatedLinkFieldErrors = {};
 
-  if (!text && !url) {
+  // Optional rows (e.g. create forms): completely blank rows are skipped
+  if (!options?.requireFields && !text && !url) {
     return errors;
   }
 
@@ -91,7 +93,8 @@ export function hasRelatedLinksErrors(links: RelatedLink[]): boolean {
 }
 
 export function getRelatedLinksValidationErrors(
-  links: RelatedLink[] | null | undefined
+  links: RelatedLink[] | null | undefined,
+  options?: { requireFields?: boolean }
 ): string[] {
   const errors: string[] = [];
 
@@ -111,7 +114,7 @@ export function getRelatedLinksValidationErrors(
       return;
     }
 
-    const rowErrors = getRelatedLinkRowErrors(link);
+    const rowErrors = getRelatedLinkRowErrors(link, options);
     const rowLabel = `Link ${index + 1}`;
 
     if (rowErrors.text) {
