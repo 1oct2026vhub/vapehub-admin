@@ -219,9 +219,10 @@ export default function RelatedCollectionsTab({
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
         Type cards HTML for the storefront grid (separate from {relatedLinksLabel}{" "}
         links). Use <strong>Templates → Category Cards (4-col)</strong>, then
-        click each placeholder image to upload, and update text and shop
-        links. Clear the editor and save to remove the section. Re-upload each
-        card image once if older saves shared the same image across cards.
+        update text and shop links. To change an image, select it and use{" "}
+        <strong>Edit image</strong> on the image toolbar (clicking the image
+        alone does not open upload). Clear the editor and save to remove the
+        section.
       </Typography>
 
       <form onSubmit={handleSubmit(onSave)} noValidate>
