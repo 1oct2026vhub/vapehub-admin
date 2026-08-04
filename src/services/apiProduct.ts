@@ -11,6 +11,7 @@ interface ProductListParams {
   brands?: string;
   deleted?: boolean;
   is_new?: boolean;
+  is_coming_soon?: boolean;
 }
 
 // Generic fetcher for GET requests
@@ -160,6 +161,7 @@ export interface CreateProductData {
   linked_product_ids?: number[];
   is_new?: boolean;
   is_discontinued?: boolean;
+  is_coming_soon?: boolean;
   /** Redirect URL for deleted products (301 from product URL to this path) */
   redirect_url?: string;
 }

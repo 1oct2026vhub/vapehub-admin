@@ -50,6 +50,7 @@ const schema = z.object({
   linked_product_ids: z.array(z.number()).optional().default([]),
   is_new: z.boolean().optional(),
   is_discontinued: z.boolean().optional(),
+  is_coming_soon: z.boolean().optional(),
 });
 // Same redirect URL validation as EditBannerForm: empty or valid URL
 const redirectUrlSchema = z.string().url("Invalid URL format").optional().or(z.literal(""));
@@ -216,6 +217,7 @@ function BasicInfoTab() {
       brand_ids: formData.brand_ids || [],
       linked_product_ids: formData.linked_product_ids || [],
       is_discontinued: formData.is_discontinued ?? false,
+      is_coming_soon: formData.is_coming_soon ?? false,
       // is_new: formData.is_new ?? true,
     },
     resolver: zodResolver(schema),
@@ -614,6 +616,7 @@ function BasicInfoTab() {
              setValue("linked_product_ids", productData.LinkedProducts?.map(p => p.id) || []);
              setValue("is_new", productData.is_new ?? true);
              setValue("is_discontinued", productData.is_discontinued ?? false);
+             setValue("is_coming_soon", productData.is_coming_soon ?? false);
 
             // Fetch selected category, brand, and linked product details
             await fetchSelectedOptions(
@@ -638,6 +641,7 @@ function BasicInfoTab() {
                linked_product_ids: productData.LinkedProducts?.map(p => p.id) || [],
                is_new: productData.is_new ?? true,
                is_discontinued: productData.is_discontinued ?? false,
+               is_coming_soon: productData.is_coming_soon ?? false,
                productId: Number(finalProductId),
                deletedAt: productData.deletedAt ?? null,
               redirect_url: extractedRedirectUrl,
@@ -688,6 +692,7 @@ function BasicInfoTab() {
          linked_product_ids: data.linked_product_ids || [],
          is_new: Boolean(data.is_new),
          is_discontinued: Boolean(data.is_discontinued),
+         is_coming_soon: Boolean(data.is_coming_soon),
          ...(formData.deletedAt && { redirect_url: (formData.redirect_url ?? "").trim() || undefined }),
        };
 
@@ -1017,7 +1022,15 @@ function BasicInfoTab() {
           </Grid>
         )}
         
-        <Grid item xs={12}>
+        <Grid item xs={12} sm={6}>
+          <FormCheckboxField
+            name="is_coming_soon"
+            control={control}
+            label="Coming Soon (hidden from New Products / shop until unset)"
+          />
+        </Grid>
+
+        <Grid item xs={12} sm={6}>
           <FormCheckboxField
             name="is_discontinued"
             control={control}
