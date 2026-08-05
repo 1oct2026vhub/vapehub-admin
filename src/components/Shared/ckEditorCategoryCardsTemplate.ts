@@ -1,5 +1,11 @@
 /** CKEditor Template + styles for Related Collections type cards. */
 
+import {
+  TYPE_CARD_IMAGE_ASPECT_RATIO,
+  TYPE_CARD_IMG_INLINE_STYLE,
+  normalizeTypeCardImageInlineStyles,
+} from "@/components/Shared/typeCardImageEncode";
+
 const ACCENT = {
   teal: "#14b8a6",
   orange: "#f59e0b",
@@ -34,8 +40,9 @@ export const TYPE_CARDS_STOREFRONT_CSS = `
 .type-card--purple{border-top:4px solid #a855f7!important}
 .type-card__body{display:block!important;flex:1 1 auto!important;position:static!important;float:none!important;width:100%!important;margin:0!important;padding:0!important;transform:none!important}
 .type-card__footer{display:block!important;margin-top:auto!important;padding-top:16px!important;width:100%!important;position:static!important;float:none!important}
-.type-cards figure,.type-cards .image,.type-cards figure.image{display:block!important;position:static!important;float:none!important;width:100%!important;max-width:100%!important;margin:0 0 14px 0!important;padding:0!important;transform:none!important}
-.type-cards img,.type-card img{display:block!important;position:static!important;float:none!important;width:100%!important;max-width:100%!important;height:150px!important;object-fit:contain!important;margin:0 0 14px 0!important;padding:0!important;background:#fff!important;transform:none!important;inset:auto!important;left:auto!important;top:auto!important;right:auto!important;bottom:auto!important;z-index:auto!important}
+.type-cards figure,.type-cards .image,.type-cards figure.image{display:block!important;position:static!important;float:none!important;width:100%!important;max-width:100%!important;margin:0 0 14px 0!important;padding:0!important;transform:none!important;aspect-ratio:${TYPE_CARD_IMAGE_ASPECT_RATIO}!important;overflow:hidden!important;background:#fff!important}
+.type-cards img,.type-card img{display:block!important;position:static!important;float:none!important;width:100%!important;max-width:100%!important;height:auto!important;aspect-ratio:${TYPE_CARD_IMAGE_ASPECT_RATIO}!important;object-fit:contain!important;object-position:center center!important;image-rendering:auto!important;-webkit-backface-visibility:hidden!important;margin:0 0 14px 0!important;padding:0!important;background:#fff!important;transform:none!important;inset:auto!important;left:auto!important;top:auto!important;right:auto!important;bottom:auto!important;z-index:auto!important}
+.type-cards figure img,.type-cards .image img,.type-card figure img{margin:0!important;height:100%!important;width:100%!important;aspect-ratio:auto!important;object-fit:contain!important;object-position:center center!important}
 .type-card p,.type-card h3,.type-card__label,.type-card__badge,.type-card ul,.type-card li,.type-card a{position:static!important;float:none!important;transform:none!important;inset:auto!important;z-index:auto!important;max-width:100%!important}
 .type-card__label{display:block!important;margin:0 0 6px 0!important;font-size:11px!important;font-weight:800!important;letter-spacing:.08em!important;text-transform:uppercase!important;line-height:1.3!important}
 .type-card__label--teal{color:#14b8a6!important}
@@ -74,7 +81,10 @@ export function ensureTypeCardsStorefrontStyles(html: string): string {
     /<style[^>]*data-type-cards-css=["']1["'][^>]*>[\s\S]*?<\/style>/gi,
     ""
   ).trim();
-  return `${TYPE_CARDS_STYLE_TAG}\n${withoutOld}`;
+  // Refresh CSS + rewrite legacy img inline styles → 297×180 frame
+  return normalizeTypeCardImageInlineStyles(
+    `${TYPE_CARDS_STYLE_TAG}\n${withoutOld}`
+  );
 }
 
 /** Injected into FormCKEditor — must beat generic .ck-content p / list / span rules. */
@@ -121,15 +131,44 @@ export const RELATED_COLLECTION_CARDS_CSS = `
     width: 100% !important;
     padding-top: 16px !important;
   }
+  .ck-content .type-card figure.image,
+  .ck-content .type-card .image,
+  .ck-content .type-card figure {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 0 14px 0 !important;
+    padding: 0 !important;
+    aspect-ratio: ${TYPE_CARD_IMAGE_ASPECT_RATIO} !important;
+    overflow: hidden !important;
+    background: #fff !important;
+    box-sizing: border-box !important;
+  }
   .ck-content .type-card img,
   .ck-content .type-card img.type-card__img-placeholder {
     display: block !important;
     width: 100% !important;
-    height: 150px !important;
+    max-width: 100% !important;
+    height: auto !important;
+    aspect-ratio: ${TYPE_CARD_IMAGE_ASPECT_RATIO} !important;
     object-fit: contain !important;
+    object-position: center center !important;
+    image-rendering: auto !important;
+    -webkit-backface-visibility: hidden !important;
     margin: 0 0 14px 0 !important;
+    padding: 0 !important;
     background: #f1f5f9 !important;
     box-sizing: border-box !important;
+    transform: none !important;
+  }
+  .ck-content .type-card figure img,
+  .ck-content .type-card .image img {
+    margin: 0 !important;
+    height: 100% !important;
+    width: 100% !important;
+    aspect-ratio: auto !important;
+    object-fit: contain !important;
+    object-position: center center !important;
   }
   .ck-content .type-card h3 {
     display: block !important;
@@ -307,7 +346,7 @@ const card = (
   return (
     `<article class="type-card type-card--${variant}" style="display:flex;flex-direction:column;height:100%;min-height:100%;background:#ffffff;border:1px solid #e2e8f0;border-top:4px solid ${accent};border-radius:10px;box-shadow:0 1px 3px rgba(15,23,42,.06);padding:16px;box-sizing:border-box;margin:0;overflow:hidden;">` +
     `<div class="type-card__body" style="flex:1 1 auto;width:100%;">` +
-    `<img class="type-card__img-placeholder type-card__img type-card__img--${variant}" data-type-card-img="${variant}" data-type-card-placeholder="1" src="${typeCardPlaceholderSrc(variant)}" alt="${opts.imgAlt}" style="display:block!important;position:static!important;float:none!important;width:100%!important;height:150px!important;object-fit:contain!important;margin:0 0 14px 0!important;background:#f1f5f9;" />` +
+    `<img class="type-card__img-placeholder type-card__img type-card__img--${variant}" data-type-card-img="${variant}" data-type-card-placeholder="1" src="${typeCardPlaceholderSrc(variant)}" alt="${opts.imgAlt}" style="${TYPE_CARD_IMG_INLINE_STYLE}background:#f1f5f9!important;" />` +
     `<p class="type-card__label type-card__label--${variant}" style="display:block!important;position:static!important;margin:0 0 6px 0;font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:${accent};line-height:1.3;">${opts.label}</p>` +
     `<h3 style="display:block!important;position:static!important;margin:0 0 8px 0;font-size:20px;line-height:1.25;font-weight:800;color:#0f172a;">${opts.title}</h3>` +
     `<p style="display:block!important;position:static!important;margin:0 0 12px 0;font-size:14px;line-height:1.55;color:#475569;">${opts.description}</p>` +
