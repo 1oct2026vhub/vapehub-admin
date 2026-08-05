@@ -55,6 +55,7 @@ export type ProductType = {
   price: number | string;
   stock_quantity: number;
   is_new: boolean;
+  is_coming_soon?: boolean;
   deletedAt: string | null;
   createdAt: string;
   updatedAt: string;
@@ -118,6 +119,7 @@ const ProductListTable = ({
       deleted: null as boolean | null,
       status: "all",
       isNew: null as boolean | null,
+      isComingSoon: null as boolean | null,
       priceRange: "",
       categories: "",
       brands: "",
@@ -128,7 +130,7 @@ const ProductListTable = ({
   );
 
   // Use pageState values directly
-  const { search, order, sortBy, deleted, status, isNew, priceRange, categories, brands, selectedCategoryId, selectedBrandId, page } = pageState;
+  const { search, order, sortBy, deleted, status, isNew, isComingSoon, priceRange, categories, brands, selectedCategoryId, selectedBrandId, page } = pageState;
   const [debouncedSearch, setDebouncedSearch] = useState("");
   
   // Helper functions to update pageState
@@ -138,6 +140,7 @@ const ProductListTable = ({
   const setDeleted = (value: boolean | null) => setPageState(prev => ({ ...prev, deleted: value }));
   const setStatus = (value: string) => setPageState(prev => ({ ...prev, status: value }));
   const setIsNew = (value: boolean | null) => setPageState(prev => ({ ...prev, isNew: value }));
+  const setIsComingSoon = (value: boolean | null) => setPageState(prev => ({ ...prev, isComingSoon: value }));
   const setPriceRange = (value: string) => setPageState(prev => ({ ...prev, priceRange: value }));
   const setCategories = (value: string) => setPageState(prev => ({ ...prev, categories: value }));
   const setBrands = (value: string) => setPageState(prev => ({ ...prev, brands: value }));
@@ -225,11 +228,12 @@ const ProductListTable = ({
       deleted !== null ||
       (status !== "all" && status !== null) ||
       isNew !== null ||
+      isComingSoon !== null ||
       priceRange !== "" ||
       categories !== "" ||
       brands !== ""
     );
-  }, [search, sortBy, order, deleted, status, isNew, priceRange, categories, brands]);
+  }, [search, sortBy, order, deleted, status, isNew, isComingSoon, priceRange, categories, brands]);
   // --- END ADD ---
 
   // Handle limit change with proper state batching
@@ -424,6 +428,7 @@ const ProductListTable = ({
       ...(brands && { brands }),
       ...(deleted !== null && { deleted }),
       ...(isNew !== null && { is_new: isNew }),
+      ...(isComingSoon !== null && { is_coming_soon: isComingSoon }),
     }),
     [
       debouncedSearch,
@@ -432,6 +437,7 @@ const ProductListTable = ({
       status,
       deleted,
       isNew,
+      isComingSoon,
       priceRange,
       categories,
       brands,
@@ -869,6 +875,17 @@ const ProductListTable = ({
         ),
       },
       {
+        accessorKey: "is_coming_soon",
+        header: "Coming Soon",
+        Cell: ({ row }) => (
+          <Chip
+            label={row.original.is_coming_soon ? "Coming Soon" : "No"}
+            color={row.original.is_coming_soon ? "info" : "default"}
+            size="small"
+          />
+        ),
+      },
+      {
         accessorKey: "status",
         header: "Status",
         size: 120,
@@ -957,6 +974,7 @@ const ProductListTable = ({
     setDeleted(null);
     setStatus("all");
     setIsNew(null);
+    setIsComingSoon(null);
     setPriceRange("");
     setCategories("");
     setBrands("");
@@ -1058,6 +1076,28 @@ const ProductListTable = ({
               <MenuItem value="true">New Products</MenuItem>
               <MenuItem value="false">Regular Products</MenuItem>
             </Select> */}
+
+            <Select
+              value={
+                isComingSoon === null
+                  ? "all"
+                  : isComingSoon
+                    ? "coming_soon"
+                    : "not_coming_soon"
+              }
+              onChange={(e) =>
+                setIsComingSoon(
+                  e.target.value === "all"
+                    ? null
+                    : e.target.value === "coming_soon"
+                )
+              }
+              size="small"
+            >
+              <MenuItem value="all">All Coming Soon</MenuItem>
+              <MenuItem value="coming_soon">Coming Soon</MenuItem>
+              <MenuItem value="not_coming_soon">Not Coming Soon</MenuItem>
+            </Select>
 
             <Select
               value={
@@ -1457,6 +1497,30 @@ const ProductListTable = ({
               <MenuItem value="all">All Products</MenuItem>
               <MenuItem value="new">New Products</MenuItem>
               <MenuItem value="regular">Regular Products</MenuItem>
+            </Select>
+          </ListItem>
+          <ListItem>
+            <Select
+              value={
+                isComingSoon === null
+                  ? "all"
+                  : isComingSoon
+                    ? "coming_soon"
+                    : "not_coming_soon"
+              }
+              onChange={(e) =>
+                setIsComingSoon(
+                  e.target.value === "all"
+                    ? null
+                    : e.target.value === "coming_soon"
+                )
+              }
+              fullWidth
+              size="small"
+            >
+              <MenuItem value="all">All Coming Soon</MenuItem>
+              <MenuItem value="coming_soon">Coming Soon</MenuItem>
+              <MenuItem value="not_coming_soon">Not Coming Soon</MenuItem>
             </Select>
           </ListItem>
           <ListItem>

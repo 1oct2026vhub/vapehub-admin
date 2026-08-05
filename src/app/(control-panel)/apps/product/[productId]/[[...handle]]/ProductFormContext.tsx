@@ -15,6 +15,7 @@ export interface ProductFormData {
   related_blog_ids?: number[];
   is_new: boolean;
   is_discontinued: boolean;
+  is_coming_soon: boolean;
 
   // Pricing Info
   price: string;
@@ -101,6 +102,7 @@ const initialFormData: ProductFormData = {
   related_blog_ids: [],
   is_new: true,
   is_discontinued: false,
+  is_coming_soon: false,
 
   price: "",
   discount_price: "",
