@@ -115,7 +115,11 @@ export default function RelatedCollectionsTab({
           name: data?.name ?? "",
           slug: data?.slug ?? "",
         });
-        reset({ type_cards_html: bustTypeCardImageCache(html) });
+        reset({
+          type_cards_html: ensureTypeCardsStorefrontStyles(
+            bustTypeCardImageCache(html)
+          ),
+        });
         setEditorMountKey((k) => k + 1);
       } catch (e: unknown) {
         console.error("Failed to load type cards:", e);
@@ -123,7 +127,9 @@ export default function RelatedCollectionsTab({
           response?: { data?: { message?: string } };
           message?: string;
         };
-        reset({ type_cards_html: initialHtml ?? "" });
+        reset({
+          type_cards_html: ensureTypeCardsStorefrontStyles(initialHtml ?? ""),
+        });
         const msg =
           apiError?.response?.data?.message ||
           apiError?.message ||
@@ -182,7 +188,9 @@ export default function RelatedCollectionsTab({
       const savedHtml =
         res?.data?.type_cards_html ?? res?.type_cards_html ?? html;
       // Cache-bust so replaced S3 objects show immediately; remount editor with API HTML
-      const displayHtml = bustTypeCardImageCache(savedHtml);
+      const displayHtml = ensureTypeCardsStorefrontStyles(
+        bustTypeCardImageCache(savedHtml)
+      );
       reset({ type_cards_html: displayHtml });
       setEditorMountKey((k) => k + 1);
       onSaved?.(savedHtml);
@@ -221,8 +229,9 @@ export default function RelatedCollectionsTab({
         links). Use <strong>Templates → Category Cards (4-col)</strong>, then
         update text and shop links. To change an image, select it and use{" "}
         <strong>Edit image</strong> on the image toolbar (clicking the image
-        alone does not open upload). Clear the editor and save to remove the
-        section.
+        alone does not open upload). Card images must be exactly{" "}
+        <strong>297 × 180 px</strong>, max 5MB (PNG, JPG, JPEG, WebP).
+        Clear the editor and save to remove the section.
       </Typography>
 
       <form onSubmit={handleSubmit(onSave)} noValidate>

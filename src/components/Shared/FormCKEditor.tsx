@@ -6,7 +6,15 @@ import dynamic from "next/dynamic";
 import { CKEditor, useCKEditorCloud } from "@ckeditor/ckeditor5-react";
 import { getCKEditorToken } from "@/services/apiService";
 import { CATEGORY_CARDS_4COL_TEMPLATE, RELATED_COLLECTION_CARDS_CSS } from "@/components/Shared/ckEditorCategoryCardsTemplate";
-import { encodeTypeCardImageDataUrl } from "@/components/Shared/typeCardImageEncode";
+import {
+  encodeTypeCardImageDataUrl,
+  TYPE_CARD_IMAGE_HEIGHT,
+  TYPE_CARD_IMAGE_MAX_BYTES,
+  TYPE_CARD_IMAGE_WIDTH,
+  TYPE_CARD_IMG_INLINE_STYLE,
+} from "@/components/Shared/typeCardImageEncode";
+import { useSnackbar } from "@/contexts/SnackbarContext";
+import { validateImageDimensions } from "@/utils/imageUtils";
 
 // Debounce onChange to avoid heavy getData + HTML processing on every keystroke with long content
 const ON_CHANGE_DEBOUNCE_MS = 400;
@@ -72,6 +80,7 @@ const FormCKEditor = ({
   const onChangeDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   /** Immediate RHF sync (bypasses debounce) — used after type-card image replace */
   const formChangeRef = useRef<(value: string) => void>(() => {});
+  const { showSnackbar } = useSnackbar();
 
   // Use CKEditor Cloud hook
   const cloud = useCKEditorCloud({ version: '47.2.0', premium: true, ckbox: { version: '2.6.1' } });
@@ -1067,7 +1076,7 @@ const FormCKEditor = ({
       };
 
       const buildTypeCardImgHtml = (src: string, alt: string, slot: string) =>
-        `<img class="type-card__img type-card__img--${escapeAttr(slot)}" src="${src}" alt="${escapeAttr(alt)}" data-type-card-img="${escapeAttr(slot)}" style="display:block!important;position:static!important;float:none!important;width:100%!important;height:150px!important;object-fit:contain!important;margin:0 0 14px 0!important;background:#fff;" title="Use Edit image on the toolbar to replace">`;
+        `<img class="type-card__img type-card__img--${escapeAttr(slot)}" src="${src}" alt="${escapeAttr(alt)}" data-type-card-img="${escapeAttr(slot)}" style="${TYPE_CARD_IMG_INLINE_STYLE}" title="Use Edit image on the toolbar to replace">`;
 
       /**
        * Replace exactly one card image by DOM index among type-card images.
@@ -1214,23 +1223,54 @@ const FormCKEditor = ({
           }
 
           // Encode to a unique mime per slot so API S3 keys (inline.{ext}) do not collide
-          void encodeTypeCardImageDataUrl(file, slot)
-            .catch(async () => {
-              // Fallback: raw data URL if canvas encode fails
-              return readFileAsDataUrl(file);
-            })
-            .then((src) => {
+          void (async () => {
+            try {
+              if (file.size > TYPE_CARD_IMAGE_MAX_BYTES) {
+                showSnackbar(
+                  `Image must be ${TYPE_CARD_IMAGE_MAX_BYTES / (1024 * 1024)}MB or smaller.`,
+                  'error'
+                );
+                if (el instanceof HTMLImageElement) el.style.opacity = '1';
+                return;
+              }
+
+              const dimensionValidation = await validateImageDimensions(
+                file,
+                TYPE_CARD_IMAGE_WIDTH,
+                TYPE_CARD_IMAGE_HEIGHT
+              );
+              if (!dimensionValidation.valid) {
+                const dims = dimensionValidation.dimensions;
+                const current =
+                  dims != null
+                    ? ` Current: ${dims.width} × ${dims.height} px.`
+                    : "";
+                showSnackbar(
+                  `Image dimensions must be exactly ${TYPE_CARD_IMAGE_WIDTH} × ${TYPE_CARD_IMAGE_HEIGHT} px.${current}`,
+                  "error"
+                );
+                if (el instanceof HTMLImageElement) el.style.opacity = "1";
+                return;
+              }
+
+              let src: string;
+              try {
+                src = await encodeTypeCardImageDataUrl(file, slot);
+              } catch {
+                src = await readFileAsDataUrl(file);
+              }
               const ok = replaceTypeCardImageSlot(el, slot, alt, src);
               if (!ok && el instanceof HTMLImageElement) {
                 el.style.opacity = '1';
               }
-            })
-            .catch((err) => {
+            } catch (err) {
               console.error('Type card image upload failed:', err);
+              showSnackbar('Type card image upload failed.', 'error');
               if (el instanceof HTMLImageElement) {
                 el.style.opacity = '1';
               }
-            });
+            }
+          })();
         });
 
         input.addEventListener('cancel', cleanupInput);
