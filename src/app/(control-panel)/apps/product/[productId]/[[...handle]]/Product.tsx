@@ -52,7 +52,9 @@ function ProductContent() {
             brand_ids: productData.brand_id,
             is_new: productData.is_new,
             is_discontinued: productData.is_discontinued ?? false,
-            is_coming_soon: productData.is_coming_soon ?? false,
+            is_coming_soon: productData.is_discontinued
+              ? false
+              : (productData.is_coming_soon ?? false),
             productId: Number(productId),
             deletedAt: productData.deletedAt ?? null,
             redirect_url: productData.redirect_url ?? "",
