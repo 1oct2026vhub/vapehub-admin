@@ -27,6 +27,7 @@ import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import RelatedCategoriesSelector from "../components/RelatedCategoriesSelector";
 import RelatedCollectionsEditor from "../components/RelatedCollectionsEditor";
+import AdditionalTextBoxEditor from "../components/AdditionalTextBoxEditor";
 import { prepareTypeCardsHtmlForSave } from "@/components/Shared/typeCardImageEncode";
 import {
   cleanRelatedLinks,
@@ -156,10 +157,11 @@ function CreateCategoryForm() {
   const [isDeletingBanner, setIsDeletingBanner] = useState<number | null>(null);
   const [bannerToDelete, setBannerToDelete] = useState<number | null>(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<number>(0); // 0 Details, 1 Related Categories, 2 Type Cards
+  const [activeTab, setActiveTab] = useState<number>(0); // 0 Details, 1 Related Categories, 2 Type Cards, 3 Additional Text Box
   const [relatedLinks, setRelatedLinks] = useState<RelatedLink[]>([]);
   const [relatedLinksErrors, setRelatedLinksErrors] = useState<string[]>([]);
   const [typeCardsHtml, setTypeCardsHtml] = useState("");
+  const [additionalTextBox, setAdditionalTextBox] = useState("");
 
   const { control, formState, handleSubmit, setValue, watch } = useForm<InferredSchemaType>({
     mode: "all",
@@ -226,6 +228,12 @@ function CreateCategoryForm() {
       formDataObj.append(
         "type_cards_html",
         await prepareTypeCardsHtmlForSave(typeCardsHtml ?? "")
+      );
+
+      // Additional text box HTML (tables/grids; empty → backend null)
+      formDataObj.append(
+        "additional_text_box",
+        await prepareTypeCardsHtmlForSave(additionalTextBox ?? "")
       );
 
       // ✅ Debugging: Check FormData values
@@ -423,6 +431,11 @@ function CreateCategoryForm() {
             id="category-create-related-collections-tab"
             aria-controls="category-create-related-collections-panel"
           />
+          <Tab
+            label="Additional Text Box"
+            id="category-create-additional-text-box-tab"
+            aria-controls="category-create-additional-text-box-panel"
+          />
         </Tabs>
       </Box>
       <form
@@ -519,6 +532,20 @@ function CreateCategoryForm() {
             <RelatedCollectionsEditor
               content={typeCardsHtml}
               onContentChange={setTypeCardsHtml}
+            />
+          )}
+        </div>
+
+        <div
+          role="tabpanel"
+          hidden={activeTab !== 3}
+          id="category-create-additional-text-box-panel"
+          aria-labelledby="category-create-additional-text-box-tab"
+        >
+          {activeTab === 3 && (
+            <AdditionalTextBoxEditor
+              content={additionalTextBox}
+              onContentChange={setAdditionalTextBox}
             />
           )}
         </div>

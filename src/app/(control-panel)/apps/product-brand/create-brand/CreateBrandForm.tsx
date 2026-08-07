@@ -28,6 +28,7 @@ import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import RelatedCategoriesSelector from "@/app/(control-panel)/apps/product-category/components/RelatedCategoriesSelector";
 import RelatedCollectionsEditor from "@/app/(control-panel)/apps/product-category/components/RelatedCollectionsEditor";
+import AdditionalTextBoxEditor from "@/app/(control-panel)/apps/product-category/components/AdditionalTextBoxEditor";
 import { prepareTypeCardsHtmlForSave } from "@/components/Shared/typeCardImageEncode";
 import {
   cleanRelatedLinks,
@@ -168,10 +169,11 @@ function CreateBrandForm() {
   const [isDeletingBanner, setIsDeletingBanner] = useState<number | null>(null);
   const [bannerToDelete, setBannerToDelete] = useState<number | null>(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState(0);
+  const [activeTab, setActiveTab] = useState(0); // 0 Details, 1 Related Brands, 2 Type Cards, 3 Additional Text Box
   const [relatedLinks, setRelatedLinks] = useState<RelatedLink[]>([]);
   const [relatedLinksErrors, setRelatedLinksErrors] = useState<string[]>([]);
   const [typeCardsHtml, setTypeCardsHtml] = useState("");
+  const [additionalTextBox, setAdditionalTextBox] = useState("");
 
   const { control, formState, handleSubmit, setValue, watch, setError } = useForm<FormType>({
     mode: "all",
@@ -229,6 +231,12 @@ function CreateBrandForm() {
       formDataObj.append(
         "type_cards_html",
         await prepareTypeCardsHtmlForSave(typeCardsHtml ?? "")
+      );
+
+      // Additional text box HTML (tables/grids; empty → backend null)
+      formDataObj.append(
+        "additional_text_box",
+        await prepareTypeCardsHtmlForSave(additionalTextBox ?? "")
       );
 
       // Append alt_text if it exists
@@ -443,6 +451,11 @@ function CreateBrandForm() {
             id="brand-create-related-collections-tab"
             aria-controls="brand-create-related-collections-panel"
           />
+          <Tab
+            label="Additional Text Box"
+            id="brand-create-additional-text-box-tab"
+            aria-controls="brand-create-additional-text-box-panel"
+          />
         </Tabs>
       </Box>
       <form
@@ -532,6 +545,20 @@ function CreateBrandForm() {
             <RelatedCollectionsEditor
               content={typeCardsHtml}
               onContentChange={setTypeCardsHtml}
+            />
+          )}
+        </div>
+
+        <div
+          role="tabpanel"
+          hidden={activeTab !== 3}
+          id="brand-create-additional-text-box-panel"
+          aria-labelledby="brand-create-additional-text-box-tab"
+        >
+          {activeTab === 3 && (
+            <AdditionalTextBoxEditor
+              content={additionalTextBox}
+              onContentChange={setAdditionalTextBox}
             />
           )}
         </div>

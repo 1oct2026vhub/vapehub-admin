@@ -32,6 +32,7 @@ import BannerModal from "../components/BannerModal";
 import DeleteConfirmationModal from "@/components/Shared/DeleteConfirmationModal";
 import RelatedCategoriesTab from "../components/RelatedCategoriesTab";
 import RelatedCollectionsTab from "../components/RelatedCollectionsTab";
+import AdditionalTextBoxTab from "../components/AdditionalTextBoxTab";
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const ACCEPTED_FILE_TYPES = [
@@ -146,6 +147,7 @@ export type FormType = {
   slug: string;
   description?: string;
   type_cards_html?: string | null;
+  additional_text_box?: string | null;
   alt_text?: string;
   logo?: File | string | null | undefined;
   logo_url?: string;
@@ -180,13 +182,14 @@ const EditCategoryForm = ({
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<number>(() => {
     const tab = searchParams?.get("tab");
+    if (tab === "additional-text-box") return 6;
     if (tab === "related-collections") return 5;
     if (tab === "related-categories") return 4;
     if (tab === "buying-guide") return 3;
     if (tab === "seo") return 2;
     if (tab === "faq") return 1;
     return 0;
-  }); // 0 Details, 1 FAQ, 2 SEO, 3 Buying Guide, 4 Related Categories, 5 Related Collections
+  }); // 0 Details, 1 FAQ, 2 SEO, 3 Buying Guide, 4 Related Categories, 5 Related Collections, 6 Additional Text Box
 
   const categoryRef = useRef<FormType>(initialCategory);
 
@@ -306,10 +309,14 @@ const EditCategoryForm = ({
         formDataObj.append("description", formData.description);
       }
 
-      // Preserve type cards when updating details (managed on Related Collections tab)
+      // Preserve type cards / additional text box when updating details (managed on their tabs)
       formDataObj.append(
         "type_cards_html",
         categoryRef.current?.type_cards_html ?? ""
+      );
+      formDataObj.append(
+        "additional_text_box",
+        categoryRef.current?.additional_text_box ?? ""
       );
 
       if (formData.alt_text) {
@@ -516,6 +523,11 @@ const EditCategoryForm = ({
                 label="Related Collections"
                 id="category-related-collections-tab"
                 aria-controls="category-related-collections-panel"
+              />
+              <Tab
+                label="Additional Text Box"
+                id="category-additional-text-box-tab"
+                aria-controls="category-additional-text-box-panel"
               />
             </Tabs>
           </Box>
@@ -795,6 +807,34 @@ const EditCategoryForm = ({
             {activeTab === 5 && !categoryId && (
               <Typography color="error">
                 Category ID is missing. Cannot load type cards.
+              </Typography>
+            )}
+          </div>
+
+          {/* Additional Text Box Tab Panel */}
+          <div
+            role="tabpanel"
+            hidden={activeTab !== 6}
+            id="category-additional-text-box-panel"
+            aria-labelledby="category-additional-text-box-tab"
+          >
+            {activeTab === 6 && categoryId && (
+              <Box sx={{ pt: 2 }}>
+                <AdditionalTextBoxTab
+                  entityType="category"
+                  categoryId={categoryId}
+                  initialHtml={categoryRef.current?.additional_text_box}
+                  onSaved={(html) => {
+                    if (categoryRef.current) {
+                      categoryRef.current.additional_text_box = html;
+                    }
+                  }}
+                />
+              </Box>
+            )}
+            {activeTab === 6 && !categoryId && (
+              <Typography color="error">
+                Category ID is missing. Cannot load additional text box.
               </Typography>
             )}
           </div>
