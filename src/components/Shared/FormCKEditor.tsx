@@ -7,6 +7,18 @@ import { CKEditor, useCKEditorCloud } from "@ckeditor/ckeditor5-react";
 import { getCKEditorToken } from "@/services/apiService";
 import { CATEGORY_CARDS_4COL_TEMPLATE, RELATED_COLLECTION_CARDS_CSS } from "@/components/Shared/ckEditorCategoryCardsTemplate";
 import {
+  ADDITIONAL_TEXT_CARD_TEMPLATES,
+  ADDITIONAL_TEXT_CARDS_EDITOR_CSS,
+  ATB_FLAVOUR_IMAGE_HEIGHT,
+  ATB_FLAVOUR_IMAGE_MAX_BYTES,
+  ATB_FLAVOUR_IMAGE_WIDTH,
+  ATB_FLAVOUR_IMG_INLINE_STYLE,
+  ATB_NIC_IMAGE_HEIGHT,
+  ATB_NIC_IMAGE_MAX_BYTES,
+  ATB_NIC_IMAGE_WIDTH,
+  ATB_NIC_IMG_INLINE_STYLE,
+} from "@/components/Shared/ckEditorAdditionalTextCardsTemplate";
+import {
   encodeTypeCardImageDataUrl,
   TYPE_CARD_IMAGE_HEIGHT,
   TYPE_CARD_IMAGE_MAX_BYTES,
@@ -60,6 +72,8 @@ interface FormCKEditorProps {
   onEditorReady?: (editor: unknown) => void;
   /** When true, includes Category Cards (4-col) in Templates — use only for Related Collections. */
   includeCategoryCardsTemplate?: boolean;
+  /** When true, includes Nicotine Strength + Flavour Category card templates — Additional Text Box. */
+  includeAdditionalTextCardsTemplates?: boolean;
 }
 
 const FormCKEditor = ({ 
@@ -71,7 +85,13 @@ const FormCKEditor = ({
   onEditorReady,
   trigger,
   includeCategoryCardsTemplate = false,
+  includeAdditionalTextCardsTemplates = false,
 }: FormCKEditorProps) => {
+  const tallCardEditor =
+    includeCategoryCardsTemplate || includeAdditionalTextCardsTemplates;
+  /** Related Collections + Additional Text nicotine cards: Edit image replace flow */
+  const enableCardImageReplace =
+    includeCategoryCardsTemplate || includeAdditionalTextCardsTemplates;
   const editorRef = useRef<any>(null);
   const editorWordCountRef = useRef<HTMLDivElement>(null);
   const [isLayoutReady, setIsLayoutReady] = useState(false);
@@ -270,7 +290,7 @@ const FormCKEditor = ({
           licenseKey: LICENSE_KEY,
           // Register balloon "Replace image" early (before image toolbar builds)
           extraPlugins:
-            includeCategoryCardsTemplate && ButtonView
+            enableCardImageReplace && ButtonView
               ? [
                   function TypeCardReplaceImagePlugin(editor: {
                     ui: {
@@ -610,8 +630,8 @@ const FormCKEditor = ({
           } as any,
           image: {
             toolbar: [
-              // Omit toggleImageCaption for type cards (not needed for card images)
-              ...(includeCategoryCardsTemplate
+              // Omit toggleImageCaption for type / nicotine cards (not needed for card images)
+              ...(enableCardImageReplace
                 ? []
                 : (['toggleImageCaption'] as const)),
               'imageTextAlternative',
@@ -623,8 +643,8 @@ const FormCKEditor = ({
               'resizeImage',
               '|',
               // CKBox edit fails on S3/data URLs ("Failed to determine category…").
-              // Type cards use a custom replace/upload button instead.
-              ...(includeCategoryCardsTemplate
+              // Type / nicotine cards use a custom replace/upload button instead.
+              ...(enableCardImageReplace
                 ? (['typeCardReplaceImage'] as const)
                 : (['ckboxImageEdit'] as const)),
             ],
@@ -632,7 +652,7 @@ const FormCKEditor = ({
               types: ['jpeg', 'jpg', 'png', 'gif', 'bmp', 'webp', 'svg']
             },
             insert: {
-              integrations: includeCategoryCardsTemplate
+              integrations: enableCardImageReplace
                 ? ['upload', 'url']
                 : ['upload', 'url', 'ckbox']
             }
@@ -687,6 +707,9 @@ const FormCKEditor = ({
               ...(includeCategoryCardsTemplate
                 ? [CATEGORY_CARDS_4COL_TEMPLATE]
                 : []),
+              ...(includeAdditionalTextCardsTemplates
+                ? [...ADDITIONAL_TEXT_CARD_TEMPLATES]
+                : []),
             ]
           },
           // Additional configurations to ensure all features work
@@ -722,7 +745,7 @@ const FormCKEditor = ({
       setEditorError("Failed to initialize editor configuration");
       return {};
     }
-  }, [cloud, isLayoutReady, includeCategoryCardsTemplate]);
+  }, [cloud, isLayoutReady, includeCategoryCardsTemplate, includeAdditionalTextCardsTemplates, enableCardImageReplace]);
 
   /**
    * Removes default font-size styling from heading tags (h1-h6) while preserving
@@ -1031,8 +1054,8 @@ const FormCKEditor = ({
       console.warn('⚠️ Error enabling insertImage button:', error);
     }
 
-    // Type cards: toolbar "Edit image" opens file picker (not click-on-image)
-    if (includeCategoryCardsTemplate && editableElement) {
+    // Type / nicotine cards: toolbar "Edit image" opens file picker (not click-on-image)
+    if (enableCardImageReplace && editableElement) {
       const escapeAttr = (value: string) =>
         value
           .replace(/&/g, '&amp;')
@@ -1052,14 +1075,25 @@ const FormCKEditor = ({
           reader.readAsDataURL(file);
         });
 
+      const isAtbNicCard = (el: HTMLElement) =>
+        Boolean(el.closest('.atb-nic-card') || el.closest('.atb-nic-cards'));
+      const isAtbFlavourCard = (el: HTMLElement) =>
+        Boolean(
+          el.closest('.atb-flavour-card') || el.closest('.atb-flavour-cards')
+        );
+
       const resolveCardAlt = (el: HTMLElement, slot: string) => {
-        const article = el.closest('.type-card');
+        const article =
+          el.closest('.type-card') ||
+          el.closest('.atb-nic-card') ||
+          el.closest('.atb-flavour-card');
         const title = article?.querySelector('h3')?.textContent?.trim();
         if (title) return title;
         const fromAttr =
           el.getAttribute('aria-label') || el.getAttribute('alt');
-        if (fromAttr && fromAttr !== 'Category image') return fromAttr;
-        return slot ? `Type card ${slot}` : 'Category image';
+        if (fromAttr && fromAttr !== 'Category image' && fromAttr !== 'No image')
+          return fromAttr;
+        return slot ? `Card ${slot}` : 'Card image';
       };
 
       const syncFormFromEditor = () => {
@@ -1071,15 +1105,21 @@ const FormCKEditor = ({
           }
           formChangeRef.current(removeDefaultHeadingFontSizes(stored));
         } catch (err) {
-          console.warn('Failed to sync type-card image to form:', err);
+          console.warn('Failed to sync card image to form:', err);
         }
       };
 
       const buildTypeCardImgHtml = (src: string, alt: string, slot: string) =>
         `<img class="type-card__img type-card__img--${escapeAttr(slot)}" src="${src}" alt="${escapeAttr(alt)}" data-type-card-img="${escapeAttr(slot)}" style="${TYPE_CARD_IMG_INLINE_STYLE}" title="Use Edit image on the toolbar to replace">`;
 
+      const buildAtbNicImgHtml = (src: string, alt: string, slot: string) =>
+        `<img class="atb-nic-card__img atb-nic-card__img--${escapeAttr(slot)}" src="${src}" alt="${escapeAttr(alt)}" data-atb-nic-img="${escapeAttr(slot)}" data-type-card-img="${escapeAttr(slot)}" style="${ATB_NIC_IMG_INLINE_STYLE}" title="Use Edit image on the toolbar to replace">`;
+
+      const buildAtbFlavourImgHtml = (src: string, alt: string, slot: string) =>
+        `<img class="atb-flavour-card__img atb-flavour-card__img--${escapeAttr(slot)}" src="${src}" alt="${escapeAttr(alt)}" data-atb-flavour-img="${escapeAttr(slot)}" data-type-card-img="${escapeAttr(slot)}" style="${ATB_FLAVOUR_IMG_INLINE_STYLE}" title="Use Edit image on the toolbar to replace">`;
+
       /**
-       * Replace exactly one card image by DOM index among type-card images.
+       * Replace exactly one card image by DOM index among card images.
        * Slot/alt regex matching is unreliable: CKEditor often strips data-* on <img>,
        * and identical placeholder srcs caused the wrong card (or multiple cards) to update.
        */
@@ -1089,34 +1129,50 @@ const FormCKEditor = ({
         alt: string,
         src: string
       ) => {
-        const imgHtml = buildTypeCardImgHtml(src, alt, slot);
+        const atbNic = isAtbNicCard(el);
+        const atbFlavour = isAtbFlavourCard(el);
+        const imgHtml = atbFlavour
+          ? buildAtbFlavourImgHtml(src, alt, slot)
+          : atbNic
+            ? buildAtbNicImgHtml(src, alt, slot)
+            : buildTypeCardImgHtml(src, alt, slot);
+        const sectionSelector = atbFlavour
+          ? '.atb-flavour-cards'
+          : atbNic
+            ? '.atb-nic-cards'
+            : '.type-cards';
+        const cardSelector = atbFlavour
+          ? '.atb-flavour-card'
+          : atbNic
+            ? '.atb-nic-card'
+            : '.type-card';
         const cardRoot: HTMLElement =
-          (editableElement.querySelector('.type-cards') as HTMLElement | null) ??
+          (editableElement.querySelector(sectionSelector) as HTMLElement | null) ??
           (editableElement as HTMLElement);
+        // Index among ALL editor images so replace matches getData() <img> order
+        // (Additional Text Box may contain nicotine + flavour card images).
+        const allEditorImgs = Array.from(
+          editableElement.querySelectorAll('img')
+        );
 
         let index = -1;
         if (el instanceof HTMLImageElement) {
-          const domImgs = Array.from(cardRoot.querySelectorAll('img'));
-          index = domImgs.indexOf(el);
+          index = allEditorImgs.indexOf(el);
         }
         // Legacy div placeholder: map card position → image index
         if (index < 0) {
-          const article = el.closest('.type-card');
+          const article = el.closest(cardSelector);
           if (article) {
             const cards = Array.from(
-              cardRoot.querySelectorAll('.type-card')
+              cardRoot.querySelectorAll(cardSelector)
             ) as HTMLElement[];
             const cardIndex = cards.indexOf(article as HTMLElement);
             if (cardIndex >= 0) {
-              const imgsInCards = cards.map(
-                (c) => c.querySelector('img') as HTMLImageElement | null
-              );
-              // If this card has an img, use its global index; else insert at cardIndex among imgs
-              const existing = imgsInCards[cardIndex];
-              if (existing) {
-                index = Array.from(cardRoot.querySelectorAll('img')).indexOf(existing);
-              } else {
-                index = cardIndex;
+              const cardImg = cards[cardIndex]?.querySelector(
+                'img'
+              ) as HTMLImageElement | null;
+              if (cardImg) {
+                index = allEditorImgs.indexOf(cardImg);
               }
             }
           }
@@ -1154,7 +1210,7 @@ const FormCKEditor = ({
         }
 
         if (!replaced) {
-          console.warn('Type card image slot not found in editor HTML:', { slot, index });
+          console.warn('Card image slot not found in editor HTML:', { slot, index });
           return false;
         }
 
@@ -1165,20 +1221,46 @@ const FormCKEditor = ({
       };
 
       const resolveSlot = (el: HTMLElement): string => {
-        const fromAttr = el.getAttribute('data-type-card-img');
+        const fromAttr =
+          el.getAttribute('data-atb-flavour-img') ||
+          el.getAttribute('data-atb-nic-img') ||
+          el.getAttribute('data-type-card-img');
         if (fromAttr) return fromAttr;
-        const classMatch = el.className?.match?.(/type-card__img--([a-z0-9_-]+)/i);
+        const classMatch = el.className?.match?.(
+          /(?:type-card__img|atb-nic-card__img|atb-flavour-card__img)--([a-z0-9_-]+)/i
+        );
         if (classMatch?.[1]) return classMatch[1];
-        const article = el.closest('.type-card');
+        const article =
+          el.closest('.type-card') ||
+          el.closest('.atb-nic-card') ||
+          el.closest('.atb-flavour-card');
         if (article) {
           const variant = article.className?.match?.(/type-card--([a-z0-9_-]+)/i);
           if (variant?.[1]) return variant[1];
+          const isFlavour = article.classList.contains('atb-flavour-card');
+          const isNic = article.classList.contains('atb-nic-card');
           const root: HTMLElement =
-            (editableElement.querySelector('.type-cards') as HTMLElement | null) ??
+            (editableElement.querySelector(
+              isFlavour
+                ? '.atb-flavour-cards'
+                : isNic
+                  ? '.atb-nic-cards'
+                  : '.type-cards'
+            ) as HTMLElement | null) ??
             (editableElement as HTMLElement);
-          const cards = Array.from(root.querySelectorAll('.type-card'));
+          const cards = Array.from(
+            root.querySelectorAll(
+              isFlavour
+                ? '.atb-flavour-card'
+                : isNic
+                  ? '.atb-nic-card'
+                  : '.type-card'
+            )
+          );
           const i = cards.indexOf(article);
-          if (i >= 0) return `card-${i}`;
+          if (i >= 0) {
+            return isFlavour ? `flav-${i}` : isNic ? `nic-${i}` : `card-${i}`;
+          }
         }
         return `slot-${Date.now()}`;
       };
@@ -1194,6 +1276,8 @@ const FormCKEditor = ({
 
         const slot = resolveSlot(el);
         el.setAttribute('data-type-card-img', slot);
+        if (isAtbNicCard(el)) el.setAttribute('data-atb-nic-img', slot);
+        if (isAtbFlavourCard(el)) el.setAttribute('data-atb-flavour-img', slot);
         const alt = resolveCardAlt(el, slot);
 
         const input = document.createElement('input');
@@ -1217,7 +1301,11 @@ const FormCKEditor = ({
 
           const isPlaceholder =
             el.getAttribute('data-type-card-placeholder') === '1' ||
-            el.classList.contains('type-card__img-placeholder');
+            el.getAttribute('data-atb-nic-placeholder') === '1' ||
+            el.getAttribute('data-atb-flavour-placeholder') === '1' ||
+            el.classList.contains('type-card__img-placeholder') ||
+            el.classList.contains('atb-nic-card__img-placeholder') ||
+            el.classList.contains('atb-flavour-card__img-placeholder');
           if (isPlaceholder && el instanceof HTMLImageElement) {
             el.style.opacity = '0.5';
           }
@@ -1225,9 +1313,27 @@ const FormCKEditor = ({
           // Encode to a unique mime per slot so API S3 keys (inline.{ext}) do not collide
           void (async () => {
             try {
-              if (file.size > TYPE_CARD_IMAGE_MAX_BYTES) {
+              const flavourCard = isAtbFlavourCard(el);
+              const nicCard = isAtbNicCard(el);
+              const maxBytes = flavourCard
+                ? ATB_FLAVOUR_IMAGE_MAX_BYTES
+                : nicCard
+                  ? ATB_NIC_IMAGE_MAX_BYTES
+                  : TYPE_CARD_IMAGE_MAX_BYTES;
+              const requiredWidth = flavourCard
+                ? ATB_FLAVOUR_IMAGE_WIDTH
+                : nicCard
+                  ? ATB_NIC_IMAGE_WIDTH
+                  : TYPE_CARD_IMAGE_WIDTH;
+              const requiredHeight = flavourCard
+                ? ATB_FLAVOUR_IMAGE_HEIGHT
+                : nicCard
+                  ? ATB_NIC_IMAGE_HEIGHT
+                  : TYPE_CARD_IMAGE_HEIGHT;
+
+              if (file.size > maxBytes) {
                 showSnackbar(
-                  `Image must be ${TYPE_CARD_IMAGE_MAX_BYTES / (1024 * 1024)}MB or smaller.`,
+                  `Image must be ${maxBytes / (1024 * 1024)}MB or smaller.`,
                   'error'
                 );
                 if (el instanceof HTMLImageElement) el.style.opacity = '1';
@@ -1236,8 +1342,8 @@ const FormCKEditor = ({
 
               const dimensionValidation = await validateImageDimensions(
                 file,
-                TYPE_CARD_IMAGE_WIDTH,
-                TYPE_CARD_IMAGE_HEIGHT
+                requiredWidth,
+                requiredHeight
               );
               if (!dimensionValidation.valid) {
                 const dims = dimensionValidation.dimensions;
@@ -1246,7 +1352,7 @@ const FormCKEditor = ({
                     ? ` Current: ${dims.width} × ${dims.height} px.`
                     : "";
                 showSnackbar(
-                  `Image dimensions must be exactly ${TYPE_CARD_IMAGE_WIDTH} × ${TYPE_CARD_IMAGE_HEIGHT} px.${current}`,
+                  `Image dimensions must be exactly ${requiredWidth} × ${requiredHeight} px.${current}`,
                   "error"
                 );
                 if (el instanceof HTMLImageElement) el.style.opacity = "1";
@@ -1264,8 +1370,8 @@ const FormCKEditor = ({
                 el.style.opacity = '1';
               }
             } catch (err) {
-              console.error('Type card image upload failed:', err);
-              showSnackbar('Type card image upload failed.', 'error');
+              console.error('Card image upload failed:', err);
+              showSnackbar('Card image upload failed.', 'error');
               if (el instanceof HTMLImageElement) {
                 el.style.opacity = '1';
               }
@@ -1279,7 +1385,7 @@ const FormCKEditor = ({
 
       const getSelectedTypeCardImageDom = (): HTMLElement | null => {
         const widgetImg = editableElement.querySelector(
-          '.type-card figure.ck-widget_selected img, .type-card .ck-widget_selected img, .type-card img.ck-widget_selected, .type-cards figure.ck-widget_selected img, .type-cards .ck-widget_selected img'
+          '.type-card figure.ck-widget_selected img, .type-card .ck-widget_selected img, .type-card img.ck-widget_selected, .type-cards figure.ck-widget_selected img, .type-cards .ck-widget_selected img, .atb-nic-card figure.ck-widget_selected img, .atb-nic-card .ck-widget_selected img, .atb-nic-card img.ck-widget_selected, .atb-nic-cards figure.ck-widget_selected img, .atb-nic-cards .ck-widget_selected img, .atb-flavour-card figure.ck-widget_selected img, .atb-flavour-card .ck-widget_selected img, .atb-flavour-card img.ck-widget_selected, .atb-flavour-cards figure.ck-widget_selected img, .atb-flavour-cards .ck-widget_selected img'
         ) as HTMLElement | null;
         if (widgetImg) return widgetImg;
 
@@ -1297,10 +1403,17 @@ const FormCKEditor = ({
                   dom.tagName === 'IMG'
                     ? dom
                     : (dom.querySelector('img') as HTMLElement | null);
-                if (img?.closest('.type-card') || img?.closest('.type-cards')) {
+                if (
+                  img?.closest('.type-card') ||
+                  img?.closest('.type-cards') ||
+                  img?.closest('.atb-nic-card') ||
+                  img?.closest('.atb-nic-cards') ||
+                  img?.closest('.atb-flavour-card') ||
+                  img?.closest('.atb-flavour-cards')
+                ) {
                   return img;
                 }
-                if (img && includeCategoryCardsTemplate) return img;
+                if (img && enableCardImageReplace) return img;
               }
             }
           }
@@ -1308,7 +1421,7 @@ const FormCKEditor = ({
           /* ignore */
         }
 
-        if (includeCategoryCardsTemplate) {
+        if (enableCardImageReplace) {
           return editableElement.querySelector(
             'figure.ck-widget_selected img, .ck-widget_selected img, img.ck-widget_selected'
           ) as HTMLElement | null;
@@ -1342,7 +1455,7 @@ const FormCKEditor = ({
             return;
           }
           const focused = editableElement.querySelector(
-            '.type-card img:focus, .type-card figure.ck-widget_selected img, .type-card .ck-widget_selected img'
+            '.type-card img:focus, .type-card figure.ck-widget_selected img, .type-card .ck-widget_selected img, .atb-nic-card img:focus, .atb-nic-card figure.ck-widget_selected img, .atb-nic-card .ck-widget_selected img, .atb-flavour-card img:focus, .atb-flavour-card figure.ck-widget_selected img, .atb-flavour-card .ck-widget_selected img'
           ) as HTMLElement | null;
           if (focused) openTypeCardImagePicker(focused);
         };
@@ -1410,16 +1523,20 @@ const FormCKEditor = ({
         }
         /* Fixed height for CKEditor content area */
         .ck-editor .ck-editor__editable {
-          min-height: ${includeCategoryCardsTemplate ? "520px" : "300px"} !important;
-          max-height: ${includeCategoryCardsTemplate ? "720px" : "300px"} !important;
-          height: ${includeCategoryCardsTemplate ? "520px" : "300px"} !important;
+          min-height: ${tallCardEditor ? "520px" : "300px"} !important;
+          max-height: ${tallCardEditor ? "720px" : "300px"} !important;
+          height: ${tallCardEditor ? "520px" : "300px"} !important;
           overflow-y: auto !important;
+          padding-bottom: ${tallCardEditor ? "56px" : "16px"} !important;
+          box-sizing: border-box !important;
         }
         .ck-editor .ck-content {
-          min-height: ${includeCategoryCardsTemplate ? "520px" : "300px"} !important;
-          max-height: ${includeCategoryCardsTemplate ? "720px" : "300px"} !important;
-          height: ${includeCategoryCardsTemplate ? "auto" : "300px"} !important;
+          min-height: ${tallCardEditor ? "520px" : "300px"} !important;
+          max-height: ${tallCardEditor ? "720px" : "300px"} !important;
+          height: ${tallCardEditor ? "auto" : "300px"} !important;
           overflow-y: auto !important;
+          padding-bottom: ${tallCardEditor ? "56px" : "16px"} !important;
+          box-sizing: border-box !important;
         }
         /* Ensure font-size and font-family work properly in CKEditor */
         /* Inline styles from CKEditor font controls are now preserved */
@@ -1436,6 +1553,7 @@ const FormCKEditor = ({
         }
         /* Type cards must load after generic .ck-content p rules */
         ${includeCategoryCardsTemplate ? RELATED_COLLECTION_CARDS_CSS : ""}
+        ${includeAdditionalTextCardsTemplates ? ADDITIONAL_TEXT_CARDS_EDITOR_CSS : ""}
         /* Table styles for proper display */
         .ck-content table {
           display: table !important;

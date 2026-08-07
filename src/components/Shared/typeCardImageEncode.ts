@@ -107,7 +107,7 @@ const INDEX_MIME = [
 export function mimeForTypeCardSlot(slot: string, index = 0): string {
   const key = (slot || "").toLowerCase();
   if (SLOT_MIME[key]) return SLOT_MIME[key];
-  const cardMatch = key.match(/^card-(\d+)$/);
+  const cardMatch = key.match(/^(?:card|nic|flav)-(\d+)$/);
   if (cardMatch) {
     return INDEX_MIME[Number(cardMatch[1]) % INDEX_MIME.length];
   }
@@ -254,7 +254,15 @@ export async function prepareTypeCardsHtmlForSave(html: string): Promise<string>
   const cards = Array.from(doc.querySelectorAll(".type-card"));
   const imgs = Array.from(
     doc.querySelectorAll(
-      ".type-card img, .type-cards img, img[data-type-card-img]"
+      [
+        ".type-card img",
+        ".type-cards img",
+        "img[data-type-card-img]",
+        ".atb-nic-card img",
+        ".atb-flavour-card img",
+        "img[data-atb-nic-img]",
+        "img[data-atb-flavour-img]",
+      ].join(", ")
     )
   ) as HTMLImageElement[];
 
@@ -266,12 +274,24 @@ export async function prepareTypeCardsHtmlForSave(html: string): Promise<string>
       const article = img.closest(".type-card");
       let slot =
         img.getAttribute("data-type-card-img") ||
+        img.getAttribute("data-atb-nic-img") ||
+        img.getAttribute("data-atb-flavour-img") ||
         img.className.match(/type-card__img--([a-z0-9_-]+)/i)?.[1] ||
+        img.className.match(/atb-nic-card__img--([a-z0-9_-]+)/i)?.[1] ||
+        img.className.match(/atb-flavour-card__img--([a-z0-9_-]+)/i)?.[1] ||
         "";
       if (!slot && article) {
         slot =
           article.className.match(/type-card--([a-z0-9_-]+)/i)?.[1] ||
           `card-${Math.max(0, cards.indexOf(article))}`;
+      }
+      if (!slot) {
+        const atbArticle = img.closest(".atb-nic-card, .atb-flavour-card");
+        if (atbArticle) {
+          slot =
+            atbArticle.className.match(/atb-(?:nic|flavour)-card--([a-z0-9_-]+)/i)?.[1] ||
+            `card-${index}`;
+        }
       }
       if (!slot) slot = `card-${index}`;
 

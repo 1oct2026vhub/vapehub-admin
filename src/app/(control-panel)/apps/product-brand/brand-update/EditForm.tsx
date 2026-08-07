@@ -39,6 +39,7 @@ import FaqAccordion from "../../faq/FaqAccordion";
 import SeoForm from "@/app/(control-panel)/apps/seo/components/SeoForm";
 import BuyingGuideForm from "@/app/(control-panel)/apps/product-category/components/BuyingGuideForm";
 import RelatedCollectionsTab from "@/app/(control-panel)/apps/product-category/components/RelatedCollectionsTab";
+import AdditionalTextBoxTab from "@/app/(control-panel)/apps/product-category/components/AdditionalTextBoxTab";
 import RelatedBrandsTab from "../components/RelatedBrandsTab";
 import BannerModal from "../components/BannerModal";
 import DeleteConfirmationModal from "@/components/Shared/DeleteConfirmationModal";
@@ -179,6 +180,7 @@ export type FormType = {
   slug: string;
   description?: string;
   type_cards_html?: string | null;
+  additional_text_box?: string | null;
   alt_text?: string;
   logo?: File | string | null | undefined;
   logo_url?: string;
@@ -217,13 +219,14 @@ const EditBrandForm = ({ brand: initialBrand }: { brand: FormType | null }) => {
 
   const [activeTab, setActiveTab] = useState<number>(() => {
     const tab = searchParams?.get("tab");
+    if (tab === "additional-text-box") return 6;
     if (tab === "related-collections") return 5;
     if (tab === "related-brands") return 4;
     if (tab === "buying-guide") return 3;
     if (tab === "seo") return 2;
     if (tab === "faq") return 1;
     return 0;
-  }); // 0 Details, 1 FAQ, 2 SEO, 3 Buying Guide, 4 Related Brands, 5 Related Collections
+  }); // 0 Details, 1 FAQ, 2 SEO, 3 Buying Guide, 4 Related Brands, 5 Related Collections, 6 Additional Text Box
 
   const { control, formState, handleSubmit, setValue, watch, setError } = useForm<InferredSchemaType>({
     mode: "all",
@@ -310,10 +313,14 @@ const EditBrandForm = ({ brand: initialBrand }: { brand: FormType | null }) => {
       if (formData.description) {
         formDataObj.append("description", formData.description);
       }
-      // Preserve type cards when updating details (managed on Related Collections tab)
+      // Preserve type cards / additional text box when updating details (managed on their tabs)
       formDataObj.append(
         "type_cards_html",
         brandRef.current?.type_cards_html ?? ""
+      );
+      formDataObj.append(
+        "additional_text_box",
+        brandRef.current?.additional_text_box ?? ""
       );
       if (formData.alt_text) {
         formDataObj.append("alt_text", formData.alt_text);
@@ -505,6 +512,11 @@ const EditBrandForm = ({ brand: initialBrand }: { brand: FormType | null }) => {
                 label="Related Collections"
                 id="brand-related-collections-tab"
                 aria-controls="brand-related-collections-panel"
+              />
+              <Tab
+                label="Additional Text Box"
+                id="brand-additional-text-box-tab"
+                aria-controls="brand-additional-text-box-panel"
               />
             </Tabs>
           </Box>
@@ -813,6 +825,34 @@ const EditBrandForm = ({ brand: initialBrand }: { brand: FormType | null }) => {
             {activeTab === 5 && !brandId && (
               <Typography color="error">
                 Brand ID is missing. Cannot load type cards.
+              </Typography>
+            )}
+          </div>
+
+          {/* Additional Text Box Tab Panel */}
+          <div
+            role="tabpanel"
+            hidden={activeTab !== 6}
+            id="brand-additional-text-box-panel"
+            aria-labelledby="brand-additional-text-box-tab"
+          >
+            {activeTab === 6 && brandId && (
+              <Box sx={{ pt: 2 }}>
+                <AdditionalTextBoxTab
+                  entityType="brand"
+                  brandId={brandId}
+                  initialHtml={brandRef.current?.additional_text_box}
+                  onSaved={(html) => {
+                    if (brandRef.current) {
+                      brandRef.current.additional_text_box = html;
+                    }
+                  }}
+                />
+              </Box>
+            )}
+            {activeTab === 6 && !brandId && (
+              <Typography color="error">
+                Brand ID is missing. Cannot load additional text box.
               </Typography>
             )}
           </div>
