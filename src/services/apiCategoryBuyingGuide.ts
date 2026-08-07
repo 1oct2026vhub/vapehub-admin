@@ -18,6 +18,8 @@ export interface CategoryBuyingGuide {
   id?: number;
   category_id: number;
   is_enabled: boolean;
+  cta_prompt: string;
+  cta_label: string;
   guide_label: string;
   title: string;
   intro_content: string;
@@ -66,6 +68,8 @@ const appendCommonFields = (
   data: SaveCategoryBuyingGuideData
 ) => {
   formData.append("is_enabled", String(data.is_enabled ?? false));
+  formData.append("cta_prompt", data.cta_prompt ?? "");
+  formData.append("cta_label", data.cta_label ?? "");
   formData.append("guide_label", data.guide_label ?? "");
   formData.append("title", data.title ?? "");
   formData.append("intro_content", data.intro_content ?? "");
@@ -101,6 +105,8 @@ export const saveCategoryBuyingGuide = async (
 
   const payload: Record<string, unknown> = {
     is_enabled: data.is_enabled ?? false,
+    cta_prompt: data.cta_prompt ?? "",
+    cta_label: data.cta_label ?? "",
     guide_label: data.guide_label ?? "",
     title: data.title ?? "",
     intro_content: data.intro_content ?? "",
