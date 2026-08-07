@@ -56,6 +56,8 @@ const tabSchema = z.object({
 const buyingGuideSchema = z
   .object({
     is_enabled: z.boolean(),
+    cta_prompt: z.string().optional(),
+    cta_label: z.string().optional(),
     guide_label: z.string().optional(),
     title: z.string().optional(),
     intro_content: z.string().optional(),
@@ -73,6 +75,22 @@ const buyingGuideSchema = z
       .max(MAX_RELATED_BLOGS),
   })
   .superRefine((data, ctx) => {
+    if (data.is_enabled) {
+      if (!data.cta_prompt?.trim()) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "CTA prompt is required when buying guide is enabled",
+          path: ["cta_prompt"],
+        });
+      }
+      if (!data.cta_label?.trim()) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "CTA label is required when buying guide is enabled",
+          path: ["cta_label"],
+        });
+      }
+    }
     if (!data.guide_label?.trim()) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
@@ -140,6 +158,8 @@ interface BuyingGuideFormProps {
 
 const defaultValues: BuyingGuideFormType = {
   is_enabled: false,
+  cta_prompt: "",
+  cta_label: "",
   guide_label: "Buying Guide",
   title: "",
   intro_content: "",
@@ -287,6 +307,8 @@ function mapGuideToFormValues(
 
   return {
     is_enabled: guide.is_enabled ?? false,
+    cta_prompt: guide.cta_prompt || "",
+    cta_label: guide.cta_label || "",
     guide_label: guide.guide_label || "Buying Guide",
     title: guide.title || entityName || "",
     intro_content: guide.intro_content || "",
@@ -451,6 +473,8 @@ export default function BuyingGuideForm({
 
       const guideData = {
         is_enabled: formData.is_enabled,
+        cta_prompt: formData.cta_prompt || "",
+        cta_label: formData.cta_label || "",
         guide_label: formData.guide_label,
         title: formData.title,
         intro_content: formData.intro_content || "",
@@ -521,6 +545,29 @@ export default function BuyingGuideForm({
           When enabled, the buying guide section will appear on the {entityLabel}
           product filter page.
         </Typography>
+      </Paper>
+
+      <Paper sx={whiteCardSx}>
+        <Typography variant="h6" sx={sectionTitleSx}>
+          CTA Card
+        </Typography>
+        <Typography variant="body2" sx={sectionDescSx}>
+          Prompt and link text for the green buying guide card on the{" "}
+          {entityLabel} page. Required when the buying guide is enabled.
+        </Typography>
+
+        <BuyingGuideTextField
+          name="cta_prompt"
+          control={control}
+          label="CTA Prompt"
+          required
+        />
+        <BuyingGuideTextField
+          name="cta_label"
+          control={control}
+          label="CTA Label"
+          required
+        />
       </Paper>
 
       <Paper sx={whiteCardSx}>

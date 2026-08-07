@@ -9,6 +9,8 @@ export interface BrandBuyingGuide {
   id?: number;
   brand_id: number;
   is_enabled: boolean;
+  cta_prompt: string;
+  cta_label: string;
   guide_label: string;
   title: string;
   intro_content: string;
@@ -50,6 +52,8 @@ export const saveBrandBuyingGuide = async (
   const formData = new FormData();
 
   formData.append("is_enabled", String(data.is_enabled ?? false));
+  formData.append("cta_prompt", data.cta_prompt ?? "");
+  formData.append("cta_label", data.cta_label ?? "");
   formData.append("guide_label", data.guide_label ?? "");
   formData.append("title", data.title ?? "");
   formData.append("intro_content", data.intro_content ?? "");
