@@ -5,6 +5,28 @@ import { Controller } from "react-hook-form";
 import dynamic from "next/dynamic";
 import { CKEditor, useCKEditorCloud } from "@ckeditor/ckeditor5-react";
 import { getCKEditorToken } from "@/services/apiService";
+import { CATEGORY_CARDS_4COL_TEMPLATE, RELATED_COLLECTION_CARDS_CSS } from "@/components/Shared/ckEditorCategoryCardsTemplate";
+import {
+  ADDITIONAL_TEXT_CARD_TEMPLATES,
+  ADDITIONAL_TEXT_CARDS_EDITOR_CSS,
+  ATB_FLAVOUR_IMAGE_HEIGHT,
+  ATB_FLAVOUR_IMAGE_MAX_BYTES,
+  ATB_FLAVOUR_IMAGE_WIDTH,
+  ATB_FLAVOUR_IMG_INLINE_STYLE,
+  ATB_NIC_IMAGE_HEIGHT,
+  ATB_NIC_IMAGE_MAX_BYTES,
+  ATB_NIC_IMAGE_WIDTH,
+  ATB_NIC_IMG_INLINE_STYLE,
+} from "@/components/Shared/ckEditorAdditionalTextCardsTemplate";
+import {
+  encodeTypeCardImageDataUrl,
+  TYPE_CARD_IMAGE_HEIGHT,
+  TYPE_CARD_IMAGE_MAX_BYTES,
+  TYPE_CARD_IMAGE_WIDTH,
+  TYPE_CARD_IMG_INLINE_STYLE,
+} from "@/components/Shared/typeCardImageEncode";
+import { useSnackbar } from "@/contexts/SnackbarContext";
+import { validateImageDimensions } from "@/utils/imageUtils";
 
 // Debounce onChange to avoid heavy getData + HTML processing on every keystroke with long content
 const ON_CHANGE_DEBOUNCE_MS = 400;
@@ -47,6 +69,11 @@ interface FormCKEditorProps {
   defaultValue?: string;
   trigger?: any;
   required?: boolean;
+  onEditorReady?: (editor: unknown) => void;
+  /** When true, includes Category Cards (4-col) in Templates — use only for Related Collections. */
+  includeCategoryCardsTemplate?: boolean;
+  /** When true, includes Nicotine Strength + Flavour Category card templates — Additional Text Box. */
+  includeAdditionalTextCardsTemplates?: boolean;
 }
 
 const FormCKEditor = ({ 
@@ -54,14 +81,26 @@ const FormCKEditor = ({
   control, 
   label, 
   defaultValue = "",
-  required = false 
+  required = false,
+  onEditorReady,
+  trigger,
+  includeCategoryCardsTemplate = false,
+  includeAdditionalTextCardsTemplates = false,
 }: FormCKEditorProps) => {
+  const tallCardEditor =
+    includeCategoryCardsTemplate || includeAdditionalTextCardsTemplates;
+  /** Related Collections + Additional Text nicotine cards: Edit image replace flow */
+  const enableCardImageReplace =
+    includeCategoryCardsTemplate || includeAdditionalTextCardsTemplates;
   const editorRef = useRef<any>(null);
   const editorWordCountRef = useRef<HTMLDivElement>(null);
   const [isLayoutReady, setIsLayoutReady] = useState(false);
   const [editorError, setEditorError] = useState<string | null>(null);
   const isMountedRef = useRef(true);
   const onChangeDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** Immediate RHF sync (bypasses debounce) — used after type-card image replace */
+  const formChangeRef = useRef<(value: string) => void>(() => {});
+  const { showSnackbar } = useSnackbar();
 
   // Use CKEditor Cloud hook
   const cloud = useCKEditorCloud({ version: '47.2.0', premium: true, ckbox: { version: '2.6.1' } });
@@ -95,6 +134,33 @@ const FormCKEditor = ({
             // Remove Enter key handler
             if ((editableElement as any).__enterKeyHandler) {
               editableElement.removeEventListener('keydown', (editableElement as any).__enterKeyHandler, true);
+            }
+            if ((editableElement as any).__typeCardImgClickHandler) {
+              editableElement.removeEventListener(
+                'click',
+                (editableElement as any).__typeCardImgClickHandler,
+                true
+              );
+            }
+            if ((editableElement as any).__typeCardImgKeyHandler) {
+              editableElement.removeEventListener(
+                'keydown',
+                (editableElement as any).__typeCardImgKeyHandler,
+                true
+              );
+            }
+            if (
+              (editableElement as any).__typeCardImgViewDoc &&
+              (editableElement as any).__typeCardImgViewClick
+            ) {
+              try {
+                (editableElement as any).__typeCardImgViewDoc.off(
+                  'click',
+                  (editableElement as any).__typeCardImgViewClick
+                );
+              } catch {
+                /* ignore */
+              }
             }
           }
           
@@ -184,6 +250,7 @@ const FormCKEditor = ({
         Strikethrough,
         Subscript,
         Superscript,
+        ButtonView,
         Table,
         TableCaption,
         TableCellProperties,
@@ -221,6 +288,40 @@ const FormCKEditor = ({
         ClassicEditor,
         editorConfig: {
           licenseKey: LICENSE_KEY,
+          // Register balloon "Replace image" early (before image toolbar builds)
+          extraPlugins:
+            enableCardImageReplace && ButtonView
+              ? [
+                  function TypeCardReplaceImagePlugin(editor: {
+                    ui: {
+                      componentFactory: {
+                        add: (name: string, cb: (locale: unknown) => unknown) => void;
+                      };
+                    };
+                    __typeCardReplaceImageHandler?: () => void;
+                  }) {
+                    editor.ui.componentFactory.add(
+                      'typeCardReplaceImage',
+                      (locale: unknown) => {
+                        const button = new ButtonView(locale as never);
+                        // Official CKBox "Edit image" icon (pencil on image)
+                        button.set({
+                          label: 'Edit image',
+                          tooltip: true,
+                          withText: false,
+                          isEnabled: true,
+                          icon:
+                            '<svg viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M1.201 1C.538 1 0 1.47 0 2.1v14.363c0 .64.534 1.037 1.186 1.037H5.06l5.058-5.078L6.617 9.15a.696.696 0 0 0-.957-.033L1.5 13.6V2.5h15v4.354a3.478 3.478 0 0 1 1.5.049V2.1c0-.63-.547-1.1-1.2-1.1H1.202Zm11.713 2.803a2.147 2.147 0 0 0-2.049 1.992 2.14 2.14 0 0 0 1.28 2.096 2.13 2.13 0 0 0 2.642-3.11 2.129 2.129 0 0 0-1.873-.978ZM8.089 17.635v2.388h2.389l7.046-7.046-2.39-2.39-7.045 7.048Zm11.282-6.507a.637.637 0 0 0 .139-.692.603.603 0 0 0-.139-.205l-1.49-1.488a.63.63 0 0 0-.899 0l-1.166 1.163 2.39 2.39 1.165-1.168Z"/></svg>',
+                        });
+                        button.on('execute', () => {
+                          editor.__typeCardReplaceImageHandler?.();
+                        });
+                        return button;
+                      }
+                    );
+                  },
+                ]
+              : [],
           toolbar: {
             items: [
               'undo',
@@ -529,7 +630,10 @@ const FormCKEditor = ({
           } as any,
           image: {
             toolbar: [
-              'toggleImageCaption',
+              // Omit toggleImageCaption for type / nicotine cards (not needed for card images)
+              ...(enableCardImageReplace
+                ? []
+                : (['toggleImageCaption'] as const)),
               'imageTextAlternative',
               '|',
               'imageStyle:inline',
@@ -538,13 +642,19 @@ const FormCKEditor = ({
               '|',
               'resizeImage',
               '|',
-              'ckboxImageEdit'
+              // CKBox edit fails on S3/data URLs ("Failed to determine category…").
+              // Type / nicotine cards use a custom replace/upload button instead.
+              ...(enableCardImageReplace
+                ? (['typeCardReplaceImage'] as const)
+                : (['ckboxImageEdit'] as const)),
             ],
             upload: {
               types: ['jpeg', 'jpg', 'png', 'gif', 'bmp', 'webp', 'svg']
             },
             insert: {
-              integrations: ['upload', 'url', 'ckbox']
+              integrations: enableCardImageReplace
+                ? ['upload', 'url']
+                : ['upload', 'url', 'ckbox']
             }
           },
           lineHeight: {
@@ -593,7 +703,13 @@ const FormCKEditor = ({
                 description: 'Simple introduction to an article',
                 icon: '<svg width="45" height="45" viewBox="0 0 45 45" fill="none" xmlns="http://www.w3.org/2000/svg"><g id="icons/article-image-right"><rect id="icon-bg" width="45" height="45" rx="2" fill="#A5E7EB"/><g id="page" filter="url(#filter0_d_1_507)"><path d="M9 41H36V12L28 5H9V41Z" fill="white"/><path d="M35.25 12.3403V40.25H9.75V5.75H27.7182L35.25 12.3403Z" stroke="#333333" stroke-width="1.5"/></g><g id="image"><path id="Rectangle 22" d="M21.5 23C21.5 22.1716 22.1716 21.5 23 21.5H31C31.8284 21.5 32.5 22.1716 32.5 23V29C32.5 29.8284 31.8284 30.5 31 30.5H23C22.1716 30.5 21.5 29.8284 21.5 29V23Z" fill="#B6E3FC" stroke="#333333"/><path id="Vector 1" d="M24.1184 27.8255C23.9404 27.7499 23.7347 27.7838 23.5904 27.9125L21.6673 29.6268C21.5124 29.7648 21.4589 29.9842 21.5328 30.178C21.6066 30.3719 21.7925 30.5 22 30.5H32C32.2761 30.5 32.5 30.2761 32.5 30V27.7143C32.5 27.5717 32.4391 27.4359 32.3327 27.3411L30.4096 25.6268C30.2125 25.451 29.9127 25.4589 29.7251 25.6448L26.5019 28.8372L24.1184 27.8255Z" fill="#44D500" stroke="#333333" stroke-linejoin="round"/><circle id="Ellipse 1" cx="26" cy="25" r="1.5" fill="#FFD12D" stroke="#333333"/></g><rect id="Rectangle 23" x="13" y="13" width="12" height="2" rx="1" fill="#B4B4B4"/><rect id="Rectangle 24" x="13" y="17" width="19" height="2" rx="1" fill="#B4B4B4"/><rect id="Rectangle 25" x="13" y="21" width="6" height="2" rx="1" fill="#B4B4B4"/><rect id="Rectangle 26" x="13" y="25" width="6" height="2" rx="1" fill="#B4B4B4"/><rect id="Rectangle 27" x="13" y="29" width="6" height="2" rx="1" fill="#B4B4B4"/><rect id="Rectangle 28" x="13" y="33" width="16" height="2" rx="1" fill="#B4B4B4"/></g><defs><filter id="filter0_d_1_507" x="9" y="5" width="28" height="37" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/><feOffset dx="1" dy="1"/><feComposite in2="hardAlpha" operator="out"/><feColorMatrix type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.29 0"/><feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow_1_507"/><feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow_1_507" result="shape"/></filter></defs></svg>',
                 data: "<h2>Introduction</h2><p>In today's fast-paced world, keeping up with the latest trends and insights is essential for both personal growth and professional development. This article aims to shed light on a topic that resonates with many, providing valuable information and actionable advice. Whether you're seeking to enhance your knowledge, improve your skills, or simply stay informed, our comprehensive analysis offers a deep dive into the subject matter, designed to empower and inspire our readers.</p>"
-              }
+              },
+              ...(includeCategoryCardsTemplate
+                ? [CATEGORY_CARDS_4COL_TEMPLATE]
+                : []),
+              ...(includeAdditionalTextCardsTemplates
+                ? [...ADDITIONAL_TEXT_CARD_TEMPLATES]
+                : []),
             ]
           },
           // Additional configurations to ensure all features work
@@ -629,7 +745,7 @@ const FormCKEditor = ({
       setEditorError("Failed to initialize editor configuration");
       return {};
     }
-  }, [cloud, isLayoutReady]);
+  }, [cloud, isLayoutReady, includeCategoryCardsTemplate, includeAdditionalTextCardsTemplates, enableCardImageReplace]);
 
   /**
    * Removes default font-size styling from heading tags (h1-h6) while preserving
@@ -938,6 +1054,435 @@ const FormCKEditor = ({
       console.warn('⚠️ Error enabling insertImage button:', error);
     }
 
+    // Type / nicotine cards: toolbar "Edit image" opens file picker (not click-on-image)
+    if (enableCardImageReplace && editableElement) {
+      const escapeAttr = (value: string) =>
+        value
+          .replace(/&/g, '&amp;')
+          .replace(/"/g, '&quot;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;');
+
+      const readFileAsDataUrl = (file: File) =>
+        new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => {
+            const result = reader.result;
+            if (typeof result === 'string' && result) resolve(result);
+            else reject(new Error('Failed to read image file'));
+          };
+          reader.onerror = () => reject(reader.error ?? new Error('File read error'));
+          reader.readAsDataURL(file);
+        });
+
+      const isAtbNicCard = (el: HTMLElement) =>
+        Boolean(el.closest('.atb-nic-card') || el.closest('.atb-nic-cards'));
+      const isAtbFlavourCard = (el: HTMLElement) =>
+        Boolean(
+          el.closest('.atb-flavour-card') || el.closest('.atb-flavour-cards')
+        );
+
+      const resolveCardAlt = (el: HTMLElement, slot: string) => {
+        const article =
+          el.closest('.type-card') ||
+          el.closest('.atb-nic-card') ||
+          el.closest('.atb-flavour-card');
+        const title = article?.querySelector('h3')?.textContent?.trim();
+        if (title) return title;
+        const fromAttr =
+          el.getAttribute('aria-label') || el.getAttribute('alt');
+        if (fromAttr && fromAttr !== 'Category image' && fromAttr !== 'No image')
+          return fromAttr;
+        return slot ? `Card ${slot}` : 'Card image';
+      };
+
+      const syncFormFromEditor = () => {
+        try {
+          let stored = editor.getData();
+          if (typeof stored !== 'string') stored = String(stored || '');
+          if (stored && !stored.includes('<') && stored.trim()) {
+            stored = `<p>${stored}</p>`;
+          }
+          formChangeRef.current(removeDefaultHeadingFontSizes(stored));
+        } catch (err) {
+          console.warn('Failed to sync card image to form:', err);
+        }
+      };
+
+      const buildTypeCardImgHtml = (src: string, alt: string, slot: string) =>
+        `<img class="type-card__img type-card__img--${escapeAttr(slot)}" src="${src}" alt="${escapeAttr(alt)}" data-type-card-img="${escapeAttr(slot)}" style="${TYPE_CARD_IMG_INLINE_STYLE}" title="Use Edit image on the toolbar to replace">`;
+
+      const buildAtbNicImgHtml = (src: string, alt: string, slot: string) =>
+        `<img class="atb-nic-card__img atb-nic-card__img--${escapeAttr(slot)}" src="${src}" alt="${escapeAttr(alt)}" data-atb-nic-img="${escapeAttr(slot)}" data-type-card-img="${escapeAttr(slot)}" style="${ATB_NIC_IMG_INLINE_STYLE}" title="Use Edit image on the toolbar to replace">`;
+
+      const buildAtbFlavourImgHtml = (src: string, alt: string, slot: string) =>
+        `<img class="atb-flavour-card__img atb-flavour-card__img--${escapeAttr(slot)}" src="${src}" alt="${escapeAttr(alt)}" data-atb-flavour-img="${escapeAttr(slot)}" data-type-card-img="${escapeAttr(slot)}" style="${ATB_FLAVOUR_IMG_INLINE_STYLE}" title="Use Edit image on the toolbar to replace">`;
+
+      /**
+       * Replace exactly one card image by DOM index among card images.
+       * Slot/alt regex matching is unreliable: CKEditor often strips data-* on <img>,
+       * and identical placeholder srcs caused the wrong card (or multiple cards) to update.
+       */
+      const replaceTypeCardImageSlot = (
+        el: HTMLElement,
+        slot: string,
+        alt: string,
+        src: string
+      ) => {
+        const atbNic = isAtbNicCard(el);
+        const atbFlavour = isAtbFlavourCard(el);
+        const imgHtml = atbFlavour
+          ? buildAtbFlavourImgHtml(src, alt, slot)
+          : atbNic
+            ? buildAtbNicImgHtml(src, alt, slot)
+            : buildTypeCardImgHtml(src, alt, slot);
+        const sectionSelector = atbFlavour
+          ? '.atb-flavour-cards'
+          : atbNic
+            ? '.atb-nic-cards'
+            : '.type-cards';
+        const cardSelector = atbFlavour
+          ? '.atb-flavour-card'
+          : atbNic
+            ? '.atb-nic-card'
+            : '.type-card';
+        const cardRoot: HTMLElement =
+          (editableElement.querySelector(sectionSelector) as HTMLElement | null) ??
+          (editableElement as HTMLElement);
+        // Index among ALL editor images so replace matches getData() <img> order
+        // (Additional Text Box may contain nicotine + flavour card images).
+        const allEditorImgs = Array.from(
+          editableElement.querySelectorAll('img')
+        );
+
+        let index = -1;
+        if (el instanceof HTMLImageElement) {
+          index = allEditorImgs.indexOf(el);
+        }
+        // Legacy div placeholder: map card position → image index
+        if (index < 0) {
+          const article = el.closest(cardSelector);
+          if (article) {
+            const cards = Array.from(
+              cardRoot.querySelectorAll(cardSelector)
+            ) as HTMLElement[];
+            const cardIndex = cards.indexOf(article as HTMLElement);
+            if (cardIndex >= 0) {
+              const cardImg = cards[cardIndex]?.querySelector(
+                'img'
+              ) as HTMLImageElement | null;
+              if (cardImg) {
+                index = allEditorImgs.indexOf(cardImg);
+              }
+            }
+          }
+        }
+
+        let data = editor.getData();
+        if (typeof data !== 'string') data = String(data || '');
+
+        let replaced = false;
+
+        if (index >= 0) {
+          let n = -1;
+          const next = data.replace(/<img\b[^>]*>/gi, (match: string) => {
+            n += 1;
+            if (n === index) {
+              replaced = true;
+              return imgHtml;
+            }
+            return match;
+          });
+          if (replaced) data = next;
+        }
+
+        // Div placeholder with no <img> yet for that card: swap the div
+        if (!replaced) {
+          const slotRe = slot.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          const placeholderDivBySlot = new RegExp(
+            `<div[^>]*\\bdata-type-card-img=["']${slotRe}["'][^>]*>[\\s\\S]*?<\\/div>`,
+            'i'
+          );
+          if (placeholderDivBySlot.test(data)) {
+            data = data.replace(placeholderDivBySlot, imgHtml);
+            replaced = true;
+          }
+        }
+
+        if (!replaced) {
+          console.warn('Card image slot not found in editor HTML:', { slot, index });
+          return false;
+        }
+
+        editor.setData(data);
+        // Flush RHF immediately so Save cannot submit pre-upload HTML (debounce race)
+        syncFormFromEditor();
+        return true;
+      };
+
+      const resolveSlot = (el: HTMLElement): string => {
+        const fromAttr =
+          el.getAttribute('data-atb-flavour-img') ||
+          el.getAttribute('data-atb-nic-img') ||
+          el.getAttribute('data-type-card-img');
+        if (fromAttr) return fromAttr;
+        const classMatch = el.className?.match?.(
+          /(?:type-card__img|atb-nic-card__img|atb-flavour-card__img)--([a-z0-9_-]+)/i
+        );
+        if (classMatch?.[1]) return classMatch[1];
+        const article =
+          el.closest('.type-card') ||
+          el.closest('.atb-nic-card') ||
+          el.closest('.atb-flavour-card');
+        if (article) {
+          const variant = article.className?.match?.(/type-card--([a-z0-9_-]+)/i);
+          if (variant?.[1]) return variant[1];
+          const isFlavour = article.classList.contains('atb-flavour-card');
+          const isNic = article.classList.contains('atb-nic-card');
+          const root: HTMLElement =
+            (editableElement.querySelector(
+              isFlavour
+                ? '.atb-flavour-cards'
+                : isNic
+                  ? '.atb-nic-cards'
+                  : '.type-cards'
+            ) as HTMLElement | null) ??
+            (editableElement as HTMLElement);
+          const cards = Array.from(
+            root.querySelectorAll(
+              isFlavour
+                ? '.atb-flavour-card'
+                : isNic
+                  ? '.atb-nic-card'
+                  : '.type-card'
+            )
+          );
+          const i = cards.indexOf(article);
+          if (i >= 0) {
+            return isFlavour ? `flav-${i}` : isNic ? `nic-${i}` : `card-${i}`;
+          }
+        }
+        return `slot-${Date.now()}`;
+      };
+
+      let pickerOpen = false;
+
+      const openTypeCardImagePicker = (el: HTMLElement) => {
+        if (pickerOpen) return;
+        pickerOpen = true;
+        window.setTimeout(() => {
+          pickerOpen = false;
+        }, 800);
+
+        const slot = resolveSlot(el);
+        el.setAttribute('data-type-card-img', slot);
+        if (isAtbNicCard(el)) el.setAttribute('data-atb-nic-img', slot);
+        if (isAtbFlavourCard(el)) el.setAttribute('data-atb-flavour-img', slot);
+        const alt = resolveCardAlt(el, slot);
+
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'image/jpeg,image/jpg,image/png,image/gif,image/webp,image/bmp';
+        input.style.display = 'none';
+        document.body.appendChild(input);
+
+        const cleanupInput = () => {
+          try {
+            input.remove();
+          } catch {
+            /* ignore */
+          }
+        };
+
+        input.addEventListener('change', () => {
+          const file = input.files?.[0];
+          cleanupInput();
+          if (!file) return;
+
+          const isPlaceholder =
+            el.getAttribute('data-type-card-placeholder') === '1' ||
+            el.getAttribute('data-atb-nic-placeholder') === '1' ||
+            el.getAttribute('data-atb-flavour-placeholder') === '1' ||
+            el.classList.contains('type-card__img-placeholder') ||
+            el.classList.contains('atb-nic-card__img-placeholder') ||
+            el.classList.contains('atb-flavour-card__img-placeholder');
+          if (isPlaceholder && el instanceof HTMLImageElement) {
+            el.style.opacity = '0.5';
+          }
+
+          // Encode to a unique mime per slot so API S3 keys (inline.{ext}) do not collide
+          void (async () => {
+            try {
+              const flavourCard = isAtbFlavourCard(el);
+              const nicCard = isAtbNicCard(el);
+              const maxBytes = flavourCard
+                ? ATB_FLAVOUR_IMAGE_MAX_BYTES
+                : nicCard
+                  ? ATB_NIC_IMAGE_MAX_BYTES
+                  : TYPE_CARD_IMAGE_MAX_BYTES;
+              const requiredWidth = flavourCard
+                ? ATB_FLAVOUR_IMAGE_WIDTH
+                : nicCard
+                  ? ATB_NIC_IMAGE_WIDTH
+                  : TYPE_CARD_IMAGE_WIDTH;
+              const requiredHeight = flavourCard
+                ? ATB_FLAVOUR_IMAGE_HEIGHT
+                : nicCard
+                  ? ATB_NIC_IMAGE_HEIGHT
+                  : TYPE_CARD_IMAGE_HEIGHT;
+
+              if (file.size > maxBytes) {
+                showSnackbar(
+                  `Image must be ${maxBytes / (1024 * 1024)}MB or smaller.`,
+                  'error'
+                );
+                if (el instanceof HTMLImageElement) el.style.opacity = '1';
+                return;
+              }
+
+              const dimensionValidation = await validateImageDimensions(
+                file,
+                requiredWidth,
+                requiredHeight
+              );
+              if (!dimensionValidation.valid) {
+                const dims = dimensionValidation.dimensions;
+                const current =
+                  dims != null
+                    ? ` Current: ${dims.width} × ${dims.height} px.`
+                    : "";
+                showSnackbar(
+                  `Image dimensions must be exactly ${requiredWidth} × ${requiredHeight} px.${current}`,
+                  "error"
+                );
+                if (el instanceof HTMLImageElement) el.style.opacity = "1";
+                return;
+              }
+
+              let src: string;
+              try {
+                src = await encodeTypeCardImageDataUrl(file, slot);
+              } catch {
+                src = await readFileAsDataUrl(file);
+              }
+              const ok = replaceTypeCardImageSlot(el, slot, alt, src);
+              if (!ok && el instanceof HTMLImageElement) {
+                el.style.opacity = '1';
+              }
+            } catch (err) {
+              console.error('Card image upload failed:', err);
+              showSnackbar('Card image upload failed.', 'error');
+              if (el instanceof HTMLImageElement) {
+                el.style.opacity = '1';
+              }
+            }
+          })();
+        });
+
+        input.addEventListener('cancel', cleanupInput);
+        requestAnimationFrame(() => input.click());
+      };
+
+      const getSelectedTypeCardImageDom = (): HTMLElement | null => {
+        const widgetImg = editableElement.querySelector(
+          '.type-card figure.ck-widget_selected img, .type-card .ck-widget_selected img, .type-card img.ck-widget_selected, .type-cards figure.ck-widget_selected img, .type-cards .ck-widget_selected img, .atb-nic-card figure.ck-widget_selected img, .atb-nic-card .ck-widget_selected img, .atb-nic-card img.ck-widget_selected, .atb-nic-cards figure.ck-widget_selected img, .atb-nic-cards .ck-widget_selected img, .atb-flavour-card figure.ck-widget_selected img, .atb-flavour-card .ck-widget_selected img, .atb-flavour-card img.ck-widget_selected, .atb-flavour-cards figure.ck-widget_selected img, .atb-flavour-cards .ck-widget_selected img'
+        ) as HTMLElement | null;
+        if (widgetImg) return widgetImg;
+
+        try {
+          const selected = editor.model.document.selection.getSelectedElement();
+          if (
+            selected &&
+            (selected.name === 'imageBlock' || selected.name === 'imageInline')
+          ) {
+            const viewEl = editor.editing.mapper.toViewElement(selected);
+            if (viewEl) {
+              const dom = editor.editing.view.domConverter.mapViewToDom(viewEl);
+              if (dom instanceof HTMLElement) {
+                const img =
+                  dom.tagName === 'IMG'
+                    ? dom
+                    : (dom.querySelector('img') as HTMLElement | null);
+                if (
+                  img?.closest('.type-card') ||
+                  img?.closest('.type-cards') ||
+                  img?.closest('.atb-nic-card') ||
+                  img?.closest('.atb-nic-cards') ||
+                  img?.closest('.atb-flavour-card') ||
+                  img?.closest('.atb-flavour-cards')
+                ) {
+                  return img;
+                }
+                if (img && enableCardImageReplace) return img;
+              }
+            }
+          }
+        } catch {
+          /* ignore */
+        }
+
+        if (enableCardImageReplace) {
+          return editableElement.querySelector(
+            'figure.ck-widget_selected img, .ck-widget_selected img, img.ck-widget_selected'
+          ) as HTMLElement | null;
+        }
+        return null;
+      };
+
+      // Balloon toolbar click can clear selection — remember last selected card image
+      let lastTypeCardImg: HTMLElement | null = null;
+      const refreshRememberedTypeCardImg = () => {
+        const img = getSelectedTypeCardImageDom();
+        if (img && editableElement.contains(img)) lastTypeCardImg = img;
+      };
+      refreshRememberedTypeCardImg();
+      try {
+        editor.model.document.selection.on('change', refreshRememberedTypeCardImg);
+        editor.editing.view.document.on('selectionChange', refreshRememberedTypeCardImg);
+      } catch {
+        /* ignore */
+      }
+
+      // Toolbar "Edit image" only — do not open upload when clicking the card image
+      (editor as { __typeCardReplaceImageHandler?: () => void }).__typeCardReplaceImageHandler =
+        () => {
+          const img =
+            (lastTypeCardImg && editableElement.contains(lastTypeCardImg)
+              ? lastTypeCardImg
+              : null) || getSelectedTypeCardImageDom();
+          if (img) {
+            openTypeCardImagePicker(img);
+            return;
+          }
+          const focused = editableElement.querySelector(
+            '.type-card img:focus, .type-card figure.ck-widget_selected img, .type-card .ck-widget_selected img, .atb-nic-card img:focus, .atb-nic-card figure.ck-widget_selected img, .atb-nic-card .ck-widget_selected img, .atb-flavour-card img:focus, .atb-flavour-card figure.ck-widget_selected img, .atb-flavour-card .ck-widget_selected img'
+          ) as HTMLElement | null;
+          if (focused) openTypeCardImagePicker(focused);
+        };
+
+      // Safety: if CKBox edit still fires, redirect to upload for type-card images
+      try {
+        const ckboxEditCmd = editor.commands.get('ckboxImageEdit');
+        if (ckboxEditCmd) {
+          ckboxEditCmd.on(
+            'execute',
+            (evt: { stop: () => void }) => {
+              const img =
+                (lastTypeCardImg && editableElement.contains(lastTypeCardImg)
+                  ? lastTypeCardImg
+                  : null) || getSelectedTypeCardImageDom();
+              if (!img) return;
+              evt.stop();
+              openTypeCardImagePicker(img);
+            },
+            { priority: 'highest' }
+          );
+        }
+      } catch {
+        /* ignore */
+      }
+    }
+
     // Attach word count to ref
     try {
       const wordCount = editor.plugins.get('WordCount');
@@ -978,16 +1523,20 @@ const FormCKEditor = ({
         }
         /* Fixed height for CKEditor content area */
         .ck-editor .ck-editor__editable {
-          min-height: 300px !important;
-          max-height: 300px !important;
-          height: 300px !important;
+          min-height: ${tallCardEditor ? "520px" : "300px"} !important;
+          max-height: ${tallCardEditor ? "720px" : "300px"} !important;
+          height: ${tallCardEditor ? "520px" : "300px"} !important;
           overflow-y: auto !important;
+          padding-bottom: ${tallCardEditor ? "56px" : "16px"} !important;
+          box-sizing: border-box !important;
         }
         .ck-editor .ck-content {
-          min-height: 300px !important;
-          max-height: 300px !important;
-          height: 300px !important;
+          min-height: ${tallCardEditor ? "520px" : "300px"} !important;
+          max-height: ${tallCardEditor ? "720px" : "300px"} !important;
+          height: ${tallCardEditor ? "auto" : "300px"} !important;
           overflow-y: auto !important;
+          padding-bottom: ${tallCardEditor ? "56px" : "16px"} !important;
+          box-sizing: border-box !important;
         }
         /* Ensure font-size and font-family work properly in CKEditor */
         /* Inline styles from CKEditor font controls are now preserved */
@@ -1002,6 +1551,9 @@ const FormCKEditor = ({
         .ck-content p:empty {
           min-height: 1em !important;
         }
+        /* Type cards must load after generic .ck-content p rules */
+        ${includeCategoryCardsTemplate ? RELATED_COLLECTION_CARDS_CSS : ""}
+        ${includeAdditionalTextCardsTemplates ? ADDITIONAL_TEXT_CARDS_EDITOR_CSS : ""}
         /* Table styles for proper display */
         .ck-content table {
           display: table !important;
@@ -1116,6 +1668,14 @@ const FormCKEditor = ({
         defaultValue={defaultValue}
         rules={{ required: required ? `${label || 'This field'} is required` : false }}
         render={({ field, fieldState }) => {
+          formChangeRef.current = (value: string) => {
+            if (onChangeDebounceRef.current) {
+              clearTimeout(onChangeDebounceRef.current);
+              onChangeDebounceRef.current = null;
+            }
+            field.onChange(value);
+          };
+
           // Show loading state
           if (cloud.status === 'loading' || !ClassicEditor || !editorConfig) {
             return (
@@ -1154,6 +1714,7 @@ const FormCKEditor = ({
                     
                     try {
                       configureEditor(editor);
+                      onEditorReady?.(editor);
                       
                       // Set initial content if provided
                       if (defaultValue && !field.value) {
@@ -1203,6 +1764,7 @@ const FormCKEditor = ({
                         if (!data.includes('<')) data = `<p>${data}</p>`;
                         data = removeDefaultHeadingFontSizes(data);
                         currentField.onChange(data);
+                        void trigger?.(name);
                       } catch (error) {
                         console.error('❌ Error getting CKEditor data:', error);
                         try {
@@ -1231,6 +1793,7 @@ const FormCKEditor = ({
                           if (!data.includes('<')) data = `<p>${data}</p>`;
                           field.onChange(removeDefaultHeadingFontSizes(data));
                         }
+                        void trigger?.(name);
                       } catch (e) {
                         console.error('❌ Error syncing CKEditor on blur:', e);
                       }

@@ -1,6 +1,77 @@
 import { fetcher, poster, updater, deleter } from "./apiService";
 import axiosInstance from '@/utils/axiosApi';
 
+export interface BlogSource {
+  label: string;
+  href: string;
+  description?: string;
+}
+
+export interface BlogRelatedBlog {
+  id: number;
+  title: string;
+  slug?: string;
+  image_url?: string;
+  alt_text?: string;
+  status?: string;
+  published_at?: string;
+}
+
+/** @deprecated Use BlogRelatedBlog — kept for backward compatibility */
+export type BlogRelatedPost = BlogRelatedBlog;
+
+export interface BlogAuthorOverride {
+  first_name?: string;
+  last_name?: string;
+  role?: string;
+  bio?: string;
+  avatar_url?: string;
+  archive_url?: string;
+  team_url?: string;
+}
+
+export type BlogPullQuoteSourceType =
+  | "UKVIA"
+  | "MHRA"
+  | "OHID"
+  | "peer_reviewed";
+
+export interface BlogPullQuote {
+  body: string;
+  attribution: string;
+  source_url: string;
+  source_type: BlogPullQuoteSourceType;
+  location: "mid_body_after_h2";
+}
+
+export type BlogInlineProductCardEntityType = "product" | "category";
+
+export interface BlogInlineProductCardProduct {
+  image: string;
+  title: string;
+  blurb: string;
+  url: string;
+}
+
+export interface BlogInlineProductCard {
+  entity_type: BlogInlineProductCardEntityType;
+  entity_id: number;
+  blurb: string;
+  title?: string;
+  cta_label?: string;
+  location?: "mid_article";
+  entity_name?: string;
+  product?: BlogInlineProductCardProduct;
+}
+
+export interface BlogFirstPersonCallout {
+  label?: string;
+  heading: string;
+  body: string;
+  /** @deprecated Placement is via {{firstPersonCallout:n}} placeholders in content */
+  insert_after_paragraph?: number;
+}
+
 // Types for Blog Posts, Categories, and Tags
 export interface BlogPost {
   id: number;
@@ -11,18 +82,37 @@ export interface BlogPost {
   image_url?: string;
   alt_text?: string;
   published_at?: string;
-  is_active: boolean;
+  is_active?: boolean;
   status?: string;
   created_at?: string;
   updated_at?: string;
   deleted_at?: string | null;
   categories?: BlogCategory[];
   tags?: BlogTag[];
+  author_id?: number | null;
+  author_override?: BlogAuthorOverride;
   author?: {
+    id?: number;
     first_name: string;
     last_name: string;
     email: string;
+    profile_pic_url?: string;
+    blog_author_role?: string;
+    blog_author_bio?: string;
+    blog_author_slug?: string;
+    blog_author_archive_url?: string;
+    blog_author_team_url?: string;
   };
+  sources?: BlogSource[];
+  related_blog_ids?: number[];
+  related_blogs?: BlogRelatedBlog[];
+  /** @deprecated Use related_blogs */
+  related_posts?: BlogRelatedBlog[];
+  redirect_url?: string;
+  redirect?: { redirect_url?: string };
+  pull_quote?: BlogPullQuote | null;
+  inline_product_card?: BlogInlineProductCard | null;
+  first_person_callouts?: BlogFirstPersonCallout[];
 }
 
 export interface BlogCategory {
@@ -73,6 +163,7 @@ interface BlogPostParams {
   order?: "ASC" | "DESC";
   deleted?: boolean;
   is_active?: boolean;
+  status?: string;
 }
 
 export interface BlogCategoryResponse {

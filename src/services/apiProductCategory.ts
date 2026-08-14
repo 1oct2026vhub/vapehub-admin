@@ -218,3 +218,43 @@ export const updateEntityBanner = (id, bannerData) => {
 };
 
 export const deleteEntityBanner = (id) => deleter(`/api/entity-banners/${id}`);
+
+export interface RelatedLink {
+  text: string;
+  url: string;
+}
+
+export interface RelatedCategoriesApiResponse {
+  success: boolean;
+  message: string;
+  data?: {
+    related_links: RelatedLink[];
+  };
+  errors?: { msg?: string; message?: string; field?: string }[];
+}
+
+export const getCategoryRelatedCategories = (
+  categoryId: number
+): Promise<RelatedCategoriesApiResponse> => {
+  return fetcher(`/api/admin/category/${categoryId}/related-categories`);
+};
+
+export const saveCategoryRelatedCategories = async (
+  categoryId: number,
+  related_links: RelatedLink[]
+): Promise<RelatedCategoriesApiResponse> => {
+  const payload = { related_links };
+
+  const response = await axiosInstance.post(
+    `/api/admin/category/${categoryId}/related-categories`,
+    payload,
+    {
+      headers: {
+        "Content-Type": "application/json",
+      },
+    }
+  );
+
+  return response.data;
+};
+

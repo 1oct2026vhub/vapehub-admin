@@ -4,16 +4,13 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useEffect, useState, useRef } from "react";
-import { useRouter, useParams } from "next/navigation";
+import { useRouter, useParams, useSearchParams } from "next/navigation";
 import {
   Alert,
   Typography,
   Box,
-  Button,
-  CircularProgress,
   Tabs,
   Tab,
-  Divider,
   Grid,
   IconButton,
   Card,
@@ -27,10 +24,9 @@ import AppButton from "@/components/Shared/AppButton";
 import FormInputField from "@/components/Shared/FormInputField";
 import FormFileUploadField from "@/components/Shared/FormFileUploadField";
 import FormCKEditor from "@/components/Shared/FormCKEditor";
-import { usePost, useFetch } from "@/hooks/useFetch";
+import { usePost } from "@/hooks/useFetch";
 import {
   updateBrand,
-  brandDetails,
   removeBrandImage,
   getEntityBanners,
   createEntityBanner,
@@ -38,10 +34,13 @@ import {
   deleteEntityBanner,
 } from "@/services/apiProductBrand";
 import { useSnackbar } from "@/contexts/SnackbarContext";
-import axiosInstance from "@/utils/axiosApi";
 import PageBreadcrumb from "@/components/PageBreadcrumb";
 import FaqAccordion from "../../faq/FaqAccordion";
 import SeoForm from "@/app/(control-panel)/apps/seo/components/SeoForm";
+import BuyingGuideForm from "@/app/(control-panel)/apps/product-category/components/BuyingGuideForm";
+import RelatedCollectionsTab from "@/app/(control-panel)/apps/product-category/components/RelatedCollectionsTab";
+import AdditionalTextBoxTab from "@/app/(control-panel)/apps/product-category/components/AdditionalTextBoxTab";
+import RelatedBrandsTab from "../components/RelatedBrandsTab";
 import BannerModal from "../components/BannerModal";
 import DeleteConfirmationModal from "@/components/Shared/DeleteConfirmationModal";
 
@@ -180,6 +179,8 @@ export type FormType = {
   name: string;
   slug: string;
   description?: string;
+  type_cards_html?: string | null;
+  additional_text_box?: string | null;
   alt_text?: string;
   logo?: File | string | null | undefined;
   logo_url?: string;
@@ -200,6 +201,7 @@ const EditBrandForm = ({ brand: initialBrand }: { brand: FormType | null }) => {
   }
   const router = useRouter();
   const params = useParams();
+  const searchParams = useSearchParams();
   const brandId = params?.id ? (Array.isArray(params.id) ? parseInt(params.id[0], 10) : parseInt(params.id, 10)) : null;
   const { showSnackbar } = useSnackbar();
   const [isLoading, setIsLoading] = useState(false);
@@ -215,7 +217,16 @@ const EditBrandForm = ({ brand: initialBrand }: { brand: FormType | null }) => {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const brandRef = useRef<FormType>(initialBrand);
 
-  const [activeTab, setActiveTab] = useState<number>(0); // 0 for Details, 1 for FAQ, 2 for SEO
+  const [activeTab, setActiveTab] = useState<number>(() => {
+    const tab = searchParams?.get("tab");
+    if (tab === "additional-text-box") return 6;
+    if (tab === "related-collections") return 5;
+    if (tab === "related-brands") return 4;
+    if (tab === "buying-guide") return 3;
+    if (tab === "seo") return 2;
+    if (tab === "faq") return 1;
+    return 0;
+  }); // 0 Details, 1 FAQ, 2 SEO, 3 Buying Guide, 4 Related Brands, 5 Related Collections, 6 Additional Text Box
 
   const { control, formState, handleSubmit, setValue, watch, setError } = useForm<InferredSchemaType>({
     mode: "all",
@@ -302,6 +313,15 @@ const EditBrandForm = ({ brand: initialBrand }: { brand: FormType | null }) => {
       if (formData.description) {
         formDataObj.append("description", formData.description);
       }
+      // Preserve type cards / additional text box when updating details (managed on their tabs)
+      formDataObj.append(
+        "type_cards_html",
+        brandRef.current?.type_cards_html ?? ""
+      );
+      formDataObj.append(
+        "additional_text_box",
+        brandRef.current?.additional_text_box ?? ""
+      );
       if (formData.alt_text) {
         formDataObj.append("alt_text", formData.alt_text);
       }
@@ -482,6 +502,22 @@ const EditBrandForm = ({ brand: initialBrand }: { brand: FormType | null }) => {
               <Tab label="Brand Details" id="brand-details-tab" aria-controls="brand-details-panel" />
               <Tab label="FAQ" id="brand-faq-tab" aria-controls="brand-faq-panel" />
               <Tab label="SEO" id="brand-seo-tab" aria-controls="brand-seo-panel" />
+              <Tab label="Buying Guide" id="brand-buying-guide-tab" aria-controls="brand-buying-guide-panel" />
+              <Tab
+                label="Related Brands"
+                id="brand-related-brands-tab"
+                aria-controls="brand-related-brands-panel"
+              />
+              <Tab
+                label="Related Collections"
+                id="brand-related-collections-tab"
+                aria-controls="brand-related-collections-panel"
+              />
+              <Tab
+                label="Additional Text Box"
+                id="brand-additional-text-box-tab"
+                aria-controls="brand-additional-text-box-panel"
+              />
             </Tabs>
           </Box>
 
@@ -720,6 +756,104 @@ const EditBrandForm = ({ brand: initialBrand }: { brand: FormType | null }) => {
             )}
             {activeTab === 2 && !brandId && (
                 <Typography color="error">Brand ID is missing. Cannot load SEO details.</Typography>
+            )}
+          </div>
+
+          {/* Buying Guide Tab Panel */}
+          <div
+            role="tabpanel"
+            hidden={activeTab !== 3}
+            id="brand-buying-guide-panel"
+            aria-labelledby="brand-buying-guide-tab"
+          >
+            {activeTab === 3 && brandId && (
+              <Box sx={{ pt: 2 }}>
+                <BuyingGuideForm
+                  entityType="brand"
+                  brandId={brandId}
+                  brandName={nameValue || initialBrand?.name}
+                />
+              </Box>
+            )}
+            {activeTab === 3 && !brandId && (
+              <Typography color="error">
+                Brand ID is missing. Cannot load buying guide.
+              </Typography>
+            )}
+          </div>
+
+          {/* Related Brands Tab Panel */}
+          <div
+            role="tabpanel"
+            hidden={activeTab !== 4}
+            id="brand-related-brands-panel"
+            aria-labelledby="brand-related-brands-tab"
+          >
+            {activeTab === 4 && brandId && (
+              <Box sx={{ pt: 2 }}>
+                <RelatedBrandsTab brandId={brandId} />
+              </Box>
+            )}
+            {activeTab === 4 && !brandId && (
+              <Typography color="error">
+                Brand ID is missing. Cannot load related brands.
+              </Typography>
+            )}
+          </div>
+
+          {/* Related Collections Tab Panel (type_cards_html) */}
+          <div
+            role="tabpanel"
+            hidden={activeTab !== 5}
+            id="brand-related-collections-panel"
+            aria-labelledby="brand-related-collections-tab"
+          >
+            {activeTab === 5 && brandId && (
+              <Box sx={{ pt: 2 }}>
+                <RelatedCollectionsTab
+                  entityType="brand"
+                  brandId={brandId}
+                  initialHtml={brandRef.current?.type_cards_html}
+                  onSaved={(html) => {
+                    if (brandRef.current) {
+                      brandRef.current.type_cards_html = html;
+                    }
+                  }}
+                />
+              </Box>
+            )}
+            {activeTab === 5 && !brandId && (
+              <Typography color="error">
+                Brand ID is missing. Cannot load type cards.
+              </Typography>
+            )}
+          </div>
+
+          {/* Additional Text Box Tab Panel */}
+          <div
+            role="tabpanel"
+            hidden={activeTab !== 6}
+            id="brand-additional-text-box-panel"
+            aria-labelledby="brand-additional-text-box-tab"
+          >
+            {activeTab === 6 && brandId && (
+              <Box sx={{ pt: 2 }}>
+                <AdditionalTextBoxTab
+                  entityType="brand"
+                  brandId={brandId}
+                  initialHtml={brandRef.current?.additional_text_box}
+                  onSaved={(html) => {
+                    if (brandRef.current) {
+                      brandRef.current.additional_text_box = html;
+                    }
+                  }}
+                />
+              </Box>
+            )}
+            {activeTab === 6 && !brandId && (
+              <Typography color="error">
+                Brand ID is missing. Cannot load additional text box.
+              </Typography>
             )}
           </div>
         </>

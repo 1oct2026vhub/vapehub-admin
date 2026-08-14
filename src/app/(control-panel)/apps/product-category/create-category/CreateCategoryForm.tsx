@@ -3,12 +3,19 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useRouter } from "next/navigation";
-import { Alert, Typography, Box } from "@mui/material";
+import { Alert, Typography, Box, Tabs, Tab } from "@mui/material";
 import AppButton from "@/components/Shared/AppButton";
 import FormInputField from "@/components/Shared/FormInputField";
 import FormCKEditor from "@/components/Shared/FormCKEditor";
 import { usePost } from "@/hooks/useFetch";
-import { createCategory, getEntityBanners, createEntityBanner, updateEntityBanner, deleteEntityBanner } from "@/services/apiProductCategory";
+import {
+  createCategory,
+  getEntityBanners,
+  createEntityBanner,
+  updateEntityBanner,
+  deleteEntityBanner,
+  saveCategoryRelatedCategories,
+} from "@/services/apiProductCategory";
 import { useSnackbar } from "@/contexts/SnackbarContext";
 import FormFileUploadField from "@/components/Shared/FormFileUploadField";
 import { useState, useEffect } from "react";
@@ -18,6 +25,16 @@ import DeleteConfirmationModal from "@/components/Shared/DeleteConfirmationModal
 import { Grid, IconButton, Card, CardMedia, CardContent, CardActions } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
+import RelatedCategoriesSelector from "../components/RelatedCategoriesSelector";
+import RelatedCollectionsEditor from "../components/RelatedCollectionsEditor";
+import AdditionalTextBoxEditor from "../components/AdditionalTextBoxEditor";
+import { prepareTypeCardsHtmlForSave } from "@/components/Shared/typeCardImageEncode";
+import {
+  cleanRelatedLinks,
+  getRelatedLinksValidationErrors,
+  hasRelatedLinksErrors,
+} from "../components/relatedLinks.utils";
+import type { RelatedLink } from "@/services/apiProductCategory";
 
 // const schema = z.object({
 //   name: z.string().min(1, "Brand Name is required"),
@@ -140,6 +157,11 @@ function CreateCategoryForm() {
   const [isDeletingBanner, setIsDeletingBanner] = useState<number | null>(null);
   const [bannerToDelete, setBannerToDelete] = useState<number | null>(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<number>(0); // 0 Details, 1 Related Categories, 2 Type Cards, 3 Additional Text Box
+  const [relatedLinks, setRelatedLinks] = useState<RelatedLink[]>([]);
+  const [relatedLinksErrors, setRelatedLinksErrors] = useState<string[]>([]);
+  const [typeCardsHtml, setTypeCardsHtml] = useState("");
+  const [additionalTextBox, setAdditionalTextBox] = useState("");
 
   const { control, formState, handleSubmit, setValue, watch } = useForm<InferredSchemaType>({
     mode: "all",
@@ -167,6 +189,17 @@ function CreateCategoryForm() {
   );
 
   async function onSubmit(formData: InferredSchemaType) {
+    const filledRelatedLinks = relatedLinks.filter(
+      (l) => (l.text ?? "").trim() || (l.url ?? "").trim()
+    );
+    const linkErrors = getRelatedLinksValidationErrors(filledRelatedLinks);
+    if (linkErrors.length > 0) {
+      setRelatedLinksErrors(linkErrors);
+      setActiveTab(1);
+      showSnackbar(linkErrors[0], "error");
+      return;
+    }
+
     setIsLoading(true);
 
     try {
@@ -191,6 +224,18 @@ function CreateCategoryForm() {
         formDataObj.append("parent_id", formData.parent_id.toString());
       }
 
+      // Type cards HTML (separate from description / related_links)
+      formDataObj.append(
+        "type_cards_html",
+        await prepareTypeCardsHtmlForSave(typeCardsHtml ?? "")
+      );
+
+      // Additional text box HTML (tables/grids; empty → backend null)
+      formDataObj.append(
+        "additional_text_box",
+        await prepareTypeCardsHtmlForSave(additionalTextBox ?? "")
+      );
+
       // ✅ Debugging: Check FormData values
       for (const pair of formDataObj.entries()) {
         console.log(pair[0], pair[1]);
@@ -201,8 +246,37 @@ function CreateCategoryForm() {
       setCreatedCategoryId(categoryId);
 
       showSnackbar("Category created successfully!", "success");
-      // Don't redirect immediately, allow user to save banner if needed
-      router.push("/apps/product-category");
+        if (categoryId) {
+          const cleanedRelatedLinks = cleanRelatedLinks(relatedLinks);
+          const linkErrors = getRelatedLinksValidationErrors(cleanedRelatedLinks);
+
+          if (linkErrors.length > 0) {
+            setRelatedLinksErrors(linkErrors);
+            showSnackbar(linkErrors[0], "error");
+          } else {
+            try {
+              await saveCategoryRelatedCategories(
+                Number(categoryId),
+                cleanedRelatedLinks
+              );
+            } catch (relError: any) {
+              const msg =
+                relError?.response?.data?.errors?.[0]?.msg ||
+                relError?.response?.data?.message ||
+                relError?.errors?.[0]?.msg ||
+                relError?.message ||
+                "Category created, but failed to save related links";
+              setRelatedLinksErrors([msg]);
+              showSnackbar(msg, "error");
+            }
+          }
+
+        router.push(
+          `/apps/product-category/category-update/${categoryId}?tab=buying-guide`
+        );
+      } else {
+        router.push("/apps/product-category");
+      }
     } catch (error) {
       if (error?.errors) {
         showSnackbar(error?.errors[0]?.msg, "error");
@@ -336,6 +410,34 @@ function CreateCategoryForm() {
           New Category
         </Typography>
       </div>
+      <Box sx={{ borderBottom: 1, borderColor: "divider", mb: 3 }}>
+        <Tabs
+          value={activeTab}
+          onChange={(_, value) => setActiveTab(value)}
+          aria-label="category create tabs"
+        >
+          <Tab
+            label="Category Details"
+            id="category-create-details-tab"
+            aria-controls="category-create-details-panel"
+          />
+          <Tab
+            label="Related Categories"
+            id="category-create-related-categories-tab"
+            aria-controls="category-create-related-categories-panel"
+          />
+          <Tab
+            label="Related Collections"
+            id="category-create-related-collections-tab"
+            aria-controls="category-create-related-collections-panel"
+          />
+          <Tab
+            label="Additional Text Box"
+            id="category-create-additional-text-box-tab"
+            aria-controls="category-create-additional-text-box-panel"
+          />
+        </Tabs>
+      </Box>
       <form
         name="categoryForm"
         noValidate
@@ -348,56 +450,110 @@ function CreateCategoryForm() {
           </Alert>
         )}
 
-        <FormInputField
-          name="name"
-          control={control}
-          label="Name"
-          type="text"
-          required
-        />
-        <FormInputField
-          name="slug"
-          control={control}
-          label="Slug"
-          type="text"
-          required
-        />
-        <FormCKEditor
-          name="description"
-          control={control}
-          label="Description"
-        />
-        
-        <Box sx={{ mt: 2, mb: 2 }}>
-          <FormFileUploadField
-            name="logo"
+        <Box hidden={activeTab !== 0}>
+          <FormInputField
+            name="name"
             control={control}
-            label="Category Logo"
-            onFileChange={(file) => {
-              setSelectedFile(file);
-              setValue("logo", file, { shouldValidate: true });
-            }}
-            helperText={`Upload a category slider image (${MAX_IMAGE_WIDTH} × ${MAX_IMAGE_HEIGHT} px, Max size: 5MB). Supported formats: PNG, JPG, JPEG, WebP`}
+            label="Name"
+            type="text"
+            required
           />
+          <FormInputField
+            name="slug"
+            control={control}
+            label="Slug"
+            type="text"
+            required
+          />
+          <FormCKEditor
+            name="description"
+            control={control}
+            label="Description"
+          />
+
+          <Box sx={{ mt: 2, mb: 2 }}>
+            <FormFileUploadField
+              name="logo"
+              control={control}
+              label="Category Logo"
+              onFileChange={(file) => {
+                setSelectedFile(file);
+                setValue("logo", file, { shouldValidate: true });
+              }}
+              helperText={`Upload a category slider image (${MAX_IMAGE_WIDTH} × ${MAX_IMAGE_HEIGHT} px, Max size: 5MB). Supported formats: PNG, JPG, JPEG, WebP`}
+            />
+          </Box>
+
+          {(selectedFile || logoValue) && (
+            <FormInputField
+              name="alt_text"
+              control={control}
+              label="Alt Text"
+              type="text"
+            />
+          )}
+
+          <div className="mt-6">
+            <FormInputField
+              name="parent_id"
+              control={control}
+              label="Parent ID"
+              type="number"
+            />
+          </div>
         </Box>
 
-        {(selectedFile || logoValue) && (
-          <FormInputField
-            name="alt_text"
-            control={control}
-            label="Alt Text"
-            type="text"
-          />
-        )}
-
-        <div className="mt-6">
-          <FormInputField
-            name="parent_id"
-            control={control}
-            label="Parent ID"
-            type="number"
+        <div
+          role="tabpanel"
+          hidden={activeTab !== 1}
+          id="category-create-related-categories-panel"
+          aria-labelledby="category-create-related-categories-tab"
+        >
+          <RelatedCategoriesSelector
+            links={relatedLinks}
+            onLinksChange={(nextLinks) => {
+              setRelatedLinks(nextLinks);
+              if (relatedLinksErrors.length > 0) {
+                setRelatedLinksErrors([]);
+              }
+            }}
+            validationErrors={relatedLinksErrors}
+            showRowErrors={relatedLinksErrors.length > 0}
           />
         </div>
+
+        <div
+          role="tabpanel"
+          hidden={activeTab !== 2}
+          id="category-create-related-collections-panel"
+          aria-labelledby="category-create-related-collections-tab"
+        >
+          {activeTab === 2 && (
+            <RelatedCollectionsEditor
+              content={typeCardsHtml}
+              onContentChange={setTypeCardsHtml}
+            />
+          )}
+        </div>
+
+        <div
+          role="tabpanel"
+          hidden={activeTab !== 3}
+          id="category-create-additional-text-box-panel"
+          aria-labelledby="category-create-additional-text-box-tab"
+        >
+          {activeTab === 3 && (
+            <AdditionalTextBoxEditor
+              content={additionalTextBox}
+              onContentChange={setAdditionalTextBox}
+            />
+          )}
+        </div>
+
+        <Typography variant="body2" color="text.secondary" sx={{ mt: 2, mb: 1 }}>
+          After creating the category, you will be redirected to configure the
+          Buying Guide, FAQ, SEO, and banners.
+        </Typography>
 
         <AppButton
           label="Create"
@@ -405,7 +561,12 @@ function CreateCategoryForm() {
           type="submit"
           fullWidth
           size="large"
-          disabled={!isValid || isMutating || hasImageError}
+          disabled={
+            !isValid ||
+            isMutating ||
+            hasImageError ||
+            hasRelatedLinksErrors(relatedLinks)
+          }
           className="mt-4 w-full"
         />
       </form>
