@@ -177,4 +177,113 @@ export const reorderFooterLink = async (
     console.error(`Error reordering link ${id}:`, error);
     throw error;
   }
+};
+
+export interface FooterBadge {
+  id: number;
+  icon_url?: string | null;
+  heading: string;
+  subtitle: string;
+  url?: string | null;
+  order: number;
+  is_active?: boolean;
+  created_at?: string;
+  updated_at?: string;
+  updated_by?: number | string | null;
+}
+
+export interface FooterBadgePayload {
+  heading?: string;
+  subtitle?: string;
+  url?: string | null;
+  order?: number;
+  is_active?: boolean;
+  icon?: File;
+}
+
+export interface PublicFooterResponse {
+  success?: boolean;
+  data?: FooterSection[];
+  socialLinks?: Record<string, unknown>;
+  badges?: FooterBadge[];
+}
+
+const unwrapFooterBadges = (response: unknown): FooterBadge[] => {
+  const payload = response as {
+    badges?: FooterBadge[];
+    data?: FooterBadge[] | { badges?: FooterBadge[] };
+  } | FooterBadge[] | null | undefined;
+
+  if (!payload) return [];
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload.badges)) return payload.badges;
+  if (Array.isArray(payload.data)) return payload.data;
+  if (payload.data && Array.isArray(payload.data.badges)) return payload.data.badges;
+  return [];
+};
+
+const unwrapFooterBadge = (response: unknown): FooterBadge => {
+  const payload = response as { data?: FooterBadge } | FooterBadge | null | undefined;
+  if (payload && "data" in payload && payload.data && typeof payload.data === "object") {
+    return payload.data;
+  }
+  return payload as FooterBadge;
+};
+
+const buildFooterBadgeFormData = (badge: FooterBadgePayload) => {
+  const formData = new FormData();
+
+  if (badge.heading !== undefined) formData.append("heading", badge.heading);
+  if (badge.subtitle !== undefined) formData.append("subtitle", badge.subtitle);
+  if (badge.url !== undefined && badge.url !== null && badge.url !== "") {
+    formData.append("url", badge.url);
+  }
+  if (badge.order !== undefined) formData.append("order", String(badge.order));
+  if (badge.is_active !== undefined) formData.append("is_active", String(badge.is_active));
+  if (badge.icon) formData.append("icon", badge.icon);
+
+  return formData;
+};
+
+export const getFooterBadges = async (
+  params: { is_active?: boolean } = {}
+): Promise<FooterBadge[]> => {
+  const response = await fetcher("/api/admin/footer/badges", params);
+  return unwrapFooterBadges(response).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+};
+
+export const createFooterBadge = async (badge: FooterBadgePayload) => {
+  const response = await poster("/api/admin/footer/badges", buildFooterBadgeFormData(badge));
+  return unwrapFooterBadge(response);
+};
+
+export const updateFooterBadge = async (id: number, badge: FooterBadgePayload) => {
+  const response = await updater(
+    `/api/admin/footer/badges/${id}`,
+    buildFooterBadgeFormData(badge)
+  );
+  return unwrapFooterBadge(response);
+};
+
+export const deleteFooterBadge = async (id: number) => {
+  return deleter(`/api/admin/footer/badges/${id}`);
+};
+
+export const reorderFooterBadge = async (id: number, payload: { new_order: number }) => {
+  const response = await updater(`/api/admin/footer/badges/${id}/reorder`, payload);
+  return response?.data || response;
+};
+
+/** Storefront footer: badges is a sibling of data, not nested inside data. */
+export const getPublicFooter = async (): Promise<PublicFooterResponse> => {
+  try {
+    return await fetcher("/api/footer");
+  } catch {
+    return await fetcher("/api/home/footer");
+  }
+};
+
+export const getPublicFooterBadges = async (): Promise<FooterBadge[]> => {
+  const response = await getPublicFooter();
+  return Array.isArray(response?.badges) ? response.badges : [];
 }; 
