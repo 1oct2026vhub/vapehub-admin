@@ -100,6 +100,13 @@ const navigationConfig: FuseNavItemType[] = [
         url: "/apps/blog/tags",
         end: true,
       },
+      {
+        id: "blog.author",
+        title: "Authors",
+        type: "item",
+        url: "/apps/blog/author",
+        end: true,
+      },
     ],
   },
   {
