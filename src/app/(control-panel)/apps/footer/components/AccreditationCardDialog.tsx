@@ -24,8 +24,8 @@ import {
 import { validateImageDimensions } from "@/utils/imageUtils";
 
 const MAX_FILE_SIZE = 2 * 1024 * 1024;
-const ICON_WIDTH = 48;
-const ICON_HEIGHT = 48;
+const ICON_WIDTH = 36;
+const ICON_HEIGHT = 36;
 const ACCEPTED_IMAGE_TYPES = [
   "image/png",
   "image/jpeg",

@@ -139,16 +139,16 @@ export default function BlogAuthorDetailsApp() {
                       <Typography variant="body2" color="text.secondary">
                         {author.role || "No role set"}
                       </Typography>
-                      {author.slug && (
+                      {/* {author.slug && (
                         <Typography variant="caption" color="text.secondary" display="block">
                           Slug: {author.slug}
                         </Typography>
-                      )}
-                      {linkedUser && (
+                      )} */}
+                      {/* {linkedUser && (
                         <Typography variant="caption" color="text.secondary" display="block">
                           Linked user: {linkedUser}
                         </Typography>
-                      )}
+                      )} */}
                       {author.bio && (
                         <Typography variant="body2" sx={{ mt: 1 }}>
                           {author.bio}
