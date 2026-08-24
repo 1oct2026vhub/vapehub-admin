@@ -142,7 +142,6 @@ export default function AccreditationCardDialog({
 
   useEffect(() => {
     if (!iconFile) return;
-
     const objectUrl = URL.createObjectURL(iconFile);
     setPreviewUrl(objectUrl);
 
