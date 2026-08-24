@@ -24,17 +24,6 @@ import {
 import { commonFieldStyles } from "../posts/components/blogPostFormShared";
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
-const optionalUrl = z
-  .string()
-  .refine(
-    (value) =>
-      !value ||
-      /^https?:\/\/.+/i.test(value) ||
-      /^\/[a-z0-9\-/?=&_]*$/i.test(value),
-    "Enter a valid URL or site path",
-  )
-  .optional()
-  .or(z.literal(""));
 
 const authorSchema = z.object({
   first_name: z
@@ -57,8 +46,6 @@ const authorSchema = z.object({
     )
     .optional()
     .or(z.literal("")),
-  archive_url: optionalUrl,
-  team_url: optionalUrl,
   avatar: z
     .any()
     .refine(
@@ -107,8 +94,6 @@ export default function AuthorFormDialog({
       role: "",
       bio: "",
       slug: "",
-      archive_url: "",
-      team_url: "",
       avatar: undefined,
     },
   });
@@ -125,8 +110,6 @@ export default function AuthorFormDialog({
       role: author?.role || "",
       bio: author?.bio || "",
       slug: author?.slug || "",
-      archive_url: author?.archive_url || "",
-      team_url: author?.team_url || "",
       avatar: undefined,
     });
   }, [open, author, methods]);
@@ -151,8 +134,6 @@ export default function AuthorFormDialog({
         slug:
           data.slug?.trim() ||
           slugify([data.first_name, data.last_name].filter(Boolean).join(" ")),
-        archive_url: data.archive_url?.trim() || "",
-        team_url: data.team_url?.trim() || "",
         avatar: data.avatar instanceof File ? data.avatar : undefined,
       };
 
@@ -235,22 +216,6 @@ export default function AuthorFormDialog({
                     label="Bio"
                     rows={4}
                     placeholder="Part of the VapeHub product team..."
-                  />
-                </Grid>
-                <Grid item xs={12}>
-                  <FormInputField
-                    name="archive_url"
-                    control={methods.control}
-                    label="Archive URL (optional)"
-                    sx={commonFieldStyles}
-                  />
-                </Grid>
-                <Grid item xs={12}>
-                  <FormInputField
-                    name="team_url"
-                    control={methods.control}
-                    label="Team URL (optional)"
-                    sx={commonFieldStyles}
                   />
                 </Grid>
               </Grid>
