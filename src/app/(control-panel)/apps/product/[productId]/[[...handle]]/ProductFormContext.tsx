@@ -2,6 +2,11 @@
 
 import { createContext, useContext, useState, ReactNode, useCallback } from "react";
 import { useForm, Control } from "react-hook-form";
+import type {
+  ProductSticker,
+  StickerMode,
+  StickerWritePayload,
+} from "@/types/productSticker";
 
 export interface ProductFormData {
   // Basic Info
@@ -64,6 +69,13 @@ export interface ProductFormData {
   deletedAt?: string | null;
   redirect_url?: string;
 
+  // Product card sticker (staged for create / tracked for edit)
+  sticker?: StickerWritePayload;
+  clear_sticker?: boolean;
+  stickerMode?: StickerMode;
+  stickerDirty?: boolean;
+  currentSticker?: ProductSticker;
+
   // Form state
   currentStep: number;
   isSubmitting: boolean;
@@ -114,6 +126,11 @@ const initialFormData: ProductFormData = {
   attributes: [],
   variants: [],
 
+  stickerMode: "auto",
+  clear_sticker: false,
+  stickerDirty: false,
+  currentSticker: null,
+
   currentStep: 0,
   isSubmitting: false,
   hasErrors: false,
@@ -144,8 +161,7 @@ export function ProductFormProvider({ children }: { children: ReactNode }) {
   };
 
   const nextStep = () => {
-    if (formData.currentStep < 5) {
-      // Now 6 steps (0, 1, 2, 3, 4, 5)
+    if (formData.currentStep < 7) {
       markStepAsCompleted(formData.currentStep);
       setFormData((prev) => ({ ...prev, currentStep: prev.currentStep + 1 }));
     }

@@ -71,6 +71,12 @@ const navigationConfig: FuseNavItemType[] = [
         type: "item",
         url: "/apps/product-variant",
       },
+      {
+        id: "product-sticker-settings",
+        title: "Product Stickers",
+        type: "item",
+        url: "/apps/product-sticker-settings",
+      },
     ],
   },
   {

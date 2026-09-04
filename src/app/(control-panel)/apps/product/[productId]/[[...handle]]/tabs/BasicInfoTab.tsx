@@ -785,6 +785,11 @@ function BasicInfoTab() {
                productId: Number(finalProductId),
                deletedAt: productData.deletedAt ?? null,
               redirect_url: extractedRedirectUrl,
+               currentSticker: productData.sticker ?? null,
+               stickerMode:
+                 productData.sticker?.source === "manual" ? "manual" : "auto",
+               stickerDirty: false,
+               clear_sticker: false,
              });
           }
         } catch (error) {
@@ -836,6 +841,23 @@ function BasicInfoTab() {
          ...(formData.deletedAt && { redirect_url: (formData.redirect_url ?? "").trim() || undefined }),
        };
 
+       // Sticker: include on create when staged; on edit only when Stickers tab marked dirty
+       // (edit sticker is normally saved from Stickers tab — avoid accidental clear/overwrite here)
+       if (!isEditMode) {
+         if (formData.clear_sticker) {
+           productData.clear_sticker = true;
+         } else if (formData.stickerMode === "manual" && formData.sticker) {
+           productData.sticker = formData.sticker;
+         }
+         // Auto mode: omit sticker fields so NEW rule may apply
+       } else if (formData.stickerDirty) {
+         if (formData.clear_sticker) {
+           productData.clear_sticker = true;
+         } else if (formData.stickerMode === "manual" && formData.sticker) {
+           productData.sticker = formData.sticker;
+         }
+       }
+
 
       // Check if we have a valid token
       const token = getAuthToken();
@@ -850,22 +872,60 @@ function BasicInfoTab() {
         response = await updateProduct(Number(productId), productData);
         showSnackbar("Product updated successfully", "success");
 
+        const savedSticker = response?.data?.sticker ?? null;
         // Update form data and stay on the same page
         updateFormData({
           ...data,
           productId: Number(productId),
           hasErrors: false,
+          currentSticker: savedSticker,
+          stickerDirty: false,
+          clear_sticker: false,
+          stickerMode:
+            savedSticker?.source === "manual"
+              ? "manual"
+              : formData.stickerMode === "clear"
+                ? "auto"
+                : formData.stickerMode || "auto",
+          sticker: savedSticker
+            ? {
+                name: savedSticker.name,
+                background_color: savedSticker.background_color,
+                active_from: savedSticker.active_from,
+                active_until: savedSticker.active_until,
+              }
+            : undefined,
         });
       } else {
         // Create new product
         response = await createProduct(productData);
         showSnackbar("Product created successfully", "success");
 
+        const savedSticker = response?.data?.sticker ?? null;
         // Update form data and move to next step
         updateFormData({
           ...data,
           productId: response.data.id,
           hasErrors: false,
+          currentSticker: savedSticker,
+          stickerDirty: false,
+          clear_sticker: false,
+          stickerMode:
+            savedSticker?.source === "manual"
+              ? "manual"
+              : savedSticker
+                ? "auto"
+                : formData.clear_sticker
+                  ? "clear"
+                  : "auto",
+          sticker: savedSticker
+            ? {
+                name: savedSticker.name,
+                background_color: savedSticker.background_color,
+                active_from: savedSticker.active_from,
+                active_until: savedSticker.active_until,
+              }
+            : undefined,
         });
 
         // Update URL with the new product ID

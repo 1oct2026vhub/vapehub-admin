@@ -1,4 +1,5 @@
 import axiosInstance from "@/utils/axiosApi";
+import type { StickerWritePayload } from "@/types/productSticker";
 
 interface ProductListParams {
   sort_by?: string;
@@ -149,10 +150,10 @@ export const bulkUpdateProducts = async (file: File) => {
   return response.data;
 };
 
-// Interface for creating a new product
+// Interface for creating / updating a product
 export interface CreateProductData {
-  name: string;
-  slug: string;
+  name?: string;
+  slug?: string;
   description?: string;
   key_highlights?: string;
   category_ids?: number[];
@@ -163,6 +164,11 @@ export interface CreateProductData {
   is_discontinued?: boolean;
   /** Redirect URL for deleted products (301 from product URL to this path) */
   redirect_url?: string;
+  /** Manual sticker; null clears. Omit to leave unchanged / allow auto rules. */
+  sticker?: StickerWritePayload | null;
+  /** Explicit clear; preferred over sticker: null for Clear button */
+  clear_sticker?: boolean;
+  sku?: string;
 }
 
 export const createProduct = async (data: CreateProductData) => {

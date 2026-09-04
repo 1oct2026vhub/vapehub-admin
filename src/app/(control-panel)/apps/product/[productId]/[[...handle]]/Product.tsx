@@ -20,9 +20,10 @@ import VariantManager from "./tabs/VariantManager";
 import FaqAccordion from "../../../faq/FaqAccordion";
 import SeoTab from "./tabs/SeoTab";
 import DealsTab from "./tabs/DealsTab";
+import StickersTab from "./tabs/StickersTab";
 // import FaqTab from "./tabs/FaqTab"; // You will need to create and import this later
 
-const steps = ["basic-info", "product-images", "attributes", "variants", "faq", "deals", "seo"];
+const steps = ["basic-info", "product-images", "attributes", "variants", "faq", "deals", "seo", "stickers"];
 
 function ProductContent() {
   const isMobile = useThemeMediaQuery((theme) => theme.breakpoints.down("lg"));
@@ -55,6 +56,9 @@ function ProductContent() {
             productId: Number(productId),
             deletedAt: productData.deletedAt ?? null,
             redirect_url: productData.redirect_url ?? "",
+            currentSticker: productData.sticker ?? null,
+            stickerMode:
+              productData.sticker?.source === "manual" ? "manual" : "auto",
           });
         } catch (error) {
           console.error("Error fetching product:", error);
@@ -113,6 +117,11 @@ function ProductContent() {
               label="SEO"
               className={isStepCompleted(6) ? "text-primary" : ""}
             />
+            <FuseTab
+              value="stickers"
+              label="Stickers"
+              className={isStepCompleted(7) ? "text-primary" : ""}
+            />
           </FuseTabs>
           <div className="mt-4">
             <div className={formData.currentStep !== 0 ? "hidden" : ""}>
@@ -139,6 +148,9 @@ function ProductContent() {
             </div>
             <div className={formData.currentStep !== 6 ? "hidden" : ""}>
               <SeoTab />
+            </div>
+            <div className={formData.currentStep !== 7 ? "hidden" : ""}>
+              <StickersTab />
             </div>
           </div>
         </div>
