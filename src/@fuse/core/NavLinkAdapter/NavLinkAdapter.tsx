@@ -57,20 +57,20 @@ function NavLinkAdapter(props: NavLinkAdapterPropsType) {
     : pathname.startsWith(targetUrl);
 
   return (
-    <Link to={targetUrl} passHref legacyBehavior>
-      <a
-        role={role}
-        onClick={handleClick}
-        onKeyDown={handleKeyDown}
-        className={clsx(
-          _props.className,
-          isActive ? activeClassName : "",
-          pathname === targetUrl && "pointer-events-none",
-        )}
-        style={isActive ? { ..._props.style, ...activeStyle } : _props.style}
-      >
-        {children}
-      </a>
+    <Link
+      ref={ref}
+      to={targetUrl}
+      role={role}
+      onClick={handleClick}
+      onKeyDown={handleKeyDown}
+      className={clsx(
+        _props.className,
+        isActive ? activeClassName : "",
+        pathname === targetUrl && "pointer-events-none",
+      )}
+      style={isActive ? { ..._props.style, ...activeStyle } : _props.style}
+    >
+      {children}
     </Link>
   );
 }

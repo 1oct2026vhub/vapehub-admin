@@ -1,16 +1,17 @@
 "use client";
 
 import NextLink, { LinkProps as NextLinkProps } from "next/link";
-import { ReactNode } from "react";
+import { AnchorHTMLAttributes, ReactNode } from "react";
 
-type CustomLinkProps = Omit<NextLinkProps, "href"> & {
-  to?: string;
-  href?: string;
-  children?: ReactNode;
-  className?: string;
-  role?: string;
-  ref?: React.RefObject<HTMLAnchorElement>;
-};
+type CustomLinkProps = Omit<NextLinkProps, "href"> &
+  Omit<AnchorHTMLAttributes<HTMLAnchorElement>, keyof NextLinkProps | "href"> & {
+    to?: string;
+    href?: string;
+    children?: ReactNode;
+    className?: string;
+    role?: string;
+    ref?: React.RefObject<HTMLAnchorElement>;
+  };
 
 function Link(props: CustomLinkProps) {
   const { ref, to, href, children, className, role, ...rest } = props;

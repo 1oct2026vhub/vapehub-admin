@@ -877,15 +877,15 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
                                                     textAlign: 'center',
                                                     // Hide spinner arrows in Chrome, Safari, Edge
                                                     '&::-webkit-outer-spin-button': {
-                                                        '-webkit-appearance': 'none',
+                                                        WebkitAppearance: 'none',
                                                         margin: 0,
                                                     },
                                                     '&::-webkit-inner-spin-button': {
-                                                        '-webkit-appearance': 'none',
+                                                        WebkitAppearance: 'none',
                                                         margin: 0,
                                                     },
                                                     // Hide spinner arrows in Firefox
-                                                    '-moz-appearance': 'textfield',
+                                                    MozAppearance: 'textfield',
                                                 } 
                                             }}
                                         />
