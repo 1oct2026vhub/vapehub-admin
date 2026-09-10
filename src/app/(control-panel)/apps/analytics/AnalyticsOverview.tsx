@@ -203,12 +203,21 @@ function AnalyticsOverview() {
 			setAnalyticsLoading(true);
 			setAnalyticsErrors({}); // Clear previous errors		
 			const propertyId = process.env.NEXT_PUBLIC_GA_PROPERTY_ID;
+			if (!propertyId) {
+				setAnalyticsErrors({ general: 'Missing NEXT_PUBLIC_GA_PROPERTY_ID. Cannot fetch Analytics data.' });
+				setAnalyticsLoading(false);
+				return;
+			}
+
 			const googleApiUrl = `https://analyticsdata.googleapis.com/v1beta/properties/${propertyId}:runRealtimeReport`;
+			const runReportUrl = `https://analyticsdata.googleapis.com/v1beta/properties/${propertyId}:runReport`;
 			const requestHeaders = {
 				Authorization: `Bearer ${accessToken}`,
 				'Content-Type': 'application/json',
 			};
+
 			// Define API requests
+			// Realtime reports only support a limited schema (no dateRanges; no traffic-source dims like "source").
 			const requests = {
 				activeUsers: axios.post(googleApiUrl, {
 					metrics: [{ name: "activeUsers" }],
@@ -218,12 +227,14 @@ function AnalyticsOverview() {
 						{ name: "5 minutes", startMinutesAgo: 4 }   
 					]
 				}, { headers: requestHeaders }),
-				usersBySource: axios.post(googleApiUrl, {
-					dimensions: [{ name: "source" }], // Changed from firstUserSource to source
+				usersBySource: axios.post(runReportUrl, {
+					dateRanges: [{ startDate: "7daysAgo", endDate: "yesterday" }],
+					dimensions: [{ name: "sessionSource" }],
 					metrics: [{ name: "activeUsers" }],
-					limit: 5 // Limit results for card display
+					orderBys: [{ metric: { metricName: "activeUsers" }, desc: true }],
+					limit: 5
 				}, { headers: requestHeaders }),
-				 usersByAudience: axios.post(googleApiUrl, {
+				usersByAudience: axios.post(googleApiUrl, {
 					dimensions: [{ name: "audienceName" }], 
 					metrics: [{ name: "activeUsers" }],
 					limit: 5 
@@ -231,19 +242,18 @@ function AnalyticsOverview() {
 				viewsByPage: axios.post(googleApiUrl, {
 					dimensions: [{ name: "unifiedScreenName" }],
 					metrics: [{ name: "screenPageViews" }],
-					 limit: 5 
+					limit: 5 
 				}, { headers: requestHeaders }),
 				eventCounts: axios.post(googleApiUrl, {
 					dimensions: [{ name: "eventName" }],
 					metrics: [{ name: "eventCount" }],
-					 limit: 5 
+					limit: 5 
 				}, { headers: requestHeaders }),
 				activeUsersPerMinute: axios.post(googleApiUrl, {
-					dimensions: [{ name: "minute" }],
+					dimensions: [{ name: "minutesAgo" }],
 					metrics: [{ name: "activeUsers" }],
-					// Optional: Order by minute to ensure data is chronological if needed for display
-					// orderBys: [{ "dimension": { "dimensionName": "minute" }, "desc": false }],
-					limit: 30 // Get up to the last 30 minutes of data
+					orderBys: [{ dimension: { dimensionName: "minutesAgo" }, desc: false }],
+					limit: 30
 				}, { headers: requestHeaders }),
 				customMinuteRangeUsers: axios.post(googleApiUrl, {
 					metrics: [{ name: "activeUsers" }],
@@ -252,21 +262,18 @@ function AnalyticsOverview() {
 						{ name: "25-29 minutes ago", startMinutesAgo: 29, endMinutesAgo: 25 }
 					]
 				}, { headers: requestHeaders }),
-				// New: breakdowns similar to GA UI
 				usersByAppVersion: axios.post(googleApiUrl, {
 					dimensions: [{ name: "appVersion" }],
 					metrics: [{ name: "activeUsers" }],
 					limit: 5
 				}, { headers: requestHeaders }),
-				// Active users by country - try multiple dimension approaches
+				// Realtime country breakdown (last ~30 minutes; no dateRanges allowed here)
 				usersByCountry: axios.post(googleApiUrl, {
-					dimensions: [{ name: "country" }], // Try 'country' instead of 'countryId'
+					dimensions: [{ name: "country" }],
 					metrics: [{ name: "activeUsers" }],
-					limit: 10,
-					// Use exact same date range as Google Analytics dashboard
-					dateRanges: [{ startDate: "7daysAgo", endDate: "yesterday" }]
+					limit: 10
 				}, { headers: requestHeaders }),
-				dailyPerformanceStats: axios.post(`https://analyticsdata.googleapis.com/v1beta/properties/${propertyId}:runReport`, {
+				dailyPerformanceStats: axios.post(runReportUrl, {
 					dateRanges: [{ startDate: "7daysAgo", endDate: "yesterday" }],
 					dimensions: [{ name: "date" }],
 					metrics: [
@@ -274,32 +281,28 @@ function AnalyticsOverview() {
 						{ name: "newUsers" },
 						{ name: "totalRevenue" }
 					],
-					orderBys: [{ dimension: { dimensionName: "date" }, desc: false }] // Optional: ensure data is chronological
+					orderBys: [{ dimension: { dimensionName: "date" }, desc: false }]
 				}, { headers: requestHeaders }),
-				firstUserSourceStats: axios.post(`https://analyticsdata.googleapis.com/v1beta/properties/${propertyId}:runReport`, {
+				firstUserSourceStats: axios.post(runReportUrl, {
 					dateRanges: [{ startDate: "7daysAgo", endDate: "yesterday" }],
-					// dimensions: [{ name: "firstUserSource" }],
-          dimensions: [{ name: "sessionSourceMedium" }],
+					dimensions: [{ name: "sessionSourceMedium" }],
 					metrics: [{ name: "activeUsers" }],
 					orderBys: [{ metric: { metricName: "activeUsers" }, desc: true }],
 					limit: 5
 				}, { headers: requestHeaders }),
-				// Historical active users data for line chart
-				activeUsersOverTime: axios.post(`https://analyticsdata.googleapis.com/v1beta/properties/${propertyId}:runReport`, {
+				activeUsersOverTime: axios.post(runReportUrl, {
 					dateRanges: [{ startDate: "30daysAgo", endDate: "yesterday" }],
 					dimensions: [{ name: "date" }],
 					metrics: [{ name: "activeUsers" }],
-					orderBys: [{ dimension: { dimensionName: "date" }, desc: false }] // Chronological order
+					orderBys: [{ dimension: { dimensionName: "date" }, desc: false }]
 				}, { headers: requestHeaders }),
-				// Alternative country data using runReport (historical data)
-				usersByCountryHistorical: axios.post(`https://analyticsdata.googleapis.com/v1beta/properties/${propertyId}:runReport`, {
+				usersByCountryHistorical: axios.post(runReportUrl, {
 					dateRanges: [{ startDate: "7daysAgo", endDate: "yesterday" }],
 					dimensions: [{ name: "country" }],
 					metrics: [{ name: "activeUsers" }],
 					orderBys: [{ metric: { metricName: "activeUsers" }, desc: true }],
 					limit: 10
 				}, { headers: requestHeaders })
-				// Add requests for activeUsersPerMinute, keyEvents, usersByUserProperty here if needed
 			};
 
 			let authErrorOccurred = false; // Declare outside the try block
@@ -340,11 +343,11 @@ function AnalyticsOverview() {
 						
 						newData[key] = result.value.data;
 					} else { // status === 'rejected'
-						console.error(`Failed to fetch data for ${key}:`, result.reason);
 						let errorMessage = `Failed to fetch ${key}.`;
 						// Handle different error types (Axios vs others)
 						if (axios.isAxiosError(result.reason)) {
 							const axiosError = result.reason;
+							const googleMessage = axiosError.response?.data?.error?.message;
 							if (axiosError.response?.status === 401 || axiosError.response?.status === 403) {
 								// Handle auth error - only trigger re-auth process once per batch
 								if (!authErrorOccurred) {
@@ -358,17 +361,20 @@ function AnalyticsOverview() {
 								} else {
 									errorMessage = `Auth error fetching ${key}. Re-login already initiated.`;
 								}
-							} else if (axiosError.response?.data?.error?.message) {
-								errorMessage = `Google API Error (${key}): ${axiosError.response.data.error.message}`;
+							} else if (googleMessage) {
+								errorMessage = `Google API Error (${key}): ${googleMessage}`;
 							} else {
 								errorMessage = `API Request Error (${key}): ${axiosError.message}`;
 							}
+							console.warn(errorMessage);
 						} else if (result.reason instanceof Error) {
-							 errorMessage = `Error fetching ${key}: ${result.reason.message}`;
+							errorMessage = `Error fetching ${key}: ${result.reason.message}`;
+							console.warn(errorMessage);
 						} else {
 							errorMessage = `Unknown error fetching ${key}.`;
+							console.warn(errorMessage, result.reason);
 						}
-						 newErrors[key] = errorMessage;
+						newErrors[key] = errorMessage;
 					}
 				});
 				setAnalyticsRealtimeData(prevData => ({ ...prevData, ...newData })); // Merge new data with previous potentially
