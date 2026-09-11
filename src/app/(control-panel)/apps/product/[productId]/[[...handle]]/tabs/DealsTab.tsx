@@ -65,8 +65,8 @@ const DealsTab: React.FC = () => {
         limit: 100,
       });
       
-      setDeals(productDealsResponse?.data?.deals || []);
-      setAllDeals(allDealsResponse?.data?.deals || []);
+      setDeals(productDealsResponse.data.deals);
+      setAllDeals(allDealsResponse.data.deals);
     } catch (error) {
       console.error('Error fetching deals:', error);
       showSnackbar('Failed to fetch deals', 'error');
@@ -298,8 +298,6 @@ const DealsTab: React.FC = () => {
                     <React.Fragment key={deal.id}>
                       <ListItem>
                         <ListItemText
-                          primaryTypographyProps={{ component: 'div' }}
-                          secondaryTypographyProps={{ component: 'div' }}
                           primary={
                             <Box display="flex" alignItems="center" gap={1}>
                               <Typography variant="subtitle1" fontWeight="medium">
@@ -387,8 +385,6 @@ const DealsTab: React.FC = () => {
               .map((deal) => (
                 <ListItem key={deal.id}>
                   <ListItemText
-                    primaryTypographyProps={{ component: 'div' }}
-                    secondaryTypographyProps={{ component: 'div' }}
                     primary={
                       <Box display="flex" alignItems="center" gap={1}>
                         <Typography variant="subtitle1" fontWeight="medium">
@@ -476,7 +472,7 @@ const DealsTab: React.FC = () => {
               
               <Typography variant="h6" sx={{ mt: 2 }}>Products in Deal</Typography>
               <List dense>
-                {(selectedDeal.products || []).map((product) => (
+                {selectedDeal.products.map((product) => (
                   <ListItem key={product.id}>
                     <ListItemText
                       primary={product.name}
