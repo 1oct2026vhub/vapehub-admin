@@ -128,30 +128,50 @@ const FormMultiSelectWithMapping = ({
       control={control}
       defaultValue={[]}
       render={({ field: { onChange, value } }) => {
-        // Convert IDs to display names for the Autocomplete
-        const displayValues = Array.isArray(value) 
-          ? value.map(id => {
-              const option = options.find(opt => opt.value === id);
-              return option ? option.label : '';
-            }).filter(Boolean)
+        // Keep selected options by unique value/id so duplicate labels (e.g. "test") stay distinct
+        const selectedOptions: Option[] = Array.isArray(value)
+          ? value
+              .map((id) => {
+                const option = options.find((opt) => opt.value === id);
+                return option || { value: id, label: String(id) };
+              })
           : [];
+
+        // Deduplicate options by value while preserving selected items
+        const optionMap = new Map<string | number, Option>();
+        options.forEach((option) => optionMap.set(option.value, option));
+        selectedOptions.forEach((option) => {
+          if (!optionMap.has(option.value)) {
+            optionMap.set(option.value, option);
+          }
+        });
+        const autocompleteOptions = Array.from(optionMap.values());
 
         return (
           <Autocomplete
             multiple
-            freeSolo
-            options={options.map(option => option.label)}
-            value={displayValues}
+            options={autocompleteOptions}
+            value={selectedOptions}
             loading={loading}
             loadingText="Loading..."
             noOptionsText={searchTerm && options.length === 0 ? "No data found" : "No options"}
+            getOptionLabel={(option) =>
+              typeof option === "string" ? option : option.label
+            }
+            isOptionEqualToValue={(option, selected) =>
+              option.value === selected.value
+            }
+            filterOptions={(opts, state) => {
+              const input = state.inputValue.trim().toLowerCase();
+              if (!input) return opts;
+              return opts.filter((option) =>
+                option.label.toLowerCase().includes(input)
+              );
+            }}
             onChange={(_, newValue) => {
-              // Convert display names back to IDs
-              const ids = newValue.map(displayName => {
-                const option = options.find(opt => opt.label === displayName);
-                return option ? option.value : null;
-              }).filter((id): id is number => id !== null);
-              
+              const ids = newValue
+                .map((item) => (typeof item === "string" ? null : Number(item.value)))
+                .filter((id): id is number => id !== null && !Number.isNaN(id));
               onChange(ids);
             }}
             onInputChange={(_, inputValue, reason) => {
@@ -176,15 +196,23 @@ const FormMultiSelectWithMapping = ({
                 }}
               />
             )}
-            renderTags={(value: string[], getTagProps) =>
-              value.map((option: string, index: number) => (
-                <Chip
-                  variant="outlined"
-                  label={option}
-                  {...getTagProps({ index })}
-                  key={`${option}-${index}`}
-                />
-              ))
+            renderOption={(props, option) => (
+              <li {...props} key={String(option.value)}>
+                {option.label}
+              </li>
+            )}
+            renderTags={(tagValue, getTagProps) =>
+              tagValue.map((option, index) => {
+                const { key, ...tagProps } = getTagProps({ index });
+                return (
+                  <Chip
+                    variant="outlined"
+                    label={option.label}
+                    {...tagProps}
+                    key={`${option.value}-${key}`}
+                  />
+                );
+              })
             }
             // Ensure selected values are always visible in the input
             filterSelectedOptions={false}
@@ -552,13 +580,26 @@ function BasicInfoTab() {
           setRelatedBlogLoading(true);
           setRelatedBlogError("");
 
-          const response = await getBlogPosts({
-            search: query,
+          const params: {
+            limit: number;
+            is_active: boolean;
+            status: string;
+            search?: string;
+          } = {
             limit: 50,
             is_active: true,
-          });
+            status: "published",
+          };
 
-          const blogs = response?.data?.blogs || [];
+          const trimmedQuery = query?.trim();
+          if (trimmedQuery) {
+            params.search = trimmedQuery;
+          }
+
+          const response = await getBlogPosts(params);
+          const blogs = (response?.data?.blogs || []).filter(
+            (blog) => blog?.id != null && blog?.title,
+          );
           const options = blogs.map((blog) => ({
             value: blog.id,
             label: blog.title,

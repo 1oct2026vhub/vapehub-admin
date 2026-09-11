@@ -1,7 +1,5 @@
 "use client";
 
-import FusePageCarded from "@fuse/core/FusePageCarded";
-import Typography from "@mui/material/Typography";
 import { useEffect } from "react";
 import useThemeMediaQuery from "@fuse/hooks/useThemeMediaQuery";
 import FuseTabs from "src/components/tabs/FuseTabs";
@@ -10,62 +8,58 @@ import ProductHeader from "./ProductHeader";
 import BasicInfoTab from "./tabs/BasicInfoTab";
 import ProductImagesTab from "./tabs/ProductImagesTab";
 import AttributesTab from "./tabs/AttributesTab";
-// import PricingTab from "./tabs/PricingTab";
 import { ProductFormProvider, useProductForm } from "./ProductFormContext";
-// import VariantTab from "./tabs/VariantTab";
-import { useParams } from "next/navigation";
-import { getProduct } from "@/services/apiProduct";
-import { useSnackbar } from "@/contexts/SnackbarContext";
+import { useParams, useSearchParams } from "next/navigation";
 import VariantManager from "./tabs/VariantManager";
 import FaqAccordion from "../../../faq/FaqAccordion";
 import SeoTab from "./tabs/SeoTab";
 import DealsTab from "./tabs/DealsTab";
-// import FaqTab from "./tabs/FaqTab"; // You will need to create and import this later
 
 const steps = ["basic-info", "product-images", "attributes", "variants", "faq", "deals", "seo"];
+
+function resolveProductId(
+  routeProductId: string | undefined,
+  queryProductId: string | null
+): number | null {
+  // Edit URLs are `/apps/product/edit?productId=123` — numeric ID lives in the query.
+  // Create URLs may use `/apps/product/new` or a numeric path segment.
+  const candidates = [queryProductId, routeProductId].filter(
+    (value): value is string => Boolean(value) && value !== "new" && value !== "edit"
+  );
+
+  for (const candidate of candidates) {
+    const parsed = Number(candidate);
+    if (Number.isFinite(parsed) && parsed > 0) {
+      return parsed;
+    }
+  }
+
+  return null;
+}
 
 function ProductContent() {
   const isMobile = useThemeMediaQuery((theme) => theme.breakpoints.down("lg"));
   const { formData, setCurrentStep, isStepCompleted, updateFormData } = useProductForm();
   const params = useParams();
-  const { showSnackbar } = useSnackbar();
-  const productId = params?.productId as string;
+  const searchParams = useSearchParams();
+  const routeProductId = params?.productId as string | undefined;
+  const productId = resolveProductId(
+    routeProductId,
+    searchParams ? searchParams.get("productId") : null
+  );
 
   const handleTabChange = (event: React.SyntheticEvent, value: string) => {
     const stepIndex = steps.indexOf(value);
     setCurrentStep(stepIndex);
   };
 
-  // Fetch product data if in edit mode
+  // Seed productId early for tabs that depend on form context.
+  // Full product details are loaded by BasicInfoTab with the correct field mapping.
   useEffect(() => {
-    const fetchProductData = async () => {
-      if (productId && productId !== "new") {
-        try {
-          const response = await getProduct(Number(productId));
-          const productData = response.data;
-          // Update form data with fetched product information
-          updateFormData({
-            name: productData.name,
-            slug: productData.slug,
-            description: productData.description,
-            category_ids: productData.category_id,
-            brand_ids: productData.brand_id,
-            is_new: productData.is_new,
-            is_discontinued: productData.is_discontinued ?? false,
-            productId: Number(productId),
-            deletedAt: productData.deletedAt ?? null,
-            redirect_url: productData.redirect_url ?? "",
-          });
-        } catch (error) {
-          console.error("Error fetching product:", error);
-          // showSnackbar("Failed to load product data", "error");
-        }
-      }
-    };
-
-    fetchProductData();
-  }, [productId]);
-  console.log("productId", productId);
+    if (productId && formData.productId !== productId) {
+      updateFormData({ productId });
+    }
+  }, [productId, formData.productId, updateFormData]);
   return (
     // <FusePageCarded
     // className="bg-white"
