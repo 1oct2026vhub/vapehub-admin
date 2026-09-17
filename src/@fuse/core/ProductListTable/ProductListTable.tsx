@@ -1094,7 +1094,7 @@ const ProductListTable = ({
               }
               size="small"
             >
-              <MenuItem value="all">All Coming Soon</MenuItem>
+              <MenuItem value="all">All</MenuItem>
               <MenuItem value="coming_soon">Coming Soon</MenuItem>
               <MenuItem value="not_coming_soon">Not Coming Soon</MenuItem>
             </Select>
@@ -1518,7 +1518,7 @@ const ProductListTable = ({
               fullWidth
               size="small"
             >
-              <MenuItem value="all">All Coming Soon</MenuItem>
+              <MenuItem value="all">All</MenuItem>
               <MenuItem value="coming_soon">Coming Soon</MenuItem>
               <MenuItem value="not_coming_soon">Not Coming Soon</MenuItem>
             </Select>
