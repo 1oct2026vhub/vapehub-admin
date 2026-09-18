@@ -102,7 +102,7 @@ export async function getAbandonedCartByOrderId(
   orderId: string,
 ): Promise<AbandonedCartDetailResponse> {
   const { data } = await axiosInstance.get<AbandonedCartDetailResponse>(
-    `${BASE}/${encodeURIComponent(orderId)}`,
+    `${BASE}/order/${encodeURIComponent(orderId)}`,
   );
   return data;
 }

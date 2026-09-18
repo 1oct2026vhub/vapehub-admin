@@ -182,50 +182,46 @@ export default function AbandonedCartDetailPageClient({ orderId }: Props) {
             </CardContent>
           </Card>
 
-          <Grid container spacing={2}>
-            <Grid item xs={12} md={6}>
-              <Card variant="outlined">
-                <CardContent>
-                  <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 1.5 }}>
-                    Customer
+          <Stack direction={{ xs: "column", md: "row" }} spacing={2} sx={{ width: "100%" }}>
+            <Card variant="outlined" sx={{ flex: 1, minWidth: 0 }}>
+              <CardContent>
+                <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 1.5 }}>
+                  Customer
+                </Typography>
+                <Stack spacing={1}>
+                  <Typography variant="body2">
+                    <strong>Name:</strong> {customerName}
                   </Typography>
-                  <Stack spacing={1}>
-                    <Typography variant="body2">
-                      <strong>Name:</strong> {customerName}
-                    </Typography>
-                    <Typography variant="body2">
-                      <strong>Email:</strong> {displayText(detail.customer_email ?? detail.user?.email)}
-                    </Typography>
-                    <Typography variant="body2">
-                      <strong>User ID:</strong> {displayText(detail.user_id)}
-                    </Typography>
-                  </Stack>
-                </CardContent>
-              </Card>
-            </Grid>
+                  <Typography variant="body2">
+                    <strong>Email:</strong> {displayText(detail.customer_email ?? detail.user?.email)}
+                  </Typography>
+                  <Typography variant="body2">
+                    <strong>User ID:</strong> {displayText(detail.user_id)}
+                  </Typography>
+                </Stack>
+              </CardContent>
+            </Card>
 
-            <Grid item xs={12} md={6}>
-              <Card variant="outlined">
-                <CardContent>
-                  <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 1.5 }}>
-                    Order
+            <Card variant="outlined" sx={{ flex: 1, minWidth: 0 }}>
+              <CardContent>
+                <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 1.5 }}>
+                  Order
+                </Typography>
+                <Stack spacing={1}>
+                  <Typography variant="body2">
+                    <strong>Order Unique ID:</strong>{" "}
+                    {displayText(detail.order?.order_unique_id ?? detail.order_unique_id)}
                   </Typography>
-                  <Stack spacing={1}>
-                    <Typography variant="body2">
-                      <strong>Order Unique ID:</strong>{" "}
-                      {displayText(detail.order?.order_unique_id ?? detail.order_unique_id)}
-                    </Typography>
-                    <Typography variant="body2">
-                      <strong>Status:</strong> {formatLabel(detail.order?.status)}
-                    </Typography>
-                    <Typography variant="body2">
-                      <strong>Total:</strong> {displayText(detail.order?.total)}
-                    </Typography>
-                  </Stack>
-                </CardContent>
-              </Card>
-            </Grid>
-          </Grid>
+                  <Typography variant="body2">
+                    <strong>Status:</strong> {formatLabel(detail.order?.status)}
+                  </Typography>
+                  <Typography variant="body2">
+                    <strong>Total:</strong> {displayText(detail.order?.total)}
+                  </Typography>
+                </Stack>
+              </CardContent>
+            </Card>
+          </Stack>
 
           <Card variant="outlined">
             <CardContent>
