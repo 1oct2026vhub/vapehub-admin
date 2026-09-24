@@ -141,6 +141,7 @@ export interface ProductType {
   variants: Variant[];
   status: string;
   is_discontinued?: boolean;
+  is_coming_soon?: boolean;
 }
 
 export default function ProductDetailTable() {
@@ -413,6 +414,18 @@ export default function ProductDetailTable() {
                         SKU
                       </TableCell>
                       <TableCell>{productDetail.sku || "N/A"}</TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell component="th" className="font-semibold">
+                        Coming Soon
+                      </TableCell>
+                      <TableCell>
+                        <Chip
+                          label={productDetail.is_coming_soon ? "Yes" : "No"}
+                          size="small"
+                          color={productDetail.is_coming_soon ? "info" : "default"}
+                        />
+                      </TableCell>
                     </TableRow>
                     <TableRow>
                       <TableCell component="th" className="font-semibold">
