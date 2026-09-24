@@ -7,14 +7,14 @@
  *   teal→png, orange→jpeg, green→webp, purple→bmp
  */
 
-/** Storefront related-collection card images: 297×180 (landscape). */
-export const TYPE_CARD_IMAGE_WIDTH = 297;
-export const TYPE_CARD_IMAGE_HEIGHT = 180;
+/** Storefront related-collection card images: 891×540 (landscape). */
+export const TYPE_CARD_IMAGE_WIDTH = 891;
+export const TYPE_CARD_IMAGE_HEIGHT = 540;
 export const TYPE_CARD_IMAGE_ASPECT_RATIO = `${TYPE_CARD_IMAGE_WIDTH}/${TYPE_CARD_IMAGE_HEIGHT}`;
 export const TYPE_CARD_IMAGE_MAX_BYTES = 5 * 1024 * 1024; // 5MB
 
 /**
- * Inline img styles: 297×180 frame, contain (no stretch/crop).
+ * Inline img styles: 891×540 frame, contain (no stretch/crop).
  * Keep in sync with TYPE_CARDS_STOREFRONT_CSS / RELATED_COLLECTION_CARDS_CSS.
  */
 export const TYPE_CARD_IMG_INLINE_STYLE =
@@ -24,7 +24,7 @@ const TYPE_CARD_IMG_PLACEHOLDER_BG = "background:#f1f5f9!important;";
 
 /**
  * Rewrite type-card <img> inline styles from legacy fixed heights / square frames
- * to the 297×180 frame. Idempotent — safe on load and save.
+ * to the 891×540 frame. Idempotent — safe on load and save.
  */
 export function normalizeTypeCardImageInlineStyles(html: string): string {
   const trimmed = (html ?? "").trim();

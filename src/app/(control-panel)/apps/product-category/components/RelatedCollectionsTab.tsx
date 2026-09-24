@@ -230,7 +230,7 @@ export default function RelatedCollectionsTab({
         update text and shop links. To change an image, select it and use{" "}
         <strong>Edit image</strong> on the image toolbar (clicking the image
         alone does not open upload). Card images must be exactly{" "}
-        <strong>297 × 180 px</strong>, max 5MB (PNG, JPG, JPEG, WebP).
+        <strong>891 × 540 px</strong>, max 5MB (PNG, JPG, JPEG, WebP).
         Clear the editor and save to remove the section.
       </Typography>
 
