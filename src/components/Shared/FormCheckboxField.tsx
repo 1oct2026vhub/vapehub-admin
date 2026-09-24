@@ -8,7 +8,7 @@ interface FormCheckboxFieldProps {
   label: string;
   disabled?: boolean;
   checked?: boolean;
-  onChange?: () => void;
+  onChange?: (checked: boolean) => void;
   required?: boolean;
 }
 
@@ -37,10 +37,15 @@ const FormCheckboxField: React.FC<FormCheckboxFieldProps> = ({
       render={({ field: { value, onChange: fieldOnChange }, fieldState: { error } }) => (
         <Box>
           <FormControlLabel
+            disabled={disabled}
             control={
               <CustomCheckbox
-                checked={checked ?? value}
-                onChange={onChange ?? fieldOnChange}
+                checked={checked ?? Boolean(value)}
+                onChange={(e) => {
+                  const nextChecked = e.target.checked;
+                  fieldOnChange(nextChecked);
+                  onChange?.(nextChecked);
+                }}
                 disabled={disabled}
               />
             }

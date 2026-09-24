@@ -29,6 +29,7 @@ import {
 } from "./blogPostFormShared";
 import { BLOG_PLACEHOLDER_TOKENS } from "./blogPlaceholders";
 import BlogPlaceholderInsertButton from "./BlogPlaceholderInsertButton";
+import BlogPostAuthorField from "./BlogPostAuthorField";
 
 interface BlogPostDetailsFieldsProps {
   control: Control<BlogPostFormType>;
@@ -85,6 +86,10 @@ export default function BlogPostDetailsFields({
           helperText="URL-friendly identifier (e.g., my-blog-post)"
           sx={commonFieldStyles}
         />
+      </Grid>
+
+      <Grid item xs={12}>
+        <BlogPostAuthorField control={control} />
       </Grid>
 
       <Grid item xs={12}>
