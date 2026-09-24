@@ -279,7 +279,8 @@ export default function BlogPostDetailPage() {
                       .filter(Boolean)
                       .join(" ")
                       .trim() ||
-                    post.author?.email ||
+                    authorFields.email ||
+                    post.author?.user?.email ||
                     "N/A";
                   const initial = displayName[0] || "N";
 

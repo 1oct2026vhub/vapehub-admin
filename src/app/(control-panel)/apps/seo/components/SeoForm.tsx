@@ -204,12 +204,12 @@ function SeoForm({ entityType, entityId, entityName, entitySlug, fullWidth = fal
               <Grid item xs={12}>
                 <FormTextField name="ogImage" label="OG Image URL" control={control} fullWidth />
               </Grid>
-              <Grid item xs={12}>
+              {/* <Grid item xs={12}>
                 <FormControlLabel
                   control={<Controller name="noIndex" control={control} render={({ field }) => <Switch {...field} checked={!!field.value} />} />}
                   label="No Index"
                 />
-              </Grid>
+              </Grid> */}
               <Grid item xs={12} style={{ display: 'flex', justifyContent: 'flex-end' }}>
                 <AppButton
                   label={isEditing ? 'Update' : 'Save'}
