@@ -29,7 +29,6 @@ pipeline {
                       // Check the current branch name
                     def server
                     def sshCredentials
-
                     if (branchName == 'staging-v2') {
                         // Use deployment parameters
                         server = params.dev_server
