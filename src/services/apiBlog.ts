@@ -498,11 +498,35 @@ const buildBlogAuthorFormData = (payload: BlogAuthorPayload) => {
   return formData;
 };
 
+export interface BlogAuthorListResponse {
+  authors: BlogAuthor[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
 export const getBlogAuthors = async (
-  params: { search?: string; page?: number; limit?: number } = {},
-): Promise<BlogAuthor[]> => {
+  params: { search?: string; page?: number; limit?: number; sort?: string; order?: "ASC" | "DESC" } = {},
+): Promise<BlogAuthorListResponse> => {
   const response = await fetcher("/api/admin/blog/authors", params);
-  return unwrapBlogAuthors(response);
+  const authors = unwrapBlogAuthors(response);
+  const payload = response as {
+    total?: number;
+    page?: number;
+    limit?: number;
+    data?: { total?: number; page?: number; limit?: number };
+  } | null;
+  const meta =
+    payload?.data && typeof payload.data === "object" && !Array.isArray(payload.data)
+      ? payload.data
+      : payload;
+
+  return {
+    authors,
+    total: Number(meta?.total ?? authors.length),
+    page: Number(meta?.page ?? params.page ?? 1),
+    limit: Number(meta?.limit ?? params.limit ?? 10),
+  };
 };
 
 export const getBlogAuthor = async (id: number): Promise<BlogAuthor> => {

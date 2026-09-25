@@ -23,7 +23,7 @@ export default function BlogPostAuthorField({ control }: BlogPostAuthorFieldProp
     const loadAuthors = async () => {
       try {
         const response = await getBlogAuthors({ limit: 200 });
-        setAuthors(response);
+        setAuthors(response.authors);
       } catch (error) {
         console.error("Failed to load authors:", error);
       } finally {
