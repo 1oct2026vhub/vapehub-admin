@@ -36,7 +36,6 @@ import BlogPostInlineProductCardFields from "../../components/BlogPostInlineProd
 import BlogPostFirstPersonCalloutFields from "../../components/BlogPostFirstPersonCalloutFields";
 import BlogPostDetailsFields from "../../components/BlogPostDetailsFields";
 import { BlogPostContentEditorProvider } from "../../components/BlogPostContentEditorContext";
-import BlogPostFormValidationAlert from "../../components/BlogPostFormValidationAlert";
 import {
   buildBlogPostFormData,
   blogPostBaseSchema,
@@ -232,7 +231,6 @@ export default function EditBlogPost() {
       await updateBlogPost(post.id, formData);
 
       showSnackbar("Post updated successfully", "success");
-      router.push("/apps/blog/posts");
     } catch (error: any) {
       if (error?.errors && error?.errors.length > 0) {
         showSnackbar(error.errors[0]?.msg, "error");

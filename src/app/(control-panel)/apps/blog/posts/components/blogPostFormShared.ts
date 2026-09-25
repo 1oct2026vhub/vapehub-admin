@@ -13,7 +13,6 @@ import {
 } from "./blogPlaceholders";
 import {
   extractFirstPersonCalloutsFromContent,
-  injectFirstPersonCalloutsIntoContent,
   restoreFirstPersonCalloutPlaceholdersInContent,
 } from "./blogContentInjection";
 
@@ -320,46 +319,19 @@ function validateBlogPlaceholders(
   const counts = countBlogBlockPositions(content);
   const calloutCount = data.first_person_callouts?.length ?? 0;
 
-  if (data.pull_quote?.enabled) {
-    if (counts.pullQuote === 0) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: `Add ${BLOG_PLACEHOLDER_TOKENS.pullQuote} in the article content where the pull quote should appear`,
-        path: ["content"],
-      });
-    } else if (counts.pullQuote > 1) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: `Only one ${BLOG_PLACEHOLDER_TOKENS.pullQuote} placeholder is allowed per article`,
-        path: ["content"],
-      });
-    }
-  } else if (counts.pullQuote > 0) {
+  // Content placeholders are optional. Only reject duplicates when a block is enabled.
+  if (data.pull_quote?.enabled && counts.pullQuote > 1) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
-      message: `Remove ${BLOG_PLACEHOLDER_TOKENS.pullQuote} from content or enable the pull quote block`,
+      message: `Only one ${BLOG_PLACEHOLDER_TOKENS.pullQuote} placeholder is allowed per article`,
       path: ["content"],
     });
   }
 
-  if (data.inline_product_card?.enabled) {
-    if (counts.inlineProductCard === 0) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: `Add ${BLOG_PLACEHOLDER_TOKENS.inlineProductCard} in the article content where the product card should appear`,
-        path: ["content"],
-      });
-    } else if (counts.inlineProductCard > 1) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: `Only one ${BLOG_PLACEHOLDER_TOKENS.inlineProductCard} placeholder is allowed per article`,
-        path: ["content"],
-      });
-    }
-  } else if (counts.inlineProductCard > 0) {
+  if (data.inline_product_card?.enabled && counts.inlineProductCard > 1) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
-      message: `Remove ${BLOG_PLACEHOLDER_TOKENS.inlineProductCard} from content or enable the inline product card block`,
+      message: `Only one ${BLOG_PLACEHOLDER_TOKENS.inlineProductCard} placeholder is allowed per article`,
       path: ["content"],
     });
   }
@@ -559,17 +531,10 @@ export function buildBlogPostFormData(
 ): FormData {
   const formData = new FormData();
   const firstPersonCallouts = data.first_person_callouts ?? [];
-  const contentWithInjectedCallouts = injectFirstPersonCalloutsIntoContent(
-    data.content,
-    firstPersonCallouts.map((callout) => ({
-      label: callout.label || "",
-      heading: callout.heading,
-      body: callout.body,
-    })),
-  );
 
   formData.append("title", data.title);
-  formData.append("content", contentWithInjectedCallouts);
+  // Keep content as the user left it — section placeholders are optional and never auto-inserted.
+  formData.append("content", data.content);
   formData.append("slug", data.slug);
   formData.append("status", data.status);
 
@@ -663,7 +628,23 @@ export function buildBlogPostFormData(
     formData.append("inline_product_card", "");
   }
 
-  if (options?.isEdit) {
+  if (firstPersonCallouts.length > 0) {
+    formData.append(
+      "first_person_callouts",
+      JSON.stringify(
+        firstPersonCallouts.map((callout) => {
+          const entry: { label?: string; heading: string; body: string } = {
+            heading: callout.heading.trim(),
+            body: callout.body,
+          };
+          if (callout.label?.trim()) {
+            entry.label = callout.label.trim();
+          }
+          return entry;
+        }),
+      ),
+    );
+  } else if (options?.isEdit) {
     formData.append("first_person_callouts", "");
   }
 
