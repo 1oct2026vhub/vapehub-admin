@@ -6,6 +6,8 @@ import {
   Box,
   Container,
   IconButton,
+  Pagination,
+  PaginationItem,
   Paper,
   Tooltip,
   Typography,
@@ -27,20 +29,37 @@ import {
 } from "@/services/apiBlog";
 import AuthorFormDialog from "./AuthorFormDialog";
 
+const PAGE_SIZE = 10;
+
 export default function BlogAuthorDetailsApp() {
   const { showSnackbar } = useSnackbar();
   const [authors, setAuthors] = useState<BlogAuthor[]>([]);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [currentAuthor, setCurrentAuthor] = useState<BlogAuthor | null>(null);
   const [authorToDelete, setAuthorToDelete] = useState<BlogAuthor | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  const fetchAuthors = async () => {
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+
+  const fetchAuthors = async (pageToFetch = page) => {
     setLoading(true);
     try {
-      const response = await getBlogAuthors({ limit: 200 });
-      setAuthors(response);
+      const response = await getBlogAuthors({
+        page: pageToFetch,
+        limit: PAGE_SIZE,
+      });
+
+      // If the current page is empty after a delete, step back one page.
+      if (response.authors.length === 0 && pageToFetch > 1) {
+        setPage(pageToFetch - 1);
+        return;
+      }
+
+      setAuthors(response.authors);
+      setTotal(response.total);
     } catch (error) {
       console.error("Failed to load authors:", error);
       showSnackbar("Failed to load authors", "error");
@@ -50,8 +69,8 @@ export default function BlogAuthorDetailsApp() {
   };
 
   useEffect(() => {
-    fetchAuthors();
-  }, []);
+    fetchAuthors(page);
+  }, [page]);
 
   const handleConfirmDelete = async () => {
     if (!authorToDelete || deleting) return;
@@ -64,7 +83,7 @@ export default function BlogAuthorDetailsApp() {
     try {
       await deleteBlogAuthor(deletingAuthor.id);
       showSnackbar("Author deleted successfully", "success");
-      fetchAuthors();
+      fetchAuthors(page);
     } catch (error: any) {
       showSnackbar(
         error?.errors?.[0]?.msg ||
@@ -77,7 +96,7 @@ export default function BlogAuthorDetailsApp() {
     }
   };
 
-  if (loading) {
+  if (loading && authors.length === 0) {
     return <FuseLoading />;
   }
 
@@ -122,61 +141,87 @@ export default function BlogAuthorDetailsApp() {
             </Typography>
           </Paper>
         ) : (
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-            {authors.map((author) => {
-              const name = getBlogAuthorDisplayName(author) || `Author ${author.id}`;
-              const avatar = author.avatar_url;
-              const linkedUser = author.user?.email;
+          <>
+            <Box
+              sx={{
+                display: "flex",
+                flexDirection: "column",
+                gap: 2,
+                opacity: loading ? 0.6 : 1,
+                pointerEvents: loading ? "none" : "auto",
+              }}
+            >
+              {authors.map((author) => {
+                const name = getBlogAuthorDisplayName(author) || `Author ${author.id}`;
+                const avatar = author.avatar_url;
 
-              return (
-                <Paper key={author.id} sx={{ p: 2.5 }}>
-                  <Box display="flex" gap={2} alignItems="flex-start">
-                    <Avatar src={avatar || undefined} sx={{ width: 56, height: 56 }}>
-                      {!avatar && <PersonOutlineIcon />}
-                    </Avatar>
-                    <Box flex={1} minWidth={0}>
-                      <Typography fontWeight={700}>{name}</Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        {author.role || "No role set"}
-                      </Typography>
-                      {/* {author.slug && (
-                        <Typography variant="caption" color="text.secondary" display="block">
-                          Slug: {author.slug}
+                return (
+                  <Paper key={author.id} sx={{ p: 2.5 }}>
+                    <Box display="flex" gap={2} alignItems="flex-start">
+                      <Avatar src={avatar || undefined} sx={{ width: 56, height: 56 }}>
+                        {!avatar && <PersonOutlineIcon />}
+                      </Avatar>
+                      <Box flex={1} minWidth={0}>
+                        <Typography fontWeight={700}>{name}</Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          {author.role || "No role set"}
                         </Typography>
-                      )} */}
-                      {/* {linkedUser && (
-                        <Typography variant="caption" color="text.secondary" display="block">
-                          Linked user: {linkedUser}
-                        </Typography>
-                      )} */}
-                      {author.bio && (
-                        <Typography variant="body2" sx={{ mt: 1 }}>
-                          {author.bio}
-                        </Typography>
-                      )}
+                        {author.bio && (
+                          <Typography variant="body2" sx={{ mt: 1 }}>
+                            {author.bio}
+                          </Typography>
+                        )}
+                      </Box>
+                      <Box>
+                        <Tooltip title="Edit">
+                          <IconButton
+                            onClick={() => {
+                              setCurrentAuthor(author);
+                              setDialogOpen(true);
+                            }}
+                          >
+                            <EditIcon />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Delete">
+                          <IconButton color="error" onClick={() => setAuthorToDelete(author)}>
+                            <DeleteIcon />
+                          </IconButton>
+                        </Tooltip>
+                      </Box>
                     </Box>
-                    <Box>
-                      <Tooltip title="Edit">
-                        <IconButton
-                          onClick={() => {
-                            setCurrentAuthor(author);
-                            setDialogOpen(true);
-                          }}
-                        >
-                          <EditIcon />
-                        </IconButton>
-                      </Tooltip>
-                      <Tooltip title="Delete">
-                        <IconButton color="error" onClick={() => setAuthorToDelete(author)}>
-                          <DeleteIcon />
-                        </IconButton>
-                      </Tooltip>
-                    </Box>
-                  </Box>
-                </Paper>
-              );
-            })}
-          </Box>
+                  </Paper>
+                );
+              })}
+            </Box>
+
+            {totalPages > 1 && (
+              <Box sx={{ display: "flex", justifyContent: "center", pt: 3 }}>
+                <Pagination
+                  count={totalPages}
+                  page={page}
+                  onChange={(_, value) => setPage(value)}
+                  shape="rounded"
+                  color="primary"
+                  disabled={loading}
+                  renderItem={(item) => (
+                    <PaginationItem
+                      {...item}
+                      sx={{
+                        "&.Mui-selected": {
+                          backgroundColor: "#2E9970",
+                          color: "#fff",
+                          "&:hover": {
+                            backgroundColor: "#247C5C",
+                          },
+                        },
+                      }}
+                    />
+                  )}
+                />
+              </Box>
+            )}
+          </>
         )}
       </motion.div>
 
@@ -187,7 +232,7 @@ export default function BlogAuthorDetailsApp() {
           setDialogOpen(false);
           setCurrentAuthor(null);
         }}
-        onSaved={fetchAuthors}
+        onSaved={() => fetchAuthors(page)}
         onSuccess={(message) => showSnackbar(message, "success")}
         onError={(message) => showSnackbar(message, "error")}
       />
