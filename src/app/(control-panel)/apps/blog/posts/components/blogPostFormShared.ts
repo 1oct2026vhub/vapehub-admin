@@ -1,7 +1,6 @@
 import { z } from "zod";
 import { SxProps, Theme } from "@mui/material/styles";
 import type {
-  BlogAuthorOverride,
   BlogInlineProductCardEntityType,
   BlogPost,
   BlogPullQuoteSourceType,
@@ -14,7 +13,6 @@ import {
 } from "./blogPlaceholders";
 import {
   extractFirstPersonCalloutsFromContent,
-  injectFirstPersonCalloutsIntoContent,
   restoreFirstPersonCalloutPlaceholdersInContent,
 } from "./blogContentInjection";
 
@@ -308,26 +306,6 @@ export const defaultFirstPersonCalloutItem: z.infer<typeof firstPersonCalloutIte
   body: "",
 };
 
-const authorOverrideSchema = z.object({
-  first_name: z.string().optional(),
-  last_name: z.string().optional(),
-  role: z.string().optional(),
-  bio: z.string().optional(),
-  avatar_url: z.string().optional(),
-  archive_url: z.string().optional().or(z.literal("")),
-  team_url: z.string().optional().or(z.literal("")),
-});
-
-export const defaultAuthorOverride: z.infer<typeof authorOverrideSchema> = {
-  first_name: "",
-  last_name: "",
-  role: "",
-  bio: "",
-  avatar_url: "",
-  archive_url: "",
-  team_url: "",
-};
-
 function validateBlogPlaceholders(
   data: {
     content?: string;
@@ -341,46 +319,19 @@ function validateBlogPlaceholders(
   const counts = countBlogBlockPositions(content);
   const calloutCount = data.first_person_callouts?.length ?? 0;
 
-  if (data.pull_quote?.enabled) {
-    if (counts.pullQuote === 0) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: `Add ${BLOG_PLACEHOLDER_TOKENS.pullQuote} in the article content where the pull quote should appear`,
-        path: ["content"],
-      });
-    } else if (counts.pullQuote > 1) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: `Only one ${BLOG_PLACEHOLDER_TOKENS.pullQuote} placeholder is allowed per article`,
-        path: ["content"],
-      });
-    }
-  } else if (counts.pullQuote > 0) {
+  // Content placeholders are optional. Only reject duplicates when a block is enabled.
+  if (data.pull_quote?.enabled && counts.pullQuote > 1) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
-      message: `Remove ${BLOG_PLACEHOLDER_TOKENS.pullQuote} from content or enable the pull quote block`,
+      message: `Only one ${BLOG_PLACEHOLDER_TOKENS.pullQuote} placeholder is allowed per article`,
       path: ["content"],
     });
   }
 
-  if (data.inline_product_card?.enabled) {
-    if (counts.inlineProductCard === 0) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: `Add ${BLOG_PLACEHOLDER_TOKENS.inlineProductCard} in the article content where the product card should appear`,
-        path: ["content"],
-      });
-    } else if (counts.inlineProductCard > 1) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: `Only one ${BLOG_PLACEHOLDER_TOKENS.inlineProductCard} placeholder is allowed per article`,
-        path: ["content"],
-      });
-    }
-  } else if (counts.inlineProductCard > 0) {
+  if (data.inline_product_card?.enabled && counts.inlineProductCard > 1) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
-      message: `Remove ${BLOG_PLACEHOLDER_TOKENS.inlineProductCard} from content or enable the inline product card block`,
+      message: `Only one ${BLOG_PLACEHOLDER_TOKENS.inlineProductCard} placeholder is allowed per article`,
       path: ["content"],
     });
   }
@@ -444,16 +395,13 @@ export const blogPostBaseSchema = z
   published_at: z.string().nullable().optional(),
   categories: z.array(categoryTagSchema).default([]),
   tags: z.array(categoryTagSchema).default([]),
-  author_id: z.number().nullable().optional(),
-  author_override: authorOverrideSchema.default(defaultAuthorOverride),
-  author_avatar: z
-    .any()
-    .refine(
-      (file) =>
-        !file || !(file instanceof File) || file.size <= MAX_FILE_SIZE,
-      "File size exceeds the maximum limit of 5MB.",
-    )
-    .optional(),
+  author_id: z
+    .number({
+      required_error: "Author is required",
+      invalid_type_error: "Author is required",
+    })
+    .int("Author is required")
+    .positive("Author is required"),
   sources: z.array(sourceSchema).default([]),
   related_posts: z.array(relatedPostSchema).max(3, "Maximum 3 related guides").default([]),
   redirect_url: z.string().url("Invalid URL format").optional().or(z.literal("")),
@@ -476,8 +424,7 @@ export const blogPostDefaultValues: BlogPostFormType = {
   published_at: null,
   categories: [],
   tags: [],
-  author_id: null,
-  author_override: { ...defaultAuthorOverride },
+  author_id: undefined as unknown as number,
   sources: [],
   related_posts: [],
   redirect_url: "",
@@ -494,62 +441,19 @@ function mapSourceToFormValue(source: BlogSource & { text?: string; url?: string
   };
 }
 
-/** True when the API returned a real author_override (user edited author details). */
-export function hasAuthorOverrideContent(
-  override?: BlogAuthorOverride | null,
-): boolean {
-  if (!override || typeof override !== "object") {
-    return false;
-  }
-
-  return Boolean(
-    override.first_name?.trim() ||
-      override.last_name?.trim() ||
-      override.role?.trim() ||
-      override.bio?.trim() ||
-      override.avatar_url?.trim() ||
-      override.archive_url?.trim() ||
-      override.team_url?.trim(),
-  );
-}
-
-/**
- * Blog detail API rule:
- * - If author_override has content → use override (user customized byline/bio)
- * - Otherwise → use author (linked admin profile)
- */
-export function resolveAuthorFieldsFromPost(post: BlogPost): BlogPostFormType["author_override"] {
-  if (hasAuthorOverrideContent(post.author_override)) {
-    const override = post.author_override!;
-    return {
-      first_name: override.first_name || "",
-      last_name: override.last_name || "",
-      role: override.role || "",
-      bio: override.bio || "",
-      avatar_url: override.avatar_url || "",
-      archive_url: override.archive_url || "",
-      team_url: override.team_url || "",
-    };
-  }
-
+export function resolveAuthorFieldsFromPost(post: BlogPost) {
   const author = post.author;
-  if (!author) {
-    return { ...defaultAuthorOverride };
-  }
 
   return {
-    first_name: author.first_name || "",
-    last_name: author.last_name || "",
-    role: author.blog_author_role || "",
-    bio: author.blog_author_bio || "",
-    avatar_url: author.profile_pic_url || "",
-    archive_url: author.blog_author_archive_url || "",
-    team_url: author.blog_author_team_url || "",
+    first_name: author?.first_name || "",
+    last_name: author?.last_name || "",
+    role: author?.role || "",
+    bio: author?.bio || "",
+    avatar_url: author?.avatar_url || "",
+    archive_url: author?.archive_url || "",
+    team_url: author?.team_url || "",
+    email: author?.user?.email || "",
   };
-}
-
-function mapAuthorOverrideFromPost(post: BlogPost): BlogPostFormType["author_override"] {
-  return resolveAuthorFieldsFromPost(post);
 }
 
 export function mapBlogPostToFormValues(post: BlogPost): BlogPostFormType {
@@ -572,8 +476,7 @@ export function mapBlogPostToFormValues(post: BlogPost): BlogPostFormType {
     published_at: post.published_at || null,
     categories: post.categories || [],
     tags: post.tags || [],
-    author_id: post.author_id ?? post.author?.id ?? null,
-    author_override: mapAuthorOverrideFromPost(post),
+    author_id: post.author_id ?? post.author?.id ?? (undefined as unknown as number),
     sources: (post.sources || []).map(mapSourceToFormValue),
     related_posts: relatedBlogs.map((blog) => ({
       id: blog.id,
@@ -628,17 +531,10 @@ export function buildBlogPostFormData(
 ): FormData {
   const formData = new FormData();
   const firstPersonCallouts = data.first_person_callouts ?? [];
-  const contentWithInjectedCallouts = injectFirstPersonCalloutsIntoContent(
-    data.content,
-    firstPersonCallouts.map((callout) => ({
-      label: callout.label || "",
-      heading: callout.heading,
-      body: callout.body,
-    })),
-  );
 
   formData.append("title", data.title);
-  formData.append("content", contentWithInjectedCallouts);
+  // Keep content as the user left it — section placeholders are optional and never auto-inserted.
+  formData.append("content", data.content);
   formData.append("slug", data.slug);
   formData.append("status", data.status);
 
@@ -666,21 +562,6 @@ export function buildBlogPostFormData(
     formData.append("author_id", String(data.author_id));
   }
 
-  const authorAvatarFile =
-    data.author_avatar instanceof File ? data.author_avatar : null;
-  const authorOverridePayload = buildAuthorOverridePayload(
-    data.author_override,
-    authorAvatarFile,
-  );
-
-  if (authorOverridePayload) {
-    formData.append("author_override", JSON.stringify(authorOverridePayload));
-  }
-
-  if (authorAvatarFile) {
-    formData.append("author_avatar", authorAvatarFile);
-  }
-
   const validSources = data.sources.filter((source) => source.label?.trim());
   if (validSources.length > 0) {
     formData.append(
@@ -698,6 +579,8 @@ export function buildBlogPostFormData(
         }),
       ),
     );
+  } else if (options?.isEdit) {
+    formData.append("sources", "");
   }
 
   if (data.related_posts.length > 0) {
@@ -745,50 +628,25 @@ export function buildBlogPostFormData(
     formData.append("inline_product_card", "");
   }
 
-  if (options?.isEdit) {
+  if (firstPersonCallouts.length > 0) {
+    formData.append(
+      "first_person_callouts",
+      JSON.stringify(
+        firstPersonCallouts.map((callout) => {
+          const entry: { label?: string; heading: string; body: string } = {
+            heading: callout.heading.trim(),
+            body: callout.body,
+          };
+          if (callout.label?.trim()) {
+            entry.label = callout.label.trim();
+          }
+          return entry;
+        }),
+      ),
+    );
+  } else if (options?.isEdit) {
     formData.append("first_person_callouts", "");
   }
 
   return formData;
-}
-
-export function getAuthorDisplayName(
-  override: BlogPostFormType["author_override"],
-): string {
-  const name = [override.first_name, override.last_name]
-    .filter(Boolean)
-    .join(" ")
-    .trim();
-  return name || "Author";
-}
-
-function buildAuthorOverridePayload(
-  override: BlogPostFormType["author_override"],
-  authorAvatarFile: File | null,
-): BlogAuthorOverride | null {
-  const payload: BlogAuthorOverride = {};
-
-  if (override.first_name?.trim()) {
-    payload.first_name = override.first_name.trim();
-  }
-  if (override.last_name?.trim()) {
-    payload.last_name = override.last_name.trim();
-  }
-  if (override.role?.trim()) {
-    payload.role = override.role.trim();
-  }
-  if (override.bio?.trim()) {
-    payload.bio = override.bio.trim();
-  }
-  if (override.archive_url?.trim()) {
-    payload.archive_url = override.archive_url.trim();
-  }
-  if (override.team_url?.trim()) {
-    payload.team_url = override.team_url.trim();
-  }
-  if (!authorAvatarFile && override.avatar_url?.trim()) {
-    payload.avatar_url = override.avatar_url.trim();
-  }
-
-  return Object.keys(payload).length > 0 || authorAvatarFile ? payload : null;
 }

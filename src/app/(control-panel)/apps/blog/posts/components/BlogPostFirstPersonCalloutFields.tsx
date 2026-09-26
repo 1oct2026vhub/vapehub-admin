@@ -54,10 +54,9 @@ export default function BlogPostFirstPersonCalloutFields({
           First-person callout
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-          Optional. Configure each callout here. Add{" "}
-          {BLOG_PLACEHOLDER_TOKENS.firstPersonCallout(1)} in the article content to choose
-          placement, or leave it out and the callout will be appended when you save.
-          Maximum 2 callouts per article.
+          Optional. Configure each callout here. Paste{" "}
+          {BLOG_PLACEHOLDER_TOKENS.firstPersonCallout(1)} into the article content only if you
+          want it shown there — placement is optional. Maximum 2 callouts per article.
         </Typography>
       </Box>
 
@@ -65,12 +64,12 @@ export default function BlogPostFirstPersonCalloutFields({
         <BlogPlaceholderInsertButton
           token={BLOG_PLACEHOLDER_TOKENS.firstPersonCallout(1)}
           label="First callout placeholder"
-          description="Copy and paste into the Content editor where callout 1 should appear."
+          description="Optional. Copy and paste into the Content editor only if you want placement for callout 1."
         />
         <BlogPlaceholderInsertButton
           token={BLOG_PLACEHOLDER_TOKENS.firstPersonCallout(2)}
           label="Second callout placeholder"
-          description="Copy and paste into the Content editor where callout 2 should appear."
+          description="Optional. Copy and paste into the Content editor only if you want placement for callout 2."
         />
       </Box>
 

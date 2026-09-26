@@ -81,7 +81,7 @@ export function ensureTypeCardsStorefrontStyles(html: string): string {
     /<style[^>]*data-type-cards-css=["']1["'][^>]*>[\s\S]*?<\/style>/gi,
     ""
   ).trim();
-  // Refresh CSS + rewrite legacy img inline styles → 297×180 frame
+  // Refresh CSS + rewrite legacy img inline styles → 891×540 frame
   return normalizeTypeCardImageInlineStyles(
     `${TYPE_CARDS_STYLE_TAG}\n${withoutOld}`
   );

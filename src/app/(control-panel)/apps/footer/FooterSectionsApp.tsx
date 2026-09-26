@@ -57,6 +57,7 @@ import {
   reorderFooterLink,
 } from "@/services/apiFooter";
 import FooterLinksDialog from "./components/FooterLinksDialog";
+import AccreditationCardsSection from "./components/AccreditationCardsSection";
 import PageBreadcrumb from "@/components/PageBreadcrumb";
 
 // dnd-kit imports
@@ -419,6 +420,11 @@ export default function FooterSectionsApp() {
         <PageBreadcrumb />
         </div>
         <Box className="sm:py-12 py-8">
+          <AccreditationCardsSection
+            onSuccess={(message) => showSnackbar(message, "success")}
+            onError={(message) => showSnackbar(message, "error")}
+          />
+
           <Box
             display="flex"
             flexDirection={{ xs: "column", sm: "row" }}

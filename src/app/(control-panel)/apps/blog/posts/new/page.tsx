@@ -68,6 +68,7 @@ export default function CreateBlogPost() {
     setValue,
     watch,
     trigger,
+    getValues,
     formState: { isValid },
   } = useForm<BlogPostFormType>({
     mode: "all",
@@ -276,7 +277,7 @@ export default function CreateBlogPost() {
             <div role="tabpanel" hidden={activeTab !== 1}>
               {activeTab === 1 && (
                 <Paper sx={{ p: 4 }}>
-                  <BlogPostEeatSections control={control} setValue={setValue} />
+                  <BlogPostEeatSections control={control} getValues={getValues} />
                 </Paper>
               )}
             </div>

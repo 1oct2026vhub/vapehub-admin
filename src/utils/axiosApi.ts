@@ -1,3 +1,4 @@
+
 // import axios from "axios";
 // import { getAuthToken, logoutUser } from "@/utils/auth";
 
@@ -166,12 +167,11 @@ axiosApi.interceptors.request.use(
       }
     }
 
-    // ✅ Set `Content-Type` only if not already defined
-    if (!config.headers["Content-Type"]) {
-      config.headers["Content-Type"] =
-        config.data instanceof FormData
-          ? "multipart/form-data"
-          : "application/json";
+    // Let the browser set multipart boundaries for file uploads.
+    if (config.data instanceof FormData) {
+      delete config.headers["Content-Type"];
+    } else if (!config.headers["Content-Type"]) {
+      config.headers["Content-Type"] = "application/json";
     }
 
     return config;

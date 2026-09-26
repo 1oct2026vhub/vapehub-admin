@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   Box,
@@ -36,13 +36,11 @@ import BlogPostInlineProductCardFields from "../../components/BlogPostInlineProd
 import BlogPostFirstPersonCalloutFields from "../../components/BlogPostFirstPersonCalloutFields";
 import BlogPostDetailsFields from "../../components/BlogPostDetailsFields";
 import { BlogPostContentEditorProvider } from "../../components/BlogPostContentEditorContext";
-import BlogPostFormValidationAlert from "../../components/BlogPostFormValidationAlert";
 import {
   buildBlogPostFormData,
   blogPostBaseSchema,
   blogPostDefaultValues,
   mapBlogPostToFormValues,
-  resolveAuthorFieldsFromPost,
   MIN_IMAGE_HEIGHT,
   MIN_IMAGE_WIDTH,
   MAX_IMAGE_HEIGHT,
@@ -77,6 +75,7 @@ export default function EditBlogPost() {
     watch,
     reset,
     trigger,
+    getValues,
     formState: { isValid },
   } = useForm<BlogPostFormType>({
     mode: "all",
@@ -88,11 +87,6 @@ export default function EditBlogPost() {
   const slugValue = watch("slug");
   const currentStatus = watch("status");
   const imageValue = watch("image");
-
-  const defaultAvatarUrl = useMemo(() => {
-    if (!post) return undefined;
-    return resolveAuthorFieldsFromPost(post).avatar_url || undefined;
-  }, [post]);
 
   const fetchCategories = debounce(async (searchTerm: string) => {
     try {
@@ -237,7 +231,6 @@ export default function EditBlogPost() {
       await updateBlogPost(post.id, formData);
 
       showSnackbar("Post updated successfully", "success");
-      router.push("/apps/blog/posts");
     } catch (error: any) {
       if (error?.errors && error?.errors.length > 0) {
         showSnackbar(error.errors[0]?.msg, "error");
@@ -335,9 +328,8 @@ export default function EditBlogPost() {
             <Paper sx={{ p: 4 }}>
               <BlogPostEeatSections
                 control={control}
-                setValue={setValue}
-                defaultAvatarUrl={defaultAvatarUrl}
-                skipAuthorProfileLoad
+                getValues={getValues}
+                postId={post.id}
               />
             </Paper>
           )}

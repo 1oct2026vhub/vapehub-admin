@@ -132,15 +132,16 @@ export default function BlogPostInlineProductCardFields({
           Inline product card
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-          Optional. Configure the card here, then insert {BLOG_PLACEHOLDER_TOKENS.inlineProductCard}{" "}
-          in the article content where it should appear. Max 1 per article.
+          Optional. Configure the card here. Paste {BLOG_PLACEHOLDER_TOKENS.inlineProductCard}{" "}
+          into the article content only if you want it shown there — placement is optional.
+          Max 1 per article.
         </Typography>
       </Box>
 
       <BlogPlaceholderInsertButton
         token={BLOG_PLACEHOLDER_TOKENS.inlineProductCard}
         label="Inline product card placeholder"
-        description="Copy and paste into the Content editor where the product card should appear."
+        description="Optional. Copy and paste into the Content editor only if you want placement in the article."
       />
 
       <Controller

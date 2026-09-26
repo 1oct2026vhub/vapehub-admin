@@ -20,14 +20,43 @@ export interface BlogRelatedBlog {
 /** @deprecated Use BlogRelatedBlog — kept for backward compatibility */
 export type BlogRelatedPost = BlogRelatedBlog;
 
-export interface BlogAuthorOverride {
-  first_name?: string;
+export interface BlogAuthor {
+  id: number;
+  user_id?: number | null;
+  first_name: string;
+  last_name?: string | null;
+  role?: string | null;
+  bio?: string | null;
+  slug?: string | null;
+  avatar_url?: string | null;
+  archive_url?: string | null;
+  team_url?: string | null;
+  updated_by?: number | null;
+  created_at?: string;
+  updated_at?: string;
+  user?: {
+    id: number;
+    first_name?: string;
+    last_name?: string;
+    email?: string;
+  } | null;
+  updatedBy?: {
+    id: number;
+    first_name?: string;
+    last_name?: string;
+  } | null;
+}
+
+export interface BlogAuthorPayload {
+  first_name: string;
   last_name?: string;
   role?: string;
   bio?: string;
-  avatar_url?: string;
+  slug?: string;
+  user_id?: number | null;
   archive_url?: string;
   team_url?: string;
+  avatar?: File;
 }
 
 export type BlogPullQuoteSourceType =
@@ -90,19 +119,7 @@ export interface BlogPost {
   categories?: BlogCategory[];
   tags?: BlogTag[];
   author_id?: number | null;
-  author_override?: BlogAuthorOverride;
-  author?: {
-    id?: number;
-    first_name: string;
-    last_name: string;
-    email: string;
-    profile_pic_url?: string;
-    blog_author_role?: string;
-    blog_author_bio?: string;
-    blog_author_slug?: string;
-    blog_author_archive_url?: string;
-    blog_author_team_url?: string;
-  };
+  author?: BlogAuthor | null;
   sources?: BlogSource[];
   related_blog_ids?: number[];
   related_blogs?: BlogRelatedBlog[];
@@ -439,3 +456,102 @@ export const getBlogTagById = async (
     throw error;
   }
 };
+
+function unwrapBlogAuthors(response: unknown): BlogAuthor[] {
+  const payload = response as {
+    data?: BlogAuthor[] | { authors?: BlogAuthor[]; data?: BlogAuthor[] };
+    authors?: BlogAuthor[];
+  } | BlogAuthor[] | null;
+
+  if (!payload) return [];
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload.authors)) return payload.authors;
+  if (Array.isArray(payload.data)) return payload.data;
+  if (payload.data && Array.isArray(payload.data.authors)) return payload.data.authors;
+  if (payload.data && Array.isArray(payload.data.data)) return payload.data.data;
+  return [];
+}
+
+function unwrapBlogAuthor(response: unknown): BlogAuthor {
+  const payload = response as { data?: BlogAuthor } | BlogAuthor | null;
+  if (payload && "data" in payload && payload.data && typeof payload.data === "object" && !Array.isArray(payload.data)) {
+    return payload.data;
+  }
+  return payload as BlogAuthor;
+}
+
+const buildBlogAuthorFormData = (payload: BlogAuthorPayload) => {
+  const formData = new FormData();
+  formData.append("first_name", payload.first_name);
+  formData.append("last_name", payload.last_name || "");
+  if (payload.role !== undefined) formData.append("role", payload.role);
+  if (payload.bio !== undefined) formData.append("bio", payload.bio);
+  if (payload.slug !== undefined) formData.append("slug", payload.slug);
+  if (payload.archive_url !== undefined) formData.append("archive_url", payload.archive_url);
+  if (payload.team_url !== undefined) formData.append("team_url", payload.team_url);
+  if (payload.user_id) {
+    formData.append("user_id", String(payload.user_id));
+  }
+  if (payload.avatar) {
+    formData.append("avatar", payload.avatar);
+  }
+  return formData;
+};
+
+export interface BlogAuthorListResponse {
+  authors: BlogAuthor[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
+export const getBlogAuthors = async (
+  params: { search?: string; page?: number; limit?: number; sort?: string; order?: "ASC" | "DESC" } = {},
+): Promise<BlogAuthorListResponse> => {
+  const response = await fetcher("/api/admin/blog/authors", params);
+  const authors = unwrapBlogAuthors(response);
+  const payload = response as {
+    total?: number;
+    page?: number;
+    limit?: number;
+    data?: { total?: number; page?: number; limit?: number };
+  } | null;
+  const meta =
+    payload?.data && typeof payload.data === "object" && !Array.isArray(payload.data)
+      ? payload.data
+      : payload;
+
+  return {
+    authors,
+    total: Number(meta?.total ?? authors.length),
+    page: Number(meta?.page ?? params.page ?? 1),
+    limit: Number(meta?.limit ?? params.limit ?? 10),
+  };
+};
+
+export const getBlogAuthor = async (id: number): Promise<BlogAuthor> => {
+  const response = await fetcher(`/api/admin/blog/authors/${id}`);
+  return unwrapBlogAuthor(response);
+};
+
+export const createBlogAuthor = async (payload: BlogAuthorPayload) => {
+  const response = await poster("/api/admin/blog/authors", buildBlogAuthorFormData(payload));
+  return unwrapBlogAuthor(response);
+};
+
+export const updateBlogAuthor = async (id: number, payload: BlogAuthorPayload) => {
+  const response = await updater(
+    `/api/admin/blog/authors/${id}`,
+    buildBlogAuthorFormData(payload),
+  );
+  return unwrapBlogAuthor(response);
+};
+
+export const deleteBlogAuthor = async (id: number) => {
+  return deleter(`/api/admin/blog/authors/${id}`);
+};
+
+export function getBlogAuthorDisplayName(author?: BlogAuthor | null): string {
+  if (!author) return "";
+  return [author.first_name, author.last_name].filter(Boolean).join(" ").trim();
+}
