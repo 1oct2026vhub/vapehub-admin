@@ -33,25 +33,26 @@ function buildWarehouseCalloutDiv(label: string, title: string, bodyHtml: string
   return `<div class="blog-warehouse-callout" data-label="${escapeCalloutAttr(label)}" data-title="${escapeCalloutAttr(title)}" data-body-html="${escapeCalloutAttr(bodyHtml)}"></div>`;
 }
 
-/** Replace {{firstPersonCallout:n}} tokens with storefront marker divs before save. */
+/** Replace {{firstPersonCallout:n}} tokens with storefront marker divs when present.
+ * Does not append markers — placement in content is optional and user-controlled.
+ */
 export function injectFirstPersonCalloutsIntoContent(
   content: string,
   callouts: InjectedFirstPersonCallout[],
 ): string {
   return callouts.reduce((result, callout, index) => {
     const token = BLOG_PLACEHOLDER_TOKENS.firstPersonCallout(index + 1);
+    if (!result.includes(token)) {
+      return result;
+    }
+
     const marker = buildWarehouseCalloutDiv(
       callout.label?.trim() || DEFAULT_WAREHOUSE_CALLOUT_LABEL,
       callout.heading.trim(),
       callout.body,
     );
 
-    if (result.includes(token)) {
-      return result.split(token).join(marker);
-    }
-
-    const trimmed = result.trimEnd();
-    return trimmed ? `${trimmed}${marker}` : marker;
+    return result.split(token).join(marker);
   }, content);
 }
 

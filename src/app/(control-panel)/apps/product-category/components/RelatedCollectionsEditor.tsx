@@ -45,7 +45,7 @@ export default function RelatedCollectionsEditor({
         Optional type-card grid HTML (stored as <code>type_cards_html</code>).
         Open <strong>Templates</strong> → <strong>Category Cards (4-col)</strong>,
         then replace images, text, and shop links. Card images must be exactly{" "}
-        <strong>297 × 180 px</strong>, max 5MB (PNG, JPG, JPEG, WebP).
+        <strong>891 × 540 px</strong>, max 5MB (PNG, JPG, JPEG, WebP).
         Separate from related text+URL links.
       </Typography>
       <FormCKEditor

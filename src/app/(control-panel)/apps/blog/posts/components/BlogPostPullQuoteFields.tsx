@@ -38,16 +38,16 @@ export default function BlogPostPullQuoteFields({
           Pull quote (authoritative source)
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-          Optional. Configure the quote here, then insert {BLOG_PLACEHOLDER_TOKENS.pullQuote}{" "}
-          in the article content where it should appear. Attribute to an authoritative
-          external source — not internal staff.
+          Optional. Configure the quote here. Paste {BLOG_PLACEHOLDER_TOKENS.pullQuote} into
+          the article content only if you want it shown there — placement is optional.
+          Attribute to an authoritative external source — not internal staff.
         </Typography>
       </Box>
 
       <BlogPlaceholderInsertButton
         token={BLOG_PLACEHOLDER_TOKENS.pullQuote}
         label="Pull quote placeholder"
-        description="Copy and paste into the Content editor where the pull quote should appear."
+        description="Optional. Copy and paste into the Content editor only if you want placement in the article."
       />
 
       <Controller
